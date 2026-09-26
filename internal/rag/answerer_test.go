@@ -157,3 +157,12 @@ func TestAnswerEmbedsSemanticTextAndPromptsWithQuestion(t *testing.T) {
 		t.Fatalf("expected the topic embedded and the question prompted, got %q / %q", embedder.Inputs, last)
 	}
 }
+
+func TestAnswerReportsUnknownCitations(t *testing.T) {
+	generator := &testfakes.FakeGenerator{Reply: "Você corrigiu o login [1] e o cache [7]."}
+	answerer, _ := newTestAnswerer(storeWithHits(scored("a", event.SourceGit, 0.1)), generator)
+	answer, err := answerer.Answer(context.Background(), queryplan.Query{Question: "o que fiz?"}, AnswerObserver{})
+	if err != nil || len(answer.Cited) != 1 || len(answer.UnknownCitations) != 1 || answer.UnknownCitations[0] != 7 {
+		t.Fatalf("expected [7] reported as unknown, got %+v (err %v)", answer, err)
+	}
+}

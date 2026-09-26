@@ -45,10 +45,10 @@ func TestIsNotFoundReply(t *testing.T) {
 	}
 }
 
-func TestCitedIndexesDedupesAndDropsOutOfRange(t *testing.T) {
-	got := citedIndexes("veja [2], [1], [2] e [9]", 3)
-	if !slices.Equal(got, []int{1, 2}) {
-		t.Fatalf("expected [1 2], got %v", got)
+func TestCitedIndexesDedupesAndSeparatesUnknown(t *testing.T) {
+	valid, unknown := citedIndexes("veja [2], [1], [2], [0] e [9]", 3)
+	if !slices.Equal(valid, []int{1, 2}) || !slices.Equal(unknown, []int{0, 9}) {
+		t.Fatalf("expected [1 2] and [0 9], got %v and %v", valid, unknown)
 	}
 }
 

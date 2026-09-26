@@ -31,6 +31,9 @@ type Answer struct {
 	Evidence []storage.ScoredEvent
 	// Cited lists the 1-based Evidence numbers the reply references.
 	Cited []int
+	// UnknownCitations are numbers the reply cites that match no evidence:
+	// the claim next to them has no source.
+	UnknownCitations []int
 }
 
 // Answerer runs the retrieve-then-generate loop.
@@ -116,7 +119,8 @@ func (a *Answerer) generate(ctx context.Context, query queryplan.Query, hits []s
 	if isNotFoundReply(reply) {
 		return Answer{}, nil
 	}
-	return Answer{Text: strings.TrimSpace(reply), Found: true, Evidence: hits, Cited: citedIndexes(reply, len(hits))}, nil
+	cited, unknown := citedIndexes(reply, len(hits))
+	return Answer{Text: strings.TrimSpace(reply), Found: true, Evidence: hits, Cited: cited, UnknownCitations: unknown}, nil
 }
 
 // retrieve embeds the query's semantic text. Criteria (people, direction)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/provenance"
 	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
@@ -106,11 +107,31 @@ func renderSources(out io.Writer, answer rag.Answer, location *time.Location) {
 	for _, number := range numbers {
 		renderEvidenceLine(out, number, answer.Evidence[number-1].Event, location)
 	}
+	renderUnknownCitations(out, answer.UnknownCitations)
 }
 
+// renderEvidenceLine adds the locator (full commit hash, Teams link) on a
+// second line unless the summary already shows it (a page's URL, a path).
 func renderEvidenceLine(out io.Writer, number int, ev event.Event, location *time.Location) {
+	description := describeEvent(ev)
 	fmt.Fprintf(out, "  [%d] %-9s %s  %s\n", number, "["+string(ev.Source)+"]",
-		ev.Timestamp.In(location).Format(fullStampLayout), describeEvent(ev))
+		ev.Timestamp.In(location).Format(fullStampLayout), description)
+	if locator := provenance.Of(ev).Locator; !strings.Contains(description, locator) {
+		fmt.Fprintf(out, "      ↳ %s\n", locator)
+	}
+}
+
+// renderUnknownCitations flags numbers the model cited that match no
+// consulted event: the sentence next to them has no source.
+func renderUnknownCitations(out io.Writer, unknown []int) {
+	if len(unknown) == 0 {
+		return
+	}
+	labels := make([]string, len(unknown))
+	for i, number := range unknown {
+		labels[i] = fmt.Sprintf("[%d]", number)
+	}
+	fmt.Fprintf(out, "Atenção: a resposta cita %s, que não corresponde a nenhum evento consultado; esse trecho não tem fonte.\n", strings.Join(labels, ", "))
 }
 
 func allEvidenceNumbers(evidence []storage.ScoredEvent) []int {

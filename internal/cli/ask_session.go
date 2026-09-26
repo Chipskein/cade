@@ -2,9 +2,11 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/rag"
 )
 
@@ -14,14 +16,30 @@ type askSession struct {
 	env    commandEnv
 	status statusLine
 	stream answerStream
+	// jsonOutput replaces the streamed reply and text rendering with one
+	// JSON document at the end (`cade ask --json`).
+	jsonOutput bool
 }
 
-func newAskSession(env commandEnv) *askSession {
-	return &askSession{
-		env:    env,
-		status: statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal},
-		stream: answerStream{out: env.stdout},
+func newAskSession(env commandEnv, jsonOutput bool) *askSession {
+	streamTo := env.stdout
+	if jsonOutput {
+		streamTo = io.Discard
 	}
+	return &askSession{
+		env:        env,
+		status:     statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal},
+		stream:     answerStream{out: streamTo},
+		jsonOutput: jsonOutput,
+	}
+}
+
+// writeReport prints the JSON report of query, completed by fill.
+func (s *askSession) writeReport(query queryplan.Query, fill func(*askReport)) error {
+	s.status.clear()
+	report := newAskReport(query)
+	fill(&report)
+	return writeAskReport(s.env.stdout, report)
 }
 
 var stageMessages = map[rag.AnswerStage]string{

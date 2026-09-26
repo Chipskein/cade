@@ -21,6 +21,7 @@ type askFlags struct {
 	from      *string
 	to        *string
 	noFilters *bool
+	json      *bool
 }
 
 func registerAskFlags(flags *flag.FlagSet) askFlags {
@@ -29,6 +30,7 @@ func registerAskFlags(flags *flag.FlagSet) askFlags {
 		from:      flags.String("from", "", "primeiro dia considerado (AAAA-MM-DD, hoje, ontem)"),
 		to:        flags.String("to", "", "último dia considerado (padrão: hoje quando --from é dado)"),
 		noFilters: flags.Bool("no-filters", false, "não interpretar filtros na pergunta (período, pessoas, fonte)"),
+		json:      flags.Bool("json", false, "saída em JSON: plano, resultado e a referência de cada evento usado"),
 	}
 }
 
@@ -49,7 +51,7 @@ func runAsk(ctx context.Context, env commandEnv, args []string) error {
 
 // askWithStore interprets the question, then lists or answers.
 func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store storage.EventStore, text string, filters askFlags) error {
-	session := newAskSession(env)
+	session := newAskSession(env, *filters.json)
 	models, err := env.loadAskModels(cfg, store, session)
 	if err != nil {
 		return err
@@ -77,6 +79,9 @@ func (env commandEnv) answerForQuery(ctx context.Context, models *askModels, que
 	if err != nil {
 		session.status.clear()
 		return err
+	}
+	if session.jsonOutput {
+		return session.writeReport(query, func(report *askReport) { report.Answer = answerReportOf(answer) })
 	}
 	session.render(answer, env.toolkit.Now().Location())
 	return nil

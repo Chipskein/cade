@@ -64,7 +64,7 @@ func TestAnswerStreamReleasesTextThatOnlyStartedLikeMarker(t *testing.T) {
 func newTestSession(interactive bool) (*askSession, *strings.Builder, *strings.Builder) {
 	var stdout, stderr strings.Builder
 	env := commandEnv{stdout: &stdout, stderr: &stderr, toolkit: Toolkit{StderrIsTerminal: interactive}}
-	return newAskSession(env), &stdout, &stderr
+	return newAskSession(env, false), &stdout, &stderr
 }
 
 func TestAskSessionShowsStagesAndPromptProgress(t *testing.T) {

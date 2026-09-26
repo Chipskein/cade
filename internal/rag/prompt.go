@@ -82,20 +82,30 @@ func isNotFoundReply(reply string) bool {
 	return strings.Contains(reply, NotFoundMarker) || strings.TrimSpace(reply) == ""
 }
 
-// citedIndexes returns the distinct 1-based evidence numbers the reply cites,
-// ignoring numbers outside 1..count (the model occasionally invents some).
-func citedIndexes(reply string, count int) []int {
-	seen := map[int]bool{}
-	for _, match := range citationPattern.FindAllStringSubmatch(reply, -1) {
-		index, err := strconv.Atoi(match[1])
-		if err == nil && index >= 1 && index <= count {
-			seen[index] = true
+// citedIndexes splits the distinct evidence numbers the reply cites into
+// valid ones (1..count) and unknown ones, which the model invented.
+func citedIndexes(reply string, count int) (valid, unknown []int) {
+	for _, number := range citationNumbers(reply) {
+		if number >= 1 && number <= count {
+			valid = append(valid, number)
+		} else {
+			unknown = append(unknown, number)
 		}
 	}
-	indexes := make([]int, 0, len(seen))
-	for index := range seen {
-		indexes = append(indexes, index)
+	return valid, unknown
+}
+
+func citationNumbers(reply string) []int {
+	seen := map[int]bool{}
+	for _, match := range citationPattern.FindAllStringSubmatch(reply, -1) {
+		if number, err := strconv.Atoi(match[1]); err == nil {
+			seen[number] = true
+		}
 	}
-	sort.Ints(indexes)
-	return indexes
+	numbers := make([]int, 0, len(seen))
+	for number := range seen {
+		numbers = append(numbers, number)
+	}
+	sort.Ints(numbers)
+	return numbers
 }

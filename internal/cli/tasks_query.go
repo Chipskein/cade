@@ -32,11 +32,23 @@ func (env commandEnv) tasksForQuery(ctx context.Context, cfg config.Config, stor
 	report.Tasks = withTaskStatus(report.Tasks, query.TaskStatus)
 	session.status.clear()
 	if query.Criteria.IsEmpty() && query.Topic == "" {
-		renderTaskReport(env.stdout, *query.Days, report, false)
-		return nil
+		return env.showTaskReport(query, report, session)
 	}
 	matching := tasksMatching(tasks.NewBuilder(patterns), report.Tasks, query, env.stderr)
+	if session.jsonOutput {
+		return session.writeReport(query, func(json *askReport) { json.Tasks = taskReports(matching) })
+	}
 	renderFilteredTasks(env.stdout, *query.Days, matching)
+	return nil
+}
+
+// showTaskReport prints the unfiltered report; the JSON lists every task,
+// with its involvement, instead of summarizing others' tasks.
+func (env commandEnv) showTaskReport(query queryplan.Query, report tasks.Report, session *askSession) error {
+	if session.jsonOutput {
+		return session.writeReport(query, func(json *askReport) { json.Tasks = taskReports(report.Tasks) })
+	}
+	renderTaskReport(env.stdout, *query.Days, report, false)
 	return nil
 }
 

@@ -28,6 +28,9 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 	if events, err = env.narrowByTopic(ctx, models, query.Topic, events); err != nil {
 		return err
 	}
+	if session.jsonOutput {
+		return session.writeReport(query, func(report *askReport) { report.Events = eventReferences(events) })
+	}
 	session.status.clear()
 	renderTimeline(env.stdout, days, events)
 	return nil

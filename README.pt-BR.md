@@ -81,6 +81,7 @@ cade timeline ontem
 cade timeline --source git 2026-09-01 2026-09-07
 cade ask "o que eu fiz relacionado a cache?"
 cade ask --source teams --from 2026-09-01 "quando ficou marcado o deploy?"
+cade ask --json "o que fiz sobre cache?"         # plano + resultado + origem de cada evento, em JSON
 cade tasks ontem                            # tarefas trabalhadas e concluídas (PR aberto)
 cade ask "quais tarefas finalizei essa semana?"   # mesmo relatório, em linguagem natural
 cade forget teams                           # apaga os eventos de uma fonte, para reingerir
@@ -147,8 +148,14 @@ O CEP cadastrado não existe mais e precisa ser atualizado [2]; o Rui perguntou 
 
 Fontes citadas:
   [1] [teams]   2026-09-25 09:30  Rui Costa: eles alteraram o CEP? ou precisa alterar para esse?  (chat Carla Dias, Rui Costa)
+      ↳ https://teams.microsoft.com/l/message/19:a1b2c3@unq.gbl.spaces/1758803400000
   [2] [teams]   2026-09-25 09:31  Carla Dias: esse CEP que está cadastrado não existe mais  (chat Carla Dias, Rui Costa)
+      ↳ https://teams.microsoft.com/l/message/19:a1b2c3@unq.gbl.spaces/1758803460000
 ```
+
+Cada fonte citada mostra onde está o original (`↳`): `repositório@hash` para um commit, um link que abre a mensagem no Teams; páginas e arquivos já mostram a URL ou o caminho. Se a resposta citar um número que não corresponde a nenhum evento consultado, um aviso diz que aquele trecho não tem fonte.
+
+`--json` imprime o plano resolvido e o resultado com uma referência (uid, fonte, data, localizador) de cada evento usado: as evidências dadas ao modelo e quais foram citadas, os eventos listados, ou cada tarefa com seus PRs e eventos.
 
 ## Tarefas
 
