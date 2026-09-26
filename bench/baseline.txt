@@ -1,0 +1,37 @@
+# cade benchmark baseline — 2026-09-26, commit aead214 + working tree
+# GPU: NVIDIA GeForce RTX 3060, 12288 MiB; build: make bench (CUDA)
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/storage/sqlitestore
+cpu: AMD Ryzen 5 5500                               
+BenchmarkSearchSimilar/events=1000/all-12     	       5	   2051873 ns/op
+BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	   1434587 ns/op
+BenchmarkSearchSimilar/events=1000/one-day-12              	       5	    756019 ns/op
+BenchmarkSearchSimilar/events=10000/all-12                 	       5	  12006037 ns/op
+BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   7477660 ns/op
+BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   6297888 ns/op
+BenchmarkSearchSimilar/events=100000/all-12                	       5	 106063467 ns/op
+BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  62868000 ns/op
+BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  51243528 ns/op
+BenchmarkEventsBetween/events=1000/one-day-12              	       5	     36103 ns/op
+BenchmarkEventsBetween/events=1000/all-12                  	       5	   2095759 ns/op
+BenchmarkEventsBetween/events=10000/one-day-12             	       5	    133497 ns/op
+BenchmarkEventsBetween/events=10000/all-12                 	       5	  26987434 ns/op
+BenchmarkEventsBetween/events=100000/one-day-12            	       5	    716423 ns/op
+BenchmarkEventsBetween/events=100000/all-12                	       5	 347386898 ns/op
+BenchmarkEmbeddingsFor/events=1000-12                      	       5	 173827295 ns/op
+BenchmarkEmbeddingsFor/events=10000-12                     	       5	 153330017 ns/op
+BenchmarkEmbeddingsFor/events=100000-12                    	       5	 168258330 ns/op
+BenchmarkSaveEvent-12                                      	       5	    657591 ns/op
+BenchmarkDatabaseSize/events=1000-12                       	       5	    658076 ns/op	      3633 bytes/event
+BenchmarkDatabaseSize/events=10000-12                      	       5	    832513 ns/op	      3562 bytes/event
+BenchmarkDatabaseSize/events=100000-12                     	       5	   8256748 ns/op	      3497 bytes/event
+ok  	github.com/chipskein/cade/internal/storage/sqlitestore	20.008s
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/benchmarks
+cpu: AMD Ryzen 5 5500                               
+BenchmarkEmbedEvent-12      	       5	  27469164 ns/op	       390.0 gpu_MB	       978.5 rss_MB
+BenchmarkPlanQuestion-12    	       5	1387038265 ns/op	      2554 gpu_MB	      1045 rss_MB
+BenchmarkAnswer-12          	       5	 557786229 ns/op	      2554 gpu_MB	        52.20 reply_tokens/op	      1098 rss_MB
+ok  	github.com/chipskein/cade/internal/benchmarks	12.702s

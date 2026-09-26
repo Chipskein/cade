@@ -20,7 +20,7 @@ LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 
 PREFIX ?= $(HOME)/.local
 
-.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval fmt llama llama-cuda models clean
+.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval bench fmt llama llama-cuda models clean
 
 build: llama
 	go build -o bin/cade ./cmd/cade
@@ -58,6 +58,13 @@ eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MOD
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestRetrievalSuiteWithModel ./internal/retrievalsuite
 
 eval: eval-plan eval-retrieval
+
+# Latency and memory: storage at 1k/10k/100k synthetic events (search,
+# reads, writes, bytes per event) and the models (embedding, question
+# interpretation, answer generation). Save the output to compare runs.
+bench: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) models
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) \
+		go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -run '^$$' -bench . -benchtime 5x ./internal/storage/sqlitestore ./internal/benchmarks
 
 fmt:
 	gofmt -w cmd internal

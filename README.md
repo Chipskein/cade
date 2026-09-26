@@ -241,8 +241,11 @@ make test-models   # also runs the tests against the real models
 make eval-plan     # scores question interpretation (GPU when the CUDA Toolkit is installed; GO_TAGS= forces CPU)
 make eval-retrieval  # scores retrieval: recall, MRR, rejection
 make eval          # both
+make bench         # latency and memory: storage at 1k/10k/100k events, models
 ```
 
 `eval-plan` runs the questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, tasks, PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) and every question it misread. It fails when a field drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently.
 
 `eval-retrieval` ingests a synthetic corpus (`testdata/queries/retrieval.json`: ~250 commits, pages, files and messages, including look-alikes such as PROJ-418 next to PROJ-481 and everyday chatter) into a real SQLite store with the real embedder, and checks that each question brings back the events that answer it. It reports recall and MRR over answerable questions, and rejection: questions nothing answers must retrieve nothing.
+
+`bench` measures storage on synthetic histories of 1k, 10k and 100k events (vector search, reads by period, writes, bytes per event) and the models (embedding an event, interpreting a question, generating an answer) with process and GPU memory. `bench/baseline.txt` holds a reference run on an RTX 3060; save new runs and compare them with [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat).
