@@ -3,6 +3,7 @@ package queryplan
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
@@ -84,5 +85,24 @@ func TestPlanDropsDirectionForNonMessageSources(t *testing.T) {
 	plan, _ := parsePlan(`{"tipo": "listar", "periodo": "hoje", "fonte": "browser", "pessoas": [], "direcao": "recebidas", "assunto": "redis"}`)
 	if plan.Criteria.Direction != listing.AnyDirection {
 		t.Fatalf("expected no direction for browser, got %v", plan.Criteria.Direction)
+	}
+}
+
+func TestParsePlanTasksMode(t *testing.T) {
+	plan, err := parsePlan(`{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "concluidas"}`)
+	if err != nil || plan.Mode != ModeTasks || plan.TaskStatus != OnlyDone || plan.Period != "ontem" {
+		t.Fatalf("expected a done-tasks plan for yesterday, got %+v (err %v)", plan, err)
+	}
+}
+
+// Every example must carry every field, or the model learns to skip one
+// and the grammar forces it back in with a guess.
+func TestPlanExamplesHaveAllFields(t *testing.T) {
+	for _, example := range planExamples {
+		for _, field := range []string{`"tipo"`, `"periodo"`, `"fonte"`, `"pessoas"`, `"direcao"`, `"assunto"`, `"status"`} {
+			if !strings.Contains(example.plan, field) {
+				t.Errorf("example %q lacks %s", example.question, field)
+			}
+		}
 	}
 }

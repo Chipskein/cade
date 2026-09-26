@@ -27,9 +27,19 @@ var (
 	toPrepositions   = []string{"para", "pra", "pro", "para a", "para o", "to"}
 )
 
-// guardPlan drops a direction or period the question does not support.
+// Task reports need the question to be about tasks, and a status filter
+// needs a word for it; "não finalizei" counts as unfinished.
+var (
+	taskCues       = regexp.MustCompile(`\b(tarefas?|tasks?|tickets?|cards?|demandas?|issues?)\b`)
+	doneCues       = regexp.MustCompile(`(finaliz|conclu|termin|entreg|finish|complet|\bdone\b|\bclosed\b)`)
+	inProgressCues = regexp.MustCompile(`(andamento|pendente|abert|faltando|progress|pending|\bopen\b|unfinished|nao (finaliz|conclu|termin))`)
+)
+
+// guardPlan drops a mode, status, direction or period the question does
+// not support.
 func guardPlan(plan Plan, question string) Plan {
 	text := textnorm.Fold(question)
+	plan = guardTaskReport(plan, text)
 	if !directionSupported(plan.Criteria, text) {
 		plan.Criteria.Direction = listing.AnyDirection
 	}
@@ -37,6 +47,26 @@ func guardPlan(plan Plan, question string) Plan {
 		plan.Period = ""
 	}
 	return plan
+}
+
+func guardTaskReport(plan Plan, text string) Plan {
+	if plan.Mode == ModeTasks && !taskCues.MatchString(text) {
+		plan.Mode = ModeAnswer
+	}
+	if plan.Mode != ModeTasks || !statusSupported(plan.TaskStatus, text) {
+		plan.TaskStatus = AnyStatus
+	}
+	return plan
+}
+
+func statusSupported(status TaskStatus, text string) bool {
+	switch status {
+	case OnlyDone:
+		return doneCues.MatchString(text) && !inProgressCues.MatchString(text)
+	case OnlyInProgress:
+		return inProgressCues.MatchString(text)
+	}
+	return true
 }
 
 func directionSupported(criteria listing.Criteria, text string) bool {

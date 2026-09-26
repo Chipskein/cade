@@ -65,3 +65,26 @@ func TestGuardEnglishCues(t *testing.T) {
 		t.Error("\"with X\" must not keep a direction")
 	}
 }
+
+func TestGuardTaskReport(t *testing.T) {
+	cases := []struct {
+		question string
+		in       Plan
+		mode     Mode
+		status   TaskStatus
+	}{
+		{"quais tarefas finalizei essa semana?", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, OnlyDone},
+		{"which tasks are still in progress?", Plan{Mode: ModeTasks, TaskStatus: OnlyInProgress}, ModeTasks, OnlyInProgress},
+		{"tarefas que não finalizei ontem", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, AnyStatus},
+		{"tarefas que não finalizei ontem", Plan{Mode: ModeTasks, TaskStatus: OnlyInProgress}, ModeTasks, OnlyInProgress},
+		{"quais tarefas fiz ontem?", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, AnyStatus},
+		{"o que eu fiz ontem?", Plan{Mode: ModeTasks}, ModeAnswer, AnyStatus},
+		{"mensagens que finalizei", Plan{Mode: ModeList, TaskStatus: OnlyDone}, ModeList, AnyStatus},
+	}
+	for _, c := range cases {
+		got := guardPlan(c.in, c.question)
+		if got.Mode != c.mode || got.TaskStatus != c.status {
+			t.Errorf("guardPlan(%q): expected mode %d status %d, got %d %d", c.question, c.mode, c.status, got.Mode, got.TaskStatus)
+		}
+	}
+}

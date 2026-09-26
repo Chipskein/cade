@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
@@ -15,9 +16,10 @@ import (
 
 // askPlan is the resolved interpretation of a question.
 type askPlan struct {
-	mode     queryplan.Mode
-	question rag.Question
-	topic    string
+	mode       queryplan.Mode
+	question   rag.Question
+	topic      string
+	taskStatus queryplan.TaskStatus
 }
 
 // resolveAskPlan combines the model's reading of the question with the
@@ -32,9 +34,10 @@ func (env commandEnv) resolveAskPlan(ctx context.Context, generator llm.Structur
 	if source == "" {
 		source = plan.Source
 	}
-	resolved := askPlan{mode: plan.Mode, topic: plan.Topic,
+	resolved := askPlan{mode: plan.Mode, topic: plan.Topic, taskStatus: plan.TaskStatus,
 		question: rag.Question{Text: text, Source: source, Days: days, Criteria: plan.Criteria}}
-	return env.announcePlan(listingNeedsPeriod(resolved), session), nil
+	resolved = tasksDefaultToToday(listingNeedsPeriod(resolved), env.toolkit.Now())
+	return env.announcePlan(resolved, session), nil
 }
 
 // interpret asks the model for filters; a failure only costs the filters.
@@ -75,6 +78,16 @@ func listingNeedsPeriod(plan askPlan) askPlan {
 	return plan
 }
 
+// tasksDefaultToToday gives a period-less task question ("quais tarefas
+// finalizei?") today's report, as `cade tasks` does.
+func tasksDefaultToToday(plan askPlan, now time.Time) askPlan {
+	if plan.mode == queryplan.ModeTasks && plan.question.Days == nil {
+		today, _ := timeline.ParseDayRange("hoje", "", now)
+		plan.question.Days = &today
+	}
+	return plan
+}
+
 // announcePlan prints what was understood, so a wrong reading is visible
 // and can be overridden with flags.
 func (env commandEnv) announcePlan(plan askPlan, session *askSession) askPlan {
@@ -83,10 +96,14 @@ func (env commandEnv) announcePlan(plan askPlan, session *askSession) askPlan {
 	return plan
 }
 
-var directionLabels = map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"}
+var (
+	directionLabels = map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"}
+	modeLabels      = map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"}
+	statusFilters   = map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"}
+)
 
 func describePlan(plan askPlan) string {
-	parts := []string{map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar"}[plan.mode]}
+	parts := []string{modeLabels[plan.mode]}
 	question := plan.question
 	parts = appendIf(parts, string(question.Source), string(question.Source))
 	if question.Days != nil {
@@ -95,6 +112,7 @@ func describePlan(plan askPlan) string {
 	parts = appendIf(parts, strings.Join(question.Criteria.People, ", "), "pessoas: "+strings.Join(question.Criteria.People, ", "))
 	parts = appendIf(parts, directionLabels[question.Criteria.Direction], directionLabels[question.Criteria.Direction])
 	parts = appendIf(parts, plan.topic, "assunto: "+plan.topic)
+	parts = appendIf(parts, statusFilters[plan.taskStatus], statusFilters[plan.taskStatus])
 	if len(parts) == 1 {
 		parts = append(parts, "sem filtros")
 	}

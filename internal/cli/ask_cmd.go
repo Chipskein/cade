@@ -59,8 +59,11 @@ func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store
 	if err != nil {
 		return err
 	}
-	if plan.mode == queryplan.ModeList {
+	switch plan.mode {
+	case queryplan.ModeList:
 		return env.listForPlan(ctx, store, models, plan, session)
+	case queryplan.ModeTasks:
+		return env.tasksForPlan(ctx, cfg, store, plan, session)
 	}
 	return env.answerForPlan(ctx, models, plan, session)
 }

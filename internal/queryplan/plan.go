@@ -23,6 +23,17 @@ const (
 	ModeAnswer Mode = iota
 	// ModeList: every event matching the filters.
 	ModeList
+	// ModeTasks: the task report ("quais tarefas fiz ontem?").
+	ModeTasks
+)
+
+// TaskStatus narrows a task report to finished or unfinished tasks.
+type TaskStatus int
+
+const (
+	AnyStatus TaskStatus = iota
+	OnlyDone
+	OnlyInProgress
 )
 
 // Plan holds only what the question states; most questions need no
@@ -37,6 +48,8 @@ type Plan struct {
 	// Topic is what the question is about ("redis"); it ranks events when
 	// listing, so "páginas sobre redis" does not list every page.
 	Topic string
+	// TaskStatus only applies to ModeTasks.
+	TaskStatus TaskStatus
 }
 
 // maxPlanTokens fits the JSON with a few names; the grammar ends it sooner.
@@ -75,9 +88,14 @@ type rawPlan struct {
 	Pessoas []string `json:"pessoas"`
 	Direcao *string  `json:"direcao"`
 	Assunto *string  `json:"assunto"`
+	Status  *string  `json:"status"`
 }
 
-var directions = map[string]listing.Direction{"recebidas": listing.Received, "enviadas": listing.Sent}
+var (
+	directions   = map[string]listing.Direction{"recebidas": listing.Received, "enviadas": listing.Sent}
+	modes        = map[string]Mode{"responder": ModeAnswer, "listar": ModeList, "tarefas": ModeTasks}
+	taskStatuses = map[string]TaskStatus{"concluidas": OnlyDone, "em_andamento": OnlyInProgress}
+)
 
 func parsePlan(reply string) (Plan, error) {
 	var raw rawPlan
@@ -86,11 +104,10 @@ func parsePlan(reply string) (Plan, error) {
 	}
 	plan := Plan{
 		Period: strings.TrimSpace(deref(raw.Periodo)), Source: event.Source(deref(raw.Fonte)),
-		Topic:    strings.TrimSpace(deref(raw.Assunto)),
-		Criteria: listing.Criteria{Direction: directions[deref(raw.Direcao)], People: cleanNames(raw.Pessoas)},
-	}
-	if raw.Tipo == "listar" {
-		plan.Mode = ModeList
+		Topic:      strings.TrimSpace(deref(raw.Assunto)),
+		Criteria:   listing.Criteria{Direction: directions[deref(raw.Direcao)], People: cleanNames(raw.Pessoas)},
+		Mode:       modes[raw.Tipo],
+		TaskStatus: taskStatuses[deref(raw.Status)],
 	}
 	return withoutForeignDirection(plan), nil
 }

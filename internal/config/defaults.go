@@ -22,7 +22,18 @@ func Defaults() Config {
 		// SEM_INFORMACAO reply is the final guard for the overlap.
 		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxAnswerTokens: 512},
 		Sources:   defaultSources(),
+		Tasks:     TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
 	}
+}
+
+// defaultTaskURLPatterns cover common trackers; each only matches its own
+// URLs, so unused ones cost nothing.
+var defaultTaskURLPatterns = []string{
+	`proj4\.me/projects/(\d+)/tasks/(\d+)`,
+	`atlassian\.net/browse/([A-Z][A-Z0-9]+-\d+)`,
+	`linear\.app/[\w-]+/issue/([A-Z][A-Z0-9]+-\d+)`,
+	`github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)`,
+	`dev\.azure\.com/[\w.-]+/[\w.%-]+/_workitems/edit/(\d+)`,
 }
 
 func defaultEmbedding() EmbeddingConfig {

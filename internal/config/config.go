@@ -19,6 +19,15 @@ type Config struct {
 	Generation   ModelConfig     `json:"generation"`
 	Retrieval    RetrievalConfig `json:"retrieval"`
 	Sources      SourcesConfig   `json:"sources"`
+	Tasks        TasksConfig     `json:"tasks"`
+}
+
+// TasksConfig tells `cade tasks` how to recognize task links.
+type TasksConfig struct {
+	// TaskURLPatterns are regexes over URLs and message text; the capture
+	// groups identify a task, the last one being the identifier written in
+	// branch names and PR titles ("162", "PROJ-123").
+	TaskURLPatterns []string `json:"task_url_patterns"`
 }
 
 // ModelConfig locates a GGUF model and sets how it runs.

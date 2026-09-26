@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -77,5 +78,13 @@ func TestDefaultsOffloadAllLayers(t *testing.T) {
 	cfg := Defaults()
 	if cfg.Generation.GPULayers != -1 || cfg.Embedding.GPULayers != -1 {
 		t.Fatalf("expected all layers offloaded by default, got %d / %d", cfg.Generation.GPULayers, cfg.Embedding.GPULayers)
+	}
+}
+
+func TestDefaultTaskPatternsCompile(t *testing.T) {
+	for _, pattern := range Defaults().Tasks.TaskURLPatterns {
+		if _, err := regexp.Compile(pattern); err != nil {
+			t.Errorf("default task pattern %q does not compile: %v", pattern, err)
+		}
 	}
 }

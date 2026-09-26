@@ -23,10 +23,13 @@ flowchart LR
     ingest --> db[(SQLite + sqlite-vec)]
 
     timeline[cade timeline] --> db
+    tasks[cade tasks] --> relatorio[Tarefas e PRs<br/>por links de tarefa e PR]
+    relatorio --> db
 
     ask[cade ask] --> plano[Interpreta a pergunta<br/>LLM + gramática]
     plano -->|listar| filtro[Filtra no banco]
     plano -->|responder| busca[Filtra + busca vetorial]
+    plano -->|tarefas| relatorio
     filtro --> db
     busca --> db
     busca --> llm[LLM local<br/>resposta com fontes]
@@ -65,13 +68,15 @@ cade timeline ontem
 cade timeline --source git 2026-09-01 2026-09-07
 cade ask "o que eu fiz relacionado a cache?"
 cade ask --source teams --from 2026-09-01 "quando ficou marcado o deploy?"
+cade tasks ontem                            # tarefas trabalhadas e concluídas (PR aberto)
+cade ask "quais tarefas finalizei essa semana?"   # mesmo relatório, em linguagem natural
 cade forget teams                           # apaga os eventos de uma fonte, para reingerir
 cade teams-schema DIR                       # estrutura (sem valores) de um IndexedDB, para diagnóstico
 ```
 
 Fontes: `git`, `browser`, `file`, `teams`. Flags vêm antes dos argumentos.
 
-No `ask`, o modelo local lê a pergunta e extrai só os filtros que ela afirma: período, fonte, pessoas, direção (recebidas/enviadas) e assunto. O resultado aparece no stderr:
+No `ask`, o modelo local lê a pergunta e extrai só os filtros que ela afirma: período, fonte, pessoas, direção (recebidas/enviadas), assunto e se é sobre tarefas. O resultado aparece no stderr:
 
 ```
 Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
@@ -79,6 +84,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 
 - Pedidos de lista com período ("as mensagens da Ana ontem") listam todos os eventos que casam, direto do banco.
 - Perguntas com pessoa ou direção são respondidas só com os eventos que casam.
+- Perguntas sobre tarefas ("quais tarefas finalizei ontem?", "o que ficou em andamento?") devolvem o relatório do `cade tasks`, opcionalmente só com as concluídas ou só com as em andamento; sem período, hoje.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
 
 ## Exemplo de saída
@@ -125,6 +131,31 @@ O CEP cadastrado não existe mais e precisa ser atualizado [2]; o Rui perguntou 
 Fontes citadas:
   [1] [teams]   2026-09-25 09:30  Rui Costa: eles alteraram o CEP? ou precisa alterar para esse?  (chat Carla Dias, Rui Costa)
   [2] [teams]   2026-09-25 09:31  Carla Dias: esse CEP que está cadastrado não existe mais  (chat Carla Dias, Rui Costa)
+```
+
+## Tarefas
+
+`cade tasks [--all] [DATA [FIM]]` (padrão: hoje), ou uma pergunta sobre tarefas no `cade ask`, lista as tarefas trabalhadas, só com eventos locais:
+
+- **Tarefa:** link de um rastreador (proj4me, Jira, Linear, GitHub Issues, Azure Boards por padrão; qualquer regex em `tasks.task_url_patterns`) numa visita ou mensagem.
+- **Concluída:** um PR aberto por você (GitHub, GitLab, Bitbucket, Azure DevOps) ligado a ela. Aberto por você = visita à página de criação do PR logo antes, ou mensagem sua com o link. Ligado = mensagem com os dois links, ou título do PR citando o id da tarefa (`fix-cep-162`, `PROJ-123 ...`); senão "(provável)" se aberto logo após trabalhar na tarefa.
+- **Sua ou não:** a tarefa é sua se você abriu um PR para ela ou enviou uma mensagem citando-a; "consultada" se você só abriu a página; tarefas que só apareceram em mensagens de outras pessoas viram um resumo (`--all` lista).
+
+```
+$ cade tasks ontem
+Tarefas de 2026-09-25 — 2 suas
+
+concluída     14/162  Ajuste de CEP  (38 eventos)
+              PR acme/api#45 aberto 16:40 · fix-cep-162
+
+em andamento  14/170  Upload de arquivos  (21 eventos)
+
+Consultadas (você abriu a tarefa; sem PR ou mensagem sua):
+
+em andamento  14/171  Revisão de layout  (4 eventos)
+
+Citadas só por outras pessoas: 3 tarefas — use --all para listar.
+Sem tarefa: 12 eventos
 ```
 
 ## Teams

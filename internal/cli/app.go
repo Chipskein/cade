@@ -89,6 +89,7 @@ func subcommands() map[string]subcommand {
 		"ask":          runAsk,
 		"teams-schema": runTeamsSchema,
 		"forget":       runForget,
+		"tasks":        runTasks,
 	}
 }
 

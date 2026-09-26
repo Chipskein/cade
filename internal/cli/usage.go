@@ -11,8 +11,11 @@ Comandos:
                                         sem ALVO usa os alvos configurados
   timeline [--source F] DATA [DATA_FIM] eventos de um dia ou intervalo
                                         (DATA: AAAA-MM-DD, hoje, ontem)
-  ask [--source F] [--from D] [--to D] PERGUNTA
-                                        pergunta em linguagem natural
+  ask [--source F] [--from D] [--to D] [--no-filters] PERGUNTA
+                                        pergunta em linguagem natural (inclusive
+                                        sobre tarefas: "quais tarefas finalizei?")
+  tasks [--all] [DATA] [DATA_FIM]       tarefas trabalhadas (links de tarefa); PR aberto
+                                        = concluída (padrão: hoje)
   forget <fonte>                        apaga os eventos de uma fonte, para reingerir;
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta
