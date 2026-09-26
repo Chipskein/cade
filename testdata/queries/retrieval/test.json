@@ -166,6 +166,14 @@
     "Rui"
    ],
    "topic": "ERP"
+  },
+  {
+   "question": "quais commits eu fiz sobre o retry do ERP?",
+   "source": "git",
+   "topic": "retry do ERP",
+   "relevant": [
+    "g5"
+   ]
   }
  ],
  "maximum_redundancy": 0.0

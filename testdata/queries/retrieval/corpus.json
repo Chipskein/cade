@@ -11,7 +11,8 @@
     "hash": "79589eae1f",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auth/oauth.go"
+    "files": "auth/oauth.go",
+    "authorship": "mine"
    }
   },
   {
@@ -24,7 +25,8 @@
     "hash": "ebefa97612",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "session/cache.go"
+    "files": "session/cache.go",
+    "authorship": "mine"
    }
   },
   {
@@ -37,7 +39,8 @@
     "hash": "3c1d2e4f55",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "transportadora/form.ts"
+    "files": "transportadora/form.ts",
+    "authorship": "mine"
    }
   },
   {
@@ -50,7 +53,8 @@
     "hash": "a4b5c6d7e8",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/tela.vue"
+    "files": "relatorios/tela.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -63,7 +67,8 @@
     "hash": "b1c2d3e4f5",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "erp/sync.go"
+    "files": "erp/sync.go",
+    "authorship": "mine"
    }
   },
   {
@@ -76,7 +81,8 @@
     "hash": "c9d8e7f6a5",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auth/middleware.go"
+    "files": "auth/middleware.go",
+    "authorship": "mine"
    }
   },
   {
@@ -89,7 +95,8 @@
     "hash": "d1e2f3a4b5",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "go.mod\ngo.sum"
+    "files": "go.mod\ngo.sum",
+    "authorship": "mine"
    }
   },
   {
@@ -102,7 +109,8 @@
     "hash": "e5f6a7b8c9",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/repo.go"
+    "files": "pedidos/repo.go",
+    "authorship": "mine"
    }
   },
   {
@@ -400,7 +408,8 @@
     "hash": "f252e6b438",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/filtro.ts"
+    "files": "relatorios/filtro.ts",
+    "authorship": "mine"
    }
   },
   {
@@ -413,7 +422,8 @@
     "hash": "65269e0d37",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "cadastro/form.ts"
+    "files": "cadastro/form.ts",
+    "authorship": "mine"
    }
   },
   {
@@ -451,7 +461,8 @@
     "hash": "0ca6a3a450",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/insert.go"
+    "files": "pedidos/insert.go",
+    "authorship": "mine"
    }
   },
   {
@@ -501,7 +512,8 @@
     "hash": "d2128b2f33",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/query.go"
+    "files": "relatorios/query.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2250,7 +2262,8 @@
     "hash": "9d736b96a0",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/test.go"
+    "files": "relatorios/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2263,7 +2276,8 @@
     "hash": "782bb71c68",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/handler.go"
+    "files": "estoque/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2276,7 +2290,8 @@
     "hash": "a767fd5499",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/view.vue"
+    "files": "estoque/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2289,7 +2304,8 @@
     "hash": "35133e6153",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "faturas/handler.go"
+    "files": "faturas/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2302,7 +2318,8 @@
     "hash": "236d6b987a",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/test.go"
+    "files": "pagamentos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2315,7 +2332,8 @@
     "hash": "3d51bcd77a",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/service.go"
+    "files": "relatorios/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2328,7 +2346,8 @@
     "hash": "696201a9d3",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/test.go"
+    "files": "pagamentos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2341,7 +2360,8 @@
     "hash": "477f867d5f",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/service.go"
+    "files": "estoque/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2354,7 +2374,8 @@
     "hash": "66627292f8",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/handler.go"
+    "files": "pagamentos/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2367,7 +2388,8 @@
     "hash": "c3b5a29061",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/test.go"
+    "files": "pedidos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2380,7 +2402,8 @@
     "hash": "72f8e4cb5c",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/test.go"
+    "files": "pedidos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2393,7 +2416,8 @@
     "hash": "d3f1058667",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "usuários/service.go"
+    "files": "usuários/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2406,7 +2430,8 @@
     "hash": "913b8a27ba",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/handler.go"
+    "files": "pedidos/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2419,7 +2444,8 @@
     "hash": "a2873b9903",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/view.vue"
+    "files": "estoque/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2432,7 +2458,8 @@
     "hash": "42635956be",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/handler.go"
+    "files": "relatorios/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2445,7 +2472,8 @@
     "hash": "50f57d1709",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/view.vue"
+    "files": "pedidos/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2458,7 +2486,8 @@
     "hash": "a6b4642ea4",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/test.go"
+    "files": "pagamentos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2471,7 +2500,8 @@
     "hash": "4114c2732a",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/test.go"
+    "files": "pagamentos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2484,7 +2514,8 @@
     "hash": "56b2217139",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "notificações/service.go"
+    "files": "notificações/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2497,7 +2528,8 @@
     "hash": "d8bd37929d",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "faturas/view.vue"
+    "files": "faturas/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2510,7 +2542,8 @@
     "hash": "773b164943",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auditoria/handler.go"
+    "files": "auditoria/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2523,7 +2556,8 @@
     "hash": "2f9c2f6723",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/test.go"
+    "files": "estoque/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2536,7 +2570,8 @@
     "hash": "063683d4bc",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/service.go"
+    "files": "pedidos/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2549,7 +2584,8 @@
     "hash": "e5731bbc41",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/test.go"
+    "files": "pedidos/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2562,7 +2598,8 @@
     "hash": "efa70828a7",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "usuários/handler.go"
+    "files": "usuários/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2575,7 +2612,8 @@
     "hash": "54fc27d683",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/view.vue"
+    "files": "estoque/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2588,7 +2626,8 @@
     "hash": "6b59f9bb79",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/service.go"
+    "files": "pedidos/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2601,7 +2640,8 @@
     "hash": "cdd26f1d76",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/view.vue"
+    "files": "pagamentos/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2614,7 +2654,8 @@
     "hash": "52316a2a12",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auditoria/test.go"
+    "files": "auditoria/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2627,7 +2668,8 @@
     "hash": "600a68013d",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "faturas/test.go"
+    "files": "faturas/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2640,7 +2682,8 @@
     "hash": "9be6077d79",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pedidos/service.go"
+    "files": "pedidos/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2653,7 +2696,8 @@
     "hash": "46ec9a360c",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "notificações/view.vue"
+    "files": "notificações/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2666,7 +2710,8 @@
     "hash": "791b757b20",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/handler.go"
+    "files": "relatorios/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2679,7 +2724,8 @@
     "hash": "ed21f91a99",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/test.go"
+    "files": "estoque/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2692,7 +2738,8 @@
     "hash": "dc53eab031",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/handler.go"
+    "files": "estoque/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2705,7 +2752,8 @@
     "hash": "683f4f8b9d",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/handler.go"
+    "files": "relatorios/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2718,7 +2766,8 @@
     "hash": "1ae22b64a6",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auditoria/test.go"
+    "files": "auditoria/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2731,7 +2780,8 @@
     "hash": "fd7f9c1321",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/test.go"
+    "files": "relatorios/test.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2744,7 +2794,8 @@
     "hash": "89bf7b6c6c",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "usuários/handler.go"
+    "files": "usuários/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2757,7 +2808,8 @@
     "hash": "42bcf1fcb5",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/view.vue"
+    "files": "estoque/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2770,7 +2822,8 @@
     "hash": "e24806d26f",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "usuários/handler.go"
+    "files": "usuários/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2783,7 +2836,8 @@
     "hash": "8681e004fb",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/handler.go"
+    "files": "relatorios/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2796,7 +2850,8 @@
     "hash": "79012664f6",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/service.go"
+    "files": "relatorios/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2809,7 +2864,8 @@
     "hash": "0c1e84fb36",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "notificações/handler.go"
+    "files": "notificações/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2822,7 +2878,8 @@
     "hash": "9a72f92026",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "pagamentos/handler.go"
+    "files": "pagamentos/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2835,7 +2892,8 @@
     "hash": "575e63af16",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/service.go"
+    "files": "relatorios/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2848,7 +2906,8 @@
     "hash": "02d0930b64",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "estoque/handler.go"
+    "files": "estoque/handler.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2861,7 +2920,8 @@
     "hash": "3413f38870",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "notificações/view.vue"
+    "files": "notificações/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -2874,7 +2934,8 @@
     "hash": "65cbbc6c94",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "auditoria/service.go"
+    "files": "auditoria/service.go",
+    "authorship": "mine"
    }
   },
   {
@@ -2887,7 +2948,8 @@
     "hash": "fc68e7ed23",
     "author": "Eu",
     "email": "eu@example.com",
-    "files": "relatorios/view.vue"
+    "files": "relatorios/view.vue",
+    "authorship": "mine"
    }
   },
   {
@@ -3704,7 +3766,8 @@
     "hash": "a1b2c3d4e5",
     "author": "Rui Costa",
     "email": "rui@example.com",
-    "files": "erp/retry.go"
+    "files": "erp/retry.go",
+    "authorship": "other"
    }
   },
   {
@@ -3717,7 +3780,8 @@
     "hash": "f0e1d2c3b4",
     "author": "Rui Costa",
     "email": "rui@example.com",
-    "files": "catalog/cache.go"
+    "files": "catalog/cache.go",
+    "authorship": "other"
    }
   },
   {

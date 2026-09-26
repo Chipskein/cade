@@ -233,3 +233,12 @@ func TestCitedByIgnoresInheritedEvents(t *testing.T) {
 		t.Fatalf("expected an inherited event to cite nothing, got %+v", kept)
 	}
 }
+
+// A commit of the user's citing a task is work on it, not a consultation.
+func TestOwnCommitCitingTaskMakesItMine(t *testing.T) {
+	cited := commit(at(10, 0), "Corrige CEP "+taskURL)
+	report := build([]event.Event{visit(at(9, 0), taskURL, "Ajuste de CEP"), cited})
+	if len(report.Tasks) != 1 || report.Tasks[0].Involvement != Mine {
+		t.Fatalf("expected the task to be the user's, got %+v", report.Tasks)
+	}
+}

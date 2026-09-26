@@ -18,6 +18,26 @@ type Commit struct {
 	Author     string
 	Email      string
 	Files      []string
+	Authorship Authorship
+}
+
+// Authorship says whether a commit is the user's. Commits are kept either
+// way ("o que o Rui commitou?"), but "o que eu fiz?" must not count a
+// colleague's work.
+type Authorship string
+
+const (
+	// AuthorshipUnknown: stored before identities were known; treated as
+	// the user's, so nothing disappears until the next git ingestion marks
+	// it.
+	AuthorshipUnknown Authorship = ""
+	AuthorshipMine    Authorship = "mine"
+	AuthorshipOther   Authorship = "other"
+)
+
+// IsOthersCommit reports a commit known to be someone else's.
+func (e Event) IsOthersCommit() bool {
+	return e.Source == SourceGit && e.Commit().Authorship == AuthorshipOther
 }
 
 // Visit is a browser event's metadata.
@@ -73,6 +93,7 @@ const (
 	keyAuthor         = "author"
 	keyEmail          = "email"
 	keyFiles          = "files"
+	keyAuthorship     = "authorship"
 	keyBrowser        = "browser"
 	keyURL            = "url"
 	keyTitle          = "title"
@@ -93,13 +114,15 @@ const (
 
 // Metadata is the stored form of c.
 func (c Commit) Metadata() Metadata {
-	return Metadata{keyRepository: c.Repository, keyHash: c.Hash, keyAuthor: c.Author, keyEmail: c.Email, keyFiles: strings.Join(c.Files, "\n")}
+	return Metadata{keyRepository: c.Repository, keyHash: c.Hash, keyAuthor: c.Author, keyEmail: c.Email, keyFiles: strings.Join(c.Files, "\n"),
+		keyAuthorship: string(c.Authorship)}
 }
 
 // Commit reads e's metadata as a commit; fields absent from it are empty.
 func (e Event) Commit() Commit {
 	m := e.Metadata
-	return Commit{Repository: m[keyRepository], Hash: m[keyHash], Author: m[keyAuthor], Email: m[keyEmail], Files: splitLines(m[keyFiles])}
+	return Commit{Repository: m[keyRepository], Hash: m[keyHash], Author: m[keyAuthor], Email: m[keyEmail], Files: splitLines(m[keyFiles]),
+		Authorship: Authorship(m[keyAuthorship])}
 }
 
 // Metadata is the stored form of v.

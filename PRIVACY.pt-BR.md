@@ -17,7 +17,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto), embeddings, índice das palavras de cada pedaço (mais hashes de commit e caminhos de arquivo), histórico de edição de arquivos | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
-| `~/.config/cade/config.json` | quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
+| `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
 | `~/.local/share/cade/models/` | os dois modelos (arquivos públicos) | — |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | cópias do histórico do navegador e do IndexedDB do Teams durante uma ingestão; apagadas ao final | `700` |
 

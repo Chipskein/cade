@@ -26,14 +26,20 @@ type Collector struct {
 	runner     CommandRunner
 	repository string
 	authors    []string
+	// identities are the user's emails or names, or AutoIdentity; each
+	// commit is marked as the user's or someone else's against them.
+	identities         []string
+	resolved           []string
+	resolvedRepository string
 }
 
 // NewCollector reads repository with runner, keeping only commits whose
-// author matches one of authors (all commits when empty).
+// author matches one of authors (all commits when empty), and marking each
+// as the user's when its author is one of identities.
 //
-//	collector := gitsource.NewCollector(gitsource.ExecRunner{}, "~/src/app", nil)
-func NewCollector(runner CommandRunner, repository string, authors []string) *Collector {
-	return &Collector{runner: runner, repository: repository, authors: authors}
+//	collector := gitsource.NewCollector(gitsource.ExecRunner{}, "~/src/app", nil, []string{gitsource.AutoIdentity})
+func NewCollector(runner CommandRunner, repository string, authors, identities []string) *Collector {
+	return &Collector{runner: runner, repository: repository, authors: authors, identities: identities}
 }
 
 // CollectEvents emits one event per commit reachable from any branch, tag or
@@ -43,11 +49,12 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	if err != nil {
 		return fmt.Errorf("resolve repository path %q: %w", c.repository, err)
 	}
+	c.resolvedRepository, c.resolved = repository, c.resolveIdentities(ctx, repository)
 	output, err := c.runner.Run(ctx, repository, "git", c.logArguments()...)
 	if err != nil {
 		return fmt.Errorf("read git history of %q: %w", repository, err)
 	}
-	return emitCommits(string(output), repository, emit)
+	return emitCommits(string(output), repository, c.resolved, emit)
 }
 
 func (c *Collector) logArguments() []string {
@@ -59,9 +66,9 @@ func (c *Collector) logArguments() []string {
 	return args
 }
 
-func emitCommits(output, repository string, emit ingest.EmitFunc) error {
+func emitCommits(output, repository string, identities []string, emit ingest.EmitFunc) error {
 	for _, record := range strings.Split(output, recordSeparator)[1:] {
-		ev, err := parseCommit(record, repository)
+		ev, err := parseCommit(record, repository, identities)
 		if err != nil {
 			return err
 		}
@@ -72,7 +79,7 @@ func emitCommits(output, repository string, emit ingest.EmitFunc) error {
 	return nil
 }
 
-func parseCommit(record, repository string) (event.Event, error) {
+func parseCommit(record, repository string, identities []string) (event.Event, error) {
 	fields := strings.SplitN(record, fieldSeparator, commitFieldSize)
 	if len(fields) != commitFieldSize {
 		return event.Event{}, fmt.Errorf("parse git log record %q: expected %d fields, got %d", record, commitFieldSize, len(fields))
@@ -88,7 +95,8 @@ func parseCommit(record, repository string) (event.Event, error) {
 		Timestamp: authoredAt,
 		Source:    event.SourceGit,
 		Content:   commitContent(message, files),
-		Metadata:  event.Commit{Repository: repository, Hash: hash, Author: author, Email: email, Files: files}.Metadata(),
+		Metadata: event.Commit{Repository: repository, Hash: hash, Author: author, Email: email, Files: files,
+			Authorship: authorshipOf(author, email, identities)}.Metadata(),
 	}, nil
 }
 

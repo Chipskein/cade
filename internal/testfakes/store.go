@@ -4,7 +4,9 @@ package testfakes
 
 import (
 	"context"
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
@@ -41,6 +43,8 @@ type FakeEventStore struct {
 	// query in LexicalQueries.
 	LexicalResults []storage.ScoredEvent
 	LexicalQueries []storage.LexicalQuery
+	// AuthorshipMarks lists the repositories passed to MarkCommitAuthorship.
+	AuthorshipMarks []string
 }
 
 // NewFakeEventStore returns an empty store.
@@ -258,4 +262,23 @@ func (f *FakeEventStore) SearchLexical(_ context.Context, query storage.LexicalQ
 		}
 	}
 	return hits, f.FailWith
+}
+
+// MarkCommitAuthorship marks the fake's commits of repository like the
+// real store and records the call.
+func (f *FakeEventStore) MarkCommitAuthorship(_ context.Context, repository string, identities []string) (int, error) {
+	f.AuthorshipMarks = append(f.AuthorshipMarks, repository)
+	changed := 0
+	for i, ev := range f.Events {
+		commit := ev.Commit()
+		if ev.Source != event.SourceGit || commit.Repository != repository || len(identities) == 0 {
+			continue
+		}
+		commit.Authorship = event.AuthorshipOther
+		if slices.Contains(identities, strings.ToLower(commit.Email)) || slices.Contains(identities, strings.ToLower(commit.Author)) {
+			commit.Authorship = event.AuthorshipMine
+		}
+		f.Events[i].Metadata["authorship"], changed = string(commit.Authorship), changed+1
+	}
+	return changed, f.FailWith
 }

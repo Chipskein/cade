@@ -1,10 +1,12 @@
 package queryplan
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/textnorm"
 	"github.com/chipskein/cade/internal/timeline"
 )
 
@@ -21,6 +23,9 @@ type Query struct {
 	TaskStatus TaskStatus
 	// SemanticText is what gets embedded; see semanticText.
 	SemanticText string
+	// OwnCommitsOnly drops commits known to be someone else's: set for
+	// first-person questions ("o que eu fiz?") that name no person.
+	OwnCommitsOnly bool
 }
 
 // IsScoped reports whether exact filters narrow the search.
@@ -56,6 +61,7 @@ func Resolve(question string, plan Plan, overrides Overrides, now time.Time) Que
 	}
 	query.Mode = ResolveMode(plan.Mode, query.Days)
 	query.SemanticText = semanticText(query)
+	query.OwnCommitsOnly = isFirstPerson(question) && len(query.Criteria.People) == 0
 	return withTaskDefaults(query, now)
 }
 
@@ -79,4 +85,13 @@ func withTaskDefaults(query Query, now time.Time) Query {
 		query.Days = &today
 	}
 	return query
+}
+
+// firstPersonCues mark a question about the user's own work. A fixed rule,
+// not a planner field: the small model misreads who is asking more often
+// than these words do.
+var firstPersonCues = regexp.MustCompile(`\b(eu|fiz|fizemos|trabalhei|commitei|comitei|mexi|alterei|corrigi|implementei|meus?|minhas?|i|my|mine)\b`)
+
+func isFirstPerson(question string) bool {
+	return firstPersonCues.MatchString(textnorm.Fold(question))
 }

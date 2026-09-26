@@ -47,6 +47,10 @@ type EventStore interface {
 	// in present as removed, and unflags those back; returns how many
 	// were newly flagged.
 	MarkMissingFiles(ctx context.Context, root string, present map[string]bool, at time.Time) (int, error)
+	// MarkCommitAuthorship marks the stored commits of repository as the
+	// user's (author email or name in identities) or someone else's;
+	// returns how many marks changed.
+	MarkCommitAuthorship(ctx context.Context, repository string, identities []string) (int, error)
 	// DeleteSource removes every event (and embedding) of source, returning
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)

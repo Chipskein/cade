@@ -26,7 +26,7 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	if err != nil {
 		return nil, err
 	}
-	ranked = collapseRepeats(withoutRemoved(withoutChatter(ranked)))
+	ranked = usableEvidence(ranked, query)
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 

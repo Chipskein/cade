@@ -21,6 +21,9 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 	if err != nil {
 		return err
 	}
+	if query.OwnCommitsOnly {
+		events = ownCommitsOnly(events)
+	}
 	events, matched, unknown := query.Criteria.Apply(events)
 	reportPeople(env.stderr, matched, nil)
 	reportNamesAsText(env.stderr, unknown)

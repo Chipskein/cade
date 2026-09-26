@@ -65,8 +65,12 @@ type RetrievalConfig struct {
 
 // SourcesConfig lists the default ingestion targets per source.
 type SourcesConfig struct {
-	GitRepositories  []string `json:"git_repositories"`
-	GitAuthors       []string `json:"git_authors"`
+	GitRepositories []string `json:"git_repositories"`
+	GitAuthors      []string `json:"git_authors"`
+	// GitIdentities are the user's commit emails or names; "auto" reads
+	// git config user.email and user.name of each repository. Commits by
+	// anyone else are kept but marked as someone else's.
+	GitIdentities    []string `json:"git_identities"`
 	BrowserHistories []string `json:"browser_histories"`
 	// TeamsIndexedDBDirs are the *.indexeddb.leveldb directories of the
 	// Teams web client inside a Chromium profile.

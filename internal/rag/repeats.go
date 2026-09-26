@@ -63,7 +63,7 @@ func (a *Answerer) searchDistinct(ctx context.Context, embedding []float32, quer
 		if err != nil {
 			return nil, err
 		}
-		distinct := collapseRepeats(withoutRemoved(withoutChatter(bestChunkPerEvent(hits))))
+		distinct := usableEvidence(bestChunkPerEvent(hits), query)
 		if len(distinct) >= a.settings.TopK || len(hits) < limit || limit >= a.settings.TopK*maxSearchWidening {
 			return distinct[:min(len(distinct), a.settings.TopK)], nil
 		}
@@ -110,6 +110,29 @@ func bestChunkPerEvent(hits []storage.ScoredEvent) []storage.ScoredEvent {
 	for _, hit := range hits {
 		if !seen[hit.Event.UID] {
 			seen[hit.Event.UID] = true
+			kept = append(kept, hit)
+		}
+	}
+	return kept
+}
+
+// usableEvidence is what every search path keeps, in order: no chatter, no
+// removed files, no colleague's commits for a first-person question, one
+// hit per thing.
+func usableEvidence(hits []storage.ScoredEvent, query queryplan.Query) []storage.ScoredEvent {
+	hits = withoutRemoved(withoutChatter(hits))
+	if query.OwnCommitsOnly {
+		hits = withoutOthersCommits(hits)
+	}
+	return collapseRepeats(hits)
+}
+
+// withoutOthersCommits drops commits known to be someone else's: "o que eu
+// fiz?" in a team repository counted a colleague's work as the user's.
+func withoutOthersCommits(hits []storage.ScoredEvent) []storage.ScoredEvent {
+	var kept []storage.ScoredEvent
+	for _, hit := range hits {
+		if !hit.Event.IsOthersCommit() {
 			kept = append(kept, hit)
 		}
 	}

@@ -17,7 +17,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text), embeddings, a keyword index of the words of each chunk (plus commit hashes and file paths), file edit history | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
-| `~/.config/cade/config.json` | which repositories, histories, directories and Teams profiles to read | `600` |
+| `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models (public files) | — |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | copies of the browser history and Teams IndexedDB while one ingestion runs; removed when it ends | `700` |
 

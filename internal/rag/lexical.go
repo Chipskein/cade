@@ -114,7 +114,7 @@ func (a *Answerer) searchLexical(ctx context.Context, embedding []float32, query
 	if err != nil {
 		return nil, err
 	}
-	hits = collapseRepeats(withoutRemoved(withoutChatter(hits)))
+	hits = usableEvidence(hits, query)
 	return hits[:min(len(hits), a.settings.TopK)], nil
 }
 

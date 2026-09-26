@@ -23,6 +23,14 @@ type EventCollector interface {
 	CollectEvents(ctx context.Context, emit EmitFunc) error
 }
 
+// AuthoredCollector knows which commits are the user's: after a run it
+// names the repository and the user's identities, so commits stored before
+// them get marked too.
+type AuthoredCollector interface {
+	EventCollector
+	CommitAuthorship() (repository string, identities []string)
+}
+
 // SnapshotCollector emits every file currently under SnapshotRoot, so a
 // stored file under that root that was not emitted is gone from the source.
 type SnapshotCollector interface {
@@ -87,8 +95,21 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	if err != nil {
 		return report, err
 	}
-	report.Removed, err = p.markRemoved(ctx, collector, present)
-	return report, err
+	if report.Removed, err = p.markRemoved(ctx, collector, present); err != nil {
+		return report, err
+	}
+	return report, p.markAuthorship(ctx, collector)
+}
+
+func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector) error {
+	authored, marks := collector.(AuthoredCollector)
+	if !marks {
+		return nil
+	}
+	repository, identities := authored.CommitAuthorship()
+	changed, err := p.store.MarkCommitAuthorship(ctx, repository, identities)
+	p.logger.Debug("commit authorship", "repository", repository, "identities", len(identities), "changed", changed)
+	return err
 }
 
 // markRemoved flags the files a complete snapshot no longer has; other

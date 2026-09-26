@@ -70,5 +70,6 @@ func buildTaskReport(ctx context.Context, store storage.EventStore, patterns []*
 	if err != nil {
 		return tasks.Report{}, err
 	}
-	return tasks.NewBuilder(patterns).Build(period, history, days.End()), nil
+	// A colleague's commit citing a task is not the user's work on it.
+	return tasks.NewBuilder(patterns).Build(ownCommitsOnly(period), ownCommitsOnly(history), days.End()), nil
 }

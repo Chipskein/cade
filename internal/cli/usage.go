@@ -14,8 +14,10 @@ Comandos:
   init                                  cria o arquivo de configuração padrão
   ingest <fonte|all> [ALVO...]          ingere uma fonte (git, browser, file, teams);
                                         sem ALVO usa os alvos configurados
-  timeline [--source F] DATA [DATA_FIM] eventos de um dia ou intervalo
-                                        (DATA: AAAA-MM-DD, hoje, ontem)
+  timeline [--source F] [--all-authors] DATA [DATA_FIM]
+                                        eventos de um dia ou intervalo (DATA: AAAA-MM-DD,
+                                        hoje, ontem); commits de outros autores só com
+                                        --all-authors
   ask [--source F] [--from D] [--to D] [--no-filters] [--json] PERGUNTA
                                         pergunta em linguagem natural (inclusive
                                         sobre tarefas: "quais tarefas finalizei?")
@@ -50,8 +52,10 @@ Commands:
   init                                  writes the default configuration file
   ingest <source|all> [TARGET...]       ingests a source (git, browser, file, teams);
                                         without TARGET uses the configured targets
-  timeline [--source S] DATE [END_DATE] events of a day or range
-                                        (DATE: YYYY-MM-DD, hoje, ontem)
+  timeline [--source S] [--all-authors] DATE [END_DATE]
+                                        events of a day or range (DATE: YYYY-MM-DD,
+                                        hoje, ontem); other authors' commits only with
+                                        --all-authors
   ask [--source S] [--from D] [--to D] [--no-filters] [--json] QUESTION
                                         natural-language question, in English or
                                         Portuguese (also about tasks: "which tasks did I finish?")

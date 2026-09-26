@@ -88,3 +88,17 @@ func TestRemovedFilesAreNotEvidence(t *testing.T) {
 		t.Fatalf("expected only the present file, got %+v", hits)
 	}
 }
+
+func commitHit(uid string, authorship event.Authorship, distance float64) storage.ScoredEvent {
+	return storage.ScoredEvent{Distance: distance, Event: event.Event{UID: uid, Source: event.SourceGit, Timestamp: fixedNow,
+		Content: "commit " + uid, Metadata: event.Commit{Hash: uid, Authorship: authorship}.Metadata()}}
+}
+
+func TestFirstPersonEvidenceDropsOthersCommits(t *testing.T) {
+	hits := []storage.ScoredEvent{commitHit("rui", event.AuthorshipOther, 0.1), commitHit("meu", event.AuthorshipMine, 0.2), commitHit("antigo", event.AuthorshipUnknown, 0.3)}
+	own := usableEvidence(hits, queryplan.Query{OwnCommitsOnly: true})
+	everyone := usableEvidence(hits, queryplan.Query{})
+	if len(own) != 2 || own[0].Event.UID != "meu" || len(everyone) != 3 {
+		t.Fatalf("expected the colleague's commit dropped only for first person, got %d and %d", len(own), len(everyone))
+	}
+}

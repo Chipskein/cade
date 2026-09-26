@@ -60,6 +60,7 @@ func defaultSources() SourcesConfig {
 	return SourcesConfig{
 		GitRepositories:    []string{},
 		GitAuthors:         []string{},
+		GitIdentities:      []string{"auto"},
 		BrowserHistories:   []string{},
 		TeamsIndexedDBDirs: []string{},
 		Directories:        []string{},

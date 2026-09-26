@@ -251,3 +251,20 @@ func TestRunReusesAllChunksOfIdenticalLongText(t *testing.T) {
 		t.Fatalf("expected the copy to reuse every chunk, got %d chunks and %d calls", len(store.Chunks["copia"]), len(embedder.Inputs))
 	}
 }
+
+// AuthoredFake reports the identities of its repository.
+type AuthoredFake struct {
+	FakeCollector
+}
+
+func (AuthoredFake) CommitAuthorship() (string, []string) {
+	return "/src/api", []string{"ana@x.io"}
+}
+
+func TestAuthoredCollectorMarksStoredCommits(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), AuthoredFake{}, nil)
+	if len(store.AuthorshipMarks) != 1 || store.AuthorshipMarks[0] != "/src/api" {
+		t.Fatalf("expected the repository marked, got %v", store.AuthorshipMarks)
+	}
+}

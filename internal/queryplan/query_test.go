@@ -61,3 +61,18 @@ func TestIsScoped(t *testing.T) {
 		t.Error("expected an empty query to be unscoped")
 	}
 }
+
+// Regression: "o que eu fiz?" counted colleagues' commits in a team repo.
+func TestFirstPersonQuestionsKeepOwnCommits(t *testing.T) {
+	cases := map[string]bool{"o que eu fiz ontem?": true, "quais commits fiz sobre auth?": true, "what did I work on?": true,
+		"liste os commits de ontem": false, "o que o Rui commitou?": false}
+	for question, expected := range cases {
+		if got := Resolve(question, Plan{}, Overrides{}, suiteNow).OwnCommitsOnly; got != expected {
+			t.Errorf("%q: OwnCommitsOnly = %v, expected %v", question, got, expected)
+		}
+	}
+	withPerson := Resolve("o que eu pedi ao Rui?", Plan{Criteria: listing.Criteria{People: []string{"Rui"}}}, Overrides{}, suiteNow)
+	if withPerson.OwnCommitsOnly {
+		t.Fatal("a question naming a person is about that person too")
+	}
+}

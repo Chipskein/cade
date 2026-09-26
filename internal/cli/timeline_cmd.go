@@ -14,6 +14,7 @@ import (
 func runTimeline(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("timeline", env.stderr, env.toolkit.Language)
 	source := flags.String("source", "", env.toolkit.Language.pick("mostra só uma fonte (git, browser, file, teams)", "show one source only (git, browser, file, teams)"))
+	allAuthors := flags.Bool("all-authors", false, env.toolkit.Language.pick("inclui commits de outros autores", "include other authors' commits"))
 	if err := flags.Parse(args); err != nil {
 		return usageError(err)
 	}
@@ -25,6 +26,9 @@ func runTimeline(ctx context.Context, env commandEnv, args []string) error {
 		events, err := timeline.NewLister(store).List(ctx, days, event.Source(*source))
 		if err != nil {
 			return err
+		}
+		if !*allAuthors {
+			events = ownCommitsOnly(events)
 		}
 		renderTimeline(env.stdout, days, events)
 		return nil
@@ -53,4 +57,16 @@ func (env commandEnv) withStore(ctx context.Context, use func(config.Config, sto
 	}
 	defer store.Close()
 	return use(cfg, store)
+}
+
+// ownCommitsOnly drops commits known to be someone else's: the timeline is
+// the user's activity, and a team repository holds everyone's commits.
+func ownCommitsOnly(events []event.Event) []event.Event {
+	var kept []event.Event
+	for _, ev := range events {
+		if !ev.IsOthersCommit() {
+			kept = append(kept, ev)
+		}
+	}
+	return kept
 }

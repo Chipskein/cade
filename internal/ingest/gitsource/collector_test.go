@@ -14,13 +14,23 @@ import (
 )
 
 // FakeGitRunner returns canned git output and records the arguments used.
+// FakeGitRunner returns canned git log output, answers `git config KEY`
+// from Config (an error when absent), and records the log arguments.
 type FakeGitRunner struct {
 	Output   string
+	Config   map[string]string
 	FailWith error
 	LastArgs []string
 }
 
 func (f *FakeGitRunner) Run(_ context.Context, _ string, _ string, args ...string) ([]byte, error) {
+	if len(args) == 2 && args[0] == "config" {
+		value, found := f.Config[args[1]]
+		if !found {
+			return nil, errors.New("exit status 1")
+		}
+		return []byte(value + "\n"), nil
+	}
 	f.LastArgs = args
 	return []byte(f.Output), f.FailWith
 }
@@ -31,7 +41,7 @@ const twoCommitsLog = "\x1eaaa111\x1f2026-09-25T14:03:00-03:00\x1fAna\x1fana@x.i
 func collect(t *testing.T, runner CommandRunner) ([]event.Event, error) {
 	t.Helper()
 	var events []event.Event
-	err := NewCollector(runner, "/repo", []string{"ana@x.io"}).CollectEvents(context.Background(), func(ev event.Event) error {
+	err := NewCollector(runner, "/repo", []string{"ana@x.io"}, nil).CollectEvents(context.Background(), func(ev event.Event) error {
 		events = append(events, ev)
 		return nil
 	})
@@ -75,13 +85,13 @@ func TestCollectEventsWrapsRunnerError(t *testing.T) {
 }
 
 func TestParseCommitRejectsTruncatedRecord(t *testing.T) {
-	if _, err := parseCommit("abc\x1fdate", "/repo"); err == nil {
+	if _, err := parseCommit("abc\x1fdate", "/repo", nil); err == nil {
 		t.Fatal("expected an error for a record with missing fields")
 	}
 }
 
 func TestParseCommitRejectsBadDate(t *testing.T) {
-	if _, err := parseCommit("h\x1fyesterday\x1fa\x1fe\x1fmsg\x1f", "/repo"); err == nil {
+	if _, err := parseCommit("h\x1fyesterday\x1fa\x1fe\x1fmsg\x1f", "/repo", nil); err == nil {
 		t.Fatal("expected an error for a non-RFC3339 date")
 	}
 }
@@ -106,7 +116,7 @@ func TestCollectEventsAgainstRealRepository(t *testing.T) {
 	}
 	repository := initRepositoryWithCommit(t)
 	var events []event.Event
-	err := NewCollector(ExecRunner{}, repository, nil).CollectEvents(context.Background(), func(ev event.Event) error {
+	err := NewCollector(ExecRunner{}, repository, nil, nil).CollectEvents(context.Background(), func(ev event.Event) error {
 		events = append(events, ev)
 		return nil
 	})
@@ -135,4 +145,82 @@ func TestExecRunnerIncludesStderrInError(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "git") {
 		t.Fatalf("expected an error mentioning git, got %v", err)
 	}
+}
+
+func authorshipByHash(t *testing.T, collector *Collector) map[string]event.Authorship {
+	t.Helper()
+	marks := map[string]event.Authorship{}
+	err := collector.CollectEvents(context.Background(), func(ev event.Event) error {
+		marks[ev.Commit().Hash] = ev.Commit().Authorship
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return marks
+}
+
+const twoAuthorsLog = "\x1eaaa111\x1f2026-09-25T14:03:00-03:00\x1fAna\x1fana@x.io\x1fFix login\x1f\n" +
+	"\x1ebbb222\x1f2026-09-24T09:00:00-03:00\x1fRui Costa\x1frui@x.io\x1fRetry do ERP\x1f\n"
+
+// Regression: in a team repository every colleague's commit counted as
+// the user's work.
+func TestAutoIdentityMarksOwnCommits(t *testing.T) {
+	runner := &FakeGitRunner{Output: twoAuthorsLog, Config: map[string]string{"user.email": "ANA@x.io", "user.name": "Ana"}}
+	collector := NewCollector(runner, "/repo", nil, []string{AutoIdentity})
+	marks := authorshipByHash(t, collector)
+	if marks["aaa111"] != event.AuthorshipMine || marks["bbb222"] != event.AuthorshipOther {
+		t.Fatalf("expected Ana's commit mine and Rui's other, got %v", marks)
+	}
+	if repository, identities := collector.CommitAuthorship(); repository != "/repo" || len(identities) != 2 || identities[0] != "ana@x.io" {
+		t.Fatalf("expected the repository and lowercased identities, got %q %v", repository, identities)
+	}
+}
+
+func TestExplicitIdentitiesMatchNameOrEmail(t *testing.T) {
+	marks := authorshipByHash(t, NewCollector(&FakeGitRunner{Output: twoAuthorsLog}, "/repo", nil, []string{"Rui Costa"}))
+	if marks["bbb222"] != event.AuthorshipMine || marks["aaa111"] != event.AuthorshipOther {
+		t.Fatalf("expected the named author's commit mine, got %v", marks)
+	}
+}
+
+// A repository without a configured user must not mark every commit as
+// someone else's.
+func TestUnresolvedIdentityLeavesAuthorshipUnknown(t *testing.T) {
+	marks := authorshipByHash(t, NewCollector(&FakeGitRunner{Output: twoAuthorsLog}, "/repo", nil, []string{AutoIdentity}))
+	if marks["aaa111"] != event.AuthorshipUnknown || marks["bbb222"] != event.AuthorshipUnknown {
+		t.Fatalf("expected unknown authorship, got %v", marks)
+	}
+}
+
+// Acceptance (docs/USECASES2.md, phase 4) against the real git binary: a
+// repository with two authors marks only the configured user's commit.
+func TestRealRepositoryWithTwoAuthors(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	repository := initRepositoryWithCommit(t)
+	for _, args := range [][]string{
+		{"config", "user.email", "t@t"}, {"config", "user.name", "T"},
+		{"-c", "user.name=Rui", "-c", "user.email=rui@x.io", "commit", "-q", "--allow-empty", "-m", "commit do Rui"},
+	} {
+		if output, err := exec.Command("git", append([]string{"-C", repository}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, output)
+		}
+	}
+	var mine, others int
+	NewCollector(ExecRunner{}, repository, nil, []string{AutoIdentity}).CollectEvents(context.Background(), func(ev event.Event) error {
+		mine, others = mine+boolInt(ev.Commit().Authorship == event.AuthorshipMine), others+boolInt(ev.IsOthersCommit())
+		return nil
+	})
+	if mine != 1 || others != 1 {
+		t.Fatalf("expected one commit of each, got %d mine and %d others", mine, others)
+	}
+}
+
+func boolInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
 }

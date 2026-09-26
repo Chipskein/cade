@@ -40,7 +40,8 @@ type LinkedPR struct {
 type Involvement int
 
 const (
-	// Mine: the user opened a PR for it or sent a message citing it.
+	// Mine: the user opened a PR for it, sent a message or made a commit
+	// citing it.
 	Mine Involvement = iota
 	// Consulted: the user opened the task page, nothing more.
 	Consulted
@@ -106,7 +107,7 @@ func (b Builder) involvement(task *Task) Involvement {
 		if !b.cites(ev, task.Key) {
 			continue
 		}
-		if ev.Source == event.SourceTeams && ev.Message().SentByMe {
+		if ev.Source == event.SourceTeams && ev.Message().SentByMe || ev.Source == event.SourceGit && !ev.IsOthersCommit() {
 			return Mine
 		}
 		if ev.Source == event.SourceBrowser {

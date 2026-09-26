@@ -224,6 +224,13 @@ Não há busca lexical em nenhum lugar do código (nenhuma referência a FTS5 ou
 4. **Migração.** Preencher `mine` nos commits existentes com as identidades atuais.
 5. `git_authors` continua funcionando como filtro de ingestão, para quem quer excluir terceiros por completo.
 
+### Situação (2026-09-26): concluída
+
+- `sources.git_identities` (padrão `["auto"]`) resolve as identidades por repositório; cada commit ganha `authorship` (`mine`, `other` ou vazio = desconhecido, tratado como do usuário). Commits já gravados são marcados a cada `ingest git` direto no metadado (`MarkCommitAuthorship`), sem migração nem reingestão.
+- Uso: `timeline` esconde commits de outros (`--all-authors` mostra); no `ask`, perguntas em primeira pessoa sem pessoa citada ("o que eu fiz", "what did I…") deixam de fora commits de outros — por regra fixa em `queryplan.Resolve`, não por campo novo no planejador; o relatório de tarefas ignora commits de outros e conta um commit do usuário que cita a tarefa como "sua".
+- Aceite com o `git` real: repositório com dois autores, só o commit do usuário configurado marcado como dele; `timeline` com e sem `--all-authors` testada.
+- Suíte de recuperação: igual (recall 1,00, MRR 0,89 com o caso novo "quais commits eu fiz sobre o retry do ERP?"). O corpus sintético não diferencia com e sem o filtro (o commit do usuário já vinha primeiro); o ganho está coberto pelos testes determinísticos.
+
 ### Critério de aceite
 
 - Com um repositório de teste com dois autores, `cade timeline` mostra só os commits do usuário configurado.

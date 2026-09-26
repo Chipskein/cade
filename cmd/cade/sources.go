@@ -31,7 +31,7 @@ func newTeamsCollector(indexedDBDir string) (ingest.EventCollector, error) {
 
 func gitCollectorFactory(sources config.SourcesConfig) func(string) (ingest.EventCollector, error) {
 	return func(repository string) (ingest.EventCollector, error) {
-		return gitsource.NewCollector(gitsource.ExecRunner{}, repository, sources.GitAuthors), nil
+		return gitsource.NewCollector(gitsource.ExecRunner{}, repository, sources.GitAuthors, sources.GitIdentities), nil
 	}
 }
 
