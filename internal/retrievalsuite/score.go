@@ -7,13 +7,28 @@ import (
 	"strings"
 )
 
-// CaseResult is what one question retrieved, in rank order.
+// CaseResult is what one question retrieved, in rank order, as groups.
 type CaseResult struct {
 	Question  string
 	Relevant  []string
 	Retrieved []string
 	// Distances match Retrieved; they show where max_distance would cut.
 	Distances []float64
+	// Scoped questions had exact filters; only unscoped ones go through
+	// the distance gates, so calibration looks at those.
+	Scoped bool
+}
+
+// Repeats counts retrieved slots taken by a group already retrieved: the
+// same page visited again, another version of the same file.
+func (r CaseResult) Repeats() int {
+	seen := map[string]bool{}
+	repeats := 0
+	for _, group := range r.Retrieved {
+		repeats += boolToInt(seen[group])
+		seen[group] = true
+	}
+	return repeats
 }
 
 // Answerable reports whether some corpus event answers the question.
@@ -86,6 +101,18 @@ func (s Scoreboard) meanOverAnswerable(metric func(CaseResult) float64) float64 
 	return total / float64(count)
 }
 
+// Redundancy is the share of all retrieved slots that repeat a group.
+func (s Scoreboard) Redundancy() float64 {
+	repeats, slots := 0, 0
+	for _, result := range s.Results {
+		repeats, slots = repeats+result.Repeats(), slots+len(result.Retrieved)
+	}
+	if slots == 0 {
+		return 0
+	}
+	return float64(repeats) / float64(slots)
+}
+
 // Rejection is the share of unanswerable cases that retrieved nothing.
 func (s Scoreboard) Rejection() float64 {
 	rejected, count := 0, 0
@@ -108,8 +135,8 @@ func boolToInt(value bool) int {
 	return 0
 }
 
-// BelowMinimum names the metrics under the suite's floors.
-func (s Scoreboard) BelowMinimum(suite Suite) []string {
+// BelowMinimum names the metrics under the set's floors.
+func (s Scoreboard) BelowMinimum(suite CaseSet) []string {
 	var below []string
 	checks := []struct {
 		name           string
@@ -127,7 +154,7 @@ func (s Scoreboard) BelowMinimum(suite Suite) []string {
 // missed or wrongly retrieved.
 func (s Scoreboard) WriteReport(out io.Writer) {
 	fmt.Fprintf(out, "%d perguntas, %d corretas\n", len(s.Results), s.passedCount())
-	fmt.Fprintf(out, "  recall     %.2f\n  mrr        %.2f\n  rejeição   %.2f\n", s.MeanRecall(), s.MRR(), s.Rejection())
+	fmt.Fprintf(out, "  recall      %.2f\n  mrr         %.2f\n  rejeição    %.2f\n  redundância %.2f\n", s.MeanRecall(), s.MRR(), s.Rejection(), s.Redundancy())
 	for _, result := range s.Results {
 		if !result.Passed() {
 			fmt.Fprintf(out, "✗ %s\n    %s\n", result.Question, failureDetail(result))

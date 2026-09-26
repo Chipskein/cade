@@ -72,7 +72,7 @@ func withTaskStatus(list []tasks.Task, status queryplan.TaskStatus) []tasks.Task
 // tasksMatching keeps the tasks cited in the messages the people and
 // direction select ("que a Ana me passou"), then those mentioning the
 // topic. A name that matches nobody is searched as a topic instead:
-// in "tarefas de Fertalvo" the model read a client as a person.
+// in "tarefas de Solaris" the model read a client as a person.
 func tasksMatching(builder tasks.Builder, list []tasks.Task, query queryplan.Query, out io.Writer) []tasks.Task {
 	kept, matched, unknown := query.Criteria.Apply(taskEvents(list))
 	reportPeople(out, matched, nil)
@@ -108,7 +108,7 @@ func messagesOnly(events []event.Event) []event.Event {
 }
 
 // mentioningAll keeps the tasks whose title, PRs or events contain every
-// term, ignoring case and accents ("fertalvo" matches "-> main-fertalvo").
+// term, ignoring case and accents ("solaris" matches "-> main-solaris").
 func mentioningAll(list []tasks.Task, terms []string) []tasks.Task {
 	var kept []tasks.Task
 	for _, task := range list {

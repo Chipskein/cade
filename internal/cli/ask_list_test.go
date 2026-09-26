@@ -16,7 +16,7 @@ func sentMessage(when time.Time, conversation, text string) event.Event {
 func sentToSeveralPeople(world *fakeWorld) {
 	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
 	world.store.Events = []event.Event{
-		sentMessage(yesterday, "Eu, Leandro Avila", "voltou, pode ignorar"),
+		sentMessage(yesterday, "Eu, Leandro Silva", "voltou, pode ignorar"),
 		sentMessage(yesterday.Add(time.Hour), "Eu, Carla Dias", "bom dia"),
 		sentMessage(yesterday.Add(2*time.Hour), "Eu, Carla Dias", "o pedido da Zenite subiu"),
 	}
@@ -27,10 +27,10 @@ func sentToSeveralPeople(world *fakeWorld) {
 func TestAskListSentToMisspelledPerson(t *testing.T) {
 	world := newFakeWorld()
 	sentToSeveralPeople(world)
-	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": "teams", "pessoas": ["Avilla"], "direcao": "enviadas", "assunto": null, "status": null}`
-	_, stdout, _ := world.run("ask", "quais foram as mensagens que enviei pro avilla ontem")
+	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": "teams", "pessoas": ["Sillva"], "direcao": "enviadas", "assunto": null, "status": null}`
+	_, stdout, _ := world.run("ask", "quais foram as mensagens que enviei pro sillva ontem")
 	if !strings.Contains(stdout, "1 eventos") || !strings.Contains(stdout, "voltou, pode ignorar") {
-		t.Fatalf("expected only the message to Avila, got:\n%s", stdout)
+		t.Fatalf("expected only the message to Silva, got:\n%s", stdout)
 	}
 }
 

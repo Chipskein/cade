@@ -62,8 +62,8 @@ func TestScoreCaseAcceptsMatchingPlan(t *testing.T) {
 }
 
 func TestScoreCaseReportsEachWrongField(t *testing.T) {
-	suiteCase := SuiteCase{Question: "conversas com o Edilson", Expect: ExpectedPlan{Mode: "listar", Source: "teams", People: []string{"Edilson"}}}
-	plan := Plan{Mode: ModeAnswer, Source: "teams", Criteria: listing.Criteria{Direction: listing.Sent, People: []string{"Edilson"}}}
+	suiteCase := SuiteCase{Question: "conversas com o Everton", Expect: ExpectedPlan{Mode: "listar", Source: "teams", People: []string{"Everton"}}}
+	plan := Plan{Mode: ModeAnswer, Source: "teams", Criteria: listing.Criteria{Direction: listing.Sent, People: []string{"Everton"}}}
 	result := ScoreCase(suiteCase, plan, suiteNow)
 	expected := []Mismatch{{FieldMode, "listar", "responder"}, {FieldDirection, "", "enviadas"}}
 	if len(result.Mismatches) != 2 || result.Mismatches[0] != expected[0] || result.Mismatches[1] != expected[1] {

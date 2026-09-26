@@ -33,18 +33,20 @@ type CaseDone func(done, total int, result CaseResult)
 func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (Scoreboard, error) {
 	pipeline := ingest.NewPipeline(deps.Store, deps.Embedder, deps.DocumentPrefix, deps.Logger)
 	if _, err := pipeline.Run(ctx, corpusCollector{events: suite.events()}, nil); err != nil {
-		return Scoreboard{}, fmt.Errorf("ingest corpus of %d events: %w", len(suite.Events), err)
+		return Scoreboard{}, fmt.Errorf("ingest corpus of %d events: %w", len(suite.events()), err)
 	}
 	answerer := rag.NewAnswerer(rag.Dependencies{Store: deps.Store, Embedder: deps.Embedder,
 		Now: func() time.Time { return suite.Now }, Logger: deps.Logger}, deps.Settings)
+	return scoreCases(ctx, answerer, suite, onCase)
+}
+
+func scoreCases(ctx context.Context, answerer *rag.Answerer, suite Suite, onCase CaseDone) (Scoreboard, error) {
 	var board Scoreboard
 	for i, suiteCase := range suite.Cases {
-		hits, err := answerer.Retrieve(ctx, suiteCase.Query(suite.Now), rag.AnswerObserver{})
+		result, err := runCase(ctx, answerer, suite, suiteCase)
 		if err != nil {
-			return Scoreboard{}, fmt.Errorf("retrieve %q: %w", suiteCase.Question, err)
+			return Scoreboard{}, err
 		}
-		ids, distances := hitIDs(hits)
-		result := CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: ids, Distances: distances}
 		board.Results = append(board.Results, result)
 		if onCase != nil {
 			onCase(i+1, len(suite.Cases), result)
@@ -53,12 +55,22 @@ func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (
 	return board, nil
 }
 
-func hitIDs(hits []storage.ScoredEvent) ([]string, []float64) {
-	ids, distances := make([]string, len(hits)), make([]float64, len(hits))
-	for i, hit := range hits {
-		ids[i], distances[i] = hit.Event.UID, hit.Distance
+func runCase(ctx context.Context, answerer *rag.Answerer, suite Suite, suiteCase Case) (CaseResult, error) {
+	query := suiteCase.Query(suite.Now)
+	hits, err := answerer.Retrieve(ctx, query, rag.AnswerObserver{})
+	if err != nil {
+		return CaseResult{}, fmt.Errorf("retrieve %q: %w", suiteCase.Question, err)
 	}
-	return ids, distances
+	groups, distances := hitGroups(suite, hits)
+	return CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: groups, Distances: distances, Scoped: query.IsScoped()}, nil
+}
+
+func hitGroups(suite Suite, hits []storage.ScoredEvent) ([]string, []float64) {
+	groups, distances := make([]string, len(hits)), make([]float64, len(hits))
+	for i, hit := range hits {
+		groups[i], distances[i] = suite.groupOf(hit.Event.UID), hit.Distance
+	}
+	return groups, distances
 }
 
 // corpusCollector feeds the corpus to the ingestion pipeline.

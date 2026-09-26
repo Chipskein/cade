@@ -202,7 +202,7 @@ func TestCollectSkipsNotificationStreams(t *testing.T) {
 }
 
 func TestCollectMarksChannelPosts(t *testing.T) {
-	team := obj("id", str("19:team@thread.tacv2"), "type", str("Space"), "threadProperties", obj("spaceThreadTopic", str("Oficina5")))
+	team := obj("id", str("19:team@thread.tacv2"), "type", str("Space"), "threadProperties", obj("spaceThreadTopic", str("Atlas")))
 	channel := obj("id", str(testConversationID), "type", str("Topic"), "teamId", str("19:team@thread.tacv2"),
 		"threadProperties", obj("topic", str("Avisos")))
 	records := []indexeddb.Record{
@@ -211,7 +211,7 @@ func TestCollectMarksChannelPosts(t *testing.T) {
 		replyChain(message("1", "Text", "antecipem os apontamentos")),
 	}
 	events, _ := collectTeams(t, FakeIndexedDBReader{Records: records})
-	expected := "Ana Souza: antecipem os apontamentos\nConversa: canal Oficina5 › Avisos\nPublicada no canal (não enviada diretamente a você)"
+	expected := "Ana Souza: antecipem os apontamentos\nConversa: canal Atlas › Avisos\nPublicada no canal (não enviada diretamente a você)"
 	if len(events) != 1 || events[0].Content != expected {
 		t.Fatalf("expected a channel post, got %+v", events)
 	}
@@ -221,9 +221,9 @@ func TestCollectResolvesSenderFromProfiles(t *testing.T) {
 	anonymous := obj("id", str("1"), "conversationId", str(testConversationID), "messageType", str("Text"),
 		"content", str("oi"), "creator", str("8:orgid:ana"), "originalArrivalTime", num(float64(sentAt.UnixMilli())))
 	profile := indexeddb.Record{Database: "Teams:profiles:react-web-client:t:u:en-us", Store: "profiles",
-		Value: obj("mri", str("8:orgid:ana"), "displayName", str("Ana Goulart"))}
+		Value: obj("mri", str("8:orgid:ana"), "displayName", str("Ana Prado"))}
 	events, _ := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{profile, replyChain(anonymous)}})
-	if len(events) != 1 || events[0].Metadata["sender"] != "Ana Goulart" {
+	if len(events) != 1 || events[0].Metadata["sender"] != "Ana Prado" {
 		t.Fatalf("expected the sender name from profiles, got %+v", events)
 	}
 }

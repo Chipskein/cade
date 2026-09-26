@@ -172,7 +172,7 @@ func TestAskTasksPassedByPerson(t *testing.T) {
 	}
 }
 
-// Regression: in "tarefas de Fertalvo que me passaram" the model read a
+// Regression: in "tarefas de Solaris que me passaram" the model read a
 // client as a person; the name must narrow by topic, not be dropped.
 func TestAskTasksClientReadAsPersonBecomesTopic(t *testing.T) {
 	world := newFakeWorld()

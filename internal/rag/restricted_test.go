@@ -25,8 +25,8 @@ func teamsMessage(uid, sender string, hour int) event.Event {
 func storeOfMessages() *testfakes.FakeEventStore {
 	store := testfakes.NewFakeEventStore()
 	store.Events = []event.Event{
-		teamsMessage("ana-near", "Ana Goulart", 9), teamsMessage("marcos-far", "Marcos Lisboa", 10),
-		teamsMessage("marcos-near", "Marcos Lisboa", 11), teamsMessage("marcos-old", "Marcos Lisboa", 8),
+		teamsMessage("ana-near", "Ana Prado", 9), teamsMessage("marcos-far", "Marcos Lima", 10),
+		teamsMessage("marcos-near", "Marcos Lima", 11), teamsMessage("marcos-old", "Marcos Lima", 8),
 	}
 	store.Events[3].Timestamp = store.Events[3].Timestamp.AddDate(0, 0, -30)
 	store.Embeddings = map[string][]float32{

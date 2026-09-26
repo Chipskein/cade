@@ -20,7 +20,7 @@ var (
 
 // Replies embed the quoted message in a blockquote whose author is a
 // <strong itemprop="mri">, and @mentions are spans; stripping their tags
-// glued names to the text ("Oficina5mas é estranho").
+// glued names to the text ("Atlasmas é estranho").
 var (
 	quoteBlock  = regexp.MustCompile(`(?is)<blockquote[^>]*>(.*?)</blockquote>`)
 	quoteAuthor = regexp.MustCompile(`(?is)<strong[^>]*itemprop="mri"[^>]*>(.*?)</strong>`)

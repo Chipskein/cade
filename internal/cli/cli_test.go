@@ -295,7 +295,7 @@ func teamsEvent(uid string, sentByMe string, kind string) event.Event {
 
 func dayOfTeamsMessages(world *fakeWorld) {
 	fromAna, fromIanne := teamsEvent("ana-msg", "false", "chat"), teamsEvent("ianne-msg", "false", "chat")
-	fromAna.Metadata["sender"], fromIanne.Metadata["sender"] = "Ana Goulart - Oficina5", "Ianne Melo - Oficina5"
+	fromAna.Metadata["sender"], fromIanne.Metadata["sender"] = "Ana Prado - Atlas", "Ianne Rocha - Atlas"
 	world.store.Events = []event.Event{fromAna, fromIanne, teamsEvent("enviada", "true", "chat"), sampleCommit}
 }
 

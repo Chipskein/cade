@@ -29,7 +29,7 @@ func TestGuardKeepsSupportedDirections(t *testing.T) {
 // Regression: the model returned directions for "com X" questions.
 func TestGuardDropsInventedDirections(t *testing.T) {
 	cases := map[string]listing.Direction{
-		"conversas com o Edilson sobre a Bigfertil": listing.Sent,
+		"conversas com o Everton sobre a Norteagro": listing.Sent,
 		"resumo do que conversei com a Ianne":       listing.Sent,
 		"o Vitor falou algo sobre os PRs?":          listing.Received,
 	}
@@ -61,7 +61,7 @@ func TestGuardEnglishCues(t *testing.T) {
 			t.Errorf("guardPlan(%q) dropped a supported direction", question)
 		}
 	}
-	if got := guardPlan(directionPlan(listing.Received, "Edilson"), "chats with Edilson about the invoice"); got.Criteria.Direction != listing.AnyDirection {
+	if got := guardPlan(directionPlan(listing.Received, "Everton"), "chats with Everton about the invoice"); got.Criteria.Direction != listing.AnyDirection {
 		t.Error("\"with X\" must not keep a direction")
 	}
 }

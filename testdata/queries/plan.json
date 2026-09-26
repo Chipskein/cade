@@ -19,7 +19,7 @@
     {"question": "que mensagem eu mandei pra Juliana sobre o contrato?", "expect": {"source": "teams", "people": ["Juliana"], "direction": "enviadas", "topic": "contrato"}},
     {"question": "conversas com a Beatriz e o Tiago na última semana", "expect": {"mode": "listar", "days": "2026-09-20 a 2026-09-26", "source": "teams", "people": ["Beatriz", "Tiago"]}},
     {"question": "what did Lucas ask me today?", "expect": {"days": "2026-09-26", "people": ["Lucas"], "direction": "recebidas"}},
-    {"question": "resumo das conversas com o Edilson essa semana", "expect": {"days": "2026-09-21 a 2026-09-26", "source": "teams", "people": ["Edilson"]}},
+    {"question": "resumo das conversas com o Everton essa semana", "expect": {"days": "2026-09-21 a 2026-09-26", "source": "teams", "people": ["Everton"]}},
     {"question": "tem algo sobre a Petrobras nos meus chats?", "expect": {"source": "teams", "topic": "Petrobras"}},
 
     {"question": "quais páginas abri hoje sobre postgres?", "expect": {"mode": "listar", "days": "2026-09-26", "source": "browser", "topic": "postgres"}},

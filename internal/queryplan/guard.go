@@ -9,7 +9,7 @@ import (
 )
 
 // The 3B model sometimes invents restrictions: "essa semana" came back as
-// "semana passada", "conversas com o Edilson" as "enviadas". A wrong filter
+// "semana passada", "conversas com o Everton" as "enviadas". A wrong filter
 // hides the right events, which is worse than no filter, so these checks
 // only ever remove what the question does not support.
 var (

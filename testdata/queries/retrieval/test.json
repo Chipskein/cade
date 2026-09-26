@@ -1,0 +1,171 @@
+{
+ "minimum_recall": 0.73,
+ "minimum_mrr": 0.67,
+ "minimum_rejection": 0.88,
+ "cases": [
+  {
+   "question": "what did I read about Kafka consumer groups?",
+   "relevant": [],
+   "topic": "Kafka consumer groups"
+  },
+  {
+   "question": "quando é o aniversário da minha mãe?",
+   "relevant": [],
+   "topic": "aniversário da minha mãe"
+  },
+  {
+   "question": "qual o saldo da minha conta no banco?",
+   "relevant": [],
+   "topic": "saldo da conta no banco"
+  },
+  {
+   "question": "qual o endereço da festa de fim de ano?",
+   "relevant": [],
+   "topic": "endereço da festa de fim de ano"
+  },
+  {
+   "question": "quanto custou o conserto do carro?",
+   "relevant": [],
+   "topic": "conserto do carro"
+  },
+  {
+   "question": "what did I read about GraphQL federation?",
+   "relevant": [],
+   "topic": "GraphQL federation"
+  },
+  {
+   "question": "how do I configure Terraform workspaces?",
+   "relevant": [],
+   "topic": "Terraform workspaces"
+  },
+  {
+   "question": "qual o horário do voo para Lisboa?",
+   "relevant": [],
+   "topic": "horário do voo para Lisboa"
+  },
+  {
+   "question": "qual a senha do wifi do escritório?",
+   "relevant": [],
+   "topic": "senha do wifi do escritório"
+  },
+  {
+   "question": "o que foi o commit e5f6a7b?",
+   "relevant": [
+    "g8"
+   ],
+   "topic": "commit e5f6a7b"
+  },
+  {
+   "question": "o servidor de homologação caiu?",
+   "relevant": [
+    "t5"
+   ],
+   "topic": "servidor de homologação"
+  },
+  {
+   "question": "quando é o deploy da 2.0?",
+   "relevant": [
+    "t8",
+    "f3"
+   ],
+   "topic": "deploy da 2.0"
+  },
+  {
+   "question": "quando congelamos a main?",
+   "relevant": [
+    "f3"
+   ],
+   "topic": "congelar a main"
+  },
+  {
+   "question": "Go generics",
+   "relevant": [
+    "b7"
+   ],
+   "topic": "Go generics"
+  },
+  {
+   "question": "o que fiz no PROJ-481?",
+   "relevant": [
+    "g3",
+    "t9"
+   ],
+   "topic": "PROJ-481"
+  },
+  {
+   "question": "erro ORA-01722",
+   "relevant": [
+    "g8",
+    "b3"
+   ],
+   "topic": "erro ORA-01722"
+  },
+  {
+   "question": "o que foi o PR 45?",
+   "relevant": [
+    "pr45"
+   ],
+   "topic": "PR 45"
+  },
+  {
+   "question": "por que aumentamos o timeout do gateway de pagamentos?",
+   "relevant": [
+    "f-arch"
+   ],
+   "topic": "timeout do gateway de pagamentos"
+  },
+  {
+   "question": "qual o problema com o CEP que comentaram?",
+   "relevant": [
+    "t1",
+    "t2"
+   ],
+   "topic": "problema com o CEP"
+  },
+  {
+   "question": "o que está na nota da sprint 42?",
+   "relevant": [
+    "f-sprint"
+   ],
+   "source": "file",
+   "topic": "sprint 42"
+  },
+  {
+   "question": "o que o Marcos me pediu?",
+   "relevant": [
+    "t4"
+   ],
+   "people": [
+    "Marcos"
+   ],
+   "direction": "recebidas"
+  },
+  {
+   "question": "what did I read about Kubernetes probes?",
+   "relevant": [
+    "b5"
+   ],
+   "source": "browser",
+   "topic": "Kubernetes probes"
+  },
+  {
+   "question": "quais correções fiz na sincronização com o ERP?",
+   "relevant": [
+    "g5"
+   ],
+   "source": "git",
+   "topic": "sincronização com o ERP"
+  },
+  {
+   "question": "o que o Rui commitou sobre o ERP?",
+   "relevant": [
+    "gr1"
+   ],
+   "source": "git",
+   "people": [
+    "Rui"
+   ],
+   "topic": "ERP"
+  }
+ ]
+}

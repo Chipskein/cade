@@ -11,7 +11,7 @@ import (
 
 // A name that matches no sender or conversation (a client read as a
 // person, a nickname) still restricts the result as text: dropping it
-// listed every message of the day for "mensagens que enviei pro avilla".
+// listed every message of the day for "mensagens que enviei pro sillva".
 
 func reportNamesAsText(out io.Writer, unknown []string) {
 	if len(unknown) > 0 {

@@ -55,13 +55,13 @@ func TestDescribeConversationKinds(t *testing.T) {
 	cases := map[string]conversationInfo{
 		"Chat":    {kind: event.KindChat, title: "Ana, Bruno"},
 		"Meeting": {kind: event.KindMeeting, title: "Daily"},
-		"Space":   {kind: event.KindChannel, title: "Oficina5 › Geral"},
+		"Space":   {kind: event.KindChannel, title: "Atlas › Geral"},
 		"Other":   {kind: event.KindOther},
 	}
 	values := map[string]*v8value.Value{
 		"Chat":    obj("type", str("Chat"), "chatTitle", obj("longTitle", str("Ana, Bruno"))),
 		"Meeting": obj("type", str("Meeting"), "threadProperties", obj("topic", str("Daily"))),
-		"Space":   obj("type", str("Space"), "threadProperties", obj("spaceThreadTopic", str("Oficina5"))),
+		"Space":   obj("type", str("Space"), "threadProperties", obj("spaceThreadTopic", str("Atlas"))),
 		"Other":   obj("type", str("Thread")),
 	}
 	for name, expected := range cases {
@@ -106,11 +106,11 @@ func TestParticipantNamesCapsList(t *testing.T) {
 }
 
 // Regression: quote authors and mentions were glued to the following text
-// ("Marcos Lisboa - Oficina5mas é estranho").
+// ("Marcos Lima - Atlasmas é estranho").
 func TestHTMLToTextSeparatesQuotesAndMentions(t *testing.T) {
-	body := `<blockquote itemscope="" itemtype="http://schema.skype.com/Reply"><strong itemprop="mri" itemid="8:orgid:x">Marcos Lisboa - Oficina5</strong><span itemprop="time"></span><p itemprop="preview">mas é estranho</p></blockquote>` +
-		`<p><span itemtype="http://schema.skype.com/Mention" itemscope="" itemid="0">Vitor Hugo</span>, veja isso</p>`
-	expected := "@Vitor Hugo, veja isso\n↪ em resposta a Marcos Lisboa - Oficina5: mas é estranho"
+	body := `<blockquote itemscope="" itemtype="http://schema.skype.com/Reply"><strong itemprop="mri" itemid="8:orgid:x">Marcos Lima - Atlas</strong><span itemprop="time"></span><p itemprop="preview">mas é estranho</p></blockquote>` +
+		`<p><span itemtype="http://schema.skype.com/Mention" itemscope="" itemid="0">Vitor Alves</span>, veja isso</p>`
+	expected := "@Vitor Alves, veja isso\n↪ em resposta a Marcos Lima - Atlas: mas é estranho"
 	if got := htmlToText(body); got != expected {
 		t.Fatalf("expected %q, got %q", expected, got)
 	}

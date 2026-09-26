@@ -30,7 +30,7 @@ func matcherFor(name string, direction Direction) personMatcher {
 	return personMatcher{name: name, asSender: true, inConversation: true}
 }
 
-// resolvePerson tries the full name, then its first word ("Ana Goulart"
+// resolvePerson tries the full name, then its first word ("Ana Prado"
 // may be written "Ana"), keeping the first that matches some event.
 func resolvePerson(name string, direction Direction, events []event.Event) (personMatcher, bool) {
 	for _, candidate := range nameCandidates(textnorm.Fold(name)) {
@@ -67,7 +67,7 @@ func matchesAnyPerson(ev event.Event, people []personMatcher) bool {
 	return false
 }
 
-// containsName matches whole words, so "ana" finds "Ana Goulart" but not
+// containsName matches whole words, so "ana" finds "Ana Prado" but not
 // "Ianne" or "Mariana", and tolerates spelling variants (see spellingKey).
 func containsName(text, name string) bool {
 	joined := " " + spellingKeys(textnorm.Fold(text)) + " "
@@ -95,7 +95,7 @@ func spellingKeys(text string) string {
 }
 
 // spellingKey ignores doubled letters and y/i, how names are commonly
-// misspelled: "avilla" finds "Avila", "wilian" finds "Willian". An edit
+// misspelled: "sillva" finds "Silva", "wilian" finds "Willian". An edit
 // distance would also merge different people (Bruno, Bruna).
 func spellingKey(word string) string {
 	var key []rune

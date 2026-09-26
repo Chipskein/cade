@@ -77,7 +77,7 @@ func TestBuildLinksPRAnnouncedWithTaskInMessage(t *testing.T) {
 
 func TestBuildProbableLinkWithoutCitation(t *testing.T) {
 	report := build([]event.Event{
-		visit(at(14, 0), otherTask, "Upload Bigfertil"),
+		visit(at(14, 0), otherTask, "Upload Norteagro"),
 		visit(at(14, 30), compareURL, "Comparing changes"),
 		visit(at(14, 31), prURL, "upload fix by bruno · Pull Request #45 · acme/api · GitHub"),
 	})

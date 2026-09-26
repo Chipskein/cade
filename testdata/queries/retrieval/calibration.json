@@ -1,0 +1,181 @@
+{
+ "cases": [
+  {
+   "question": "o que fiz no módulo de ponto eletrônico?",
+   "relevant": [],
+   "topic": "módulo de ponto eletrônico"
+  },
+  {
+   "question": "qual o CPF do Rui?",
+   "relevant": [],
+   "topic": "CPF do Rui"
+  },
+  {
+   "question": "o que fiz no módulo de férias?",
+   "relevant": [],
+   "topic": "módulo de férias"
+  },
+  {
+   "question": "o que eu pesquisei sobre Rust async?",
+   "relevant": [],
+   "topic": "Rust async"
+  },
+  {
+   "question": "quando é a reunião com o cliente Andrômeda?",
+   "relevant": [],
+   "topic": "reunião com o cliente Andrômeda"
+  },
+  {
+   "question": "qual o resultado do jogo do Flamengo?",
+   "relevant": [],
+   "topic": "resultado do jogo do Flamengo"
+  },
+  {
+   "question": "o que eu pesquisei sobre Terraform?",
+   "relevant": [],
+   "topic": "Terraform"
+  },
+  {
+   "question": "como foi a reunião com o cliente Orion?",
+   "relevant": [],
+   "topic": "reunião com o cliente Orion"
+  },
+  {
+   "question": "qual a senha do Jira?",
+   "relevant": [],
+   "topic": "senha do Jira"
+  },
+  {
+   "question": "o que eu fiz sobre cache Redis?",
+   "relevant": [
+    "g2",
+    "b2",
+    "t4"
+   ],
+   "topic": "cache Redis"
+  },
+  {
+   "question": "quem pediu revisão de PR?",
+   "relevant": [
+    "t4"
+   ],
+   "topic": "revisão de PR"
+  },
+  {
+   "question": "como deixei o painel atrás de um proxy?",
+   "relevant": [
+    "f2"
+   ],
+   "topic": "painel atrás de um proxy"
+  },
+  {
+   "question": "timeout do login",
+   "relevant": [
+    "g1",
+    "t3"
+   ],
+   "topic": "timeout do login"
+  },
+  {
+   "question": "what went wrong with the ORA-01722 error?",
+   "relevant": [
+    "g8",
+    "b3"
+   ],
+   "topic": "ORA-01722 error"
+  },
+  {
+   "question": "o que aconteceu com o contrato da Zenite?",
+   "relevant": [
+    "t6",
+    "t10"
+   ],
+   "topic": "contrato da Zenite"
+  },
+  {
+   "question": "o que pesquisei sobre busca vetorial no sqlite?",
+   "relevant": [
+    "b1"
+   ],
+   "topic": "busca vetorial no sqlite"
+  },
+  {
+   "question": "qual perfil da VPN usar no onboarding?",
+   "relevant": [
+    "f-onboard"
+   ],
+   "topic": "perfil da VPN no onboarding"
+  },
+  {
+   "question": "como configurei o nginx como proxy reverso?",
+   "relevant": [
+    "f2",
+    "b8"
+   ],
+   "topic": "nginx"
+  },
+  {
+   "question": "quando é a retrospectiva da sprint?",
+   "relevant": [
+    "f-sprint"
+   ],
+   "topic": "retrospectiva da sprint"
+  },
+  {
+   "question": "tivemos problema com número inválido no Oracle?",
+   "relevant": [
+    "g8",
+    "b3"
+   ],
+   "topic": "número inválido no Oracle"
+  },
+  {
+   "question": "commits de ontem sobre autenticação",
+   "relevant": [
+    "g1",
+    "g6"
+   ],
+   "period": "ontem",
+   "source": "git",
+   "topic": "autenticação"
+  },
+  {
+   "question": "mensagens da Ana sobre deploy",
+   "relevant": [
+    "t9"
+   ],
+   "people": [
+    "Ana"
+   ],
+   "topic": "deploy"
+  },
+  {
+   "question": "mensagem que mandei pro Rui sobre o login",
+   "relevant": [
+    "t3"
+   ],
+   "source": "teams",
+   "people": [
+    "Rui"
+   ],
+   "direction": "enviadas",
+   "topic": "login"
+  },
+  {
+   "question": "quantas vezes li sobre Kubernetes probes?",
+   "relevant": [
+    "b5"
+   ],
+   "source": "browser",
+   "topic": "Kubernetes probes"
+  },
+  {
+   "question": "pauta da reunião de planejamento",
+   "relevant": [
+    "f1"
+   ],
+   "source": "file",
+   "topic": "pauta da reunião de planejamento"
+  }
+ ]
+}

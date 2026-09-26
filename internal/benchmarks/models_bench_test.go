@@ -41,6 +41,10 @@ func modelPath(b *testing.B, variable string) string {
 	return path
 }
 
+// The first call on a GPU pays for CUDA setup (it made a 5-iteration run
+// report 27 ms per embedding instead of ~3 ms), so every model benchmark
+// warms up before b.Loop, which excludes setup from the timing.
+
 func loadEmbedder(b *testing.B) *llamacpp.Embedder {
 	b.Helper()
 	embedder, err := llamacpp.LoadEmbedder(llamacpp.ModelOptions{Path: modelPath(b, embeddingModelEnv), GPULayers: -1})
@@ -66,6 +70,9 @@ func loadGenerator(b *testing.B) *llamacpp.Generator {
 func BenchmarkEmbedEvent(b *testing.B) {
 	embedder := loadEmbedder(b)
 	prefix := config.Defaults().Embedding.DocumentPrefix
+	if _, err := embedder.Embed(prefix + sampleMessage); err != nil {
+		b.Fatal(err)
+	}
 	for b.Loop() {
 		if _, err := embedder.Embed(prefix + sampleMessage); err != nil {
 			b.Fatal(err)
@@ -81,6 +88,9 @@ var planQuestions = []string{"o que a Carla me pediu ontem?", "liste os commits 
 func BenchmarkPlanQuestion(b *testing.B) {
 	generator := loadGenerator(b)
 	planner := queryplan.NewPlanner(generator)
+	if _, err := planner.Plan(context.Background(), planQuestions[0]); err != nil {
+		b.Fatal(err)
+	}
 	i := 0
 	for b.Loop() {
 		b.StopTimer()
@@ -112,6 +122,9 @@ func BenchmarkAnswer(b *testing.B) {
 	answerer := rag.NewAnswerer(rag.Dependencies{Store: evidenceStore(settings.TopK), Embedder: &testfakes.FakeEmbedder{Vector: []float32{1}},
 		Generator: generator, Now: time.Now, Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))},
 		rag.Settings{TopK: settings.TopK, MaxDistance: settings.MaxDistance, MaxBestDistance: settings.MaxBestDistance, MaxAnswerTokens: settings.MaxAnswerTokens})
+	if _, err := answerer.Answer(context.Background(), queryplan.Query{Question: "aquecimento", Source: event.SourceTeams}, rag.AnswerObserver{}); err != nil {
+		b.Fatal(err)
+	}
 	observer := rag.AnswerObserver{Generation: llm.GenerationProgress{TokenGenerated: func(string) { tokens++ }}}
 	i := 0
 	for b.Loop() {
