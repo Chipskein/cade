@@ -4,6 +4,30 @@ CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos
 
 Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração.
 
+## Como funciona
+
+```mermaid
+flowchart LR
+    subgraph Fontes
+        git[Git]
+        nav[Navegador]
+        arq[Arquivos]
+        teams[Teams · IndexedDB]
+    end
+
+    Fontes --> ingest[cade ingest<br/>normaliza + embedding]
+    ingest --> db[(SQLite + sqlite-vec)]
+
+    timeline[cade timeline] --> db
+
+    ask[cade ask] --> plano[Interpreta a pergunta<br/>LLM + gramática]
+    plano -->|listar| filtro[Filtra no banco]
+    plano -->|responder| busca[Filtra + busca vetorial]
+    filtro --> db
+    busca --> db
+    busca --> llm[LLM local<br/>resposta com fontes]
+```
+
 ## Modelos
 
 | Uso | Modelo | Tamanho |
