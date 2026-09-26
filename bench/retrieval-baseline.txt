@@ -1,0 +1,73 @@
+# cade retrieval baseline — 2026-09-26, antes das fases 0.5–3 (contexto do embedder 2048, só vetores)
+=== RUN   TestRetrievalCalibrationWithModel
+    suite_model_test.go:132: [ 1/25] ✗  o que fiz no módulo de ponto eletrônico?
+    suite_model_test.go:132: [ 2/25] ✗  qual o CPF do Rui?
+    suite_model_test.go:132: [ 3/25] ✗  o que fiz no módulo de férias?
+    suite_model_test.go:132: [ 4/25] ✗  o que eu pesquisei sobre Rust async?
+    suite_model_test.go:132: [ 5/25] ✗  quando é a reunião com o cliente Andrômeda?
+    suite_model_test.go:132: [ 6/25] ✗  qual o resultado do jogo do Flamengo?
+    suite_model_test.go:132: [ 7/25] ✗  o que eu pesquisei sobre Terraform?
+    suite_model_test.go:132: [ 8/25] ✗  como foi a reunião com o cliente Orion?
+    suite_model_test.go:132: [ 9/25] ✗  qual a senha do Jira?
+    suite_model_test.go:132: [10/25] ✗  o que eu fiz sobre cache Redis?
+    suite_model_test.go:132: [11/25] ok quem pediu revisão de PR?
+    suite_model_test.go:132: [12/25] ok como deixei o painel atrás de um proxy?
+    suite_model_test.go:132: [13/25] ok timeout do login
+    suite_model_test.go:132: [14/25] ok what went wrong with the ORA-01722 error?
+    suite_model_test.go:132: [15/25] ok o que aconteceu com o contrato da Zenite?
+    suite_model_test.go:132: [16/25] ok o que pesquisei sobre busca vetorial no sqlite?
+    suite_model_test.go:132: [17/25] ✗  qual perfil da VPN usar no onboarding?
+    suite_model_test.go:132: [18/25] ok como configurei o nginx como proxy reverso?
+    suite_model_test.go:132: [19/25] ok quando é a retrospectiva da sprint?
+    suite_model_test.go:132: [20/25] ok tivemos problema com número inválido no Oracle?
+    suite_model_test.go:132: [21/25] ok commits de ontem sobre autenticação
+    suite_model_test.go:132: [22/25] ok mensagens da Ana sobre deploy
+    suite_model_test.go:132: [23/25] ok mensagem que mandei pro Rui sobre o login
+    suite_model_test.go:132: [24/25] ok quantas vezes li sobre Kubernetes probes?
+    suite_model_test.go:132: [25/25] ok pauta da reunião de planejamento
+    suite_model_test.go:41: 
+        calibração (perguntas sem filtro, distância do evento mais próximo):
+          com resposta: 11, pior 0.669
+          sem resposta: 9, melhor 0.634
+          os grupos se sobrepõem: nenhum max_best_distance separa os dois (atual 0.62)
+--- PASS: TestRetrievalCalibrationWithModel (3.46s)
+=== RUN   TestRetrievalSuiteWithModel
+    suite_model_test.go:132: [ 1/24] ok what did I read about Kafka consumer groups?
+    suite_model_test.go:132: [ 2/24] ok quando é o aniversário da minha mãe?
+    suite_model_test.go:132: [ 3/24] ok qual o saldo da minha conta no banco?
+    suite_model_test.go:132: [ 4/24] ok qual o endereço da festa de fim de ano?
+    suite_model_test.go:132: [ 5/24] ok quanto custou o conserto do carro?
+    suite_model_test.go:132: [ 6/24] ok what did I read about GraphQL federation?
+    suite_model_test.go:132: [ 7/24] ok how do I configure Terraform workspaces?
+    suite_model_test.go:132: [ 8/24] ok qual o horário do voo para Lisboa?
+    suite_model_test.go:132: [ 9/24] ok qual a senha do wifi do escritório?
+    suite_model_test.go:132: [10/24] ✗  o que foi o commit e5f6a7b?
+    suite_model_test.go:132: [11/24] ok o servidor de homologação caiu?
+    suite_model_test.go:132: [12/24] ok quando é o deploy da 2.0?
+    suite_model_test.go:132: [13/24] ok quando congelamos a main?
+    suite_model_test.go:132: [14/24] ok Go generics
+    suite_model_test.go:132: [15/24] ok o que fiz no PROJ-481?
+    suite_model_test.go:132: [16/24] ok erro ORA-01722
+    suite_model_test.go:132: [17/24] ✗  o que foi o PR 45?
+    suite_model_test.go:132: [18/24] ✗  por que aumentamos o timeout do gateway de pagamentos?
+    suite_model_test.go:132: [19/24] ok qual o problema com o CEP que comentaram?
+    suite_model_test.go:132: [20/24] ok o que está na nota da sprint 42?
+    suite_model_test.go:132: [21/24] ok o que o Marcos me pediu?
+    suite_model_test.go:132: [22/24] ok what did I read about Kubernetes probes?
+    suite_model_test.go:132: [23/24] ok quais correções fiz na sincronização com o ERP?
+    suite_model_test.go:132: [24/24] ok o que o Rui commitou sobre o ERP?
+    suite_model_test.go:54: 
+        24 perguntas, 21 corretas
+          recall      0.80
+          mrr         0.74
+          rejeição    1.00
+          redundância 0.17
+        ✗ o que foi o commit e5f6a7b?
+            faltou: g8; veio: 
+        ✗ o que foi o PR 45?
+            faltou: pr45; veio: 
+        ✗ por que aumentamos o timeout do gateway de pagamentos?
+            faltou: f-arch; veio: xg9, g1, t3, gr1, xg151, xg152, xg141, xg139
+--- PASS: TestRetrievalSuiteWithModel (3.09s)
+PASS
+ok  	github.com/chipskein/cade/internal/retrievalsuite	6.709s

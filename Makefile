@@ -20,7 +20,7 @@ LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 
 PREFIX ?= $(HOME)/.local
 
-.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval bench fmt llama llama-cuda models clean
+.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval eval-scale bench fmt llama llama-cuda models clean
 
 build: llama
 	go build -o bin/cade ./cmd/cade
@@ -52,10 +52,19 @@ GO_TAGS ?= $(if $(wildcard $(CUDA_HOME)/bin/nvcc),cuda)
 eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
 	CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestPlanSuiteWithModel ./internal/queryplan
 
-# Scores retrieval (recall, MRR, rejection) on testdata/queries/retrieval.json
-# with the real embedder and SQLite store.
+# Scores retrieval with the real embedder and SQLite store: the calibration
+# set reports where the distance gates belong, the test set (never used for
+# tuning) is checked against its floors. testdata/queries/retrieval/.
 eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
-	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestRetrievalSuiteWithModel ./internal/retrievalsuite
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run 'TestRetrieval(Calibration|Suite)WithModel' ./internal/retrievalsuite
+
+# Test-set metrics as the corpus grows with distractors, saved next to the
+# benchmark baseline. Embeddings are cached in ~/.cache/cade/eval, so only
+# the first run of a size pays for them (~3 ms per event on a GPU).
+SCALE ?= 1000,10000
+eval-scale: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_SCALE=$(SCALE) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -timeout 3h \
+		-run TestRetrievalScaleWithModel ./internal/retrievalsuite | tee bench/retrieval-scale.txt
 
 eval: eval-plan eval-retrieval
 

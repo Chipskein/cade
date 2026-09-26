@@ -103,7 +103,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - List requests with a period ("as mensagens da Ana ontem") list every matching event, straight from the database.
 - Questions naming a person or a direction are answered using only the matching events.
 - Questions about tasks ("quais tarefas finalizei ontem?", "what tasks are still in progress?") return the `cade tasks` report, optionally only finished or unfinished tasks; without a period, today. With a person or direction ("tarefas que a Ana me passou ontem"), only tasks linked in those messages; a name that matches no one (a client) filters by text instead.
-- Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("avilla" finds "Leandro Avila"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
+- Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("sillva" finds "Leandro Silva"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
 - "Received" leaves out group messages that only @mention other people ("pronto? @Vitor"); a mention of you, a team or tag keeps them.
 - Messages with no content ("ok", "valeu", "bom dia") are not used as evidence for answers; listings still show them.
 - Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
@@ -234,7 +234,7 @@ Other fields (written by `cade init`):
 | `retrieval.max_best_distance` | `0.62` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 
-To change the embedding model, set `embedding.model_path` and run `cade reindex`: it recomputes every vector from the stored text, and resumes if interrupted (~37 events/s on an RTX 3060). The database records which model its vectors came from; `ingest` and `ask` refuse a different one instead of mixing incompatible vectors.
+To change the embedding model, set `embedding.model_path` and run `cade reindex`: it recomputes every vector from the stored text, and resumes if interrupted (~300 events/s on an RTX 3060, a few minutes for 100k events). The database records which model its vectors came from; `ingest` and `ask` refuse a different one instead of mixing incompatible vectors.
 
 Schema changes are applied automatically when the database is opened (numbered migrations). A step that rewrites data first saves a copy as `cade.db.before-vN-<date>` and says where; delete it once you are satisfied.
 
@@ -251,6 +251,6 @@ make bench         # latency and memory: storage at 1k/10k/100k events, models
 
 `eval-plan` runs the questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, tasks, PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) and every question it misread. It fails when a field drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently.
 
-`eval-retrieval` ingests a synthetic corpus (`testdata/queries/retrieval.json`: ~250 commits, pages, files and messages, including look-alikes such as PROJ-418 next to PROJ-481 and everyday chatter) into a real SQLite store with the real embedder, and checks that each question brings back the events that answer it. It reports recall and MRR over answerable questions, and rejection: questions nothing answers must retrieve nothing.
+`eval-retrieval` ingests a synthetic corpus (`testdata/queries/retrieval/corpus.json`: ~290 commits, pages, files and messages, with look-alikes such as PROJ-418 next to PROJ-481, pages visited many times, a file in several versions, long notes with the answer near the end, other authors' commits and everyday chatter) into a real SQLite store with the real embedder. Questions come in two sets: `calibration.json` reports where the distance gates belong (without changing them), and `test.json`, never used for tuning, is checked against its floors. It reports recall and MRR over answerable questions, rejection (questions nothing answers must retrieve nothing) and redundancy (results repeating the same page or file). `make eval-scale SCALE=1000,10000` reruns the test set on corpora grown with distractors and saves the curve to `bench/retrieval-scale.txt`; `bench/retrieval-baseline.txt` holds the results before the next version's retrieval changes.
 
 `bench` measures storage on synthetic histories of 1k, 10k and 100k events (vector search, reads by period, writes, bytes per event) and the models (embedding an event, interpreting a question, generating an answer) with process and GPU memory. `bench/baseline.txt` holds a reference run on an RTX 3060; save new runs and compare them with [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat).

@@ -1,0 +1,6 @@
+=== RUN   TestRetrievalScaleWithModel
+    suite_model_test.go:82: eventos=1000    recall=0.73 mrr=0.73 rejeição=1.00 redundância=0.17
+    suite_model_test.go:82: eventos=10000   recall=0.73 mrr=0.73 rejeição=1.00 redundância=0.17
+--- PASS: TestRetrievalScaleWithModel (20.34s)
+PASS
+ok  	github.com/chipskein/cade/internal/retrievalsuite	20.510s
