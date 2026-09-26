@@ -6,6 +6,8 @@ CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos
 
 Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração.
 
+Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta.
+
 ## Como funciona
 
 ```mermaid

@@ -48,3 +48,20 @@ func TestGuardDropsPeriodNotInQuestion(t *testing.T) {
 		t.Fatalf("expected rewritten period dropped and literal one kept, got %q / %q", plan.Period, kept.Period)
 	}
 }
+
+func TestGuardEnglishCues(t *testing.T) {
+	kept := map[string]Plan{
+		"what did Ana send me yesterday? she sent me a file": directionPlan(listing.Received, "Ana"),
+		"messages from Ana today":                            directionPlan(listing.Received, "Ana"),
+		"messages I sent to Rui":                             directionPlan(listing.Sent, "Rui"),
+		"what did I tell the team":                           directionPlan(listing.Sent),
+	}
+	for question, plan := range kept {
+		if got := guardPlan(plan, question); got.Criteria.Direction != plan.Criteria.Direction {
+			t.Errorf("guardPlan(%q) dropped a supported direction", question)
+		}
+	}
+	if got := guardPlan(directionPlan(listing.Received, "Edilson"), "chats with Edilson about the invoice"); got.Criteria.Direction != listing.AnyDirection {
+		t.Error("\"with X\" must not keep a direction")
+	}
+}

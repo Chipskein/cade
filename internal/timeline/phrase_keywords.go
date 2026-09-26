@@ -26,8 +26,11 @@ var keywordRanges = []keywordRange{
 	{regexp.MustCompile(`\b(este|esse|neste|nesse) ano\b`), currentYear},
 }
 
+// allKeywordRanges checks Portuguese first, then English.
+var allKeywordRanges = append(append([]keywordRange{}, keywordRanges...), englishKeywordRanges...)
+
 func detectKeyword(text string, today time.Time) (DayRange, bool) {
-	for _, keyword := range keywordRanges {
+	for _, keyword := range allKeywordRanges {
 		if keyword.pattern.MatchString(text) {
 			return keyword.resolve(today), true
 		}

@@ -13,15 +13,18 @@ import (
 // hides the right events, which is worse than no filter, so these checks
 // only ever remove what the question does not support.
 var (
-	receivedVerbs = regexp.MustCompile(`\b(recebi|recebid[ao]s?|me (passou|passaram|mandou|mandaram|enviou|enviaram|pediu|pediram|falou|falaram|disse|disseram|perguntou))\b`)
-	sentVerbs     = regexp.MustCompile(`\b(mandei|enviei|pedi|falei|perguntei|respondi)\b`)
+	receivedVerbs = regexp.MustCompile(`\b(recebi|recebid[ao]s?|me (passou|passaram|mandou|mandaram|enviou|enviaram|pediu|pediram|falou|falaram|disse|disseram|perguntou)|received|(sent|send|told|tell|asked|ask|gave|give|passed|pass|messaged|message|wrote|write) me)\b`)
+	sentVerbs     = regexp.MustCompile(`\b(mandei|enviei|pedi|falei|perguntei|respondi|i (sent|send|told|tell|asked|ask|messaged|message|replied|reply|wrote|write|answered|answer))\b`)
 )
+
+// English questions with "did" use the base form ("what did Ana send me",
+// "what did I tell"), so both forms are listed.
 
 // Prepositions that point at a plan person: "da Ana" (received), "pro
 // Willian" (sent). Without the person check, "resumo do que..." would count.
 var (
-	fromPrepositions = []string{"de", "da", "do", "das", "dos"}
-	toPrepositions   = []string{"para", "pra", "pro", "para a", "para o"}
+	fromPrepositions = []string{"de", "da", "do", "das", "dos", "from"}
+	toPrepositions   = []string{"para", "pra", "pro", "para a", "para o", "to"}
 )
 
 // guardPlan drops a direction or period the question does not support.

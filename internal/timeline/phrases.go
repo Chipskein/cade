@@ -28,13 +28,13 @@ func DetectDayRange(question string, now time.Time) (DayRange, bool) {
 	return DayRange{}, false
 }
 
-var dayDetectors = []dayDetector{detectISODate, detectSlashDate, detectMonthNameDate, detectLastNDays, detectKeyword}
+var dayDetectors = []dayDetector{detectISODate, detectSlashDate, detectMonthNameDate, detectEnglishMonthDate, detectLastNDays, detectKeyword}
 
 var (
 	isoDatePattern       = regexp.MustCompile(`\b(\d{4})-(\d{2})-(\d{2})\b`)
 	slashDatePattern     = regexp.MustCompile(`\b(\d{1,2})/(\d{1,2})(?:/(\d{4}|\d{2}))?\b`)
 	monthNameDatePattern = regexp.MustCompile(`\b(\d{1,2}) de (janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?: de (\d{4}))?\b`)
-	lastNDaysPattern     = regexp.MustCompile(`\bultimos (\d{1,3}) dias\b`)
+	lastNDaysPattern     = regexp.MustCompile(`\b(?:ultimos|last|past) (\d{1,3}) (?:dias|days)\b`)
 )
 
 var monthNumbers = map[string]int{"janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,

@@ -63,3 +63,49 @@ func TestWeekStartIsMonday(t *testing.T) {
 		t.Fatalf("expected Monday the 21st, got %s", got)
 	}
 }
+
+func TestDetectDayRangeEnglish(t *testing.T) {
+	cases := map[string]string{
+		"what did Ana send me yesterday?":        "2026-09-25",
+		"messages from the day before yesterday": "2026-09-24",
+		"commits I made today":                   "2026-09-26",
+		"what did I search last week":            "2026-09-14 a 2026-09-20",
+		"what did I do this week":                "2026-09-21 a 2026-09-26",
+		"pages visited in the past week":         "2026-09-20 a 2026-09-26",
+		"messages from the last 3 days":          "2026-09-24 a 2026-09-26",
+		"what changed last month":                "2026-08-01 a 2026-08-31",
+		"projects from last year":                "2025-01-01 a 2025-12-31",
+		"what happened on August 12":             "2026-08-12",
+		"what happened on Aug 12th, 2025":        "2025-08-12",
+		"what happened on the 12th of August":    "2026-08-12",
+		"what did we agree on Dec 30":            "2025-12-30",
+	}
+	for question, expected := range cases {
+		days, ok := DetectDayRange(question, phraseNow)
+		if !ok || days.String() != expected {
+			t.Errorf("DetectDayRange(%q) = %v (%v), expected %s", question, days, ok, expected)
+		}
+	}
+}
+
+func TestDetectDayRangeEnglishWithoutDate(t *testing.T) {
+	for _, question := range []string{"what did Ana send me?", "you may 5 times check", "February 30"} {
+		if days, ok := DetectDayRange(question, phraseNow); ok {
+			t.Errorf("DetectDayRange(%q) = %v, expected no date", question, days)
+		}
+	}
+}
+
+func TestEnglishMonthNumber(t *testing.T) {
+	if englishMonthNumber("august") != 8 || englishMonthNumber("sept") != 9 || englishMonthNumber("dec") != 12 {
+		t.Fatal("unexpected month numbers")
+	}
+}
+
+func TestMayAsMonthNeedsDateContext(t *testing.T) {
+	onMay, _ := DetectDayRange("what happened on May 12?", phraseNow)
+	ordinal, _ := DetectDayRange("May 3rd meeting notes", phraseNow)
+	if onMay.String() != "2026-05-12" || ordinal.String() != "2026-05-03" {
+		t.Fatalf("expected May dates with context, got %v / %v", onMay, ordinal)
+	}
+}

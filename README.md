@@ -6,7 +6,7 @@ Personal history CLI. Ingests git commits, browser history, files and Microsoft 
 
 Everything runs locally: SQLite + sqlite-vec for storage and vector search, llama.cpp embedded for embeddings and generation. No server, no network calls.
 
-> **Language:** the CLI output, the date parser ("ontem", "semana passada") and the question interpreter are in Brazilian Portuguese. Questions should be asked in Portuguese.
+> **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 
 ## How it works
 
