@@ -2,6 +2,7 @@ package llamacpp
 
 import (
 	"context"
+	"log/slog"
 	"math"
 	"os"
 	"strings"
@@ -180,5 +181,34 @@ func TestStructuredReplyIsStableAcrossCachedPrompts(t *testing.T) {
 	ask("Peixes voam?")
 	if again := ask("O céu é azul?"); again != first {
 		t.Fatalf("expected the same reply with a cached prefix, got %q then %q", first, again)
+	}
+}
+
+// Regression: the embedder ran with 2048 tokens on a model trained on 512.
+func TestEmbeddingContextIsCappedAtTraining(t *testing.T) {
+	cases := []struct{ configured, trained, expected int }{
+		{2048, 512, 512}, {256, 512, 256}, {0, 512, 512}, {1024, 0, 1024}, {0, 0, fallbackEmbeddingContextTokens},
+	}
+	for _, c := range cases {
+		if got := embeddingContext(c.configured, c.trained); got != c.expected {
+			t.Errorf("embeddingContext(%d, %d) = %d, expected %d", c.configured, c.trained, got, c.expected)
+		}
+	}
+}
+
+// The real model reports its training context and the embedder logs cuts.
+func TestEmbedderUsesTrainingContextAndLogsTruncation(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	embedder, err := LoadEmbedder(ModelOptions{Path: modelPathOrSkip(t, embeddingModelEnv), ContextTokens: 2048, Logger: logger})
+	if err != nil {
+		t.Fatalf("load embedder: %v", err)
+	}
+	defer embedder.Close()
+	if _, err := embedder.Embed(strings.Repeat("palavra ", 2000)); err != nil {
+		t.Fatal(err)
+	}
+	if embedder.maxTokens != 512 || !strings.Contains(logs.String(), `"effective":512`) || !strings.Contains(logs.String(), "embedding input truncated") {
+		t.Fatalf("expected a 512-token context and a logged cut, got %d:\n%s", embedder.maxTokens, logs.String())
 	}
 }

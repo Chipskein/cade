@@ -45,7 +45,7 @@ Choose `directories` with care: a `.env` or a notes file with passwords under th
 
 Both models run in-process through llama.cpp.
 
-- **Embedding model:** the text of each event (first 8,000 characters) when it is ingested, and the search text of each question.
+- **Embedding model:** the start of each event's text, up to the model's context (512 tokens, about 2,000 characters) when it is ingested, and the search text of each question.
 - **Question interpretation:** only your question, with fixed instructions and examples.
 - **Answers:** your question, today's date and up to `top_k` (8) events, each cut to 700 characters.
 - Nothing else in the database is given to the model. Listings and task reports do not use the generation model; a listing with a topic ("pages about redis") embeds only the topic.

@@ -23,6 +23,7 @@ import "C"
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"sync"
 	"unsafe"
@@ -30,10 +31,26 @@ import (
 	"github.com/chipskein/cade/internal/llm"
 )
 
-// defaultEmbeddingContextTokens matches the training context of common
-// embedding models (nomic-embed-text); the batch must be sized explicitly,
-// so "0 = model default" cannot be passed through here.
-const defaultEmbeddingContextTokens = 2048
+// fallbackEmbeddingContextTokens is used only when neither the options nor
+// the model state a context length.
+const fallbackEmbeddingContextTokens = 512
+
+// embeddingContext is the context the embedder runs with: the configured
+// one (0 = unset), capped at the length the model was trained on. Beyond
+// it, positions are ones the model never saw: nomic-embed-text-v2-moe is
+// trained on 512 tokens and cade used to configure 2048, degrading every
+// long note and message.
+func embeddingContext(configured, trained int) int {
+	switch {
+	case trained <= 0 && configured <= 0:
+		return fallbackEmbeddingContextTokens
+	case trained <= 0:
+		return configured
+	case configured <= 0:
+		return trained
+	}
+	return min(configured, trained)
+}
 
 // Embedder produces sentence embeddings with a pooled GGUF embedding model
 // (e.g. nomic-embed-text).
@@ -42,6 +59,7 @@ type Embedder struct {
 	loaded     loadedModel
 	dimensions int
 	maxTokens  int
+	logger     *slog.Logger
 }
 
 var _ llm.Embedder = (*Embedder)(nil)
@@ -50,14 +68,9 @@ var _ llm.Embedder = (*Embedder)(nil)
 //
 //	embedder, err := llamacpp.LoadEmbedder(llamacpp.ModelOptions{Path: "nomic-embed.gguf"})
 func LoadEmbedder(opts ModelOptions) (*Embedder, error) {
-	if opts.ContextTokens <= 0 {
-		opts.ContextTokens = defaultEmbeddingContextTokens
-	}
-	params := baseContextParams(opts)
-	params.embeddings = C.bool(true)
-	// Non-causal models must see the whole input in one micro-batch.
-	params.n_batch, params.n_ubatch = params.n_ctx, params.n_ctx
-	loaded, err := loadModel(opts, params)
+	loaded, err := loadModel(opts, func(model *C.struct_llama_model) C.struct_llama_context_params {
+		return embeddingContextParams(opts, int(C.llama_model_n_ctx_train(model)))
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -65,15 +78,30 @@ func LoadEmbedder(opts ModelOptions) (*Embedder, error) {
 		loaded.free()
 		return nil, fmt.Errorf("model %q has no pooling; expected a sentence-embedding model (mean/cls/last pooling)", opts.Path)
 	}
-	return &Embedder{
-		loaded:     loaded,
-		dimensions: int(C.llama_model_n_embd_out(loaded.model)),
-		maxTokens:  int(C.llama_n_ctx(loaded.ctx)),
-	}, nil
+	embedder := &Embedder{loaded: loaded, dimensions: int(C.llama_model_n_embd_out(loaded.model)),
+		maxTokens: int(C.llama_n_ctx(loaded.ctx)), logger: opts.logger()}
+	embedder.logger.Debug("embedding context", "configured", opts.ContextTokens,
+		"trained", int(C.llama_model_n_ctx_train(loaded.model)), "effective", embedder.maxTokens)
+	return embedder, nil
+}
+
+// ContextTokens is the effective context: inputs beyond it are cut, so
+// vectors computed with different contexts are not interchangeable.
+func (e *Embedder) ContextTokens() int {
+	return e.maxTokens
+}
+
+func embeddingContextParams(opts ModelOptions, trained int) C.struct_llama_context_params {
+	opts.ContextTokens = embeddingContext(opts.ContextTokens, trained)
+	params := baseContextParams(opts)
+	params.embeddings = C.bool(true)
+	// Non-causal models must see the whole input in one micro-batch.
+	params.n_batch, params.n_ubatch = params.n_ctx, params.n_ctx
+	return params
 }
 
 // Embed returns the L2-normalised embedding of text. Input longer than the
-// context window is truncated.
+// context window is truncated, and the cut is logged at debug level.
 func (e *Embedder) Embed(text string) ([]float32, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -84,7 +112,10 @@ func (e *Embedder) Embed(text string) ([]float32, error) {
 	if len(tokens) == 0 {
 		return nil, fmt.Errorf("embed text %q: produced no tokens", text)
 	}
-	tokens = tokens[:min(len(tokens), e.maxTokens)]
+	if len(tokens) > e.maxTokens {
+		e.logger.Debug("embedding input truncated", "tokens", len(tokens), "limit", e.maxTokens)
+		tokens = tokens[:e.maxTokens]
+	}
 	if err := e.decode(tokens); err != nil {
 		return nil, err
 	}

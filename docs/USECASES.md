@@ -39,7 +39,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 
 ### RF2 — Modelo de evento normalizado
 - **RF2.1** Toda fonte é convertida a um formato comum de evento: `timestamp`, `source` (git/browser/file/teams), `content` (texto), `metadata` (dados específicos da fonte) e um identificador único para deduplicação.
-- **RF2.2** Cada evento com conteúdo textual tem um `embedding` gerado localmente e armazenado para busca semântica. Eventos sem texto entram apenas na timeline.
+- **RF2.2** Cada evento com conteúdo textual tem um `embedding` gerado localmente e armazenado para busca semântica. Eventos sem texto entram apenas na timeline. O embedder roda com no máximo o contexto de treino do modelo (512 tokens no nomic-embed-text-v2-moe, lido do GGUF); textos maiores são cortados, com registro no log de debug.
 - **RF2.3** Os metadados de cada fonte têm um tipo próprio (`event.Commit`, `event.Visit`, `event.File`, `event.Message`), lido e escrito só pelo pacote `event`; o resto do código não usa chaves em texto. O formato gravado continua o mesmo objeto JSON com as mesmas chaves, então eventos já gravados são lidos sem migração. Uma fonte nova acrescenta o seu tipo.
 
 ### RF3 — Consulta por timeline

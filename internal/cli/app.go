@@ -39,7 +39,7 @@ type Toolkit struct {
 	LoadConfig        func(path string) (config.Config, error)
 	WriteConfig       func(path string) error
 	OpenStore         func(ctx context.Context, path string) (storage.EventStore, error)
-	LoadEmbedder      func(settings config.EmbeddingConfig) (ClosableEmbedder, error)
+	LoadEmbedder      func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
 	LoadGenerator     func(settings config.ModelConfig) (ClosableGenerator, error)
 	Sources           func(cfg config.Config) []ingest.SourceSpec
 	ReadIndexedDB     func(dir string) ([]indexeddb.Record, error)

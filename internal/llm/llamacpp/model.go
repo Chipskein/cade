@@ -22,6 +22,7 @@ import "C"
 
 import (
 	"fmt"
+	"log/slog"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -36,6 +37,16 @@ type ModelOptions struct {
 	Threads int
 	// GPULayers is how many layers to offload; ignored by CPU-only builds.
 	GPULayers int
+	// Logger receives debug records (effective context, truncated inputs);
+	// nil discards them.
+	Logger *slog.Logger
+}
+
+func (o ModelOptions) logger() *slog.Logger {
+	if o.Logger == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return o.Logger
 }
 
 var initBackendOnce sync.Once
@@ -47,16 +58,19 @@ type loadedModel struct {
 	vocab *C.struct_llama_vocab
 }
 
-func loadModel(opts ModelOptions, contextParams C.struct_llama_context_params) (loadedModel, error) {
+// loadModel loads the file, then builds the context from it: some context
+// settings depend on the model (its training context length).
+func loadModel(opts ModelOptions, contextParams func(*C.struct_llama_model) C.struct_llama_context_params) (loadedModel, error) {
 	initBackendOnce.Do(func() { C.cade_init_backend() })
 	model, err := loadModelFile(opts)
 	if err != nil {
 		return loadedModel{}, err
 	}
-	ctx := C.llama_init_from_model(model, contextParams)
+	params := contextParams(model)
+	ctx := C.llama_init_from_model(model, params)
 	if ctx == nil {
 		C.llama_model_free(model)
-		return loadedModel{}, fmt.Errorf("create llama.cpp context for %q with %d context tokens", opts.Path, contextParams.n_ctx)
+		return loadedModel{}, fmt.Errorf("create llama.cpp context for %q with %d context tokens", opts.Path, params.n_ctx)
 	}
 	return loadedModel{model: model, ctx: ctx, vocab: C.llama_model_get_vocab(model)}, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -64,12 +65,15 @@ func (w *fakeWorld) toolkit() Toolkit {
 		LoadConfig:        func(string) (config.Config, error) { return w.cfg, nil },
 		WriteConfig:       func(path string) error { w.writtenConfig = path; return nil },
 		OpenStore:         func(context.Context, string) (storage.EventStore, error) { return w.store, nil },
-		LoadEmbedder:      func(config.EmbeddingConfig) (ClosableEmbedder, error) { w.embedderLoads++; return w.embedder, nil },
-		LoadGenerator:     func(config.ModelConfig) (ClosableGenerator, error) { return w.generator, nil },
-		Sources:           w.sources,
-		ReadIndexedDB:     w.readIndexedDB,
-		Now:               func() time.Time { return cliNow },
-		Language:          w.language,
+		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
+			w.embedderLoads++
+			return w.embedder, nil
+		},
+		LoadGenerator: func(config.ModelConfig) (ClosableGenerator, error) { return w.generator, nil },
+		Sources:       w.sources,
+		ReadIndexedDB: w.readIndexedDB,
+		Now:           func() time.Time { return cliNow },
+		Language:      w.language,
 	}
 }
 

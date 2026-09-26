@@ -41,7 +41,7 @@ var (
 //	generator, err := llamacpp.LoadGenerator(llamacpp.ModelOptions{Path: "qwen2.5-1.5b.gguf", ContextTokens: 8192})
 func LoadGenerator(opts ModelOptions) (*Generator, error) {
 	params := baseContextParams(opts)
-	loaded, err := loadModel(opts, params)
+	loaded, err := loadModel(opts, func(*C.struct_llama_model) C.struct_llama_context_params { return params })
 	if err != nil {
 		return nil, err
 	}

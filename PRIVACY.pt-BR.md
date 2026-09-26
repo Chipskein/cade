@@ -45,7 +45,7 @@ Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro de
 
 Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
-- **Modelo de embedding:** o texto de cada evento (primeiros 8.000 caracteres) na ingestão, e o texto de busca de cada pergunta.
+- **Modelo de embedding:** o início do texto de cada evento, até o contexto do modelo (512 tokens, cerca de 2.000 caracteres) na ingestão, e o texto de busca de cada pergunta.
 - **Interpretação da pergunta:** só a sua pergunta, com instruções e exemplos fixos.
 - **Respostas:** a sua pergunta, a data de hoje e até `top_k` (8) eventos, cada um cortado em 700 caracteres.
 - Nada mais do banco é passado ao modelo. Listagens e relatórios de tarefas não usam o modelo de geração; uma listagem com assunto ("páginas sobre redis") só embute o assunto.

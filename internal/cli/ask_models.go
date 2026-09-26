@@ -37,7 +37,7 @@ func (m *askModels) answerer(ctx context.Context) (*rag.Answerer, error) {
 			return nil, err
 		}
 		m.session.loadingModels()
-		embedder, err := m.env.toolkit.LoadEmbedder(m.cfg.Embedding)
+		embedder, err := m.env.toolkit.LoadEmbedder(m.cfg.Embedding, m.env.logger)
 		if err != nil {
 			return nil, err
 		}

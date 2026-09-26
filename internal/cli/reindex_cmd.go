@@ -21,7 +21,7 @@ func runReindex(ctx context.Context, env commandEnv, args []string) error {
 		if !supported {
 			return fmt.Errorf("este banco não suporta reindexação")
 		}
-		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding)
+		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)
 		if err != nil {
 			return err
 		}

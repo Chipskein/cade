@@ -2,6 +2,7 @@ package retrievalsuite
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -65,7 +66,7 @@ func TestRetrievalScaleWithModel(t *testing.T) {
 		t.Skipf("%s not set; skipping the scale curve", scaleEnv)
 	}
 	embedder := loadEmbedder(t)
-	cached, err := NewCachingEmbedder(embedder, embeddingCachePath(t))
+	cached, err := NewCachingEmbedder(embedder, embeddingCachePath(t, embedder.ContextTokens()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,15 +98,17 @@ func loadEmbedder(t *testing.T) *llamacpp.Embedder {
 	return embedder
 }
 
-// embeddingCachePath keys the cache by model file: vectors of two models
-// are not interchangeable.
-func embeddingCachePath(t *testing.T) string {
+// embeddingCachePath keys the cache by model file and effective context:
+// vectors of two models, or of one model cut at two lengths, are not
+// interchangeable.
+func embeddingCachePath(t *testing.T, contextTokens int) string {
 	t.Helper()
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return filepath.Join(cacheDir, "cade", "eval", filepath.Base(os.Getenv(embeddingModelEnv))+".gob")
+	name := fmt.Sprintf("%s.ctx%d.gob", filepath.Base(os.Getenv(embeddingModelEnv)), contextTokens)
+	return filepath.Join(cacheDir, "cade", "eval", name)
 }
 
 // dependencies uses a fresh SQLite store and the default settings.

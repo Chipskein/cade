@@ -75,6 +75,13 @@ O cabeçalho do GGUF do nomic-embed-text-v2-moe informa `nomic-bert-moe.context_
 - Medido contra o baseline da Fase 0: recall nos casos de notas longas não piora e o resto fica igual.
 - Teste com fake de embedder: o limite efetivo é o menor dos dois.
 
+### Situação (2026-09-26): concluída
+
+- O embedder lê `llama_model_n_ctx_train` do GGUF e roda com `min(configurado, treino)`; o padrão de `embedding.context_tokens` passou a 0 (= contexto de treino). Contexto efetivo e cortes aparecem em `--verbose`.
+- Teste: recall 0,80, MRR 0,74, rejeição 1,00 e redundância 0,17, iguais ao baseline; curva de escala igual.
+- Calibração: as perguntas com e sem resposta deixaram de se sobrepor (pior com resposta 0,617, antes 0,669; melhor sem resposta 0,634); limite sugerido 0,625, e o 0,62 atual já separa.
+- Bancos existentes: vetores de textos longos foram calculados com 2048 tokens; `cade reindex` (~6 min para 108 mil eventos) os recalcula.
+
 ---
 
 ## Fase 1 — Deduplicação de eventos

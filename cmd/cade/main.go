@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -58,8 +59,10 @@ func openStore(ctx context.Context, path string) (storage.EventStore, error) {
 	}})
 }
 
-func loadEmbedder(settings config.EmbeddingConfig) (cli.ClosableEmbedder, error) {
-	return llamacpp.LoadEmbedder(modelOptions(settings.ModelConfig))
+func loadEmbedder(settings config.EmbeddingConfig, logger *slog.Logger) (cli.ClosableEmbedder, error) {
+	opts := modelOptions(settings.ModelConfig)
+	opts.Logger = logger
+	return llamacpp.LoadEmbedder(opts)
 }
 
 func loadGenerator(settings config.ModelConfig) (cli.ClosableGenerator, error) {

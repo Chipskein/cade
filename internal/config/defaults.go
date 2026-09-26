@@ -43,8 +43,10 @@ func defaultEmbedding() EmbeddingConfig {
 		ModelConfig: ModelConfig{
 			// Multilingual: v1.5 is English-centric and ranked Portuguese
 			// questions poorly.
-			ModelPath:     "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
-			ContextTokens: 2048,
+			ModelPath: "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
+			// 0 = the model's training context (512 for this model); a
+			// larger value is capped there, since longer inputs degrade.
+			ContextTokens: 0,
 			GPULayers:     allGPULayers,
 		},
 		QueryPrefix:    "search_query: ",
