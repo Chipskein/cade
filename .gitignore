@@ -1,5 +1,4 @@
 .claude
-USECASES.md
 /bin/
 /third_party/llama.cpp/
 *.db
