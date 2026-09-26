@@ -157,3 +157,28 @@ func TestGenerateStructuredRejectsInvalidGrammar(t *testing.T) {
 		t.Fatal("expected an error for an invalid grammar")
 	}
 }
+
+func TestCommonPrefix(t *testing.T) {
+	if commonPrefix([]int{1, 2, 3}, []int{1, 2, 4}) != 2 || commonPrefix([]int{1}, []int{1, 2}) != 1 || commonPrefix(nil, []int{1}) != 0 {
+		t.Fatal("unexpected common prefix")
+	}
+}
+
+// Reusing the cached prefix must not change what the model answers.
+func TestStructuredReplyIsStableAcrossCachedPrompts(t *testing.T) {
+	generator := loadTestGenerator(t, 2048)
+	grammar := `root ::= "sim" | "nao"`
+	ask := func(question string) string {
+		messages := []llm.ChatMessage{{Role: llm.RoleSystem, Content: "Responda sim ou nao."}, {Role: llm.RoleUser, Content: question}}
+		reply, err := generator.GenerateStructured(context.Background(), messages, 4, grammar)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return reply
+	}
+	first := ask("O céu é azul?")
+	ask("Peixes voam?")
+	if again := ask("O céu é azul?"); again != first {
+		t.Fatalf("expected the same reply with a cached prefix, got %q then %q", first, again)
+	}
+}

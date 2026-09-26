@@ -138,3 +138,65 @@ func TestWithTaskStatus(t *testing.T) {
 		t.Fatalf("unexpected filtering %v / %v / %v", done, open, all)
 	}
 }
+
+func messageFrom(when time.Time, sender, text string) event.Event {
+	return event.Event{UID: sender + text + when.String(), Source: event.SourceTeams, Timestamp: when, Content: sender + ": " + text,
+		Metadata: event.Metadata{"sent_by_me": "false", "sender": sender, "conversation": sender + ", Eu"}}
+}
+
+// tasksPassedOn: Carla passes two tasks in one message, Rui one; the user
+// only visits another task, and a PR for 14/170 targets the Acme branch.
+func tasksPassedOn(world *fakeWorld) {
+	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
+	world.store.Events = []event.Event{
+		messageFrom(yesterday, "Carla Dias", "pega https://app.proj4.me/projects/14/tasks/162 e https://app.proj4.me/projects/14/tasks/170"),
+		messageFrom(yesterday.Add(time.Hour), "Rui Costa", "olha https://app.proj4.me/projects/14/tasks/180"),
+		browserVisit(yesterday.Add(3*time.Hour), "https://app.proj4.me/projects/14/tasks/190", "Revisão de layout"),
+		browserVisit(yesterday.Add(4*time.Hour), "https://github.com/acme/api/compare/main-acme...p4m/14/170", "Comparing"),
+		browserVisit(yesterday.Add(4*time.Hour+time.Minute), "https://github.com/acme/api/pull/46", "p4m/14/170 -> main-acme by eu · Pull Request #46 · acme/api · GitHub"),
+	}
+}
+
+// Regression: "tarefas que a Ana me passou ontem" listed every task, as
+// the task report ignored people and direction.
+func TestAskTasksPassedByPerson(t *testing.T) {
+	world := newFakeWorld()
+	tasksPassedOn(world)
+	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": ["Carla"], "direcao": "recebidas", "assunto": null, "status": null}`
+	_, stdout, stderr := world.run("ask", "tarefas que a Carla me passou ontem")
+	if !strings.Contains(stderr, "Filtrando por pessoa") || !strings.Contains(stdout, "Tarefas de 2026-09-25 — 2") {
+		t.Fatalf("expected Carla's two tasks, got %q:\n%s", stderr, stdout)
+	}
+	if !strings.Contains(stdout, "14/162") || !strings.Contains(stdout, "14/170") || strings.Contains(stdout, "14/180") || strings.Contains(stdout, "14/190") {
+		t.Fatalf("expected only the tasks Carla passed on, got:\n%s", stdout)
+	}
+}
+
+// Regression: in "tarefas de Fertalvo que me passaram" the model read a
+// client as a person; the name must narrow by topic, not be dropped.
+func TestAskTasksClientReadAsPersonBecomesTopic(t *testing.T) {
+	world := newFakeWorld()
+	tasksPassedOn(world)
+	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": ["Acme"], "direcao": "recebidas", "assunto": null, "status": null}`
+	_, stdout, stderr := world.run("ask", "quais foram as tarefas de Acme que me passaram ontem")
+	if !strings.Contains(stderr, "buscando como texto: Acme") || !strings.Contains(stdout, "Tarefas de 2026-09-25 — 1") || !strings.Contains(stdout, "14/170") {
+		t.Fatalf("expected only the Acme task, got %q:\n%s", stderr, stdout)
+	}
+}
+
+func TestAskTasksWithFiltersAndNoMatchSaysSo(t *testing.T) {
+	world := newFakeWorld()
+	tasksPassedOn(world)
+	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": "kubernetes", "status": null}`
+	_, stdout, _ := world.run("ask", "tarefas sobre kubernetes ontem")
+	if !strings.Contains(stdout, "Nenhuma tarefa encontrada em 2026-09-25 com esses filtros") {
+		t.Fatalf("expected the empty message, got:\n%s", stdout)
+	}
+}
+
+func TestMentioningAllIgnoresCaseAndAccents(t *testing.T) {
+	list := []tasks.Task{{Key: "a", Title: "Integração Acme"}, {Key: "b", Title: "Layout"}}
+	if kept := mentioningAll(list, []string{"integracao", "ACME"}); len(kept) != 1 || kept[0].Key != "a" {
+		t.Fatalf("unexpected %+v", kept)
+	}
+}

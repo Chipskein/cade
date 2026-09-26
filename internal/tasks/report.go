@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"regexp"
+	"slices"
 	"sort"
 	"time"
 
@@ -127,19 +128,62 @@ func (b Builder) cites(ev event.Event, key string) bool {
 func (b Builder) collectTasks(events []event.Event, keys []string, report *Report) map[string]*Task {
 	byKey := map[string]*Task{}
 	for i, ev := range events {
-		if keys[i] == "" {
+		taskKeys := b.taskKeysOf(ev, keys[i])
+		if len(taskKeys) == 0 {
 			report.UnassignedEvents++
-			continue
 		}
-		task := byKey[keys[i]]
-		if task == nil {
-			task = &Task{Key: keys[i], Title: "Tarefa " + keys[i]}
-			byKey[keys[i]] = task
+		for _, key := range taskKeys {
+			b.addEvent(byKey, key, ev)
 		}
-		task.Events = append(task.Events, ev)
-		b.adoptTitle(task, ev)
 	}
 	return byKey
+}
+
+// taskKeysOf is the event's assigned task plus every other task it cites.
+// Regression: a message citing several tasks ("pega a 162 e a 170") only
+// counted for the first, so the others were missing from the report.
+func (b Builder) taskKeysOf(ev event.Event, assigned string) []string {
+	if assigned == "" {
+		return nil
+	}
+	keys := []string{assigned}
+	for _, ref := range taskRefs(b.taskPatterns, refText(ev)) {
+		if !slices.Contains(keys, ref.Key) {
+			keys = append(keys, ref.Key)
+		}
+	}
+	return keys
+}
+
+func (b Builder) addEvent(byKey map[string]*Task, key string, ev event.Event) {
+	task := byKey[key]
+	if task == nil {
+		task = &Task{Key: key, Title: "Tarefa " + key}
+		byKey[key] = task
+	}
+	task.Events = append(task.Events, ev)
+	b.adoptTitle(task, ev)
+}
+
+// CitedBy keeps the tasks that one of events cites directly with a task
+// link, e.g. the tasks a person passed on in their messages. Events merely
+// inherited by a task (close in time) do not count.
+//
+//	fromAna := builder.CitedBy(report.Tasks, anasMessages)
+func (b Builder) CitedBy(tasks []Task, events []event.Event) []Task {
+	cited := map[string]bool{}
+	for _, ev := range events {
+		for _, ref := range taskRefs(b.taskPatterns, refText(ev)) {
+			cited[ref.Key] = true
+		}
+	}
+	var kept []Task
+	for _, task := range tasks {
+		if cited[task.Key] {
+			kept = append(kept, task)
+		}
+	}
+	return kept
 }
 
 // adoptTitle names the task after its page title in the browser.

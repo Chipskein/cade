@@ -100,6 +100,12 @@ func (m loadedModel) clearMemory() {
 	C.llama_memory_clear(C.llama_get_memory(m.ctx), C.bool(true))
 }
 
+// forgetFrom drops the memory from position onward, keeping the prefix;
+// false when the model cannot remove part of its memory.
+func (m loadedModel) forgetFrom(position int) bool {
+	return bool(C.llama_memory_seq_rm(C.llama_get_memory(m.ctx), 0, C.llama_pos(position), -1))
+}
+
 // tokenize converts text to tokens, growing the buffer when llama.cpp reports
 // (as a negative count) that it needs more room.
 func (m loadedModel) tokenize(text string, parseSpecial bool) ([]C.llama_token, error) {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/timeline"
 )
@@ -47,7 +48,7 @@ func TestAnswerWithPersonUsesOnlyTheirEvents(t *testing.T) {
 	days, _ := timeline.ParseDayRange("2026-09-25", "", fixedNow)
 	var matched []string
 	observer := AnswerObserver{PeopleResolved: func(m, _ []string) { matched = m }}
-	question := Question{Text: "o que o Marcos me pediu?", Days: &days, Criteria: listing.Criteria{People: []string{"Marcos"}}}
+	question := queryplan.Query{Question: "o que o Marcos me pediu?", Days: &days, Criteria: listing.Criteria{People: []string{"Marcos"}}}
 	answer, err := restrictedAnswerer(storeOfMessages(), generator).Answer(context.Background(), question, observer)
 	if err != nil || len(answer.Evidence) != 2 || answer.Evidence[0].Event.UID != "marcos-near" || answer.Evidence[1].Event.UID != "marcos-far" {
 		t.Fatalf("expected Marcos's two messages of the day, nearest first, got %+v (err %v)", answer.Evidence, err)
@@ -60,7 +61,7 @@ func TestAnswerWithPersonUsesOnlyTheirEvents(t *testing.T) {
 func TestAnswerWithPersonHonoursTopK(t *testing.T) {
 	answerer := restrictedAnswerer(storeOfMessages(), &testfakes.FakeGenerator{Reply: "x"})
 	answerer.settings.TopK = 1
-	question := Question{Text: "q", Criteria: listing.Criteria{People: []string{"Marcos"}}}
+	question := queryplan.Query{Question: "q", Criteria: listing.Criteria{People: []string{"Marcos"}}}
 	answer, _ := answerer.Answer(context.Background(), question, AnswerObserver{})
 	if len(answer.Evidence) != 1 {
 		t.Fatalf("expected top-1, got %d", len(answer.Evidence))
@@ -85,11 +86,5 @@ func TestKeepSource(t *testing.T) {
 	events := []event.Event{{Source: event.SourceGit}, {Source: event.SourceTeams}}
 	if len(keepSource(events, event.SourceGit)) != 1 || len(keepSource(events, "")) != 2 {
 		t.Fatal("unexpected source filtering")
-	}
-}
-
-func TestIsScopedWithCriteria(t *testing.T) {
-	if !(Question{Criteria: listing.Criteria{Direction: listing.Sent}}).IsScoped() {
-		t.Fatal("criteria must count as scope")
 	}
 }

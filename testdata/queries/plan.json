@@ -1,0 +1,48 @@
+{
+  "now": "2026-09-26T10:00:00-03:00",
+  "minimum_accuracy": {"mode": 0.91, "days": 1.0, "source": 0.94, "people": 0.91, "direction": 0.97, "topic": 0.91, "status": 0.97},
+  "cases": [
+    {"question": "o que eu fiz ontem?", "expect": {"days": "2026-09-25"}},
+    {"question": "o que fiz anteontem?", "expect": {"days": "2026-09-24"}},
+    {"question": "resuma minha semana passada", "expect": {"days": "2026-09-14 a 2026-09-20"}},
+    {"question": "what did I work on this week?", "expect": {"days": "2026-09-21 a 2026-09-26"}},
+    {"question": "o que aconteceu nos últimos 3 dias?", "expect": {"days": "2026-09-24 a 2026-09-26"}},
+    {"question": "o que eu fiz?", "expect": {}},
+
+    {"question": "liste meus commits de ontem", "expect": {"mode": "listar", "days": "2026-09-25", "source": "git"}},
+    {"question": "quais commits fiz sobre autenticação essa semana?", "expect": {"mode": "listar", "days": "2026-09-21 a 2026-09-26", "source": "git", "topic": "autenticação"}},
+    {"question": "em qual commit eu corrigi o bug do timeout?", "expect": {"source": "git", "topic": "timeout"}},
+    {"question": "show my commits from Sep 20", "expect": {"mode": "listar", "days": "2026-09-20", "source": "git"}},
+
+    {"question": "mensagens que recebi hoje", "expect": {"mode": "listar", "days": "2026-09-26", "source": "teams", "direction": "recebidas"}},
+    {"question": "o que o Marcos me pediu ontem?", "expect": {"days": "2026-09-25", "people": ["Marcos"], "direction": "recebidas"}},
+    {"question": "que mensagem eu mandei pra Juliana sobre o contrato?", "expect": {"source": "teams", "people": ["Juliana"], "direction": "enviadas", "topic": "contrato"}},
+    {"question": "conversas com a Beatriz e o Tiago na última semana", "expect": {"mode": "listar", "days": "2026-09-20 a 2026-09-26", "source": "teams", "people": ["Beatriz", "Tiago"]}},
+    {"question": "what did Lucas ask me today?", "expect": {"days": "2026-09-26", "people": ["Lucas"], "direction": "recebidas"}},
+    {"question": "resumo das conversas com o Edilson essa semana", "expect": {"days": "2026-09-21 a 2026-09-26", "source": "teams", "people": ["Edilson"]}},
+    {"question": "tem algo sobre a Petrobras nos meus chats?", "expect": {"source": "teams", "topic": "Petrobras"}},
+
+    {"question": "quais páginas abri hoje sobre postgres?", "expect": {"mode": "listar", "days": "2026-09-26", "source": "browser", "topic": "postgres"}},
+    {"question": "em que site li sobre rate limiting?", "expect": {"source": "browser", "topic": "rate limiting"}},
+    {"question": "o que eu pesquisei na web sobre a migração do banco em 20/09?", "expect": {"days": "2026-09-20", "source": "browser", "topic": "migração do banco"}},
+    {"question": "list the pages I visited last month about Go generics", "expect": {"mode": "listar", "days": "2026-08-01 a 2026-08-31", "source": "browser", "topic": "Go generics"}},
+
+    {"question": "quais arquivos editei ontem?", "expect": {"mode": "listar", "days": "2026-09-25", "source": "file"}},
+    {"question": "em que arquivo anotei a pauta da reunião?", "expect": {"source": "file", "topic": "pauta da reunião"}},
+
+    {"question": "como configurei o nginx como proxy reverso?", "expect": {"topic": "nginx"}},
+    {"question": "why did the deploy fail?", "expect": {"topic": "deploy"}},
+    {"question": "o que eu sei sobre o cliente Acme?", "expect": {"topic": "Acme"}},
+
+    {"question": "quais tarefas eu concluí ontem?", "expect": {"mode": "tarefas", "days": "2026-09-25", "status": "concluidas"}},
+    {"question": "quais tickets estão pendentes?", "expect": {"mode": "tarefas", "days": "2026-09-26", "status": "em_andamento"}},
+    {"question": "which tickets are still open?", "expect": {"mode": "tarefas", "days": "2026-09-26", "status": "em_andamento"}},
+    {"question": "em quais tarefas trabalhei semana passada?", "expect": {"mode": "tarefas", "days": "2026-09-14 a 2026-09-20"}},
+    {"question": "tarefas que não finalizei essa semana", "expect": {"mode": "tarefas", "days": "2026-09-21 a 2026-09-26", "status": "em_andamento"}},
+    {"question": "what did I finish yesterday?", "expect": {"days": "2026-09-25"}},
+    {"question": "tarefas que a Carla me passou ontem", "expect": {"mode": "tarefas", "days": "2026-09-25", "people": ["Carla"], "direction": "recebidas"}},
+    {"question": "Quais foram as tarefas da Acme que me passaram ontem", "expect": {"mode": "tarefas", "days": "2026-09-25", "direction": "recebidas", "topic": "Acme"}},
+    {"question": "quais tickets o Vitor me mandou essa semana?", "expect": {"mode": "tarefas", "days": "2026-09-21 a 2026-09-26", "people": ["Vitor"], "direction": "recebidas"}},
+    {"question": "Quais foram as mensagem que enviei pro wilian ontem", "expect": {"mode": "listar", "days": "2026-09-25", "source": "teams", "people": ["wilian"], "direction": "enviadas"}}
+  ]
+}

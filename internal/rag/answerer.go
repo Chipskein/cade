@@ -10,11 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
-	"github.com/chipskein/cade/internal/timeline"
 )
 
 // Settings tunes retrieval and generation.
@@ -23,16 +21,6 @@ type Settings struct {
 	MaxDistance     float64
 	QueryPrefix     string
 	MaxAnswerTokens int
-}
-
-// Question is a user query with optional filters (CA9.1).
-type Question struct {
-	Text   string
-	Source event.Source
-	Days   *timeline.DayRange
-	// Criteria (people, direction) cannot be applied inside the vector
-	// index; when set, retrieval narrows exactly and then ranks.
-	Criteria listing.Criteria
 }
 
 // Answer is the generated reply and the events it was grounded on.
@@ -108,19 +96,19 @@ func (o AnswerObserver) notifyPeople(matched, unknown []string) {
 
 // Answer retrieves evidence for question and generates a grounded reply.
 // When nothing relevant is retrieved the model is not called at all.
-func (a *Answerer) Answer(ctx context.Context, question Question, observer AnswerObserver) (Answer, error) {
+func (a *Answerer) Answer(ctx context.Context, query queryplan.Query, observer AnswerObserver) (Answer, error) {
 	observer.notifyStage(StageSearching)
-	hits, err := a.retrieve(ctx, question, observer)
+	hits, err := a.retrieve(ctx, query, observer)
 	if err != nil || len(hits) == 0 {
 		return Answer{}, err
 	}
 	observer.notifyStage(StageGenerating)
-	return a.generate(ctx, question, hits, observer.Generation)
+	return a.generate(ctx, query, hits, observer.Generation)
 }
 
-func (a *Answerer) generate(ctx context.Context, question Question, hits []storage.ScoredEvent, progress llm.GenerationProgress) (Answer, error) {
+func (a *Answerer) generate(ctx context.Context, query queryplan.Query, hits []storage.ScoredEvent, progress llm.GenerationProgress) (Answer, error) {
 	started := time.Now()
-	reply, err := a.generator.Generate(ctx, buildPrompt(question.Text, hits, a.now()), a.settings.MaxAnswerTokens, progress)
+	reply, err := a.generator.Generate(ctx, buildPrompt(query.Question, hits, a.now()), a.settings.MaxAnswerTokens, progress)
 	if err != nil {
 		return Answer{}, fmt.Errorf("generate answer from %d events: %w", len(hits), err)
 	}
@@ -131,32 +119,37 @@ func (a *Answerer) generate(ctx context.Context, question Question, hits []stora
 	return Answer{Text: strings.TrimSpace(reply), Found: true, Evidence: hits, Cited: citedIndexes(reply, len(hits))}, nil
 }
 
-func (a *Answerer) retrieve(ctx context.Context, question Question, observer AnswerObserver) ([]storage.ScoredEvent, error) {
-	embedding, err := a.embedQuery(question.Text)
+// retrieve embeds the query's semantic text. Criteria (people, direction)
+// cannot be applied inside the vector index; when set, retrieval narrows
+// exactly and then ranks. Scoped queries skip the distance cutoff: generic
+// questions such as "what did I do?" are far from every event in embedding
+// space, and the explicit scope is already the relevance signal. The
+// model's SEM_INFORMACAO reply still guards against unrelated evidence.
+func (a *Answerer) retrieve(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]storage.ScoredEvent, error) {
+	embedding, err := a.embedQuery(searchText(query))
 	if err != nil {
 		return nil, err
 	}
-	if !question.Criteria.IsEmpty() {
-		return a.retrieveAmong(ctx, question, embedding, observer)
+	if !query.Criteria.IsEmpty() {
+		return a.retrieveAmong(ctx, query, embedding, observer)
 	}
-	hits, err := a.store.SearchSimilar(ctx, similarityQuery(embedding, question, a.settings.TopK))
+	hits, err := a.store.SearchSimilar(ctx, similarityQuery(embedding, query, a.settings.TopK))
 	if err != nil {
 		return nil, err
 	}
 	a.logHits(hits)
-	if question.IsScoped() {
+	if query.IsScoped() {
 		return hits, nil
 	}
 	return withinDistance(hits, a.settings.MaxDistance), nil
 }
 
-// IsScoped reports whether the user narrowed the search by source or date.
-// Scoped questions skip the distance cutoff: generic questions such as
-// "what did I do?" are far from every event in embedding space, and the
-// explicit scope is already the relevance signal. The model's
-// SEM_INFORMACAO reply still guards against unrelated evidence.
-func (q Question) IsScoped() bool {
-	return q.Source != "" || q.Days != nil || !q.Criteria.IsEmpty()
+// searchText falls back to the question for queries built without Resolve.
+func searchText(query queryplan.Query) string {
+	if query.SemanticText != "" {
+		return query.SemanticText
+	}
+	return query.Question
 }
 
 func (a *Answerer) embedQuery(text string) ([]float32, error) {
@@ -176,12 +169,12 @@ func (a *Answerer) logHits(hits []storage.ScoredEvent) {
 	}
 }
 
-func similarityQuery(embedding []float32, question Question, limit int) storage.SimilarityQuery {
-	query := storage.SimilarityQuery{Embedding: embedding, Limit: limit, Source: question.Source}
-	if question.Days != nil {
-		query.From, query.To = question.Days.Start(), question.Days.End()
+func similarityQuery(embedding []float32, query queryplan.Query, limit int) storage.SimilarityQuery {
+	similarity := storage.SimilarityQuery{Embedding: embedding, Limit: limit, Source: query.Source}
+	if query.Days != nil {
+		similarity.From, similarity.To = query.Days.Start(), query.Days.End()
 	}
-	return query
+	return similarity
 }
 
 // withinDistance drops weak matches; hits arrive sorted by distance.

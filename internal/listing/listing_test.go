@@ -89,3 +89,20 @@ func TestMatcherUsesGitAuthor(t *testing.T) {
 		t.Fatal("expected git author to count as sender")
 	}
 }
+
+// Regression: "mensagens que enviei pro avilla" found nobody, as the chat
+// is with "Leandro Avila".
+func TestContainsNameToleratesDoubledLettersAndY(t *testing.T) {
+	if !containsName("Leandro Avila - Oficina5", "avilla") || !containsName("Willian Gabriel", "wilian") || !containsName("Thaysa Lima", "thaisa") {
+		t.Fatal("expected spelling variants to match")
+	}
+	if containsName("Bruna Souza", "bruno") || containsName("Paula", "paulo") {
+		t.Fatal("expected different names to stay different")
+	}
+}
+
+func TestNameKeyMergesSpellingVariants(t *testing.T) {
+	if NameKey("Willian") != NameKey("wilian") || NameKey("Bruno") == NameKey("Bruna") {
+		t.Fatal("unexpected name keys")
+	}
+}

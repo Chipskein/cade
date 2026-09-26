@@ -7,22 +7,25 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
 )
 
-// listForPlan answers "as mensagens da Ana ontem" from the database: every
+// listForQuery answers "as mensagens da Ana ontem" from the database: every
 // event matching the filters, not the top-k most similar. A topic ("sobre
 // redis") narrows the list by similarity.
-func (env commandEnv) listForPlan(ctx context.Context, store storage.EventStore, models *askModels, plan askPlan, session *askSession) error {
-	days := *plan.question.Days
-	events, err := timeline.NewLister(store).List(ctx, days, plan.question.Source)
+func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore, models *askModels, query queryplan.Query, session *askSession) error {
+	days := *query.Days
+	events, err := timeline.NewLister(store).List(ctx, days, query.Source)
 	if err != nil {
 		return err
 	}
-	events, matched, unknown := plan.question.Criteria.Apply(events)
-	reportPeople(env.stderr, matched, unknown)
-	if events, err = env.narrowByTopic(ctx, models, plan.topic, events); err != nil {
+	events, matched, unknown := query.Criteria.Apply(events)
+	reportPeople(env.stderr, matched, nil)
+	reportNamesAsText(env.stderr, unknown)
+	events = eventsMentioningAll(events, unknown)
+	if events, err = env.narrowByTopic(ctx, models, query.Topic, events); err != nil {
 		return err
 	}
 	session.status.clear()

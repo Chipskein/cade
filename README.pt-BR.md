@@ -8,6 +8,19 @@ Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca ve
 
 Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta.
 
+## Índice
+
+- [Como funciona](#como-funciona)
+- [Modelos](#modelos)
+- [Build](#build)
+- [Uso](#uso)
+  - [Perguntas (`ask`)](#perguntas-ask)
+- [Exemplo de saída](#exemplo-de-saída)
+- [Tarefas](#tarefas)
+- [Teams](#teams)
+- [Configuração](#configuração)
+- [Testes](#testes)
+
 ## Como funciona
 
 ```mermaid
@@ -76,6 +89,8 @@ cade teams-schema DIR                       # estrutura (sem valores) de um Inde
 
 Fontes: `git`, `browser`, `file`, `teams`. Flags vêm antes dos argumentos.
 
+### Perguntas (`ask`)
+
 No `ask`, o modelo local lê a pergunta e extrai só os filtros que ela afirma: período, fonte, pessoas, direção (recebidas/enviadas), assunto e se é sobre tarefas. O resultado aparece no stderr:
 
 ```
@@ -84,7 +99,9 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 
 - Pedidos de lista com período ("as mensagens da Ana ontem") listam todos os eventos que casam, direto do banco.
 - Perguntas com pessoa ou direção são respondidas só com os eventos que casam.
-- Perguntas sobre tarefas ("quais tarefas finalizei ontem?", "o que ficou em andamento?") devolvem o relatório do `cade tasks`, opcionalmente só com as concluídas ou só com as em andamento; sem período, hoje.
+- Perguntas sobre tarefas ("quais tarefas finalizei ontem?", "o que ficou em andamento?") devolvem o relatório do `cade tasks`, opcionalmente só com as concluídas ou só com as em andamento; sem período, hoje. Com pessoa ou direção ("tarefas que a Ana me passou ontem"), só as tarefas com link nessas mensagens; um nome que não é de ninguém (um cliente) filtra pelo texto.
+- Nomes são comparados por palavra inteira, ignorando maiúsculas, acentos, letras dobradas e y/i ("avilla" encontra "Leandro Avila"). Um nome que não é de nenhum remetente ou conversa (um cliente, um apelido) filtra pelo texto em vez de ser descartado.
+- Período, fonte, pessoas e direção são filtros exatos; só o assunto é buscado por significado ("commits de ontem sobre autenticação" busca "autenticação" entre os commits de ontem). Perguntas sem filtro são buscadas inteiras.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
 
 ## Exemplo de saída
@@ -210,4 +227,7 @@ Trocar o modelo de embedding exige um banco novo.
 ```sh
 make test
 make test-models   # inclui testes com os modelos reais
+make eval-plan     # mede a interpretação das perguntas (GPU se o CUDA Toolkit estiver instalado; GO_TAGS= força CPU)
 ```
+
+`eval-plan` passa as perguntas de `testdata/queries/plan.json` (período, git, Teams, navegador, arquivos, busca semântica, tarefas, PT e EN) pelo modelo real e mostra a taxa de acerto de cada campo (tipo, período, fonte, pessoas, direção, assunto, status) e cada pergunta interpretada errado. Falha quando um campo cai abaixo do `minimum_accuracy` do arquivo, então mudanças no prompt ou no modelo não pioram a interpretação em silêncio.

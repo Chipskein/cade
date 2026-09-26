@@ -68,14 +68,43 @@ func matchesAnyPerson(ev event.Event, people []personMatcher) bool {
 }
 
 // containsName matches whole words, so "ana" finds "Ana Goulart" but not
-// "Ianne" or "Mariana".
+// "Ianne" or "Mariana", and tolerates spelling variants (see spellingKey).
 func containsName(text, name string) bool {
-	joined := " " + strings.Join(nameWords(textnorm.Fold(text)), " ") + " "
-	return strings.Contains(joined, " "+name+" ")
+	joined := " " + spellingKeys(textnorm.Fold(text)) + " "
+	return strings.Contains(joined, " "+spellingKeys(name)+" ")
 }
 
 func nameWords(text string) []string {
 	return strings.FieldsFunc(text, func(r rune) bool { return !unicode.IsLetter(r) })
+}
+
+// NameKey is how a name is compared: folded, whole words, spelling
+// variants merged, so "Wilian" and "willian" have the same key.
+//
+//	listing.NameKey("Willian") == listing.NameKey("wilian") // true
+func NameKey(name string) string {
+	return spellingKeys(textnorm.Fold(name))
+}
+
+func spellingKeys(text string) string {
+	words := nameWords(text)
+	for i, word := range words {
+		words[i] = spellingKey(word)
+	}
+	return strings.Join(words, " ")
+}
+
+// spellingKey ignores doubled letters and y/i, how names are commonly
+// misspelled: "avilla" finds "Avila", "wilian" finds "Willian". An edit
+// distance would also merge different people (Bruno, Bruna).
+func spellingKey(word string) string {
+	var key []rune
+	for _, letter := range strings.ReplaceAll(word, "y", "i") {
+		if len(key) == 0 || key[len(key)-1] != letter {
+			key = append(key, letter)
+		}
+	}
+	return string(key)
 }
 
 func firstNonEmpty(values ...string) string {

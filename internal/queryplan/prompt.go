@@ -15,10 +15,10 @@ texto ::= "\"" [^"\\\x00-\x1F]{1,60} "\""`
 
 const planInstructions = `Você converte uma pergunta sobre o histórico de atividade do usuário em filtros JSON. A pergunta pode estar em português ou inglês; os valores fixos do JSON são sempre os listados abaixo.
 Preencha SOMENTE o que a pergunta afirma explicitamente; o resto é null ou []. A maioria das perguntas não tem filtros.
-- tipo: "tarefas" quando pergunta pelas tarefas/tickets/demandas que trabalhou ou concluiu; "listar" quando pede os itens em si (as mensagens, os commits, as páginas); "responder" quando pede uma resposta ou explicação.
+- tipo: "tarefas" quando pergunta pelas tarefas/tickets/demandas que trabalhou, concluiu ou que alguém passou; "listar" quando pede os itens em si (as mensagens, os commits, as páginas); "responder" quando pede uma resposta ou explicação.
 - periodo: a expressão de tempo completa, copiada da pergunta no idioma dela ("ontem", "semana passada", "últimos 3 dias", "12/08", "yesterday", "last week"), ou null.
 - fonte: "teams" (mensagens, chats, conversas), "git" (commits), "browser" (páginas, sites, pesquisas na web), "file" (arquivos), ou null.
-- pessoas: nomes de pessoas citados, como escritos. Empresas, clientes, siglas e projetos NÃO são pessoas.
+- pessoas: nomes de pessoas citados, como escritos. Empresas, clientes, siglas e projetos NÃO são pessoas: vão em assunto.
 - direcao (só para mensagens): "recebidas" para "me passou", "me pediu", "me mandou", "recebi", "de X"; "enviadas" para "mandei", "enviei", "pedi para", "para X"; null para "com X", "conversa com X" ou quando não se aplica.
 - assunto: o tema buscado ("redis", "o deploy da 2.0"), sem pessoas nem datas; null se a pergunta não tem tema.
 - status (só para tipo "tarefas"): "concluidas" para "finalizei", "concluí", "terminei", "finished"; "em_andamento" para "em andamento", "pendentes", "não terminei", "in progress"; senão null.`
@@ -49,6 +49,10 @@ var planExamples = []struct{ question, plan string }{
 		`{"tipo": "tarefas", "periodo": "essa semana", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "concluidas"}`},
 	{"o que eu fiz ontem nas minhas tarefas?",
 		`{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": null}`},
+	{"que demandas o Rui me mandou hoje?",
+		`{"tipo": "tarefas", "periodo": "hoje", "fonte": null, "pessoas": ["Rui"], "direcao": "recebidas", "assunto": null, "status": null}`},
+	{"quais tickets do cliente Zenite me passaram semana passada?",
+		`{"tipo": "tarefas", "periodo": "semana passada", "fonte": null, "pessoas": [], "direcao": "recebidas", "assunto": "Zenite", "status": null}`},
 	{"which tasks are still in progress?",
 		`{"tipo": "tarefas", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "em_andamento"}`},
 	{"chats with Pedro about the release",

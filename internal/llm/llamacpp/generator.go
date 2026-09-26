@@ -28,6 +28,7 @@ type Generator struct {
 	loaded    loadedModel
 	sampler   *C.struct_llama_sampler
 	batchSize int
+	cache     promptCache
 }
 
 var (
@@ -104,10 +105,10 @@ func (g *Generator) checkFits(promptTokens, maxTokens int) error {
 }
 
 func (g *Generator) ingestPrompt(ctx context.Context, tokens []C.llama_token, progress llm.GenerationProgress) error {
-	g.loaded.clearMemory()
 	C.llama_sampler_reset(g.sampler)
+	cached := g.cache.reuse(g.loaded, tokens)
 	chunk := min(promptChunkTokens, g.batchSize)
-	for start := 0; start < len(tokens); start += chunk {
+	for start := cached; start < len(tokens); start += chunk {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -123,8 +124,10 @@ func (g *Generator) ingestPrompt(ctx context.Context, tokens []C.llama_token, pr
 func (g *Generator) decodeTokens(tokens []C.llama_token) error {
 	batch := C.llama_batch_get_one(&tokens[0], C.int32_t(len(tokens)))
 	if status := C.llama_decode(g.loaded.ctx, batch); status != 0 {
+		g.cache.reset()
 		return fmt.Errorf("decode %d tokens: llama.cpp status %d", len(tokens), status)
 	}
+	g.cache.add(tokens)
 	return nil
 }
 

@@ -6,6 +6,19 @@ Personal history CLI. Ingests git commits, browser history, files and Microsoft 
 
 Everything runs locally: SQLite + sqlite-vec for storage and vector search, llama.cpp embedded for embeddings and generation. No server, no network calls.
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Models](#models)
+- [Build](#build)
+- [Usage](#usage)
+  - [Questions (`ask`)](#questions-ask)
+- [Sample output](#sample-output)
+- [Tasks](#tasks)
+- [Teams](#teams)
+- [Configuration](#configuration)
+- [Tests](#tests)
+
 > **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 
 ## How it works
@@ -76,6 +89,8 @@ cade teams-schema DIR                       # structure (no values) of an Indexe
 
 Sources: `git`, `browser`, `file`, `teams`. Flags go before the arguments.
 
+### Questions (`ask`)
+
 In `ask`, the local model reads the question and extracts only the filters it states: period, source, people, direction (received/sent), topic, and whether it is about tasks. The result is printed to stderr:
 
 ```
@@ -84,7 +99,9 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 
 - List requests with a period ("as mensagens da Ana ontem") list every matching event, straight from the database.
 - Questions naming a person or a direction are answered using only the matching events.
-- Questions about tasks ("quais tarefas finalizei ontem?", "what tasks are still in progress?") return the `cade tasks` report, optionally only finished or unfinished tasks; without a period, today.
+- Questions about tasks ("quais tarefas finalizei ontem?", "what tasks are still in progress?") return the `cade tasks` report, optionally only finished or unfinished tasks; without a period, today. With a person or direction ("tarefas que a Ana me passou ontem"), only tasks linked in those messages; a name that matches no one (a client) filters by text instead.
+- Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("avilla" finds "Leandro Avila"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
+- Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
 
 ## Sample output
@@ -210,4 +227,7 @@ Changing the embedding model requires a new database.
 ```sh
 make test
 make test-models   # also runs the tests against the real models
+make eval-plan     # scores question interpretation (GPU when the CUDA Toolkit is installed; GO_TAGS= forces CPU)
 ```
+
+`eval-plan` runs the questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, tasks, PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) and every question it misread. It fails when a field drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently.

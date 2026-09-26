@@ -10,34 +10,26 @@ import (
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/queryplan"
-	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/timeline"
 )
 
-// askPlan is the resolved interpretation of a question.
-type askPlan struct {
-	mode       queryplan.Mode
-	question   rag.Question
-	topic      string
-	taskStatus queryplan.TaskStatus
+// resolveAskQuery reads the question's filters with the model, unless
+// --no-filters, and resolves them with the flags, which win.
+func (env commandEnv) resolveAskQuery(ctx context.Context, generator llm.StructuredGenerator, text string, filters askFlags, session *askSession) (queryplan.Query, error) {
+	overrides, err := askOverrides(filters, env.toolkit.Now())
+	if err != nil {
+		return queryplan.Query{}, err
+	}
+	plan := env.interpret(ctx, generator, text, overrides.IgnoreQuestion, session)
+	query := queryplan.Resolve(text, plan, overrides, env.toolkit.Now())
+	env.logger.Debug("question resolved", "mode", modeLabels[query.Mode], "source", query.Source,
+		"period", describeDays(query.Days), "topic", query.Topic, "semantic_text", query.SemanticText)
+	return env.announceQuery(query, session), nil
 }
 
-// resolveAskPlan combines the model's reading of the question with the
-// flags (which win) and resolves dates deterministically.
-func (env commandEnv) resolveAskPlan(ctx context.Context, generator llm.StructuredGenerator, text string, filters askFlags, session *askSession) (askPlan, error) {
-	plan := env.interpret(ctx, generator, text, *filters.noFilters, session)
-	days, err := env.resolveDays(text, plan.Period, filters)
-	if err != nil {
-		return askPlan{}, err
-	}
-	source := event.Source(*filters.source)
-	if source == "" {
-		source = plan.Source
-	}
-	resolved := askPlan{mode: plan.Mode, topic: plan.Topic, taskStatus: plan.TaskStatus,
-		question: rag.Question{Text: text, Source: source, Days: days, Criteria: plan.Criteria}}
-	resolved = tasksDefaultToToday(listingNeedsPeriod(resolved), env.toolkit.Now())
-	return env.announcePlan(resolved, session), nil
+func askOverrides(filters askFlags, now time.Time) (queryplan.Overrides, error) {
+	days, err := parseOptionalDays(*filters.from, *filters.to, now)
+	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters}, err
 }
 
 // interpret asks the model for filters; a failure only costs the filters.
@@ -54,46 +46,12 @@ func (env commandEnv) interpret(ctx context.Context, generator llm.StructuredGen
 	return plan
 }
 
-// resolveDays prefers the flags, then a date the deterministic parser finds
-// in the question, then the model's period expression.
-func (env commandEnv) resolveDays(text, modelPeriod string, filters askFlags) (*timeline.DayRange, error) {
-	days, err := parseOptionalDays(*filters.from, *filters.to, env.toolkit.Now())
-	if err != nil || days != nil || *filters.noFilters {
-		return days, err
-	}
-	for _, source := range []string{text, modelPeriod} {
-		if detected, found := timeline.DetectDayRange(source, env.toolkit.Now()); source != "" && found {
-			return &detected, nil
-		}
-	}
-	return nil, nil
-}
-
-// listingNeedsPeriod turns a period-less listing into an answer: listing
-// every event ever is never what "as mensagens do Marcos" means.
-func listingNeedsPeriod(plan askPlan) askPlan {
-	if plan.mode == queryplan.ModeList && plan.question.Days == nil {
-		plan.mode = queryplan.ModeAnswer
-	}
-	return plan
-}
-
-// tasksDefaultToToday gives a period-less task question ("quais tarefas
-// finalizei?") today's report, as `cade tasks` does.
-func tasksDefaultToToday(plan askPlan, now time.Time) askPlan {
-	if plan.mode == queryplan.ModeTasks && plan.question.Days == nil {
-		today, _ := timeline.ParseDayRange("hoje", "", now)
-		plan.question.Days = &today
-	}
-	return plan
-}
-
-// announcePlan prints what was understood, so a wrong reading is visible
+// announceQuery prints what was understood, so a wrong reading is visible
 // and can be overridden with flags.
-func (env commandEnv) announcePlan(plan askPlan, session *askSession) askPlan {
+func (env commandEnv) announceQuery(query queryplan.Query, session *askSession) queryplan.Query {
 	session.status.clear()
-	fmt.Fprintf(env.stderr, "Entendi: %s\n", describePlan(plan))
-	return plan
+	fmt.Fprintf(env.stderr, "Entendi: %s\n", describeQuery(query))
+	return query
 }
 
 var (
@@ -102,17 +60,15 @@ var (
 	statusFilters   = map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"}
 )
 
-func describePlan(plan askPlan) string {
-	parts := []string{modeLabels[plan.mode]}
-	question := plan.question
-	parts = appendIf(parts, string(question.Source), string(question.Source))
-	if question.Days != nil {
-		parts = append(parts, question.Days.String())
-	}
-	parts = appendIf(parts, strings.Join(question.Criteria.People, ", "), "pessoas: "+strings.Join(question.Criteria.People, ", "))
-	parts = appendIf(parts, directionLabels[question.Criteria.Direction], directionLabels[question.Criteria.Direction])
-	parts = appendIf(parts, plan.topic, "assunto: "+plan.topic)
-	parts = appendIf(parts, statusFilters[plan.taskStatus], statusFilters[plan.taskStatus])
+func describeQuery(query queryplan.Query) string {
+	parts := []string{modeLabels[query.Mode]}
+	parts = appendIf(parts, string(query.Source), string(query.Source))
+	parts = appendIf(parts, describeDays(query.Days), describeDays(query.Days))
+	people := strings.Join(query.Criteria.People, ", ")
+	parts = appendIf(parts, people, "pessoas: "+people)
+	parts = appendIf(parts, directionLabels[query.Criteria.Direction], directionLabels[query.Criteria.Direction])
+	parts = appendIf(parts, query.Topic, "assunto: "+query.Topic)
+	parts = appendIf(parts, statusFilters[query.TaskStatus], statusFilters[query.TaskStatus])
 	if len(parts) == 1 {
 		parts = append(parts, "sem filtros")
 	}
@@ -124,4 +80,11 @@ func appendIf(parts []string, condition, part string) []string {
 		return parts
 	}
 	return append(parts, part)
+}
+
+func describeDays(days *timeline.DayRange) string {
+	if days == nil {
+		return ""
+	}
+	return days.String()
 }

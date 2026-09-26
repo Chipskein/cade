@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
 )
 
@@ -15,8 +16,8 @@ import (
 // so cosine distance is 1 - dot product, as in sqlite-vec.
 
 // retrieveAmong returns the top-k events that satisfy all filters.
-func (a *Answerer) retrieveAmong(ctx context.Context, question Question, embedding []float32, observer AnswerObserver) ([]storage.ScoredEvent, error) {
-	candidates, err := a.candidates(ctx, question, observer)
+func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, embedding []float32, observer AnswerObserver) ([]storage.ScoredEvent, error) {
+	candidates, err := a.candidates(ctx, query, observer)
 	if err != nil {
 		return nil, err
 	}
@@ -29,17 +30,17 @@ func (a *Answerer) retrieveAmong(ctx context.Context, question Question, embeddi
 
 // candidates loads the question's period (or all time) and applies the
 // source and criteria in memory; a person's events over a period are few.
-func (a *Answerer) candidates(ctx context.Context, question Question, observer AnswerObserver) ([]event.Event, error) {
+func (a *Answerer) candidates(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]event.Event, error) {
 	from, to := time.Unix(0, 0), a.now().AddDate(1, 0, 0)
-	if question.Days != nil {
-		from, to = question.Days.Start(), question.Days.End()
+	if query.Days != nil {
+		from, to = query.Days.Start(), query.Days.End()
 	}
 	events, err := a.store.EventsBetween(ctx, from, to)
 	if err != nil {
 		return nil, err
 	}
-	events = keepSource(events, question.Source)
-	kept, matched, unknown := question.Criteria.Apply(events)
+	events = keepSource(events, query.Source)
+	kept, matched, unknown := query.Criteria.Apply(events)
 	observer.notifyPeople(matched, unknown)
 	return kept, nil
 }

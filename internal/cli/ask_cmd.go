@@ -55,25 +55,25 @@ func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store
 		return err
 	}
 	defer models.close()
-	plan, err := env.resolveAskPlan(ctx, models.generator, text, filters, session)
+	query, err := env.resolveAskQuery(ctx, models.generator, text, filters, session)
 	if err != nil {
 		return err
 	}
-	switch plan.mode {
+	switch query.Mode {
 	case queryplan.ModeList:
-		return env.listForPlan(ctx, store, models, plan, session)
+		return env.listForQuery(ctx, store, models, query, session)
 	case queryplan.ModeTasks:
-		return env.tasksForPlan(ctx, cfg, store, plan, session)
+		return env.tasksForQuery(ctx, cfg, store, query, session)
 	}
-	return env.answerForPlan(ctx, models, plan, session)
+	return env.answerForQuery(ctx, models, query, session)
 }
 
-func (env commandEnv) answerForPlan(ctx context.Context, models *askModels, plan askPlan, session *askSession) error {
+func (env commandEnv) answerForQuery(ctx context.Context, models *askModels, query queryplan.Query, session *askSession) error {
 	answerer, err := models.answerer()
 	if err != nil {
 		return err
 	}
-	answer, err := answerer.Answer(ctx, plan.question, session.observer())
+	answer, err := answerer.Answer(ctx, query, session.observer())
 	if err != nil {
 		session.status.clear()
 		return err

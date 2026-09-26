@@ -211,3 +211,25 @@ func TestInvolvementIgnoresInheritedEvents(t *testing.T) {
 		t.Fatalf("expected MentionedByOthers, got %d", task.Involvement)
 	}
 }
+
+// Regression: a message citing several tasks only counted for the first,
+// so "pega a 162 e a 170" left 170 out of the report.
+func TestMessageCitingSeveralTasksCountsForEach(t *testing.T) {
+	report := build([]event.Event{message(at(9, 0), "pega a "+taskURL+" e a "+otherTask, false)})
+	if len(report.Tasks) != 2 || report.Tasks[0].Key != "14/162" || report.Tasks[1].Key != "14/170" {
+		t.Fatalf("expected both tasks, got %+v", report.Tasks)
+	}
+}
+
+func TestCitedByIgnoresInheritedEvents(t *testing.T) {
+	cited := message(at(9, 0), "segue "+taskURL, false)
+	nearby := message(at(9, 5), "qualquer coisa", false)
+	report := build([]event.Event{cited, nearby, visit(at(11, 0), otherTask, "Upload")})
+	builder := NewBuilder(testPatterns)
+	if kept := builder.CitedBy(report.Tasks, []event.Event{cited}); len(kept) != 1 || kept[0].Key != "14/162" {
+		t.Fatalf("expected only the cited task, got %+v", kept)
+	}
+	if kept := builder.CitedBy(report.Tasks, []event.Event{nearby}); len(kept) != 0 {
+		t.Fatalf("expected an inherited event to cite nothing, got %+v", kept)
+	}
+}

@@ -13,7 +13,6 @@ import (
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
-	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 )
@@ -236,9 +235,9 @@ func TestAskFallsBackWhenPlanIsInvalid(t *testing.T) {
 }
 
 func TestDescribePlan(t *testing.T) {
-	plan := askPlan{mode: queryplan.ModeList, topic: "redis",
-		question: rag.Question{Source: event.SourceTeams, Criteria: listing.Criteria{Direction: listing.Received, People: []string{"Ana"}}}}
-	if got := describePlan(plan); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
+	query := queryplan.Query{Mode: queryplan.ModeList, Topic: "redis", Source: event.SourceTeams,
+		Criteria: listing.Criteria{Direction: listing.Received, People: []string{"Ana"}}}
+	if got := describeQuery(query); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
 		t.Fatalf("unexpected description %q", got)
 	}
 }
@@ -321,12 +320,14 @@ func TestAskListingWithoutPeriodAnswersInstead(t *testing.T) {
 	}
 }
 
-func TestAskReportsUnknownPeople(t *testing.T) {
+// An unknown name ("CEP" read as a person) filters as text instead of
+// being dropped, which listed the whole day.
+func TestAskUnknownPersonFiltersListingAsText(t *testing.T) {
 	world := newFakeWorld()
 	dayOfTeamsMessages(world)
 	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": null, "pessoas": ["CEP"], "direcao": null, "assunto": null}`
 	_, stdout, stderr := world.run("ask", "tudo sobre o CEP ontem")
-	if !strings.Contains(stderr, "Sem correspondência, ignorado: CEP") || !strings.Contains(stdout, "ana-msg") {
-		t.Fatalf("expected CEP ignored and the day listed, got %q / %q", stderr, stdout)
+	if !strings.Contains(stderr, "buscando como texto: CEP") || strings.Contains(stdout, "ana-msg") {
+		t.Fatalf("expected CEP searched as text, got %q / %q", stderr, stdout)
 	}
 }

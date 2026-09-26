@@ -20,7 +20,7 @@ LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 
 PREFIX ?= $(HOME)/.local
 
-.PHONY: build cuda install uninstall test test-models fmt llama llama-cuda models clean
+.PHONY: build cuda install uninstall test test-models eval-plan fmt llama llama-cuda models clean
 
 build: llama
 	go build -o bin/cade ./cmd/cade
@@ -43,6 +43,14 @@ test: llama
 # Also runs the llama.cpp binding against the real models.
 test-models: llama models
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test ./...
+
+# Scores the question planner against testdata/queries/plan.json with the
+# real model, on the GPU when the CUDA Toolkit is installed (GO_TAGS= forces
+# the CPU build).
+GO_TAGS ?= $(if $(wildcard $(CUDA_HOME)/bin/nvcc),cuda)
+
+eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
+	CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestPlanSuiteWithModel ./internal/queryplan
 
 fmt:
 	gofmt -w cmd internal

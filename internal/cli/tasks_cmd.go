@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/config"
-	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/tasks"
 	"github.com/chipskein/cade/internal/timeline"
@@ -71,39 +70,4 @@ func buildTaskReport(ctx context.Context, store storage.EventStore, patterns []*
 		return tasks.Report{}, err
 	}
 	return tasks.NewBuilder(patterns).Build(period, history, days.End()), nil
-}
-
-// tasksForPlan answers "quais tarefas finalizei ontem?" with the same report
-// as `cade tasks`, straight from the database: no model summary, so no
-// invented task or status.
-func (env commandEnv) tasksForPlan(ctx context.Context, cfg config.Config, store storage.EventStore, plan askPlan, session *askSession) error {
-	patterns, err := compileTaskPatterns(cfg.Tasks.TaskURLPatterns)
-	if err != nil {
-		return err
-	}
-	report, err := buildTaskReport(ctx, store, patterns, *plan.question.Days)
-	if err != nil {
-		return err
-	}
-	report.Tasks = withTaskStatus(report.Tasks, plan.taskStatus)
-	session.status.clear()
-	renderTaskReport(env.stdout, *plan.question.Days, report, false)
-	return nil
-}
-
-var wantedStatus = map[queryplan.TaskStatus]tasks.Status{queryplan.OnlyDone: tasks.Done, queryplan.OnlyInProgress: tasks.InProgress}
-
-// withTaskStatus keeps the tasks in the requested status.
-func withTaskStatus(list []tasks.Task, status queryplan.TaskStatus) []tasks.Task {
-	wanted, filtered := wantedStatus[status]
-	if !filtered {
-		return list
-	}
-	var kept []tasks.Task
-	for _, task := range list {
-		if task.Status == wanted {
-			kept = append(kept, task)
-		}
-	}
-	return kept
 }
