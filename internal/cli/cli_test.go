@@ -111,7 +111,7 @@ func TestInitWritesConfigAtGivenPath(t *testing.T) {
 func TestIngestUsesConfiguredTargetsAndReports(t *testing.T) {
 	world := newFakeWorld()
 	code, stdout, stderr := world.run("ingest", "git")
-	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novos, 0 já existentes") {
+	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novos, 0 atualizados, 0 já existentes") {
 		t.Fatalf("expected one ingested commit, got %d %q %q", code, stdout, stderr)
 	}
 }

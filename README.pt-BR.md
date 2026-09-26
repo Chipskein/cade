@@ -196,7 +196,7 @@ cade ingest teams $T/https_teams.cloud.microsoft_0.indexeddb.leveldb \
 
 Apenas mensagens já carregadas pelo cliente estão disponíveis.
 
-Eventos já ingeridos não são reprocessados. Após atualizar o `cade`, para reingerir uma fonte:
+Eventos já ingeridos só são reprocessados se o conteúdo mudou na fonte (uma mensagem editada no Teams substitui o texto guardado; o `ingest` os conta como "atualizados"). Após atualizar o `cade`, para reingerir uma fonte do zero:
 
 ```sh
 cade forget teams && cade ingest teams

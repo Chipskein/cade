@@ -6,6 +6,7 @@ package event
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -46,6 +47,17 @@ func StableID(source Source, parts ...string) string {
 		digest.Write([]byte(part))
 	}
 	return hex.EncodeToString(digest.Sum(nil))
+}
+
+// RevisionKey is the optional metadata entry ordering versions of the same
+// event (a Teams message's edit stamp): ingestion only replaces a stored
+// event with a newer revision.
+const RevisionKey = "revision"
+
+// Revision returns the event's revision, if it has a numeric one.
+func (e Event) Revision() (int64, bool) {
+	revision, err := strconv.ParseInt(e.Metadata[RevisionKey], 10, 64)
+	return revision, err == nil
 }
 
 // Headline returns the first non-empty line of the content, for one-line

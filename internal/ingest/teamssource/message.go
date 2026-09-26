@@ -34,6 +34,9 @@ type teamsMessage struct {
 	text           string
 	sentAt         time.Time
 	sentByMe       bool
+	// version changes on every edit (a millisecond stamp); it becomes the
+	// event revision, so a re-ingest replaces the text with the newest.
+	version string
 }
 
 // parseMessage extracts a conversation message, reporting false for
@@ -50,6 +53,7 @@ func parseMessage(value *v8value.Value, senders map[string]string) (teamsMessage
 		text:           htmlToText(value.Get("content").String()),
 		sentAt:         arrivalTime(value),
 		sentByMe:       value.Get("isSentByCurrentUser").IsTrue(),
+		version:        value.Get("version").String(),
 	}
 	valid := message.id != "" && message.conversationID != "" && message.text != "" && !message.sentAt.IsZero()
 	return message, valid
@@ -91,7 +95,8 @@ func arrivalTime(value *v8value.Value) time.Time {
 
 // toEvent keys deduplication on conversation + message id: the same
 // message cached by both Teams origins, or ingested twice, stays one event.
-// Edits keep their id, so the first ingested version is the one kept.
+// Edits keep their id; the version is the revision that lets a re-ingest
+// replace the stored text with the edited one.
 func (m teamsMessage) toEvent(conversation conversationInfo, origin string) event.Event {
 	return event.Event{
 		UID:       event.StableID(event.SourceTeams, m.conversationID, m.id),
@@ -101,7 +106,7 @@ func (m teamsMessage) toEvent(conversation conversationInfo, origin string) even
 		Metadata: event.Metadata{
 			"conversation_id": m.conversationID, "conversation": conversation.title, "conversation_kind": string(conversation.kind),
 			"message_id": m.id, "sender": m.sender, "sender_mri": m.senderMRI,
-			"sent_by_me": strconv.FormatBool(m.sentByMe), "origin": origin,
+			"sent_by_me": strconv.FormatBool(m.sentByMe), "origin": origin, event.RevisionKey: m.version,
 		},
 	}
 }

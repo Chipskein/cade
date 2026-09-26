@@ -53,16 +53,6 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// HasEvent reports whether uid is already stored.
-func (s *Store) HasEvent(ctx context.Context, uid string) (bool, error) {
-	var exists bool
-	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM events WHERE uid = ?)`, uid).Scan(&exists)
-	if err != nil {
-		return false, fmt.Errorf("check event %q: %w", uid, err)
-	}
-	return exists, nil
-}
-
 // SaveEvent inserts the event and its embedding atomically.
 func (s *Store) SaveEvent(ctx context.Context, ev event.Event, embedding []float32) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)

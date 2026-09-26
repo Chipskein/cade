@@ -36,3 +36,12 @@ func TestHeadlineOfEmptyContent(t *testing.T) {
 		t.Fatalf("expected empty headline, got %q", got)
 	}
 }
+
+func TestRevision(t *testing.T) {
+	if revision, ok := (Event{Metadata: Metadata{RevisionKey: "1727262000000"}}).Revision(); !ok || revision != 1727262000000 {
+		t.Fatalf("expected the numeric revision, got %d %v", revision, ok)
+	}
+	if _, ok := (Event{Metadata: Metadata{RevisionKey: "x"}}).Revision(); ok {
+		t.Fatal("expected a non-numeric revision to be absent")
+	}
+}

@@ -3,6 +3,7 @@ package sqlitestore
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,13 +47,46 @@ func TestSaveEventDeduplicatesByUID(t *testing.T) {
 	}
 }
 
-func TestHasEvent(t *testing.T) {
+func TestStoredEvent(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), nil)
-	found, _ := store.HasEvent(context.Background(), "a")
-	missing, _ := store.HasEvent(context.Background(), "b")
-	if !found || missing {
-		t.Fatalf("expected found=true missing=false, got %v %v", found, missing)
+	stored, found, err := store.StoredEvent(context.Background(), "a")
+	_, missing, _ := store.StoredEvent(context.Background(), "b")
+	if err != nil || !found || missing || stored.UID != "a" || stored.Content != sampleEvent("a", event.SourceGit, 0).Content {
+		t.Fatalf("expected a found with its content and b missing, got %+v %v %v (err %v)", stored, found, missing, err)
+	}
+}
+
+func TestUpdateEventReplacesContentAndEmbedding(t *testing.T) {
+	store := openTestStore(t)
+	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
+	edited := sampleEvent("a", event.SourceGit, 0)
+	edited.Content = "texto editado"
+	if err := store.UpdateEvent(context.Background(), edited, []float32{0, 1}); err != nil {
+		t.Fatal(err)
+	}
+	stored, _, _ := store.StoredEvent(context.Background(), "a")
+	vectors, _ := store.EmbeddingsFor(context.Background(), []string{"a"})
+	if stored.Content != "texto editado" || len(vectors["a"]) != 2 || vectors["a"][1] != 1 {
+		t.Fatalf("expected the new content and vector, got %q %v", stored.Content, vectors["a"])
+	}
+}
+
+func TestUpdateEventWithoutEmbeddingRemovesVector(t *testing.T) {
+	store := openTestStore(t)
+	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
+	emptied := sampleEvent("a", event.SourceGit, 0)
+	emptied.Content = ""
+	store.UpdateEvent(context.Background(), emptied, nil)
+	if vectors, _ := store.EmbeddingsFor(context.Background(), []string{"a"}); len(vectors) != 0 {
+		t.Fatalf("expected no vector left, got %v", vectors)
+	}
+}
+
+func TestUpdateEventRejectsUnknownUID(t *testing.T) {
+	store := openTestStore(t)
+	if err := store.UpdateEvent(context.Background(), sampleEvent("zz", event.SourceGit, 0), nil); err == nil || !strings.Contains(err.Error(), `"zz"`) {
+		t.Fatalf("expected an error naming the uid, got %v", err)
 	}
 }
 
@@ -91,7 +125,7 @@ func TestSaveEventRollsBackEventWhenEmbeddingFails(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
 	store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0})
-	if found, _ := store.HasEvent(context.Background(), "b"); found {
+	if _, found, _ := store.StoredEvent(context.Background(), "b"); found {
 		t.Fatal("event must not persist without its embedding, or re-ingestion would skip it forever")
 	}
 }

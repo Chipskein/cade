@@ -18,9 +18,11 @@ type FakeEventStore struct {
 	Events        []event.Event
 	Embeddings    map[string][]float32
 	SearchResults []storage.ScoredEvent
-	LastQuery     storage.SimilarityQuery
-	FailWith      error
-	Closed        bool
+	// Updated lists the UIDs passed to UpdateEvent, in order.
+	Updated   []string
+	LastQuery storage.SimilarityQuery
+	FailWith  error
+	Closed    bool
 }
 
 // NewFakeEventStore returns an empty store.
@@ -28,18 +30,36 @@ func NewFakeEventStore() *FakeEventStore {
 	return &FakeEventStore{Embeddings: map[string][]float32{}}
 }
 
-func (f *FakeEventStore) HasEvent(_ context.Context, uid string) (bool, error) {
-	for _, ev := range f.Events {
-		if ev.UID == uid {
-			return true, f.FailWith
-		}
+func (f *FakeEventStore) StoredEvent(_ context.Context, uid string) (event.Event, bool, error) {
+	index := f.indexOf(uid)
+	if index < 0 {
+		return event.Event{}, false, f.FailWith
 	}
-	return false, f.FailWith
+	return f.Events[index], true, f.FailWith
 }
 
-func (f *FakeEventStore) SaveEvent(ctx context.Context, ev event.Event, embedding []float32) (bool, error) {
-	known, _ := f.HasEvent(ctx, ev.UID)
-	if known || f.FailWith != nil {
+func (f *FakeEventStore) indexOf(uid string) int {
+	for i, ev := range f.Events {
+		if ev.UID == uid {
+			return i
+		}
+	}
+	return -1
+}
+
+// UpdateEvent replaces the event and records the UID in Updated.
+func (f *FakeEventStore) UpdateEvent(_ context.Context, ev event.Event, embedding []float32) error {
+	index := f.indexOf(ev.UID)
+	if index < 0 || f.FailWith != nil {
+		return f.FailWith
+	}
+	f.Events[index], f.Embeddings[ev.UID] = ev, embedding
+	f.Updated = append(f.Updated, ev.UID)
+	return nil
+}
+
+func (f *FakeEventStore) SaveEvent(_ context.Context, ev event.Event, embedding []float32) (bool, error) {
+	if f.indexOf(ev.UID) >= 0 || f.FailWith != nil {
 		return false, f.FailWith
 	}
 	f.Events = append(f.Events, ev)

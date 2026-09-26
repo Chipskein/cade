@@ -133,3 +133,51 @@ func TestSourceNames(t *testing.T) {
 		t.Fatalf("expected [git browser], got %v", names)
 	}
 }
+
+func teamsVersion(content, revision string) event.Event {
+	return event.Event{UID: "m", Source: event.SourceTeams, Timestamp: time.Unix(1, 0), Content: content,
+		Metadata: event.Metadata{event.RevisionKey: revision}}
+}
+
+// Regression: an edited Teams message kept its first ingested text forever.
+func TestRunReplacesEditedEventAndReembeds(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	pipeline := newTestPipeline(store, embedder)
+	pipeline.Run(context.Background(), FakeCollector{Events: []event.Event{teamsVersion("deploy às 18h", "100")}}, nil)
+	report, err := pipeline.Run(context.Background(), FakeCollector{Events: []event.Event{teamsVersion("deploy às 19h", "200")}}, nil)
+	if err != nil || report != (Report{Collected: 1, Updated: 1}) || store.Events[0].Content != "deploy às 19h" || len(embedder.Inputs) != 2 {
+		t.Fatalf("expected the edit stored and re-embedded, got %+v, %q, %d embeds (err %v)", report, store.Events[0].Content, len(embedder.Inputs), err)
+	}
+}
+
+// Two Teams caches can hold different versions; the newest must win
+// whatever the order, and nothing may alternate on the next run.
+func TestRunKeepsNewestRevision(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	pipeline := newTestPipeline(store, &testfakes.FakeEmbedder{})
+	versions := FakeCollector{Events: []event.Event{teamsVersion("nova", "200"), teamsVersion("antiga", "100")}}
+	pipeline.Run(context.Background(), versions, nil)
+	report, _ := pipeline.Run(context.Background(), versions, nil)
+	if store.Events[0].Content != "nova" || report.Updated != 0 || len(store.Updated) != 0 {
+		t.Fatalf("expected the newest kept without updates, got %q, %+v, updates %v", store.Events[0].Content, report, store.Updated)
+	}
+}
+
+func TestReplaces(t *testing.T) {
+	cases := []struct {
+		incoming, stored event.Event
+		expected         bool
+	}{
+		{teamsVersion("a", "1"), teamsVersion("a", "1"), false},
+		{teamsVersion("b", "2"), teamsVersion("a", "1"), true},
+		{teamsVersion("b", "1"), teamsVersion("a", "2"), false},
+		{teamsVersion("b", "1"), teamsVersion("a", "1"), false},
+		{teamsVersion("b", "2"), teamsVersion("a", ""), true},
+		{event.Event{Content: "novo título"}, event.Event{Content: "título"}, true},
+	}
+	for i, c := range cases {
+		if got := replaces(c.incoming, c.stored); got != c.expected {
+			t.Errorf("case %d: expected %v, got %v", i, c.expected, got)
+		}
+	}
+}

@@ -103,6 +103,6 @@ func runIngestJobs(ctx context.Context, env commandEnv, pipeline *ingest.Pipelin
 }
 
 func printIngestReport(env commandEnv, job ingestJob, report ingest.Report) {
-	fmt.Fprintf(env.stdout, "%-8s %s: %d novos, %d já existentes (%d lidos)\n",
-		job.spec.Name, job.target, report.Inserted, report.AlreadyStored, report.Collected)
+	fmt.Fprintf(env.stdout, "%-8s %s: %d novos, %d atualizados, %d já existentes (%d lidos)\n",
+		job.spec.Name, job.target, report.Inserted, report.Updated, report.AlreadyStored, report.Collected)
 }

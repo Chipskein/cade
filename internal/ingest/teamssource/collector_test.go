@@ -190,3 +190,12 @@ func TestCollectResolvesSenderFromProfiles(t *testing.T) {
 		t.Fatalf("expected the sender name from profiles, got %+v", events)
 	}
 }
+
+func TestCollectCarriesVersionAsRevision(t *testing.T) {
+	edited := message("1", "Text", "deploy às 19h")
+	edited.Properties = append(edited.Properties, v8value.Property{Key: "version", Value: str("1758800000123")})
+	events, _ := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{replyChain(edited)}})
+	if revision, ok := events[0].Revision(); !ok || revision != 1758800000123 {
+		t.Fatalf("expected the message version as revision, got %v %v", revision, ok)
+	}
+}

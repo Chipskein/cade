@@ -27,8 +27,11 @@ type EventCollector interface {
 
 // Report counts what one ingestion run did.
 type Report struct {
-	Collected     int
-	Inserted      int
+	Collected int
+	Inserted  int
+	// Updated counts stored events whose content changed at the source
+	// (an edited Teams message) and were replaced.
+	Updated       int
 	AlreadyStored int
 }
 
@@ -70,15 +73,38 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 type ProgressFunc func(Report)
 
 func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Report) error {
-	known, err := p.store.HasEvent(ctx, ev.UID)
-	if err != nil || known {
-		report.AlreadyStored += boolToInt(known)
+	stored, known, err := p.store.StoredEvent(ctx, ev.UID)
+	if err != nil {
 		return err
+	}
+	if known && !replaces(ev, stored) {
+		report.AlreadyStored++
+		return nil
 	}
 	embedding, err := p.embeddingFor(ev)
 	if err != nil {
 		return err
 	}
+	if known {
+		return p.update(ctx, ev, embedding, report)
+	}
+	return p.insert(ctx, ev, embedding, report)
+}
+
+// replaces reports whether incoming should overwrite stored: its content
+// changed and, when both carry a revision, it is newer. Equal revisions
+// keep the stored event, so two Teams caches holding different renderings
+// of one version do not alternate on every run.
+func replaces(incoming, stored event.Event) bool {
+	if incoming.Content == stored.Content {
+		return false
+	}
+	incomingRevision, hasIncoming := incoming.Revision()
+	storedRevision, hasStored := stored.Revision()
+	return !hasIncoming || !hasStored || incomingRevision > storedRevision
+}
+
+func (p *Pipeline) insert(ctx context.Context, ev event.Event, embedding []float32, report *Report) error {
 	inserted, err := p.store.SaveEvent(ctx, ev, embedding)
 	if err != nil {
 		return err
@@ -86,6 +112,15 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 	report.Inserted += boolToInt(inserted)
 	report.AlreadyStored += boolToInt(!inserted)
 	p.logger.Debug("event ingested", "uid", ev.UID, "source", ev.Source, "inserted", inserted)
+	return nil
+}
+
+func (p *Pipeline) update(ctx context.Context, ev event.Event, embedding []float32, report *Report) error {
+	if err := p.store.UpdateEvent(ctx, ev, embedding); err != nil {
+		return err
+	}
+	report.Updated++
+	p.logger.Debug("event updated", "uid", ev.UID, "source", ev.Source)
 	return nil
 }
 

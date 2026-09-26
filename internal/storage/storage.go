@@ -12,9 +12,13 @@ import (
 
 // EventStore persists events and their embeddings.
 type EventStore interface {
-	// HasEvent reports whether an event with this UID was already stored,
-	// letting ingestion skip the expensive embedding step on re-runs.
-	HasEvent(ctx context.Context, uid string) (bool, error)
+	// StoredEvent returns the stored event with this UID, if any, so
+	// ingestion can skip unchanged events (and their embedding) on re-runs
+	// and replace changed ones.
+	StoredEvent(ctx context.Context, uid string) (event.Event, bool, error)
+	// UpdateEvent replaces a stored event's fields and embedding (nil
+	// removes it), keyed by UID; used when the source's version changed.
+	UpdateEvent(ctx context.Context, ev event.Event, embedding []float32) error
 	// SaveEvent stores the event and, when non-nil, its embedding. It returns
 	// false without error when the UID already exists (RF1.5).
 	SaveEvent(ctx context.Context, ev event.Event, embedding []float32) (bool, error)
