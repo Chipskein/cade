@@ -38,6 +38,7 @@ func productionToolkit() cli.Toolkit {
 		Sources:           sourceSpecs,
 		ReadIndexedDB:     indexeddb.ReadDirectory,
 		StderrIsTerminal:  isTerminal(os.Stderr),
+		Language:          cli.LanguageFromEnv(os.Getenv),
 		Now:               time.Now,
 	}
 }

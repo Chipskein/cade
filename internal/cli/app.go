@@ -45,7 +45,9 @@ type Toolkit struct {
 	ReadIndexedDB     func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
-	Now              func() time.Time
+	// Language of the help text and flag descriptions (from the locale).
+	Language Language
+	Now      func() time.Time
 }
 
 // commandEnv is what every subcommand receives after global flags are
@@ -62,6 +64,18 @@ type subcommand func(ctx context.Context, env commandEnv, args []string) error
 
 var errUsage = errors.New("usage error")
 
+// errHelpShown means -h printed the help: not a failure.
+var errHelpShown = errors.New("help shown")
+
+// usageError maps a flag parsing error: -h is a request, anything else a
+// usage mistake (the flag package has already printed why).
+func usageError(err error) error {
+	if errors.Is(err, flag.ErrHelp) {
+		return errHelpShown
+	}
+	return errUsage
+}
+
 // Run executes the command line in args (without the program name) and
 // returns the process exit code.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit Toolkit) int {
@@ -69,13 +83,18 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	if err != nil {
 		return exitCode(err, stderr)
 	}
+	usage := usageFor(toolkit.Language)
 	if len(rest) == 0 {
-		fmt.Fprint(stderr, usageText)
+		fmt.Fprint(stderr, usage)
 		return 2
+	}
+	if rest[0] == "help" {
+		fmt.Fprint(stdout, usage)
+		return 0
 	}
 	command, found := subcommands()[rest[0]]
 	if !found {
-		fmt.Fprintf(stderr, "comando desconhecido %q\n\n%s", rest[0], usageText)
+		fmt.Fprintf(stderr, "%s %q\n\n%s", toolkit.Language.pick("comando desconhecido", "unknown command"), rest[0], usage)
 		return 2
 	}
 	return exitCode(command(ctx, env, rest[1:]), stderr)
@@ -95,11 +114,13 @@ func subcommands() map[string]subcommand {
 }
 
 func parseGlobalFlags(args []string, stdout, stderr io.Writer, toolkit Toolkit) (commandEnv, []string, error) {
-	flags := newFlagSet("cade", stderr)
-	configPath := flags.String("config", "", "arquivo de configuração (padrão: ~/.config/cade/config.json)")
-	verbose := flags.Bool("verbose", false, "logs de depuração em JSON no stderr")
+	language := toolkit.Language
+	flags := newFlagSet("cade", stderr, language)
+	flags.Usage = func() { fmt.Fprint(stdout, usageFor(language)) }
+	configPath := flags.String("config", "", language.pick("arquivo de configuração (padrão: ~/.config/cade/config.json)", "configuration file (default: ~/.config/cade/config.json)"))
+	verbose := flags.Bool("verbose", false, language.pick("logs de depuração em JSON no stderr", "JSON debug logs on stderr"))
 	if err := flags.Parse(args); err != nil {
-		return commandEnv{}, nil, errUsage
+		return commandEnv{}, nil, usageError(err)
 	}
 	path, err := resolveConfigPath(*configPath, toolkit)
 	if err != nil {
@@ -124,14 +145,22 @@ func newLogger(stderr io.Writer, verbose bool) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(stderr, &slog.HandlerOptions{Level: level}))
 }
 
-func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {
+// newFlagSet reports errors and -h on stderr, with a header in language.
+func newFlagSet(name string, stderr io.Writer, language Language) *flag.FlagSet {
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	flags.Usage = func() {
+		fmt.Fprintf(stderr, language.pick("Uso de cade %s:\n", "Usage of cade %s:\n"), name)
+		flags.PrintDefaults()
+	}
 	return flags
 }
 
 func exitCode(err error, stderr io.Writer) int {
 	if err == nil {
+		return 0
+	}
+	if errors.Is(err, errHelpShown) {
 		return 0
 	}
 	if errors.Is(err, errUsage) {

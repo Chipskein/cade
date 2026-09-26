@@ -18,10 +18,11 @@ const prHistorySpan = 90 * 24 * time.Hour
 
 // runTasks reports the tasks worked on in a period: `cade tasks [--all] [DATA [FIM]]`.
 func runTasks(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("tasks", env.stderr)
-	showAll := flags.Bool("all", false, "também lista tarefas que só apareceram em mensagens de outras pessoas")
+	flags := newFlagSet("tasks", env.stderr, env.toolkit.Language)
+	showAll := flags.Bool("all", false, env.toolkit.Language.pick("também lista tarefas que só apareceram em mensagens de outras pessoas",
+		"also list tasks that only appeared in other people's messages"))
 	if err := flags.Parse(args); err != nil {
-		return errUsage
+		return usageError(err)
 	}
 	days, err := parseTasksDays(flags.Args(), env.toolkit.Now())
 	if err != nil {

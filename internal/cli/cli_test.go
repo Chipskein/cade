@@ -46,6 +46,7 @@ type fakeWorld struct {
 	cfg           config.Config
 	embedderLoads int
 	writtenConfig string
+	language      Language
 }
 
 func newFakeWorld() *fakeWorld {
@@ -68,6 +69,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Sources:           w.sources,
 		ReadIndexedDB:     w.readIndexedDB,
 		Now:               func() time.Time { return cliNow },
+		Language:          w.language,
 	}
 }
 

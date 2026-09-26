@@ -1,6 +1,11 @@
 package cli
 
-const usageText = `cade — histórico pessoal local (git, browser, arquivos, teams)
+// usageFor returns the help text in language.
+func usageFor(language Language) string {
+	return language.pick(usagePortuguese, usageEnglish)
+}
+
+const usagePortuguese = `cade — histórico pessoal local (git, browser, arquivos, teams)
 
 Uso:
   cade [--config ARQUIVO] [--verbose] <comando> [argumentos]
@@ -23,6 +28,7 @@ Comandos:
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
+  help                                  mostra esta ajuda
 
 Exemplos:
   cade ingest git ~/src/meu-projeto
@@ -31,4 +37,42 @@ Exemplos:
   cade timeline ontem
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "o que pesquisei sobre sqlite?"
+
+Flags de cada comando: cade <comando> -h
+`
+
+const usageEnglish = `cade — local personal history (git, browser, files, teams)
+
+Usage:
+  cade [--config FILE] [--verbose] <command> [arguments]
+
+Commands:
+  init                                  writes the default configuration file
+  ingest <source|all> [TARGET...]       ingests a source (git, browser, file, teams);
+                                        without TARGET uses the configured targets
+  timeline [--source S] DATE [END_DATE] events of a day or range
+                                        (DATE: YYYY-MM-DD, hoje, ontem)
+  ask [--source S] [--from D] [--to D] [--no-filters] [--json] QUESTION
+                                        natural-language question, in English or
+                                        Portuguese (also about tasks: "which tasks did I finish?")
+  tasks [--all] [DATE] [END_DATE]       tasks worked on (task links); PR opened
+                                        = finished (default: today)
+  reindex                               recomputes vectors with the configured
+                                        embedding model (after changing it); resumable
+  forget <source>                       deletes a source's events, to re-ingest;
+                                        what left the source (e.g. an expired Teams
+                                        cache) does not come back
+  teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
+                                        to design the Teams ingestor
+  help                                  shows this help
+
+Examples:
+  cade ingest git ~/src/my-project
+  cade ingest browser ~/.mozilla/firefox/xyz.default/places.sqlite
+  cade ingest all
+  cade timeline ontem
+  cade timeline 2026-09-01 2026-09-07
+  cade ask --source browser --from 2026-09-19 "what did I search about sqlite?"
+
+Output labels are in Portuguese. Flags of each command: cade <command> -h
 `

@@ -12,10 +12,10 @@ import (
 )
 
 func runTimeline(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("timeline", env.stderr)
-	source := flags.String("source", "", "mostra só uma fonte (git, browser, file)")
+	flags := newFlagSet("timeline", env.stderr, env.toolkit.Language)
+	source := flags.String("source", "", env.toolkit.Language.pick("mostra só uma fonte (git, browser, file, teams)", "show one source only (git, browser, file, teams)"))
 	if err := flags.Parse(args); err != nil {
-		return errUsage
+		return usageError(err)
 	}
 	days, err := parseTimelineDays(flags.Args(), env.toolkit.Now())
 	if err != nil {

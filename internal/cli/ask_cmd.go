@@ -24,21 +24,23 @@ type askFlags struct {
 	json      *bool
 }
 
-func registerAskFlags(flags *flag.FlagSet) askFlags {
+func registerAskFlags(flags *flag.FlagSet, language Language) askFlags {
 	return askFlags{
-		source:    flags.String("source", "", "busca só em uma fonte (git, browser, file, teams)"),
-		from:      flags.String("from", "", "primeiro dia considerado (AAAA-MM-DD, hoje, ontem)"),
-		to:        flags.String("to", "", "último dia considerado (padrão: hoje quando --from é dado)"),
-		noFilters: flags.Bool("no-filters", false, "não interpretar filtros na pergunta (período, pessoas, fonte)"),
-		json:      flags.Bool("json", false, "saída em JSON: plano, resultado e a referência de cada evento usado"),
+		source: flags.String("source", "", language.pick("busca só em uma fonte (git, browser, file, teams)", "search one source only (git, browser, file, teams)")),
+		from:   flags.String("from", "", language.pick("primeiro dia considerado (AAAA-MM-DD, hoje, ontem)", "first day considered (YYYY-MM-DD, hoje, ontem)")),
+		to:     flags.String("to", "", language.pick("último dia considerado (padrão: hoje quando --from é dado)", "last day considered (default: today when --from is given)")),
+		noFilters: flags.Bool("no-filters", false, language.pick("não interpretar filtros na pergunta (período, pessoas, fonte)",
+			"do not read filters from the question (period, people, source)")),
+		json: flags.Bool("json", false, language.pick("saída em JSON: plano, resultado e a referência de cada evento usado",
+			"JSON output: plan, result and the reference of every event used")),
 	}
 }
 
 func runAsk(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("ask", env.stderr)
-	filters := registerAskFlags(flags)
+	flags := newFlagSet("ask", env.stderr, env.toolkit.Language)
+	filters := registerAskFlags(flags, env.toolkit.Language)
 	if err := flags.Parse(args); err != nil {
-		return errUsage
+		return usageError(err)
 	}
 	text := strings.Join(flags.Args(), " ")
 	if strings.TrimSpace(text) == "" {
