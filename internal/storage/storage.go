@@ -54,3 +54,29 @@ type ScoredEvent struct {
 	Event    event.Event
 	Distance float64
 }
+
+// EmbeddingIndex manages the vectors as a whole: which model produced them
+// and rebuilding them with another (`cade reindex`). Vectors from two
+// models are not comparable, even at the same dimension, so the model is
+// recorded and a rebuild marks itself pending until it completes.
+type EmbeddingIndex interface {
+	// EmbeddingModel returns the recorded model name, "" if none yet.
+	EmbeddingModel(ctx context.Context) (string, error)
+	RecordEmbeddingModel(ctx context.Context, model string) error
+	// StartReindex drops every vector, records model and marks a rebuild
+	// pending.
+	StartReindex(ctx context.Context, model string) error
+	ReindexPending(ctx context.Context) (bool, error)
+	// EventsWithoutEmbedding returns up to limit events with text and no
+	// vector, in storage order.
+	EventsWithoutEmbedding(ctx context.Context, limit int) ([]event.Event, error)
+	CountEventsWithoutEmbedding(ctx context.Context) (int, error)
+	SaveEmbeddings(ctx context.Context, embeddings []EventEmbedding) error
+	FinishReindex(ctx context.Context) error
+}
+
+// EventEmbedding pairs a stored event with its new vector.
+type EventEmbedding struct {
+	Event  event.Event
+	Vector []float32
+}

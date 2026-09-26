@@ -90,6 +90,7 @@ func subcommands() map[string]subcommand {
 		"teams-schema": runTeamsSchema,
 		"forget":       runForget,
 		"tasks":        runTasks,
+		"reindex":      runReindex,
 	}
 }
 

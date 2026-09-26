@@ -76,6 +76,9 @@ func jobsFor(spec ingest.SourceSpec, targets []string) []ingestJob {
 // all jobs of this run (RNF5.2).
 func (env commandEnv) withIngestPipeline(ctx context.Context, use func(*ingest.Pipeline) error) error {
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
+		if err := env.checkEmbeddingModel(ctx, cfg, store); err != nil {
+			return err
+		}
 		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding)
 		if err != nil {
 			return err

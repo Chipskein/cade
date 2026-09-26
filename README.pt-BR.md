@@ -86,6 +86,7 @@ cade ask --json "o que fiz sobre cache?"         # plano + resultado + origem de
 cade tasks ontem                            # tarefas trabalhadas e concluídas (PR aberto)
 cade ask "quais tarefas finalizei essa semana?"   # mesmo relatório, em linguagem natural
 cade forget teams                           # apaga os eventos de uma fonte, para reingerir
+cade reindex                                # recalcula os vetores após trocar o modelo de embedding
 cade teams-schema DIR                       # estrutura (sem valores) de um IndexedDB, para diagnóstico
 ```
 
@@ -233,7 +234,7 @@ Outros campos (criados pelo `cade init`):
 | `retrieval.max_best_distance` | `0.62` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 
-Trocar o modelo de embedding exige um banco novo.
+Para trocar o modelo de embedding, ajuste `embedding.model_path` e rode `cade reindex`: ele recalcula todos os vetores a partir do texto guardado e continua de onde parou se for interrompido (~37 eventos/s numa RTX 3060). O banco registra de qual modelo vieram os vetores; `ingest` e `ask` recusam um modelo diferente em vez de misturar vetores incompatíveis.
 
 Mudanças de esquema são aplicadas automaticamente ao abrir o banco (migrações numeradas). Um passo que reescreve dados antes salva uma cópia como `cade.db.before-vN-<data>` e avisa onde; apague-a quando estiver satisfeito.
 

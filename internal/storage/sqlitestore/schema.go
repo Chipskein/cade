@@ -43,7 +43,7 @@ func ensureVectorTable(ctx context.Context, tx *sql.Tx, dimensions int) error {
 		return err
 	}
 	if found && stored != dimensions {
-		return fmt.Errorf("embedding has %d dimensions, database expects %d (was a different embedding model configured?)", dimensions, stored)
+		return fmt.Errorf("embedding has %d dimensions, database expects %d; a different embedding model is configured — run `cade reindex`", dimensions, stored)
 	}
 	if found {
 		return nil

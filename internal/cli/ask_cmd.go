@@ -71,7 +71,7 @@ func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store
 }
 
 func (env commandEnv) answerForQuery(ctx context.Context, models *askModels, query queryplan.Query, session *askSession) error {
-	answerer, err := models.answerer()
+	answerer, err := models.answerer(ctx)
 	if err != nil {
 		return err
 	}

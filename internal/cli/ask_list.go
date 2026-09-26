@@ -40,7 +40,7 @@ func (env commandEnv) narrowByTopic(ctx context.Context, models *askModels, topi
 	if topic == "" || len(events) == 0 {
 		return events, nil
 	}
-	answerer, err := models.answerer()
+	answerer, err := models.answerer(ctx)
 	if err != nil {
 		return nil, err
 	}

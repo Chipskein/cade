@@ -86,6 +86,7 @@ cade ask --json "o que fiz sobre cache?"         # plan + result + source of eac
 cade tasks ontem                            # tasks worked on and finished (PR opened)
 cade ask "quais tarefas finalizei essa semana?"   # same report, in natural language
 cade forget teams                           # deletes a source's events, to re-ingest
+cade reindex                                # recomputes vectors after changing the embedding model
 cade teams-schema DIR                       # structure (no values) of an IndexedDB, for diagnosis
 ```
 
@@ -233,7 +234,7 @@ Other fields (written by `cade init`):
 | `retrieval.max_best_distance` | `0.62` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 
-Changing the embedding model requires a new database.
+To change the embedding model, set `embedding.model_path` and run `cade reindex`: it recomputes every vector from the stored text, and resumes if interrupted (~37 events/s on an RTX 3060). The database records which model its vectors came from; `ingest` and `ask` refuse a different one instead of mixing incompatible vectors.
 
 Schema changes are applied automatically when the database is opened (numbered migrations). A step that rewrites data first saves a copy as `cade.db.before-vN-<date>` and says where; delete it once you are satisfied.
 

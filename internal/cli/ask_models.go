@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage"
@@ -27,9 +29,13 @@ func (env commandEnv) loadAskModels(cfg config.Config, store storage.EventStore,
 	return &askModels{env: env, cfg: cfg, store: store, generator: generator, session: session}, nil
 }
 
-// answerer builds the RAG answerer, loading the embedder if needed.
-func (m *askModels) answerer() (*rag.Answerer, error) {
+// answerer builds the RAG answerer, loading the embedder if needed; the
+// stored vectors must come from the configured model.
+func (m *askModels) answerer(ctx context.Context) (*rag.Answerer, error) {
 	if m.embedder == nil {
+		if err := m.env.checkEmbeddingModel(ctx, m.cfg, m.store); err != nil {
+			return nil, err
+		}
 		m.session.loadingModels()
 		embedder, err := m.env.toolkit.LoadEmbedder(m.cfg.Embedding)
 		if err != nil {

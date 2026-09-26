@@ -16,6 +16,8 @@ Comandos:
                                         sobre tarefas: "quais tarefas finalizei?")
   tasks [--all] [DATA] [DATA_FIM]       tarefas trabalhadas (links de tarefa); PR aberto
                                         = concluída (padrão: hoje)
+  reindex                               recalcula os vetores com o modelo de embedding
+                                        configurado (após trocar de modelo); retomável
   forget <fonte>                        apaga os eventos de uma fonte, para reingerir;
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta

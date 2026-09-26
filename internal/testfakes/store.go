@@ -23,6 +23,11 @@ type FakeEventStore struct {
 	LastQuery storage.SimilarityQuery
 	FailWith  error
 	Closed    bool
+	// EmbeddingModelName, Pending and ReindexStarted back the
+	// storage.EmbeddingIndex methods.
+	EmbeddingModelName string
+	Pending            bool
+	ReindexStarted     int
 }
 
 // NewFakeEventStore returns an empty store.
@@ -114,4 +119,59 @@ func (f *FakeEventStore) EmbeddingsFor(_ context.Context, uids []string) (map[st
 		}
 	}
 	return found, f.FailWith
+}
+
+// Embedding index: the fake records the model and a pending rebuild, and
+// treats events with text and no entry in Embeddings as missing a vector.
+
+func (f *FakeEventStore) EmbeddingModel(context.Context) (string, error) {
+	return f.EmbeddingModelName, f.FailWith
+}
+
+func (f *FakeEventStore) RecordEmbeddingModel(_ context.Context, model string) error {
+	f.EmbeddingModelName = model
+	return f.FailWith
+}
+
+func (f *FakeEventStore) StartReindex(_ context.Context, model string) error {
+	f.Embeddings, f.EmbeddingModelName, f.ReindexStarted, f.Pending = map[string][]float32{}, model, f.ReindexStarted+1, true
+	return f.FailWith
+}
+
+func (f *FakeEventStore) ReindexPending(context.Context) (bool, error) {
+	return f.Pending, f.FailWith
+}
+
+func (f *FakeEventStore) EventsWithoutEmbedding(_ context.Context, limit int) ([]event.Event, error) {
+	missing := f.missingEmbeddings()
+	return missing[:min(limit, len(missing))], f.FailWith
+}
+
+func (f *FakeEventStore) CountEventsWithoutEmbedding(context.Context) (int, error) {
+	return len(f.missingEmbeddings()), f.FailWith
+}
+
+func (f *FakeEventStore) missingEmbeddings() []event.Event {
+	var missing []event.Event
+	for _, ev := range f.Events {
+		if ev.Content != "" && f.Embeddings[ev.UID] == nil {
+			missing = append(missing, ev)
+		}
+	}
+	return missing
+}
+
+func (f *FakeEventStore) SaveEmbeddings(_ context.Context, embeddings []storage.EventEmbedding) error {
+	if f.FailWith != nil {
+		return f.FailWith
+	}
+	for _, pair := range embeddings {
+		f.Embeddings[pair.Event.UID] = pair.Vector
+	}
+	return nil
+}
+
+func (f *FakeEventStore) FinishReindex(context.Context) error {
+	f.Pending = false
+	return f.FailWith
 }
