@@ -9,8 +9,17 @@ import (
 )
 
 // DeleteSource removes the events of source and their embeddings in one
-// transaction, so an interruption never leaves embeddings without events.
+// transaction, so an interruption never leaves embeddings without events,
+// then compacts the file so the deleted text leaves the disk.
 func (s *Store) DeleteSource(ctx context.Context, source event.Source) (int, error) {
+	removed, err := s.deleteSourceRows(ctx, source)
+	if err != nil {
+		return 0, err
+	}
+	return removed, s.compact(ctx)
+}
+
+func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("begin transaction: %w", err)

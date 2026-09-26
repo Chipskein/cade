@@ -1,7 +1,9 @@
 package sqlitestore
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -238,5 +240,65 @@ func TestEmbeddingsForWithoutVectorTable(t *testing.T) {
 func TestDecodeFloat32sRejectsTruncatedBlob(t *testing.T) {
 	if _, err := decodeFloat32s([]byte{1, 2, 3}); err == nil {
 		t.Fatal("expected an error for a 3-byte blob")
+	}
+}
+
+func TestOpenCreatesOwnerOnlyDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	store, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), nil)
+	for _, suffix := range []string{"", "-wal"} {
+		info, err := os.Stat(path + suffix)
+		if err != nil || info.Mode().Perm() != 0o600 {
+			t.Fatalf("expected %s to be 0600, got %v (err %v)", path+suffix, info.Mode().Perm(), err)
+		}
+	}
+}
+
+// Regression: databases created by earlier versions were world-readable.
+func TestOpenRestrictsExistingDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	os.WriteFile(path, nil, 0o644)
+	os.WriteFile(path+"-shm", nil, 0o644)
+	store, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	for _, suffix := range []string{"", "-shm"} {
+		if info, _ := os.Stat(path + suffix); info != nil && info.Mode().Perm() != 0o600 {
+			t.Fatalf("expected %s tightened to 0600, got %v", path+suffix, info.Mode().Perm())
+		}
+	}
+}
+
+func TestSecureDeleteIsOn(t *testing.T) {
+	store := openTestStore(t)
+	var mode int
+	if err := store.db.QueryRow(`PRAGMA secure_delete`).Scan(&mode); err != nil || mode != 1 {
+		t.Fatalf("expected secure_delete on, got %d (err %v)", mode, err)
+	}
+}
+
+// forget must remove the text from the file, not only unlink it.
+func TestDeleteSourceLeavesNoTextOnDisk(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	store, _ := Open(context.Background(), path)
+	secret := sampleEvent("a", event.SourceTeams, 0)
+	secret.Content = "senha-do-cofre-8472"
+	mustSave(t, store, secret, []float32{1, 0})
+	if _, err := store.DeleteSource(context.Background(), event.SourceTeams); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	for _, suffix := range []string{"", "-wal"} {
+		raw, _ := os.ReadFile(path + suffix)
+		if bytes.Contains(raw, []byte("senha-do-cofre-8472")) {
+			t.Fatalf("deleted text still in %s", path+suffix)
+		}
 	}
 }

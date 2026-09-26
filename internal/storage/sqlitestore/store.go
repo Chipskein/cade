@@ -33,8 +33,14 @@ var _ storage.EventStore = (*Store)(nil)
 // Open opens (creating if needed) the database file at path.
 //
 //	store, err := sqlitestore.Open(ctx, "~/.local/share/cade/cade.db")
+//
+// secure_delete zeroes the old text when an event is deleted or replaced
+// (an edited message), instead of leaving it in free pages.
 func Open(ctx context.Context, path string) (*Store, error) {
-	db, err := sql.Open(DriverName, "file:"+path+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on")
+	if err := restrictPermissions(path); err != nil {
+		return nil, err
+	}
+	db, err := sql.Open(DriverName, "file:"+path+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on&_secure_delete=on")
 	if err != nil {
 		return nil, fmt.Errorf("open database %q: %w", path, err)
 	}

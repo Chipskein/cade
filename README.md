@@ -4,7 +4,7 @@
 
 Personal history CLI. Ingests git commits, browser history, files and Microsoft Teams messages, and lets you query them by date or with natural-language questions.
 
-Everything runs locally: SQLite + sqlite-vec for storage and vector search, llama.cpp embedded for embeddings and generation. No server, no network calls.
+Everything runs locally: SQLite + sqlite-vec for storage and vector search, llama.cpp embedded for embeddings and generation. No server, no network calls. What is stored, where, and how to delete it: [PRIVACY.md](PRIVACY.md).
 
 ## Contents
 
@@ -18,6 +18,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Teams](#teams)
 - [Configuration](#configuration)
 - [Tests](#tests)
+- [Privacy](PRIVACY.md)
 
 > **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 

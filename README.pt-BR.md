@@ -4,7 +4,7 @@
 
 CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos e mensagens do Teams, e permite consultar por data ou por pergunta em linguagem natural.
 
-Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração.
+Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração. O que fica guardado, onde e como apagar: [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md).
 
 Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta.
 
@@ -20,6 +20,7 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 - [Teams](#teams)
 - [Configuração](#configuração)
 - [Testes](#testes)
+- [Privacidade](PRIVACY.pt-BR.md)
 
 ## Como funciona
 

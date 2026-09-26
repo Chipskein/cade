@@ -43,8 +43,14 @@ func productionToolkit() cli.Toolkit {
 }
 
 func openStore(ctx context.Context, path string) (storage.EventStore, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	directory := filepath.Dir(path)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory for %q: %w", path, err)
+	}
+	// MkdirAll keeps the mode of an existing directory (`make models`
+	// creates it first, world-readable); the history must be owner-only.
+	if err := os.Chmod(directory, 0o700); err != nil {
+		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
 	return sqlitestore.Open(ctx, path)
 }
