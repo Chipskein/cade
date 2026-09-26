@@ -101,7 +101,7 @@ func (o AnswerObserver) notifyPeople(matched, unknown []string) {
 // When nothing relevant is retrieved the model is not called at all.
 func (a *Answerer) Answer(ctx context.Context, query queryplan.Query, observer AnswerObserver) (Answer, error) {
 	observer.notifyStage(StageSearching)
-	hits, err := a.retrieve(ctx, query, observer)
+	hits, err := a.Retrieve(ctx, query, observer)
 	if err != nil || len(hits) == 0 {
 		return Answer{}, err
 	}
@@ -123,13 +123,15 @@ func (a *Answerer) generate(ctx context.Context, query queryplan.Query, hits []s
 	return Answer{Text: strings.TrimSpace(reply), Found: true, Evidence: hits, Cited: cited, UnknownCitations: unknown}, nil
 }
 
-// retrieve embeds the query's semantic text. Criteria (people, direction)
+// Retrieve returns the evidence Answer would give the model, without
+// generating; the retrieval suite measures it directly. It embeds the
+// query's semantic text. Criteria (people, direction)
 // cannot be applied inside the vector index; when set, retrieval narrows
 // exactly and then ranks. Scoped queries skip the distance cutoff: generic
 // questions such as "what did I do?" are far from every event in embedding
 // space, and the explicit scope is already the relevance signal. The
 // model's SEM_INFORMACAO reply still guards against unrelated evidence.
-func (a *Answerer) retrieve(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]storage.ScoredEvent, error) {
+func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]storage.ScoredEvent, error) {
 	embedding, err := a.embedQuery(searchText(query))
 	if err != nil {
 		return nil, err
@@ -137,10 +139,12 @@ func (a *Answerer) retrieve(ctx context.Context, query queryplan.Query, observer
 	if !query.Criteria.IsEmpty() {
 		return a.retrieveAmong(ctx, query, embedding, observer)
 	}
-	hits, err := a.store.SearchSimilar(ctx, similarityQuery(embedding, query, a.settings.TopK))
+	hits, err := a.store.SearchSimilar(ctx, similarityQuery(embedding, query, a.settings.TopK*chatterHeadroom))
 	if err != nil {
 		return nil, err
 	}
+	hits = withoutChatter(hits)
+	hits = hits[:min(len(hits), a.settings.TopK)]
 	a.logHits(hits)
 	if query.IsScoped() {
 		return hits, nil

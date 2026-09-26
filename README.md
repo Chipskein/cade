@@ -102,6 +102,8 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Questions naming a person or a direction are answered using only the matching events.
 - Questions about tasks ("quais tarefas finalizei ontem?", "what tasks are still in progress?") return the `cade tasks` report, optionally only finished or unfinished tasks; without a period, today. With a person or direction ("tarefas que a Ana me passou ontem"), only tasks linked in those messages; a name that matches no one (a client) filters by text instead.
 - Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("avilla" finds "Leandro Avila"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
+- "Received" leaves out group messages that only @mention other people ("pronto? @Vitor"); a mention of you, a team or tag keeps them.
+- Messages with no content ("ok", "valeu", "bom dia") are not used as evidence for answers; listings still show them.
 - Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
 
@@ -235,6 +237,10 @@ Changing the embedding model requires a new database.
 make test
 make test-models   # also runs the tests against the real models
 make eval-plan     # scores question interpretation (GPU when the CUDA Toolkit is installed; GO_TAGS= forces CPU)
+make eval-retrieval  # scores retrieval: recall, MRR, rejection
+make eval          # both
 ```
 
 `eval-plan` runs the questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, tasks, PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) and every question it misread. It fails when a field drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently.
+
+`eval-retrieval` ingests a synthetic corpus (`testdata/queries/retrieval.json`: ~250 commits, pages, files and messages, including look-alikes such as PROJ-418 next to PROJ-481 and everyday chatter) into a real SQLite store with the real embedder, and checks that each question brings back the events that answer it. It reports recall and MRR over answerable questions, and rejection: questions nothing answers must retrieve nothing.

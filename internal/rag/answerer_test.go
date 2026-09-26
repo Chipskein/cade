@@ -84,7 +84,7 @@ func TestAnswerPassesFiltersToSearch(t *testing.T) {
 	days, _ := timeline.ParseDayRange("2026-09-20", "2026-09-26", fixedNow)
 	answerer.Answer(context.Background(), queryplan.Query{Question: "sqlite", Source: event.SourceBrowser, Days: &days}, AnswerObserver{})
 	query := store.LastQuery
-	if query.Source != event.SourceBrowser || !query.From.Equal(days.Start()) || !query.To.Equal(days.End()) || query.Limit != 5 {
+	if query.Source != event.SourceBrowser || !query.From.Equal(days.Start()) || !query.To.Equal(days.End()) || query.Limit != 5*chatterHeadroom {
 		t.Fatalf("expected filters in query, got %+v", query)
 	}
 	if embedder.Inputs[0] != "q: sqlite" {

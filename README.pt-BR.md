@@ -102,6 +102,8 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Perguntas com pessoa ou direção são respondidas só com os eventos que casam.
 - Perguntas sobre tarefas ("quais tarefas finalizei ontem?", "o que ficou em andamento?") devolvem o relatório do `cade tasks`, opcionalmente só com as concluídas ou só com as em andamento; sem período, hoje. Com pessoa ou direção ("tarefas que a Ana me passou ontem"), só as tarefas com link nessas mensagens; um nome que não é de ninguém (um cliente) filtra pelo texto.
 - Nomes são comparados por palavra inteira, ignorando maiúsculas, acentos, letras dobradas e y/i ("avilla" encontra "Leandro Avila"). Um nome que não é de nenhum remetente ou conversa (um cliente, um apelido) filtra pelo texto em vez de ser descartado.
+- "Recebidas" deixa de fora mensagens de grupo que só marcam outras pessoas ("pronto? @Vitor"); uma menção a você, a um time ou tag mantém a mensagem.
+- Mensagens sem conteúdo ("ok", "valeu", "bom dia") não entram como evidência nas respostas; as listagens continuam mostrando.
 - Período, fonte, pessoas e direção são filtros exatos; só o assunto é buscado por significado ("commits de ontem sobre autenticação" busca "autenticação" entre os commits de ontem). Perguntas sem filtro são buscadas inteiras.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
 
@@ -235,6 +237,10 @@ Trocar o modelo de embedding exige um banco novo.
 make test
 make test-models   # inclui testes com os modelos reais
 make eval-plan     # mede a interpretação das perguntas (GPU se o CUDA Toolkit estiver instalado; GO_TAGS= força CPU)
+make eval-retrieval  # mede a busca: recall, MRR, rejeição
+make eval          # as duas
 ```
 
 `eval-plan` passa as perguntas de `testdata/queries/plan.json` (período, git, Teams, navegador, arquivos, busca semântica, tarefas, PT e EN) pelo modelo real e mostra a taxa de acerto de cada campo (tipo, período, fonte, pessoas, direção, assunto, status) e cada pergunta interpretada errado. Falha quando um campo cai abaixo do `minimum_accuracy` do arquivo, então mudanças no prompt ou no modelo não pioram a interpretação em silêncio.
+
+`eval-retrieval` ingere um corpus sintético (`testdata/queries/retrieval.json`: ~250 commits, páginas, arquivos e mensagens, com parecidos como PROJ-418 ao lado de PROJ-481 e conversa do dia a dia) num SQLite real com o embedder real, e confere se cada pergunta traz os eventos que a respondem. Mede recall e MRR nas perguntas com resposta, e rejeição: perguntas que nada responde não devem trazer nada.

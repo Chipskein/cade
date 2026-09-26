@@ -25,6 +25,7 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	if err != nil {
 		return nil, err
 	}
+	ranked = withoutChatter(ranked)
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 

@@ -1,0 +1,149 @@
+package retrievalsuite
+
+import (
+	"fmt"
+	"io"
+	"slices"
+	"strings"
+)
+
+// CaseResult is what one question retrieved, in rank order.
+type CaseResult struct {
+	Question  string
+	Relevant  []string
+	Retrieved []string
+}
+
+// Answerable reports whether some corpus event answers the question.
+func (r CaseResult) Answerable() bool {
+	return len(r.Relevant) > 0
+}
+
+// Recall is the share of relevant events retrieved.
+func (r CaseResult) Recall() float64 {
+	if !r.Answerable() {
+		return 0
+	}
+	return float64(len(r.Relevant)-len(r.Missing())) / float64(len(r.Relevant))
+}
+
+// ReciprocalRank is 1/rank of the first relevant event, 0 if none came back.
+func (r CaseResult) ReciprocalRank() float64 {
+	for i, id := range r.Retrieved {
+		if slices.Contains(r.Relevant, id) {
+			return 1 / float64(i+1)
+		}
+	}
+	return 0
+}
+
+// Missing lists the relevant events not retrieved.
+func (r CaseResult) Missing() []string {
+	var missing []string
+	for _, id := range r.Relevant {
+		if !slices.Contains(r.Retrieved, id) {
+			missing = append(missing, id)
+		}
+	}
+	return missing
+}
+
+// Passed: answerable cases retrieve every relevant event; the others
+// retrieve nothing, so the model is never handed unrelated evidence.
+func (r CaseResult) Passed() bool {
+	if r.Answerable() {
+		return len(r.Missing()) == 0
+	}
+	return len(r.Retrieved) == 0
+}
+
+// Scoreboard aggregates a run.
+type Scoreboard struct {
+	Results []CaseResult
+}
+
+// MeanRecall and MRR average over answerable cases.
+func (s Scoreboard) MeanRecall() float64 {
+	return s.meanOverAnswerable(CaseResult.Recall)
+}
+
+func (s Scoreboard) MRR() float64 {
+	return s.meanOverAnswerable(CaseResult.ReciprocalRank)
+}
+
+func (s Scoreboard) meanOverAnswerable(metric func(CaseResult) float64) float64 {
+	total, count := 0.0, 0
+	for _, result := range s.Results {
+		if result.Answerable() {
+			total, count = total+metric(result), count+1
+		}
+	}
+	if count == 0 {
+		return 0
+	}
+	return total / float64(count)
+}
+
+// Rejection is the share of unanswerable cases that retrieved nothing.
+func (s Scoreboard) Rejection() float64 {
+	rejected, count := 0, 0
+	for _, result := range s.Results {
+		if !result.Answerable() {
+			count++
+			rejected += boolToInt(result.Passed())
+		}
+	}
+	if count == 0 {
+		return 1
+	}
+	return float64(rejected) / float64(count)
+}
+
+func boolToInt(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+// BelowMinimum names the metrics under the suite's floors.
+func (s Scoreboard) BelowMinimum(suite Suite) []string {
+	var below []string
+	checks := []struct {
+		name           string
+		value, minimum float64
+	}{{"recall", s.MeanRecall(), suite.MinimumRecall}, {"mrr", s.MRR(), suite.MinimumMRR}, {"rejection", s.Rejection(), suite.MinimumRejection}}
+	for _, check := range checks {
+		if check.value < check.minimum {
+			below = append(below, fmt.Sprintf("%s %.2f < %.2f", check.name, check.value, check.minimum))
+		}
+	}
+	return below
+}
+
+// WriteReport prints the metrics, then each failed case with what it
+// missed or wrongly retrieved.
+func (s Scoreboard) WriteReport(out io.Writer) {
+	fmt.Fprintf(out, "%d perguntas, %d corretas\n", len(s.Results), s.passedCount())
+	fmt.Fprintf(out, "  recall     %.2f\n  mrr        %.2f\n  rejeição   %.2f\n", s.MeanRecall(), s.MRR(), s.Rejection())
+	for _, result := range s.Results {
+		if !result.Passed() {
+			fmt.Fprintf(out, "✗ %s\n    %s\n", result.Question, failureDetail(result))
+		}
+	}
+}
+
+func (s Scoreboard) passedCount() int {
+	passed := 0
+	for _, result := range s.Results {
+		passed += boolToInt(result.Passed())
+	}
+	return passed
+}
+
+func failureDetail(result CaseResult) string {
+	if !result.Answerable() {
+		return "deveria vir vazio, veio: " + strings.Join(result.Retrieved, ", ")
+	}
+	return fmt.Sprintf("faltou: %s; veio: %s", strings.Join(result.Missing(), ", "), strings.Join(result.Retrieved, ", "))
+}

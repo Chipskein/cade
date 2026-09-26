@@ -106,3 +106,53 @@ func TestNameKeyMergesSpellingVariants(t *testing.T) {
 		t.Fatal("unexpected name keys")
 	}
 }
+
+func groupMessage(sender, text string, sentByMe bool) event.Event {
+	mine := "false"
+	if sentByMe {
+		mine = "true"
+	}
+	return event.Event{UID: sender + text, Source: event.SourceTeams, Content: sender + ": " + text,
+		Metadata: event.Metadata{"sender": sender, "sent_by_me": mine, "conversation": "INTERNO", "conversation_kind": "chat"}}
+}
+
+// Regression: Ana's group messages mentioning Marcos or Vitor were listed
+// as received by the user.
+func TestReceivedExcludesMessagesMentioningOnlyOthers(t *testing.T) {
+	events := []event.Event{
+		groupMessage("Bruno Nascimento - Oficina5", "bom dia", true),
+		groupMessage("Marcos Lisboa - Oficina5", "ok", false),
+		groupMessage("Vitor Hugo - Oficina5", "ok", false),
+		groupMessage("Ana Goulart - Oficina5", "@Marcos Lisboa - Oficina5 consegue ver?", false),
+		groupMessage("Ana Goulart - Oficina5", "pronto? @Vitor Hugo - Oficina5", false),
+		groupMessage("Ana Goulart - Oficina5", "@Bruno Nascimento - Oficina5 e @Marcos Lisboa olhem isso", false),
+		groupMessage("Ana Goulart - Oficina5", "@INTERNO O5 deploy às 19h", false),
+		groupMessage("Ana Goulart - Oficina5", "sem menção nenhuma", false),
+	}
+	kept, _, _ := Criteria{Direction: Received, People: []string{"Ana"}}.Apply(events)
+	var texts []string
+	for _, ev := range kept {
+		texts = append(texts, ev.Content)
+	}
+	joined := strings.Join(texts, "|")
+	if len(kept) != 3 || strings.Contains(joined, "consegue ver") || strings.Contains(joined, "pronto?") {
+		t.Fatalf("expected the messages to others dropped, got %q", texts)
+	}
+}
+
+func TestMentionsKeptWhenUserUnknown(t *testing.T) {
+	events := []event.Event{groupMessage("Marcos Lima", "ok", false), groupMessage("Ana Souza", "@Marcos pode ver?", false)}
+	if kept, _, _ := (Criteria{Direction: Received}).Apply(events); len(kept) != 2 {
+		t.Fatalf("expected no mention filtering without the user's name, got %d", len(kept))
+	}
+}
+
+func TestMentionedFirstNamesIgnoresEmailDomainsAsPeople(t *testing.T) {
+	known := addresseesOf([]event.Event{groupMessage("Eu Mesmo", "oi", true), groupMessage("Rui Costa", "oi", false)})
+	if known.addressedToOthers(groupMessage("Rui Costa", "manda para eu@example.com", false)) {
+		t.Fatal("an e-mail domain is not a person; the message stays received")
+	}
+	if !known.addressedToOthers(groupMessage("Ana", "@Rui olha isso", false)) {
+		t.Fatal("expected a mention of Rui only to be addressed to others")
+	}
+}

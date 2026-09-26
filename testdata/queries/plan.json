@@ -43,6 +43,7 @@
     {"question": "tarefas que a Carla me passou ontem", "expect": {"mode": "tarefas", "days": "2026-09-25", "people": ["Carla"], "direction": "recebidas"}},
     {"question": "Quais foram as tarefas da Acme que me passaram ontem", "expect": {"mode": "tarefas", "days": "2026-09-25", "direction": "recebidas", "topic": "Acme"}},
     {"question": "quais tickets o Vitor me mandou essa semana?", "expect": {"mode": "tarefas", "days": "2026-09-21 a 2026-09-26", "people": ["Vitor"], "direction": "recebidas"}},
-    {"question": "Quais foram as mensagem que enviei pro wilian ontem", "expect": {"mode": "listar", "days": "2026-09-25", "source": "teams", "people": ["wilian"], "direction": "enviadas"}}
+    {"question": "Quais foram as mensagem que enviei pro wilian ontem", "expect": {"mode": "listar", "days": "2026-09-25", "source": "teams", "people": ["wilian"], "direction": "enviadas"}},
+    {"question": "liste as mensagens que a carla me mandou ontem", "expect": {"mode": "listar", "days": "2026-09-25", "source": "teams", "people": ["Carla"], "direction": "recebidas"}}
   ]
 }

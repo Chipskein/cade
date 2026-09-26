@@ -34,7 +34,7 @@ func (c Criteria) IsEmpty() bool {
 //
 //	kept, matched, unknown := listing.Criteria{People: []string{"Ana"}}.Apply(events)
 func (c Criteria) Apply(events []event.Event) ([]event.Event, []string, []string) {
-	directed := filterEvents(events, c.keepDirection)
+	directed := filterEvents(events, c.directionFilter(events))
 	var people []personMatcher
 	var matched, unknown []string
 	for _, name := range c.People {
@@ -49,6 +49,18 @@ func (c Criteria) Apply(events []event.Event) ([]event.Event, []string, []string
 		return directed, nil, unknown
 	}
 	return filterEvents(directed, func(ev event.Event) bool { return matchesAnyPerson(ev, people) }), matched, unknown
+}
+
+// directionFilter adds, for received messages, that a group message
+// mentioning only other people was not addressed to the user.
+func (c Criteria) directionFilter(events []event.Event) func(event.Event) bool {
+	if c.Direction != Received {
+		return c.keepDirection
+	}
+	known := addresseesOf(events)
+	return func(ev event.Event) bool {
+		return c.keepDirection(ev) && !(ev.Source == event.SourceTeams && known.addressedToOthers(ev))
+	}
 }
 
 // keepDirection applies the direction to Teams messages; other events

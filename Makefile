@@ -20,7 +20,7 @@ LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 
 PREFIX ?= $(HOME)/.local
 
-.PHONY: build cuda install uninstall test test-models eval-plan fmt llama llama-cuda models clean
+.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval fmt llama llama-cuda models clean
 
 build: llama
 	go build -o bin/cade ./cmd/cade
@@ -51,6 +51,13 @@ GO_TAGS ?= $(if $(wildcard $(CUDA_HOME)/bin/nvcc),cuda)
 
 eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
 	CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestPlanSuiteWithModel ./internal/queryplan
+
+# Scores retrieval (recall, MRR, rejection) on testdata/queries/retrieval.json
+# with the real embedder and SQLite store.
+eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) go test $(if $(GO_TAGS),-tags $(GO_TAGS)) -count=1 -v -run TestRetrievalSuiteWithModel ./internal/retrievalsuite
+
+eval: eval-plan eval-retrieval
 
 fmt:
 	gofmt -w cmd internal
