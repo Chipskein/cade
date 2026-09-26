@@ -147,6 +147,9 @@ func (s Scoreboard) BelowMinimum(suite CaseSet) []string {
 			below = append(below, fmt.Sprintf("%s %.2f < %.2f", check.name, check.value, check.minimum))
 		}
 	}
+	if suite.MaximumRedundancy != nil && s.Redundancy() > *suite.MaximumRedundancy {
+		below = append(below, fmt.Sprintf("redundancy %.2f > %.2f", s.Redundancy(), *suite.MaximumRedundancy))
+	}
 	return below
 }
 

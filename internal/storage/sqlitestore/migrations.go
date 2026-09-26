@@ -28,6 +28,8 @@ type migration struct {
 var schemaMigrations = []migration{
 	{version: 1, description: "events and store_settings tables", apply: createBaseSchema},
 	{version: 2, description: "Teams message text kept in metadata", backup: true, apply: keepTeamsText},
+	{version: 3, description: "content_hash to reuse vectors of identical text", apply: addContentHash},
+	{version: 4, description: "one event per file, versions in file_modifications", backup: true, apply: collapseFileVersions},
 }
 
 // Hooks lets the caller report what opening the database did.
@@ -51,8 +53,9 @@ func migrate(ctx context.Context, db *sql.DB, path string, steps []migration, ho
 	if latest := steps[len(steps)-1].version; current > latest {
 		return fmt.Errorf("database %q is at schema version %d, newer than this cade supports (%d); update cade", path, current, latest)
 	}
+	backedUp := false
 	for _, step := range steps[current:] {
-		if err := applyMigration(ctx, db, path, step, hooks); err != nil {
+		if err := applyMigration(ctx, db, path, step, hooks, &backedUp); err != nil {
 			return err
 		}
 	}
@@ -67,8 +70,8 @@ func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
 	return version, nil
 }
 
-func applyMigration(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
-	if err := backupIfNeeded(ctx, db, path, step, hooks); err != nil {
+func applyMigration(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks, backedUp *bool) error {
+	if err := backupIfNeeded(ctx, db, path, step, hooks, backedUp); err != nil {
 		return err
 	}
 	tx, err := db.BeginTx(ctx, nil)
@@ -85,12 +88,15 @@ func applyMigration(ctx context.Context, db *sql.DB, path string, step migration
 	return tx.Commit()
 }
 
-// backupIfNeeded copies the database before a data-rewriting step, unless
-// it holds no events yet (a new database has nothing to lose).
-func backupIfNeeded(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
-	if !step.backup {
+// backupIfNeeded copies the database before the first data-rewriting step
+// of this run, unless it holds no events yet (a new database has nothing to
+// lose). One copy covers every later step: it already holds the state
+// before all of them, and a second 500 MB copy would only fill the disk.
+func backupIfNeeded(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks, backedUp *bool) error {
+	if !step.backup || *backedUp {
 		return nil
 	}
+	*backedUp = true
 	var hasEvents bool
 	if err := db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM events)`).Scan(&hasEvents); err != nil {
 		return fmt.Errorf("check for events before migration %d: %w", step.version, err)

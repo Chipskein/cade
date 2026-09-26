@@ -16,6 +16,9 @@ type EventStore interface {
 	// ingestion can skip unchanged events (and their embedding) on re-runs
 	// and replace changed ones.
 	StoredEvent(ctx context.Context, uid string) (event.Event, bool, error)
+	// StoredEmbeddingForContent returns the vector of a stored event with
+	// exactly this text, so identical text is embedded once.
+	StoredEmbeddingForContent(ctx context.Context, content string) ([]float32, bool, error)
 	// UpdateEvent replaces a stored event's fields and embedding (nil
 	// removes it), keyed by UID; used when the source's version changed.
 	UpdateEvent(ctx context.Context, ev event.Event, embedding []float32) error
@@ -31,6 +34,13 @@ type EventStore interface {
 	// events without one are absent from the map. Used to rank an exactly
 	// filtered set of events by similarity.
 	EmbeddingsFor(ctx context.Context, uids []string) (map[string][]float32, error)
+	// FileModificationsBetween returns the file versions seen in
+	// [from, to), oldest first: a file is one event, its edits live here.
+	FileModificationsBetween(ctx context.Context, from, to time.Time) ([]FileModification, error)
+	// MarkMissingFiles flags the file events under root whose path is not
+	// in present as removed, and unflags those back; returns how many
+	// were newly flagged.
+	MarkMissingFiles(ctx context.Context, root string, present map[string]bool, at time.Time) (int, error)
 	// DeleteSource removes every event (and embedding) of source, returning
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
@@ -48,11 +58,24 @@ type SimilarityQuery struct {
 	To   time.Time
 }
 
+// FileModification is one version of a file: when it was saved and its
+// size.
+type FileModification struct {
+	Path       string
+	ModifiedAt time.Time
+	Size       int64
+}
+
 // ScoredEvent is a search hit. Distance is cosine distance: 0 is identical,
 // 2 is opposite.
 type ScoredEvent struct {
 	Event    event.Event
 	Distance float64
+	// Repeats counts other events retrieval folded into this one (more
+	// visits to the page, older versions of the file); LatestAt is the
+	// most recent of them all. Zero when nothing was folded.
+	Repeats  int
+	LatestAt time.Time
 }
 
 // EmbeddingIndex manages the vectors as a whole: which model produced them

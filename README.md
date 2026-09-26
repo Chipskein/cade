@@ -106,6 +106,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("sillva" finds "Leandro Silva"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
 - "Received" leaves out group messages that only @mention other people ("pronto? @Vitor"); a mention of you, a team or tag keeps them.
 - Messages with no content ("ok", "valeu", "bom dia") are not used as evidence for answers; listings still show them.
+- Repeats count once in answers: 12 visits to a page or several versions of a note become one source, shown as "(12 visitas, última em …)". Files deleted from their folder leave answers but stay in the timeline.
 - Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
 

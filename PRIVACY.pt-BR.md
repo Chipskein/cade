@@ -64,7 +64,8 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 | Remover a configuração | `rm -r ~/.config/cade` |
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
-- Texto substituído, como o de uma mensagem editada, também é zerado (`secure_delete` do SQLite).
+- Texto substituído, como o de uma mensagem editada ou de uma versão antiga de um arquivo, também é zerado (`secure_delete` do SQLite). Só a versão atual de cada arquivo fica guardada; `file_modifications` guarda a data e o tamanho de cada versão anterior, sem o texto, e o `forget file` a apaga.
+- Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`.
 - O `forget` não mexe nas cópias de migração (`cade.db.before-v*`); apague-as você mesmo.
 - Cópias feitas fora do cade não são afetadas: backups, snapshots, ou saídas de `cade ask --json` que você salvou.
 - Não há comando para apagar um evento isolado.

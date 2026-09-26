@@ -76,6 +76,9 @@ func (s *Store) SaveEvent(ctx context.Context, ev event.Event, embedding []float
 	if err != nil || !inserted {
 		return false, err
 	}
+	if err := recordFileModification(ctx, tx, ev); err != nil {
+		return false, err
+	}
 	if err := insertEmbedding(ctx, tx, eventID, ev, embedding); err != nil {
 		return false, err
 	}
@@ -91,9 +94,9 @@ func insertEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, boo
 		return 0, false, err
 	}
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES (?, ?, ?, ?, ?)
+		`INSERT INTO events (uid, occurred_at, source, content, metadata, content_hash) VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (uid) DO NOTHING`,
-		ev.UID, toUnixMillis(ev.Timestamp), string(ev.Source), ev.Content, metadata)
+		ev.UID, toUnixMillis(ev.Timestamp), string(ev.Source), ev.Content, metadata, contentHash(ev.Content))
 	if err != nil {
 		return 0, false, fmt.Errorf("insert event %q: %w", ev.UID, err)
 	}

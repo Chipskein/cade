@@ -167,5 +167,6 @@
    ],
    "topic": "ERP"
   }
- ]
+ ],
+ "maximum_redundancy": 0.0
 }

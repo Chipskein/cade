@@ -109,6 +109,14 @@ O cabeçalho do GGUF do nomic-embed-text-v2-moe informa `nomic-bert-moe.context_
    - Arquivos que sumiram da origem ganham `metadata.removed_at` e saem das respostas por padrão. Detectar isso exige comparar, a cada ingestão, a pasta inteira com os caminhos gravados.
 4. **Migração.** Uma migração numerada colapsa as versões existentes de cada caminho na mais recente, **reescreve os UIDs** para o novo formato (sem isso a próxima ingestão duplicaria tudo) e preenche `file_modifications` com as anteriores. Segue a política atual: backup `cade.db.before-vN-<data>` antes de reescrever dados.
 
+### Situação (2026-09-26): concluída
+
+- Repetições: evidência agrupada pelo localizador da proveniência, com contagem e data mais recente no prompt, nas fontes e no `--json`; busca adaptativa até `top_k` itens distintos. Redundância no teste: 0,17 → 0,00 (teto 0 no `test.json`), com recall, MRR e rejeição iguais, também na curva de escala.
+- Vetores reaproveitados por `content_hash` (migração 3, sem cópia; 2,2 s nos 108 mil eventos). No banco real, 34.991 eventos (89% das visitas do navegador) repetem um texto já existente.
+- Arquivos: UID = caminho, revisão = data de modificação, histórico em `file_modifications`, timeline com todas as edições, `removed_at` quando somem da pasta (só após uma leitura completa sem erro). Migração 4 com cópia (2,8 s numa cópia do banco real). Dez versões de 200 KB ocupam o espaço de uma (teste). O `forget file` apaga o histórico.
+- Correções encontradas no caminho: uma abertura com várias migrações fazia uma cópia de ~510 MB por migração (agora uma só); o `forget` não apagaria o histórico de arquivos (agora apaga).
+- A alternativa ao `embedding_cache` foi adotada: nenhuma tabela nova de vetores.
+
 ### Critério de aceite
 
 - No corpus da Fase 0, nenhuma resposta tem dois itens de evidência com a mesma chave de agrupamento.

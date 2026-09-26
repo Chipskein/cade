@@ -28,6 +28,9 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 	if err := deleteSourceEmbeddings(ctx, tx, source); err != nil {
 		return 0, err
 	}
+	if err := deleteSourceHistory(ctx, tx, source); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE source = ?`, string(source))
 	if err != nil {
 		return 0, fmt.Errorf("delete %s events: %w", source, err)
@@ -48,6 +51,18 @@ func deleteSourceEmbeddings(ctx context.Context, tx *sql.Tx, source event.Source
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_embeddings WHERE source = ?`, string(source)); err != nil {
 		return fmt.Errorf("delete %s embeddings: %w", source, err)
+	}
+	return nil
+}
+
+// deleteSourceHistory removes what a source keeps outside events: the
+// file edit history holds paths, which `forget file` must erase too.
+func deleteSourceHistory(ctx context.Context, tx *sql.Tx, source event.Source) error {
+	if source != event.SourceFile {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM file_modifications`); err != nil {
+		return fmt.Errorf("delete file modifications: %w", err)
 	}
 	return nil
 }

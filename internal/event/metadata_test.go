@@ -3,6 +3,7 @@ package event
 import (
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestTypedMetadataRoundTrips(t *testing.T) {
@@ -41,5 +42,18 @@ func TestMissingMetadataReadsAsZero(t *testing.T) {
 	var empty Event
 	if empty.Commit().Hash != "" || empty.File().Size != 0 || empty.Message().SentByMe {
 		t.Fatal("expected zero values")
+	}
+}
+
+func TestFileTimesRoundTripAsRevision(t *testing.T) {
+	modified, removed := time.Unix(1758800000, 123456789), time.Unix(1758900000, 0)
+	file := File{Path: "/notas/a.md", Size: 10, ModifiedAt: modified, RemovedAt: removed}
+	ev := Event{Metadata: file.Metadata()}
+	revision, ok := ev.Revision()
+	if got := ev.File(); !got.ModifiedAt.Equal(modified) || !got.RemovedAt.Equal(removed) || !ok || revision != modified.UnixNano() {
+		t.Fatalf("expected the times back and the modification as revision, got %+v (revision %d)", got, revision)
+	}
+	if !(Event{Metadata: File{Path: "/a"}.Metadata()}).File().RemovedAt.IsZero() {
+		t.Fatal("expected a present file to have no removal time")
 	}
 }

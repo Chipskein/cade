@@ -112,6 +112,10 @@ func TestScoreboardAveragesAndFloors(t *testing.T) {
 	if len(below) != 1 || !strings.HasPrefix(below[0], "mrr") {
 		t.Fatalf("expected only mrr below its floor, got %v", below)
 	}
+	ceiling := 0.1
+	if below := board.BelowMinimum(CaseSet{MaximumRedundancy: &ceiling}); len(below) != 1 || !strings.HasPrefix(below[0], "redundancy") {
+		t.Fatalf("expected redundancy over its ceiling, got %v", below)
+	}
 }
 
 func TestWriteReportExplainsFailures(t *testing.T) {

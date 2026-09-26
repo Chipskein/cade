@@ -33,7 +33,10 @@ type CaseSet struct {
 	MinimumRecall    float64 `json:"minimum_recall"`
 	MinimumMRR       float64 `json:"minimum_mrr"`
 	MinimumRejection float64 `json:"minimum_rejection"`
-	Cases            []Case  `json:"cases"`
+	// MaximumRedundancy caps the share of results repeating a page or file
+	// already returned; nil leaves it unchecked.
+	MaximumRedundancy *float64 `json:"maximum_redundancy"`
+	Cases             []Case   `json:"cases"`
 }
 
 // Suite is a corpus with one case set, validated against each other.

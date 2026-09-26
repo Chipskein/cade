@@ -174,10 +174,63 @@ func TestReplaces(t *testing.T) {
 		{teamsVersion("b", "1"), teamsVersion("a", "1"), false},
 		{teamsVersion("b", "2"), teamsVersion("a", ""), true},
 		{event.Event{Content: "novo título"}, event.Event{Content: "título"}, true},
+		{teamsVersion("a", "2"), teamsVersion("a", "1"), true},
 	}
 	for i, c := range cases {
 		if got := replaces(c.incoming, c.stored); got != c.expected {
 			t.Errorf("case %d: expected %v, got %v", i, c.expected, got)
 		}
+	}
+}
+
+func visitAt(uid string, second int64) event.Event {
+	return event.Event{UID: uid, Source: event.SourceBrowser, Timestamp: time.Unix(second, 0), Content: "Kubernetes probes\nhttps://k8s.io/probes"}
+}
+
+// Regression: every revisit of a page was embedded again, though its text
+// (title and URL) is identical.
+func TestRunReusesVectorOfIdenticalText(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	visits := FakeCollector{Events: []event.Event{visitAt("v1", 1), visitAt("v2", 2), visitAt("v3", 3)}}
+	report, err := newTestPipeline(store, embedder).Run(context.Background(), visits, nil)
+	if err != nil || report.Inserted != 3 || len(embedder.Inputs) != 1 || store.Embeddings["v3"] == nil {
+		t.Fatalf("expected 3 visits stored with one embedding call, got %+v and %d calls (err %v)", report, len(embedder.Inputs), err)
+	}
+}
+
+// SnapshotFake is a collector that emits a directory's complete state.
+type SnapshotFake struct {
+	FakeCollector
+	Root string
+}
+
+func (s SnapshotFake) SnapshotRoot() string {
+	return s.Root
+}
+
+func fileAt(path string, content string) event.Event {
+	return event.Event{UID: event.StableID(event.SourceFile, path), Source: event.SourceFile, Timestamp: time.Unix(1, 0),
+		Content: content, Metadata: event.File{Path: path, ModifiedAt: time.Unix(1, 0)}.Metadata()}
+}
+
+func TestSnapshotMarksMissingFiles(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	store.MissingFiles = 2
+	collector := SnapshotFake{FakeCollector: FakeCollector{Events: []event.Event{fileAt("/notas/a.md", "a")}}, Root: "/notas"}
+	report, err := newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), collector, nil)
+	if err != nil || report.Removed != 2 || len(store.MarkedRoots) != 1 || store.MarkedRoots[0] != "/notas" || !store.LastPresent["/notas/a.md"] {
+		t.Fatalf("expected the root checked with the collected path, got %+v %v %v (err %v)", report, store.MarkedRoots, store.LastPresent, err)
+	}
+}
+
+// Only a complete snapshot says a file is gone; a failed or partial run
+// must not flag anything.
+func TestNonSnapshotOrFailedRunsMarkNothing(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(), nil)
+	failing := SnapshotFake{FakeCollector: FakeCollector{Events: []event.Event{fileAt("/notas/a.md", "a")}}, Root: "/notas"}
+	newTestPipeline(store, &testfakes.FakeEmbedder{FailWith: errors.New("gpu")}).Run(context.Background(), failing, nil)
+	if len(store.MarkedRoots) != 0 {
+		t.Fatalf("expected no root marked, got %v", store.MarkedRoots)
 	}
 }

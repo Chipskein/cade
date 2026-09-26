@@ -13,7 +13,8 @@ import (
 func storeWithEvents(count int) *testfakes.FakeEventStore {
 	store := testfakes.NewFakeEventStore()
 	for i := range count {
-		store.Events = append(store.Events, event.Event{UID: string(rune('a' + i)), Source: event.SourceGit, Timestamp: time.Unix(int64(i), 0), Content: "commit"})
+		uid := string(rune('a' + i))
+		store.Events = append(store.Events, event.Event{UID: uid, Source: event.SourceGit, Timestamp: time.Unix(int64(i), 0), Content: "commit " + uid})
 	}
 	store.Events = append(store.Events, event.Event{UID: "sem-texto", Source: event.SourceFile})
 	return store
@@ -26,7 +27,7 @@ func TestReindexEmbedsEveryEventWithText(t *testing.T) {
 	if err != nil || done != 3 || len(embedder.Inputs) != 3 || store.Pending || store.EmbeddingModelName != "modelo-b" {
 		t.Fatalf("expected 3 embedded and the rebuild finished, got %d (err %v, pending %v, model %q)", done, err, store.Pending, store.EmbeddingModelName)
 	}
-	if len(progress) != 1 || progress[0] != [2]int{3, 3} || embedder.Inputs[0] != "doc: commit" {
+	if len(progress) != 1 || progress[0] != [2]int{3, 3} || embedder.Inputs[0] != "doc: commit a" {
 		t.Fatalf("unexpected progress %v or input %q", progress, embedder.Inputs[0])
 	}
 }

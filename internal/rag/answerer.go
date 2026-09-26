@@ -140,12 +140,10 @@ func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer
 	if !query.Criteria.IsEmpty() {
 		return a.retrieveAmong(ctx, query, embedding, observer)
 	}
-	hits, err := a.store.SearchSimilar(ctx, similarityQuery(embedding, query, a.settings.TopK*chatterHeadroom))
+	hits, err := a.searchDistinct(ctx, embedding, query)
 	if err != nil {
 		return nil, err
 	}
-	hits = withoutChatter(hits)
-	hits = hits[:min(len(hits), a.settings.TopK)]
 	a.logHits(hits)
 	if query.IsScoped() {
 		return hits, nil

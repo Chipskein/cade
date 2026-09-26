@@ -57,13 +57,17 @@ func TestCollectKeepsBinaryAndLargeFilesWithoutContent(t *testing.T) {
 	}
 }
 
-func TestEditedFileGetsNewID(t *testing.T) {
+// Regression: every edit created a new event with the whole text, so ten
+// versions of a note were stored (and embedded) ten times.
+func TestEditedFileKeepsItsIDWithANewerRevision(t *testing.T) {
 	before := collectTree(t, sampleTree())["/root/notes/todo.md"]
 	tree := sampleTree()
 	tree["notes/todo.md"].ModTime = modified.Add(time.Minute)
 	after := collectTree(t, tree)["/root/notes/todo.md"]
-	if before.UID == after.UID {
-		t.Fatal("an edit must produce a new event")
+	oldRevision, _ := before.Revision()
+	newRevision, _ := after.Revision()
+	if before.UID != after.UID || newRevision <= oldRevision || !after.File().ModifiedAt.Equal(modified.Add(time.Minute)) {
+		t.Fatalf("expected one UID per path and a newer revision, got %q/%q and %d/%d", before.UID, after.UID, oldRevision, newRevision)
 	}
 }
 

@@ -57,8 +57,8 @@ var sourceLabels = map[event.Source]string{
 func formatEvidence(hits []storage.ScoredEvent, location *time.Location) string {
 	var builder strings.Builder
 	for i, hit := range hits {
-		fmt.Fprintf(&builder, "[%d] %s, %s\n%s\n\n", i+1, sourceLabel(hit.Event.Source),
-			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), clip(hit.Event.Content, maxEvidenceChars))
+		fmt.Fprintf(&builder, "[%d] %s, %s%s\n%s\n\n", i+1, sourceLabel(hit.Event.Source),
+			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(RepeatNote(hit, location)), clip(hit.Event.Content, maxEvidenceChars))
 	}
 	return builder.String()
 }
@@ -108,4 +108,11 @@ func citationNumbers(reply string) []int {
 	}
 	sort.Ints(numbers)
 	return numbers
+}
+
+func parenthesized(note string) string {
+	if note == "" {
+		return ""
+	}
+	return " (" + note + ")"
 }

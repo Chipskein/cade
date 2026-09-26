@@ -106,6 +106,10 @@ func runIngestJobs(ctx context.Context, env commandEnv, pipeline *ingest.Pipelin
 }
 
 func printIngestReport(env commandEnv, job ingestJob, report ingest.Report) {
-	fmt.Fprintf(env.stdout, "%-8s %s: %d novos, %d atualizados, %d já existentes (%d lidos)\n",
-		job.spec.Name, job.target, report.Inserted, report.Updated, report.AlreadyStored, report.Collected)
+	removed := ""
+	if report.Removed > 0 {
+		removed = fmt.Sprintf(", %d removidos da origem", report.Removed)
+	}
+	fmt.Fprintf(env.stdout, "%-8s %s: %d novos, %d atualizados, %d já existentes%s (%d lidos)\n",
+		job.spec.Name, job.target, report.Inserted, report.Updated, report.AlreadyStored, removed, report.Collected)
 }

@@ -3,6 +3,7 @@ package event
 import (
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Each source's metadata has a typed view. The stored form stays the flat
@@ -28,10 +29,14 @@ type Visit struct {
 	History string
 }
 
-// File is a file event's metadata.
+// File is a file event's metadata. One event per path holds the current
+// version: ModifiedAt is its revision, so a newer version replaces it.
+// RemovedAt is set when the file disappeared from its directory.
 type File struct {
-	Path string
-	Size int64
+	Path       string
+	Size       int64
+	ModifiedAt time.Time
+	RemovedAt  time.Time
 }
 
 // ConversationKind says who a Teams message was addressed to.
@@ -74,6 +79,7 @@ const (
 	keyHistory        = "history"
 	keyPath           = "path"
 	keySize           = "size"
+	keyRemovedAt      = "removed_at"
 	keyConversationID = "conversation_id"
 	keyConversation   = "conversation"
 	keyKind           = "conversation_kind"
@@ -109,13 +115,34 @@ func (e Event) Visit() Visit {
 
 // Metadata is the stored form of f.
 func (f File) Metadata() Metadata {
-	return Metadata{keyPath: f.Path, keySize: strconv.FormatInt(f.Size, 10)}
+	return Metadata{keyPath: f.Path, keySize: strconv.FormatInt(f.Size, 10),
+		RevisionKey: nanosText(f.ModifiedAt), keyRemovedAt: nanosText(f.RemovedAt)}
 }
 
 // File reads e's metadata as a file.
 func (e Event) File() File {
 	size, _ := strconv.ParseInt(e.Metadata[keySize], 10, 64)
-	return File{Path: e.Metadata[keyPath], Size: size}
+	return File{Path: e.Metadata[keyPath], Size: size, ModifiedAt: nanosTime(e.Metadata[RevisionKey]), RemovedAt: nanosTime(e.Metadata[keyRemovedAt])}
+}
+
+// RemovedAtKey is the metadata entry the store sets when a file vanished.
+const RemovedAtKey = keyRemovedAt
+
+// Times are stored as Unix nanoseconds, which also order as revisions;
+// the zero time is stored as "".
+func nanosText(moment time.Time) string {
+	if moment.IsZero() {
+		return ""
+	}
+	return strconv.FormatInt(moment.UnixNano(), 10)
+}
+
+func nanosTime(text string) time.Time {
+	nanos, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return time.Time{}
+	}
+	return time.Unix(0, nanos)
 }
 
 // Metadata is the stored form of m.

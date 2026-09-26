@@ -64,7 +64,8 @@ Both models run in-process through llama.cpp.
 | Remove the configuration | `rm -r ~/.config/cade` |
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
-- Replaced text, such as an edited message, is zeroed as well (SQLite `secure_delete`).
+- Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
+- A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - There is no command to delete a single event.

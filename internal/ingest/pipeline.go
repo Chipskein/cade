@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/llm"
@@ -25,6 +26,13 @@ type EventCollector interface {
 	CollectEvents(ctx context.Context, emit EmitFunc) error
 }
 
+// SnapshotCollector emits every file currently under SnapshotRoot, so a
+// stored file under that root that was not emitted is gone from the source.
+type SnapshotCollector interface {
+	EventCollector
+	SnapshotRoot() string
+}
+
 // Report counts what one ingestion run did.
 type Report struct {
 	Collected int
@@ -33,6 +41,8 @@ type Report struct {
 	// (an edited Teams message) and were replaced.
 	Updated       int
 	AlreadyStored int
+	// Removed counts files newly found missing from a snapshot's root.
+	Removed int
 }
 
 // Pipeline embeds and stores collected events, skipping known ones (RF1.5).
@@ -41,6 +51,7 @@ type Pipeline struct {
 	embedder       llm.Embedder
 	documentPrefix string
 	logger         *slog.Logger
+	now            func() time.Time
 }
 
 // NewPipeline wires a pipeline. documentPrefix is prepended to the text
@@ -48,7 +59,13 @@ type Pipeline struct {
 //
 //	pipeline := ingest.NewPipeline(store, embedder, "search_document: ", logger)
 func NewPipeline(store storage.EventStore, embedder llm.Embedder, documentPrefix string, logger *slog.Logger) *Pipeline {
-	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger}
+	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now}
+}
+
+// WithClock replaces the clock that dates removed files.
+func (p *Pipeline) WithClock(now func() time.Time) *Pipeline {
+	p.now = now
+	return p
 }
 
 // Run drains the collector. Any failure aborts the run rather than skipping
@@ -60,13 +77,31 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 		progress = func(Report) {}
 	}
 	var report Report
+	present := map[string]bool{}
 	err := collector.CollectEvents(ctx, func(ev event.Event) error {
 		report.Collected++
+		if ev.Source == event.SourceFile {
+			present[ev.File().Path] = true
+		}
 		err := p.ingestEvent(ctx, ev, &report)
 		progress(report)
 		return err
 	})
+	if err != nil {
+		return report, err
+	}
+	report.Removed, err = p.markRemoved(ctx, collector, present)
 	return report, err
+}
+
+// markRemoved flags the files a complete snapshot no longer has; other
+// collectors emit only what is new, so absence means nothing for them.
+func (p *Pipeline) markRemoved(ctx context.Context, collector EventCollector, present map[string]bool) (int, error) {
+	snapshot, complete := collector.(SnapshotCollector)
+	if !complete {
+		return 0, nil
+	}
+	return p.store.MarkMissingFiles(ctx, snapshot.SnapshotRoot(), present, p.now())
 }
 
 // ProgressFunc observes a run's running totals.
@@ -81,7 +116,7 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 		report.AlreadyStored++
 		return nil
 	}
-	embedding, err := p.embeddingFor(ev)
+	embedding, err := p.embeddingFor(ctx, ev)
 	if err != nil {
 		return err
 	}
@@ -91,17 +126,18 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 	return p.insert(ctx, ev, embedding, report)
 }
 
-// replaces reports whether incoming should overwrite stored: its content
-// changed and, when both carry a revision, it is newer. Equal revisions
-// keep the stored event, so two Teams caches holding different renderings
-// of one version do not alternate on every run.
+// replaces reports whether incoming should overwrite stored. With a
+// revision on both sides, only a newer one does, even with the same text (a
+// file saved again moves its date); equal revisions keep the stored event,
+// so two Teams caches holding different renderings of one version do not
+// alternate on every run. Without revisions, a changed text does.
 func replaces(incoming, stored event.Event) bool {
-	if incoming.Content == stored.Content {
-		return false
-	}
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
-	return !hasIncoming || !hasStored || incomingRevision > storedRevision
+	if hasIncoming && hasStored {
+		return incomingRevision > storedRevision
+	}
+	return incoming.Content != stored.Content
 }
 
 func (p *Pipeline) insert(ctx context.Context, ev event.Event, embedding []float32, report *Report) error {
@@ -125,10 +161,15 @@ func (p *Pipeline) update(ctx context.Context, ev event.Event, embedding []float
 }
 
 // embeddingFor returns nil for events without text: they still appear in
-// the timeline, they just cannot be found by semantic search (RF2.2).
-func (p *Pipeline) embeddingFor(ev event.Event) ([]float32, error) {
+// the timeline, they just cannot be found by semantic search (RF2.2). Text
+// already stored with a vector (a revisited page, a message cached twice)
+// reuses it instead of running the embedder again.
+func (p *Pipeline) embeddingFor(ctx context.Context, ev event.Event) ([]float32, error) {
 	if ev.Content == "" {
 		return nil, nil
+	}
+	if vector, found, err := p.store.StoredEmbeddingForContent(ctx, ev.Content); err != nil || found {
+		return vector, err
 	}
 	text := truncateRunes(ev.Content, maxEmbeddedChars)
 	embedding, err := p.embedder.Embed(p.documentPrefix + text)

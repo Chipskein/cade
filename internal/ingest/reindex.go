@@ -66,7 +66,7 @@ func (p *Pipeline) reindexBatch(ctx context.Context, index storage.EmbeddingInde
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		vector, err := p.embeddingFor(ev)
+		vector, err := p.embeddingFor(ctx, ev)
 		if err != nil {
 			return 0, err
 		}

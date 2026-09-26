@@ -28,6 +28,9 @@ func (l Lister) List(ctx context.Context, days DayRange, source event.Source) ([
 	if err != nil {
 		return nil, fmt.Errorf("load timeline for %s: %w", days, err)
 	}
+	if events, err = l.withFileVersions(ctx, days, events); err != nil {
+		return nil, err
+	}
 	return filterBySource(events, source), nil
 }
 

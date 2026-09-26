@@ -9,6 +9,7 @@ import (
 	"github.com/chipskein/cade/internal/provenance"
 	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/rag"
+	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/tasks"
 )
 
@@ -47,6 +48,10 @@ type evidenceReport struct {
 	Number   int     `json:"n"`
 	Cited    bool    `json:"cited"`
 	Distance float64 `json:"distance"`
+	// Occurrences counts this event plus the repeats folded into it
+	// (visits to the same page, versions of the same file).
+	Occurrences int       `json:"occurrences"`
+	LatestAt    time.Time `json:"latest_at"`
 	provenance.Reference
 }
 
@@ -93,7 +98,8 @@ func answerReportOf(answer rag.Answer) *answerReport {
 	}
 	report := &answerReport{Found: answer.Found, Text: answer.Text, UnknownCitations: nonNil(answer.UnknownCitations), Evidence: []evidenceReport{}}
 	for i, hit := range answer.Evidence {
-		report.Evidence = append(report.Evidence, evidenceReport{Number: i + 1, Cited: cited[i+1], Distance: hit.Distance, Reference: provenance.Of(hit.Event)})
+		report.Evidence = append(report.Evidence, evidenceReport{Number: i + 1, Cited: cited[i+1], Distance: hit.Distance,
+			Occurrences: hit.Repeats + 1, LatestAt: latestOccurrence(hit), Reference: provenance.Of(hit.Event)})
 	}
 	return report
 }
@@ -126,4 +132,11 @@ func nonNil[T any](values []T) []T {
 		return []T{}
 	}
 	return values
+}
+
+func latestOccurrence(hit storage.ScoredEvent) time.Time {
+	if hit.LatestAt.IsZero() {
+		return hit.Event.Timestamp
+	}
+	return hit.LatestAt
 }

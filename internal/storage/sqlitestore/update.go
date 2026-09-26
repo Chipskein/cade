@@ -40,6 +40,9 @@ func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, embedding []flo
 	if err := insertEmbedding(ctx, tx, eventID, ev, embedding); err != nil {
 		return err
 	}
+	if err := recordFileModification(ctx, tx, ev); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -50,8 +53,8 @@ func updateEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, err
 	}
 	var eventID int64
 	err = tx.QueryRowContext(ctx,
-		`UPDATE events SET occurred_at = ?, source = ?, content = ?, metadata = ? WHERE uid = ? RETURNING id`,
-		toUnixMillis(ev.Timestamp), string(ev.Source), ev.Content, metadata, ev.UID).Scan(&eventID)
+		`UPDATE events SET occurred_at = ?, source = ?, content = ?, metadata = ?, content_hash = ? WHERE uid = ? RETURNING id`,
+		toUnixMillis(ev.Timestamp), string(ev.Source), ev.Content, metadata, contentHash(ev.Content), ev.UID).Scan(&eventID)
 	if err != nil {
 		return 0, fmt.Errorf("update event %q, expected it to be stored: %w", ev.UID, err)
 	}

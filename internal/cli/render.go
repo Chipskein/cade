@@ -105,17 +105,21 @@ func renderSources(out io.Writer, answer rag.Answer, location *time.Location) {
 	}
 	fmt.Fprintln(out, title)
 	for _, number := range numbers {
-		renderEvidenceLine(out, number, answer.Evidence[number-1].Event, location)
+		renderEvidenceLine(out, number, answer.Evidence[number-1], location)
 	}
 	renderUnknownCitations(out, answer.UnknownCitations)
 }
 
 // renderEvidenceLine adds the locator (full commit hash, Teams link) on a
 // second line unless the summary already shows it (a page's URL, a path).
-func renderEvidenceLine(out io.Writer, number int, ev event.Event, location *time.Location) {
+func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, location *time.Location) {
+	ev := hit.Event
 	description := describeEvent(ev)
 	fmt.Fprintf(out, "  [%d] %-9s %s  %s\n", number, "["+string(ev.Source)+"]",
 		ev.Timestamp.In(location).Format(fullStampLayout), description)
+	if note := rag.RepeatNote(hit, location); note != "" {
+		fmt.Fprintf(out, "      (%s)\n", note)
+	}
 	if locator := provenance.Of(ev).Locator; !strings.Contains(description, locator) {
 		fmt.Fprintf(out, "      ↳ %s\n", locator)
 	}

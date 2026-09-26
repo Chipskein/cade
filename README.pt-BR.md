@@ -106,6 +106,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Nomes são comparados por palavra inteira, ignorando maiúsculas, acentos, letras dobradas e y/i ("sillva" encontra "Leandro Silva"). Um nome que não é de nenhum remetente ou conversa (um cliente, um apelido) filtra pelo texto em vez de ser descartado.
 - "Recebidas" deixa de fora mensagens de grupo que só marcam outras pessoas ("pronto? @Vitor"); uma menção a você, a um time ou tag mantém a mensagem.
 - Mensagens sem conteúdo ("ok", "valeu", "bom dia") não entram como evidência nas respostas; as listagens continuam mostrando.
+- Repetições contam uma vez nas respostas: 12 visitas a uma página ou várias versões de uma nota viram uma fonte só, mostrada como "(12 visitas, última em …)". Arquivos apagados da pasta saem das respostas, mas continuam na timeline.
 - Período, fonte, pessoas e direção são filtros exatos; só o assunto é buscado por significado ("commits de ontem sobre autenticação" busca "autenticação" entre os commits de ontem). Perguntas sem filtro são buscadas inteiras.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
 

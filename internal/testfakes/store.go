@@ -28,6 +28,12 @@ type FakeEventStore struct {
 	EmbeddingModelName string
 	Pending            bool
 	ReindexStarted     int
+	// Modifications backs FileModificationsBetween; MarkMissingFiles
+	// records its roots and paths and reports MissingFiles as removed.
+	Modifications []storage.FileModification
+	MarkedRoots   []string
+	LastPresent   map[string]bool
+	MissingFiles  int
 }
 
 // NewFakeEventStore returns an empty store.
@@ -174,4 +180,32 @@ func (f *FakeEventStore) SaveEmbeddings(_ context.Context, embeddings []storage.
 func (f *FakeEventStore) FinishReindex(context.Context) error {
 	f.Pending = false
 	return f.FailWith
+}
+
+// StoredEmbeddingForContent returns the embedding of an event with the
+// same content, as the real store does by content hash.
+func (f *FakeEventStore) StoredEmbeddingForContent(_ context.Context, content string) ([]float32, bool, error) {
+	for _, ev := range f.Events {
+		if vector := f.Embeddings[ev.UID]; ev.Content == content && vector != nil {
+			return vector, true, f.FailWith
+		}
+	}
+	return nil, false, f.FailWith
+}
+
+// FileModificationsBetween returns Modifications within [from, to).
+func (f *FakeEventStore) FileModificationsBetween(_ context.Context, from, to time.Time) ([]storage.FileModification, error) {
+	var kept []storage.FileModification
+	for _, modification := range f.Modifications {
+		if !modification.ModifiedAt.Before(from) && modification.ModifiedAt.Before(to) {
+			kept = append(kept, modification)
+		}
+	}
+	return kept, f.FailWith
+}
+
+// MarkMissingFiles records the call and reports MissingFiles as removed.
+func (f *FakeEventStore) MarkMissingFiles(_ context.Context, root string, present map[string]bool, _ time.Time) (int, error) {
+	f.MarkedRoots, f.LastPresent = append(f.MarkedRoots, root), present
+	return f.MissingFiles, f.FailWith
 }

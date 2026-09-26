@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"unicode/utf8"
 
 	"github.com/chipskein/cade/internal/event"
@@ -37,6 +36,12 @@ type Collector struct {
 //	collector := filesource.NewCollector(os.DirFS("/home/me/notes"), "/home/me/notes", opts)
 func NewCollector(files fs.FS, root string, opts Options) *Collector {
 	return &Collector{files: files, root: root, opts: opts}
+}
+
+// SnapshotRoot is the directory this collector reads in full: files stored
+// under it and not emitted were removed.
+func (c *Collector) SnapshotRoot() string {
+	return c.root
 }
 
 // CollectEvents emits one event per regular file, keyed by path and
@@ -105,10 +110,10 @@ func fileEvent(absolutePath string, info fs.FileInfo, text string) event.Event {
 		content += "\n" + text
 	}
 	return event.Event{
-		UID:       event.StableID(event.SourceFile, absolutePath, strconv.FormatInt(modifiedAt.UnixNano(), 10), strconv.FormatInt(info.Size(), 10)),
+		UID:       event.StableID(event.SourceFile, absolutePath),
 		Timestamp: modifiedAt,
 		Source:    event.SourceFile,
 		Content:   content,
-		Metadata:  event.File{Path: absolutePath, Size: info.Size()}.Metadata(),
+		Metadata:  event.File{Path: absolutePath, Size: info.Size(), ModifiedAt: modifiedAt}.Metadata(),
 	}
 }

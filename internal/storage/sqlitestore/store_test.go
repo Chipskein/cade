@@ -302,3 +302,38 @@ func TestDeleteSourceLeavesNoTextOnDisk(t *testing.T) {
 		}
 	}
 }
+
+func TestStoredEmbeddingForContentFindsIdenticalText(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	first, second := sampleEvent("a", event.SourceBrowser, 0), sampleEvent("b", event.SourceBrowser, 1)
+	mustSave(t, store, first, []float32{0, 1})
+	mustSave(t, store, second, nil)
+	vector, found, err := store.StoredEmbeddingForContent(ctx, first.Content)
+	if err != nil || !found || vector[1] != 1 {
+		t.Fatalf("expected the stored vector for identical text, got %v %v (err %v)", vector, found, err)
+	}
+	if _, found, _ := store.StoredEmbeddingForContent(ctx, "texto novo"); found {
+		t.Fatal("expected no vector for unseen text")
+	}
+}
+
+// Migration 3 hashes events stored before it existed.
+func TestContentHashMigrationFillsOldEvents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	legacy := openRaw(t, path)
+	legacy.Exec(createEventsTable)
+	legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('a', 0, 'git', 'antigo', '{}')`)
+	legacy.Exec(`PRAGMA user_version = 2`)
+	legacy.Close()
+	store, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	var hash string
+	store.db.QueryRow(`SELECT content_hash FROM events WHERE uid = 'a'`).Scan(&hash)
+	if hash != contentHash("antigo") {
+		t.Fatalf("expected the old event hashed, got %q", hash)
+	}
+}
