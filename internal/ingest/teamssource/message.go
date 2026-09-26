@@ -97,32 +97,13 @@ func arrivalTime(value *v8value.Value) time.Time {
 // Edits keep their id; the version is the revision that lets a re-ingest
 // replace the stored text with the edited one.
 func (m teamsMessage) toEvent(conversation conversationInfo, origin string) event.Event {
+	message := event.Message{ConversationID: m.conversationID, Conversation: conversation.title, Kind: conversation.kind,
+		MessageID: m.id, Sender: m.sender, SenderMRI: m.senderMRI, SentByMe: m.sentByMe, Origin: origin, Revision: m.version, Text: m.text}
 	return event.Event{
 		UID:       event.StableID(event.SourceTeams, m.conversationID, m.id),
 		Timestamp: m.sentAt,
 		Source:    event.SourceTeams,
-		Content:   m.sender + ": " + m.text + "\n" + conversationLine(conversation) + "\n" + directionLine(m.sentByMe, conversation.kind),
-		Metadata: event.Message{ConversationID: m.conversationID, Conversation: conversation.title, Kind: conversation.kind,
-			MessageID: m.id, Sender: m.sender, SenderMRI: m.senderMRI, SentByMe: m.sentByMe, Origin: origin, Revision: m.version}.Metadata(),
+		Content:   message.Content(),
+		Metadata:  message.Metadata(),
 	}
-}
-
-// conversationLine and directionLine are part of the embedded text and of
-// the model's evidence: without them "messages I received" matched team
-// announcements, since nothing told a channel post from a direct message.
-func conversationLine(conversation conversationInfo) string {
-	if conversation.title == "" {
-		return "Conversa: " + string(conversation.kind)
-	}
-	return "Conversa: " + string(conversation.kind) + " " + conversation.title
-}
-
-func directionLine(sentByMe bool, kind event.ConversationKind) string {
-	switch {
-	case sentByMe:
-		return "Enviada por você"
-	case kind == event.KindChannel:
-		return "Publicada no canal (não enviada diretamente a você)"
-	}
-	return "Recebida por você"
 }

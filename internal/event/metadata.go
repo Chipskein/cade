@@ -56,6 +56,9 @@ type Message struct {
 	// Origin is the IndexedDB the message was read from.
 	Origin   string
 	Revision string
+	// Text is the message as written, without the lines Content adds;
+	// empty for events ingested before it was kept (schema version 1).
+	Text string
 }
 
 // Metadata keys, as stored.
@@ -79,6 +82,7 @@ const (
 	keySenderMRI      = "sender_mri"
 	keySentByMe       = "sent_by_me"
 	keyOrigin         = "origin"
+	keyText           = "text"
 )
 
 // Metadata is the stored form of c.
@@ -118,7 +122,7 @@ func (e Event) File() File {
 func (m Message) Metadata() Metadata {
 	return Metadata{keyConversationID: m.ConversationID, keyConversation: m.Conversation, keyKind: string(m.Kind),
 		keyMessageID: m.MessageID, keySender: m.Sender, keySenderMRI: m.SenderMRI, keySentByMe: strconv.FormatBool(m.SentByMe),
-		keyOrigin: m.Origin, RevisionKey: m.Revision}
+		keyOrigin: m.Origin, RevisionKey: m.Revision, keyText: m.Text}
 }
 
 // Message reads e's metadata as a Teams message.
@@ -126,7 +130,7 @@ func (e Event) Message() Message {
 	m := e.Metadata
 	return Message{ConversationID: m[keyConversationID], Conversation: m[keyConversation], Kind: ConversationKind(m[keyKind]),
 		MessageID: m[keyMessageID], Sender: m[keySender], SenderMRI: m[keySenderMRI], SentByMe: m[keySentByMe] == "true",
-		Origin: m[keyOrigin], Revision: m[RevisionKey]}
+		Origin: m[keyOrigin], Revision: m[RevisionKey], Text: m[keyText]}
 }
 
 func splitLines(text string) []string {

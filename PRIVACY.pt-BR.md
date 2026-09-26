@@ -30,7 +30,7 @@ Backups da sua pasta pessoal incluem o `cade.db`.
 | **git** | mensagem do commit, nomes dos arquivos alterados, caminho do repositório, hash, nome e e-mail do autor, data | diffs, conteúdo dos arquivos |
 | **navegador** | toda visita do arquivo de histórico: URL (com a query string, que às vezes carrega tokens), título da página, data | conteúdo das páginas, cookies, senhas, formulários; janelas anônimas não entram no histórico |
 | **arquivos** | para cada arquivo nas pastas configuradas: caminho, tamanho, data de modificação e, para arquivos de texto UTF-8 de até `max_file_bytes` (256 KB), o **texto inteiro** | conteúdo de binários; pastas em `ignored_dir_names` (`.git`, `node_modules`…) |
-| **teams** | mensagens de chat, canal e chat de reunião: texto, nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição | agenda, histórico de chamadas, notificações, arquivos; mensagens apagadas antes da ingestão |
+| **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição | agenda, histórico de chamadas, notificações, arquivos; mensagens apagadas antes da ingestão |
 
 Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro delas fica guardado como texto.
 

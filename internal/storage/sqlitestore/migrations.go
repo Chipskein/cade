@@ -27,6 +27,7 @@ type migration struct {
 // created by earlier versions.
 var schemaMigrations = []migration{
 	{version: 1, description: "events and store_settings tables", apply: createBaseSchema},
+	{version: 2, description: "Teams message text kept in metadata", backup: true, apply: keepTeamsText},
 }
 
 // Hooks lets the caller report what opening the database did.
@@ -67,10 +68,8 @@ func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
 }
 
 func applyMigration(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
-	if step.backup {
-		if err := backupBefore(ctx, db, path, step, hooks); err != nil {
-			return err
-		}
+	if err := backupIfNeeded(ctx, db, path, step, hooks); err != nil {
+		return err
 	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -84,6 +83,22 @@ func applyMigration(ctx context.Context, db *sql.DB, path string, step migration
 		return fmt.Errorf("record schema version %d: %w", step.version, err)
 	}
 	return tx.Commit()
+}
+
+// backupIfNeeded copies the database before a data-rewriting step, unless
+// it holds no events yet (a new database has nothing to lose).
+func backupIfNeeded(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
+	if !step.backup {
+		return nil
+	}
+	var hasEvents bool
+	if err := db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM events)`).Scan(&hasEvents); err != nil {
+		return fmt.Errorf("check for events before migration %d: %w", step.version, err)
+	}
+	if !hasEvents {
+		return nil
+	}
+	return backupBefore(ctx, db, path, step, hooks)
 }
 
 // backupBefore writes a consistent copy (VACUUM INTO includes what is

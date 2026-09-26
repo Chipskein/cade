@@ -1,7 +1,6 @@
 package teamssource
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
@@ -49,20 +48,6 @@ func TestIsDeleted(t *testing.T) {
 	undefined := &v8value.Value{Kind: v8value.KindUndefined}
 	if isDeleted(obj("deletionInfo", undefined)) || !isDeleted(obj("deletionInfo", obj())) {
 		t.Fatal("expected only a deletionInfo object to mean deleted")
-	}
-}
-
-func TestConversationLine(t *testing.T) {
-	if conversationLine(conversationInfo{kind: event.KindChat}) != "Conversa: chat" ||
-		conversationLine(conversationInfo{kind: event.KindMeeting, title: "Daily"}) != "Conversa: reunião Daily" {
-		t.Fatal("unexpected conversation line")
-	}
-}
-
-func TestDirectionLine(t *testing.T) {
-	if directionLine(true, event.KindChannel) != "Enviada por você" || directionLine(false, event.KindChat) != "Recebida por você" ||
-		!strings.HasPrefix(directionLine(false, event.KindChannel), "Publicada no canal") {
-		t.Fatal("unexpected direction lines")
 	}
 }
 

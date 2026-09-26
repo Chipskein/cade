@@ -30,7 +30,7 @@ Backups of your home directory include `cade.db`.
 | **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time | diffs, file contents |
 | **browser** | every visit in the history file: URL (with its query string, which sometimes carries tokens), page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
 | **files** | for each file under the configured directories: path, size, modification time and, for UTF-8 text files up to `max_file_bytes` (256 KB), the **whole text** | binary files' contents; directories in `ignored_dir_names` (`.git`, `node_modules`…) |
-| **teams** | chat, channel and meeting-chat messages: text, sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
+| **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
 
 Choose `directories` with care: a `.env` or a notes file with passwords under them is stored as text.
 
