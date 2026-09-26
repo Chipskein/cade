@@ -53,7 +53,10 @@ type RetrievalConfig struct {
 	TopK int `json:"top_k"`
 	// MaxDistance drops hits whose cosine distance exceeds it, so unrelated
 	// questions yield "not found" instead of a forced answer (CA9).
-	MaxDistance     float64 `json:"max_distance"`
+	MaxDistance float64 `json:"max_distance"`
+	// MaxBestDistance rejects a whole unfiltered question when even its
+	// closest event is farther: nothing in the history answers it.
+	MaxBestDistance float64 `json:"max_best_distance"`
 	MaxAnswerTokens int     `json:"max_answer_tokens"`
 }
 

@@ -227,6 +227,7 @@ Other fields (written by `cade init`):
 | `generation.threads`, `embedding.threads` | `0` | CPU threads; `0` = physical cores |
 | `retrieval.top_k` | `8` | events sent to the model per question |
 | `retrieval.max_distance` | `0.72` | relevance cutoff for unfiltered questions |
+| `retrieval.max_best_distance` | `0.62` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 
 Changing the embedding model requires a new database.

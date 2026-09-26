@@ -55,7 +55,8 @@ func realDependencies(t *testing.T) Dependencies {
 	}
 	t.Cleanup(func() { store.Close() })
 	defaults := config.Defaults()
-	settings := rag.Settings{TopK: defaults.Retrieval.TopK, MaxDistance: defaults.Retrieval.MaxDistance, QueryPrefix: defaults.Embedding.QueryPrefix}
+	settings := rag.Settings{TopK: defaults.Retrieval.TopK, MaxDistance: defaults.Retrieval.MaxDistance,
+		MaxBestDistance: defaults.Retrieval.MaxBestDistance, QueryPrefix: defaults.Embedding.QueryPrefix}
 	return Dependencies{Store: store, Embedder: embedder, Settings: settings, DocumentPrefix: defaults.Embedding.DocumentPrefix,
 		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))}
 }

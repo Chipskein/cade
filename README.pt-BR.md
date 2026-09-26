@@ -227,6 +227,7 @@ Outros campos (criados pelo `cade init`):
 | `generation.threads`, `embedding.threads` | `0` | threads de CPU; `0` = núcleos físicos |
 | `retrieval.top_k` | `8` | eventos enviados ao modelo por pergunta |
 | `retrieval.max_distance` | `0.72` | corte de relevância em perguntas sem filtros |
+| `retrieval.max_best_distance` | `0.62` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 
 Trocar o modelo de embedding exige um banco novo.

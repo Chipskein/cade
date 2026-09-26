@@ -12,6 +12,8 @@ type CaseResult struct {
 	Question  string
 	Relevant  []string
 	Retrieved []string
+	// Distances match Retrieved; they show where max_distance would cut.
+	Distances []float64
 }
 
 // Answerable reports whether some corpus event answers the question.

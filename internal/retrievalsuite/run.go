@@ -43,7 +43,8 @@ func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (
 		if err != nil {
 			return Scoreboard{}, fmt.Errorf("retrieve %q: %w", suiteCase.Question, err)
 		}
-		result := CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: hitIDs(hits)}
+		ids, distances := hitIDs(hits)
+		result := CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: ids, Distances: distances}
 		board.Results = append(board.Results, result)
 		if onCase != nil {
 			onCase(i+1, len(suite.Cases), result)
@@ -52,12 +53,12 @@ func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (
 	return board, nil
 }
 
-func hitIDs(hits []storage.ScoredEvent) []string {
-	ids := make([]string, len(hits))
+func hitIDs(hits []storage.ScoredEvent) ([]string, []float64) {
+	ids, distances := make([]string, len(hits)), make([]float64, len(hits))
 	for i, hit := range hits {
-		ids[i] = hit.Event.UID
+		ids[i], distances[i] = hit.Event.UID, hit.Distance
 	}
-	return ids
+	return ids, distances
 }
 
 // corpusCollector feeds the corpus to the ingestion pipeline.

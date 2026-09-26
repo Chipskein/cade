@@ -166,3 +166,23 @@ func TestAnswerReportsUnknownCitations(t *testing.T) {
 		t.Fatalf("expected [7] reported as unknown, got %+v (err %v)", answer, err)
 	}
 }
+
+func TestUnscopedQuestionRejectedWhenClosestIsFar(t *testing.T) {
+	answerer, _ := newTestAnswerer(storeWithHits(scored("a", event.SourceGit, 0.3), scored("b", event.SourceGit, 0.45)), &testfakes.FakeGenerator{})
+	answerer.settings.MaxBestDistance = 0.25
+	if hits, _ := answerer.Retrieve(context.Background(), queryplan.Query{Question: "voo para Lisboa?"}, AnswerObserver{}); len(hits) != 0 {
+		t.Fatalf("expected no evidence when even the closest event is far, got %+v", hits)
+	}
+	answerer.settings.MaxBestDistance = 0.35
+	if hits, _ := answerer.Retrieve(context.Background(), queryplan.Query{Question: "login?"}, AnswerObserver{}); len(hits) != 2 {
+		t.Fatalf("expected the hits within max_distance once the closest passes, got %+v", hits)
+	}
+}
+
+func TestScopedQuestionIgnoresBestDistance(t *testing.T) {
+	answerer, _ := newTestAnswerer(storeWithHits(scored("a", event.SourceGit, 0.9)), &testfakes.FakeGenerator{})
+	answerer.settings.MaxBestDistance = 0.25
+	if hits, _ := answerer.Retrieve(context.Background(), queryplan.Query{Question: "o que fiz?", Source: event.SourceGit}, AnswerObserver{}); len(hits) != 1 {
+		t.Fatalf("expected scoped questions to keep their hits, got %+v", hits)
+	}
+}

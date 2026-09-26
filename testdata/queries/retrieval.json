@@ -1,8 +1,8 @@
 {
  "now": "2026-09-26T10:00:00-03:00",
- "minimum_recall": 0.94,
+ "minimum_recall": 0.95,
  "minimum_mrr": 0.9,
- "minimum_rejection": 0.5,
+ "minimum_rejection": 0.88,
  "events": [
   {
    "id": "g1",
@@ -3502,6 +3502,70 @@
    "question": "quanto custou o conserto do carro?",
    "relevant": [],
    "topic": "conserto do carro"
+  },
+  {
+   "question": "como deixei o painel atrás de um proxy?",
+   "relevant": [
+    "f2"
+   ],
+   "topic": "painel atrás de um proxy"
+  },
+  {
+   "question": "tivemos problema com número inválido no Oracle?",
+   "relevant": [
+    "g8",
+    "b3"
+   ],
+   "topic": "número inválido no Oracle"
+  },
+  {
+   "question": "quando congelamos a main?",
+   "relevant": [
+    "f3"
+   ],
+   "topic": "congelar a main"
+  },
+  {
+   "question": "quem pediu revisão de PR?",
+   "relevant": [
+    "t4"
+   ],
+   "topic": "revisão de PR"
+  },
+  {
+   "question": "qual a senha do wifi do escritório?",
+   "relevant": [],
+   "topic": "senha do wifi do escritório"
+  },
+  {
+   "question": "quando é o aniversário da minha mãe?",
+   "relevant": [],
+   "topic": "aniversário da minha mãe"
+  },
+  {
+   "question": "o que eu pesquisei sobre Terraform?",
+   "relevant": [],
+   "topic": "Terraform"
+  },
+  {
+   "question": "what did I read about Kafka consumer groups?",
+   "relevant": [],
+   "topic": "Kafka consumer groups"
+  },
+  {
+   "question": "o que fiz no módulo de férias?",
+   "relevant": [],
+   "topic": "módulo de férias"
+  },
+  {
+   "question": "como foi a reunião com o cliente Orion?",
+   "relevant": [],
+   "topic": "reunião com o cliente Orion"
+  },
+  {
+   "question": "qual o resultado do jogo do Flamengo?",
+   "relevant": [],
+   "topic": "resultado do jogo do Flamengo"
   }
  ]
 }

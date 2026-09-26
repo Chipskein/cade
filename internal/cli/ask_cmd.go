@@ -110,6 +110,7 @@ func ragSettings(cfg config.Config) rag.Settings {
 	return rag.Settings{
 		TopK:            cfg.Retrieval.TopK,
 		MaxDistance:     cfg.Retrieval.MaxDistance,
+		MaxBestDistance: cfg.Retrieval.MaxBestDistance,
 		QueryPrefix:     cfg.Embedding.QueryPrefix,
 		MaxAnswerTokens: cfg.Retrieval.MaxAnswerTokens,
 	}

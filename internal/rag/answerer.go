@@ -19,6 +19,7 @@ import (
 type Settings struct {
 	TopK            int
 	MaxDistance     float64
+	MaxBestDistance float64
 	QueryPrefix     string
 	MaxAnswerTokens int
 }
@@ -149,7 +150,24 @@ func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer
 	if query.IsScoped() {
 		return hits, nil
 	}
-	return withinDistance(hits, a.settings.MaxDistance), nil
+	return a.relevantHits(hits), nil
+}
+
+// relevantHits answers an unfiltered question only if its closest event is
+// within max_best_distance, then keeps the hits within max_distance. On the
+// retrieval suite, the closest event of every answerable question was at
+// most 0.60 and of every unanswerable one at least 0.64, while single hits
+// of both overlapped around 0.64-0.66: one cutoff per hit cannot separate
+// them. Hits arrive sorted by distance.
+func (a *Answerer) relevantHits(hits []storage.ScoredEvent) []storage.ScoredEvent {
+	if len(hits) == 0 {
+		return nil
+	}
+	if a.settings.MaxBestDistance > 0 && hits[0].Distance > a.settings.MaxBestDistance {
+		a.logger.Debug("question rejected: closest event too far", "closest_distance", hits[0].Distance, "max_best_distance", a.settings.MaxBestDistance)
+		return nil
+	}
+	return withinDistance(hits, a.settings.MaxDistance)
 }
 
 // searchText falls back to the question for queries built without Resolve.
