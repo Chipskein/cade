@@ -131,7 +131,7 @@ func seedEvents(store *Store, n int) error {
 		if err != nil {
 			return err
 		}
-		if err := insertEmbedding(ctx, tx, eventID, ev, vector); err != nil {
+		if err := insertChunks(ctx, tx, eventID, ev, []storage.Chunk{{End: len(ev.Content), Vector: vector}}); err != nil {
 			return err
 		}
 	}
@@ -182,16 +182,16 @@ func BenchmarkEventsBetween(b *testing.B) {
 	})
 }
 
-// BenchmarkEmbeddingsFor loads the vectors of a person's messages to rank
+// BenchmarkChunksFor loads the chunk vectors of a person's messages to rank
 // them (the person-filtered answer path).
-func BenchmarkEmbeddingsFor(b *testing.B) {
+func BenchmarkChunksFor(b *testing.B) {
 	forEachSize(b, func(b *testing.B, bench benchStore) {
 		uids := make([]string, 0, 1000)
 		for i := 0; i < 1000 && i < bench.size(); i++ {
 			uids = append(uids, fmt.Sprintf("bench-%d", i*bench.size()/1000))
 		}
 		for b.Loop() {
-			if _, err := bench.store.EmbeddingsFor(context.Background(), uids); err != nil {
+			if _, err := bench.store.ChunksFor(context.Background(), uids); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -212,7 +212,7 @@ func BenchmarkSaveEvent(b *testing.B) {
 	i := 1_000_000
 	for b.Loop() {
 		ev, vector := benchEvent(random, i)
-		if _, err := bench.store.SaveEvent(context.Background(), ev, vector); err != nil {
+		if _, err := bench.store.SaveEvent(context.Background(), ev, whole(ev, vector)); err != nil {
 			b.Fatal(err)
 		}
 		i++

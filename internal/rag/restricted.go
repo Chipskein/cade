@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"math"
 	"sort"
 	"time"
 
@@ -66,18 +67,30 @@ func (a *Answerer) rank(ctx context.Context, embedding []float32, events []event
 	for i, ev := range events {
 		uids[i] = ev.UID
 	}
-	vectors, err := a.store.EmbeddingsFor(ctx, uids)
+	chunks, err := a.store.ChunksFor(ctx, uids)
 	if err != nil {
 		return nil, err
 	}
 	var ranked []storage.ScoredEvent
 	for _, ev := range events {
-		if vector, found := vectors[ev.UID]; found {
-			ranked = append(ranked, storage.ScoredEvent{Event: ev, Distance: cosineDistance(embedding, vector)})
+		if eventChunks, found := chunks[ev.UID]; found {
+			ranked = append(ranked, closestChunk(embedding, ev, eventChunks))
 		}
 	}
 	sort.SliceStable(ranked, func(i, j int) bool { return ranked[i].Distance < ranked[j].Distance })
 	return ranked, nil
+}
+
+// closestChunk scores an event by its best chunk: a long note matches when
+// any part of it does.
+func closestChunk(embedding []float32, ev event.Event, chunks []storage.Chunk) storage.ScoredEvent {
+	best := storage.ScoredEvent{Event: ev, Distance: math.Inf(1), ChunkCount: len(chunks)}
+	for _, chunk := range chunks {
+		if distance := cosineDistance(embedding, chunk.Vector); distance < best.Distance {
+			best.Distance, best.Chunk = distance, storage.Chunk{Ordinal: chunk.Ordinal, Start: chunk.Start, End: chunk.End}
+		}
+	}
+	return best
 }
 
 func cosineDistance(a, b []float32) float64 {

@@ -63,7 +63,7 @@ func (a *Answerer) searchDistinct(ctx context.Context, embedding []float32, quer
 		if err != nil {
 			return nil, err
 		}
-		distinct := collapseRepeats(withoutRemoved(withoutChatter(hits)))
+		distinct := collapseRepeats(withoutRemoved(withoutChatter(bestChunkPerEvent(hits))))
 		if len(distinct) >= a.settings.TopK || len(hits) < limit || limit >= a.settings.TopK*maxSearchWidening {
 			return distinct[:min(len(distinct), a.settings.TopK)], nil
 		}
@@ -95,6 +95,21 @@ func withoutRemoved(hits []storage.ScoredEvent) []storage.ScoredEvent {
 	var kept []storage.ScoredEvent
 	for _, hit := range hits {
 		if hit.Event.Source != event.SourceFile || hit.Event.File().RemovedAt.IsZero() {
+			kept = append(kept, hit)
+		}
+	}
+	return kept
+}
+
+// bestChunkPerEvent keeps each event's closest chunk: the vector index
+// returns one hit per chunk, and two chunks of one note are not two
+// sources (nor "2 versões").
+func bestChunkPerEvent(hits []storage.ScoredEvent) []storage.ScoredEvent {
+	seen := map[string]bool{}
+	var kept []storage.ScoredEvent
+	for _, hit := range hits {
+		if !seen[hit.Event.UID] {
+			seen[hit.Event.UID] = true
 			kept = append(kept, hit)
 		}
 	}

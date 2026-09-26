@@ -35,7 +35,7 @@ func (s *Store) StartReindex(ctx context.Context, model string) error {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	statements := []string{`DROP TABLE IF EXISTS event_embeddings`, `DELETE FROM store_settings WHERE key = '` + dimensionsSettingKey + `'`}
+	statements := []string{`DROP TABLE IF EXISTS chunk_embeddings`, `DELETE FROM chunks`, `DELETE FROM store_settings WHERE key = '` + dimensionsSettingKey + `'`}
 	for _, statement := range statements {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("drop vectors for reindex: %w", err)
@@ -61,23 +61,13 @@ func (s *Store) FinishReindex(ctx context.Context) error {
 	return err
 }
 
-// missingEmbeddingFilter selects events with text and no vector; without
-// a vector table, every event with text.
-func (s *Store) missingEmbeddingFilter(ctx context.Context) (string, error) {
-	ready, err := s.vectorTableExists(ctx)
-	if err != nil || !ready {
-		return `content != ''`, err
-	}
-	return `content != '' AND id NOT IN (SELECT event_id FROM event_embeddings)`, nil
-}
+// missingChunks selects events with text and no chunks: chunks and
+// vectors are written together, so these are the ones to embed.
+const missingChunks = `content != '' AND NOT EXISTS (SELECT 1 FROM chunks WHERE chunks.event_id = events.id)`
 
 // EventsWithoutEmbedding returns the next events a reindex must embed.
 func (s *Store) EventsWithoutEmbedding(ctx context.Context, limit int) ([]event.Event, error) {
-	filter, err := s.missingEmbeddingFilter(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := s.db.QueryContext(ctx, `SELECT `+eventColumns+` FROM events WHERE `+filter+` ORDER BY id LIMIT ?`, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT `+eventColumns+` FROM events WHERE `+missingChunks+` ORDER BY id LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query events without embedding: %w", err)
 	}
@@ -86,12 +76,8 @@ func (s *Store) EventsWithoutEmbedding(ctx context.Context, limit int) ([]event.
 
 // CountEventsWithoutEmbedding is what a reindex has left.
 func (s *Store) CountEventsWithoutEmbedding(ctx context.Context) (int, error) {
-	filter, err := s.missingEmbeddingFilter(ctx)
-	if err != nil {
-		return 0, err
-	}
 	var count int
-	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM events WHERE `+filter).Scan(&count); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM events WHERE `+missingChunks).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count events without embedding: %w", err)
 	}
 	return count, nil
@@ -110,7 +96,7 @@ func (s *Store) SaveEmbeddings(ctx context.Context, embeddings []storage.EventEm
 		if err := tx.QueryRowContext(ctx, `SELECT id FROM events WHERE uid = ?`, pair.Event.UID).Scan(&eventID); err != nil {
 			return fmt.Errorf("find event %q, expected it to be stored: %w", pair.Event.UID, err)
 		}
-		if err := insertEmbedding(ctx, tx, eventID, pair.Event, pair.Vector); err != nil {
+		if err := insertChunks(ctx, tx, eventID, pair.Event, pair.Chunks); err != nil {
 			return err
 		}
 	}

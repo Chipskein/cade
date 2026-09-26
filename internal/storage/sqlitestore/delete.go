@@ -49,7 +49,7 @@ func deleteSourceEmbeddings(ctx context.Context, tx *sql.Tx, source event.Source
 	if err != nil || !found {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM event_embeddings WHERE source = ?`, string(source)); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM chunk_embeddings WHERE source = ?`, string(source)); err != nil {
 		return fmt.Errorf("delete %s embeddings: %w", source, err)
 	}
 	return nil

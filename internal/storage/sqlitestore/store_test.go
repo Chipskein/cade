@@ -34,7 +34,7 @@ func sampleEvent(uid string, source event.Source, offset time.Duration) event.Ev
 
 func mustSave(t *testing.T, store *Store, ev event.Event, embedding []float32) {
 	t.Helper()
-	if _, err := store.SaveEvent(context.Background(), ev, embedding); err != nil {
+	if _, err := store.SaveEvent(context.Background(), ev, whole(ev, embedding)); err != nil {
 		t.Fatalf("save %q: %v", ev.UID, err)
 	}
 }
@@ -42,8 +42,8 @@ func mustSave(t *testing.T, store *Store, ev event.Event, embedding []float32) {
 func TestSaveEventDeduplicatesByUID(t *testing.T) {
 	store := openTestStore(t)
 	ev := sampleEvent("a", event.SourceGit, 0)
-	first, _ := store.SaveEvent(context.Background(), ev, []float32{1, 0})
-	second, err := store.SaveEvent(context.Background(), ev, []float32{1, 0})
+	first, _ := store.SaveEvent(context.Background(), ev, whole(ev, []float32{1, 0}))
+	second, err := store.SaveEvent(context.Background(), ev, whole(ev, []float32{1, 0}))
 	if err != nil || !first || second {
 		t.Fatalf("expected first insert true and second false, got %v, %v (err %v)", first, second, err)
 	}
@@ -64,11 +64,11 @@ func TestUpdateEventReplacesContentAndEmbedding(t *testing.T) {
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
 	edited := sampleEvent("a", event.SourceGit, 0)
 	edited.Content = "texto editado"
-	if err := store.UpdateEvent(context.Background(), edited, []float32{0, 1}); err != nil {
+	if err := store.UpdateEvent(context.Background(), edited, whole(edited, []float32{0, 1})); err != nil {
 		t.Fatal(err)
 	}
 	stored, _, _ := store.StoredEvent(context.Background(), "a")
-	vectors, _ := store.EmbeddingsFor(context.Background(), []string{"a"})
+	vectors := firstVectors(t, store, "a")
 	if stored.Content != "texto editado" || len(vectors["a"]) != 2 || vectors["a"][1] != 1 {
 		t.Fatalf("expected the new content and vector, got %q %v", stored.Content, vectors["a"])
 	}
@@ -80,7 +80,7 @@ func TestUpdateEventWithoutEmbeddingRemovesVector(t *testing.T) {
 	emptied := sampleEvent("a", event.SourceGit, 0)
 	emptied.Content = ""
 	store.UpdateEvent(context.Background(), emptied, nil)
-	if vectors, _ := store.EmbeddingsFor(context.Background(), []string{"a"}); len(vectors) != 0 {
+	if vectors := firstVectors(t, store, "a"); len(vectors) != 0 {
 		t.Fatalf("expected no vector left, got %v", vectors)
 	}
 }
@@ -117,7 +117,7 @@ func TestEventsBetweenRoundTripsFields(t *testing.T) {
 func TestSaveEventRejectsDimensionChange(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
-	_, err := store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0})
+	_, err := store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), whole(sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0}))
 	if err == nil {
 		t.Fatal("expected an error when embedding dimensions change")
 	}
@@ -126,7 +126,7 @@ func TestSaveEventRejectsDimensionChange(t *testing.T) {
 func TestSaveEventRollsBackEventWhenEmbeddingFails(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
-	store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0})
+	store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), whole(sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0}))
 	if _, found, _ := store.StoredEvent(context.Background(), "b"); found {
 		t.Fatal("event must not persist without its embedding, or re-ingestion would skip it forever")
 	}
@@ -205,7 +205,7 @@ func TestDeleteSourceAllowsReingest(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("teams-1", event.SourceTeams, 0), []float32{1, 0})
 	store.DeleteSource(context.Background(), event.SourceTeams)
-	inserted, err := store.SaveEvent(context.Background(), sampleEvent("teams-1", event.SourceTeams, 0), []float32{1, 0})
+	inserted, err := store.SaveEvent(context.Background(), sampleEvent("teams-1", event.SourceTeams, 0), whole(sampleEvent("teams-1", event.SourceTeams, 0), []float32{1, 0}))
 	if err != nil || !inserted {
 		t.Fatalf("expected the event to be insertable again, got %v (err %v)", inserted, err)
 	}
@@ -223,7 +223,8 @@ func TestEmbeddingsForReturnsStoredVectors(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceTeams, 0), []float32{0.25, -1.5})
 	mustSave(t, store, sampleEvent("no-vector", event.SourceFile, 0), nil)
-	embeddings, err := store.EmbeddingsFor(context.Background(), []string{"a", "no-vector", "missing"})
+	embeddings := firstVectors(t, store, "a", "no-vector", "missing")
+	var err error
 	if err != nil || len(embeddings) != 1 || embeddings["a"][0] != 0.25 || embeddings["a"][1] != -1.5 {
 		t.Fatalf("expected only a's vector, got %v (err %v)", embeddings, err)
 	}
@@ -231,7 +232,8 @@ func TestEmbeddingsForReturnsStoredVectors(t *testing.T) {
 
 func TestEmbeddingsForWithoutVectorTable(t *testing.T) {
 	store := openTestStore(t)
-	embeddings, err := store.EmbeddingsFor(context.Background(), []string{"a"})
+	embeddings := firstVectors(t, store, "a")
+	var err error
 	if err != nil || len(embeddings) != 0 {
 		t.Fatalf("expected an empty map, got %v (err %v)", embeddings, err)
 	}
@@ -303,18 +305,18 @@ func TestDeleteSourceLeavesNoTextOnDisk(t *testing.T) {
 	}
 }
 
-func TestStoredEmbeddingForContentFindsIdenticalText(t *testing.T) {
+func TestStoredChunksForContentFindsIdenticalText(t *testing.T) {
 	store := openTestStore(t)
 	ctx := context.Background()
 	first, second := sampleEvent("a", event.SourceBrowser, 0), sampleEvent("b", event.SourceBrowser, 1)
 	mustSave(t, store, first, []float32{0, 1})
 	mustSave(t, store, second, nil)
-	vector, found, err := store.StoredEmbeddingForContent(ctx, first.Content)
-	if err != nil || !found || vector[1] != 1 {
-		t.Fatalf("expected the stored vector for identical text, got %v %v (err %v)", vector, found, err)
+	chunks, found, err := store.StoredChunksForContent(ctx, first.Content)
+	if err != nil || !found || len(chunks) != 1 || chunks[0].Vector[1] != 1 || chunks[0].End != len(first.Content) {
+		t.Fatalf("expected the stored chunk for identical text, got %+v %v (err %v)", chunks, found, err)
 	}
-	if _, found, _ := store.StoredEmbeddingForContent(ctx, "texto novo"); found {
-		t.Fatal("expected no vector for unseen text")
+	if _, found, _ := store.StoredChunksForContent(ctx, "texto novo"); found {
+		t.Fatal("expected no chunks for unseen text")
 	}
 }
 
@@ -336,4 +338,27 @@ func TestContentHashMigrationFillsOldEvents(t *testing.T) {
 	if hash != contentHash("antigo") {
 		t.Fatalf("expected the old event hashed, got %q", hash)
 	}
+}
+
+// whole is a single chunk covering all of ev's text, as a short event is
+// stored; nil vector means no chunk.
+func whole(ev event.Event, vector []float32) []storage.Chunk {
+	if vector == nil {
+		return nil
+	}
+	return []storage.Chunk{{End: len(ev.Content), Vector: vector}}
+}
+
+// firstVectors reads each event's first chunk vector.
+func firstVectors(t testing.TB, store *Store, uids ...string) map[string][]float32 {
+	t.Helper()
+	chunks, err := store.ChunksFor(context.Background(), uids)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vectors := map[string][]float32{}
+	for uid, eventChunks := range chunks {
+		vectors[uid] = eventChunks[0].Vector
+	}
+	return vectors
 }

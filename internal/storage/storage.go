@@ -16,24 +16,26 @@ type EventStore interface {
 	// ingestion can skip unchanged events (and their embedding) on re-runs
 	// and replace changed ones.
 	StoredEvent(ctx context.Context, uid string) (event.Event, bool, error)
-	// StoredEmbeddingForContent returns the vector of a stored event with
-	// exactly this text, so identical text is embedded once.
-	StoredEmbeddingForContent(ctx context.Context, content string) ([]float32, bool, error)
-	// UpdateEvent replaces a stored event's fields and embedding (nil
-	// removes it), keyed by UID; used when the source's version changed.
-	UpdateEvent(ctx context.Context, ev event.Event, embedding []float32) error
-	// SaveEvent stores the event and, when non-nil, its embedding. It returns
-	// false without error when the UID already exists (RF1.5).
-	SaveEvent(ctx context.Context, ev event.Event, embedding []float32) (bool, error)
+	// StoredChunksForContent returns the embedded chunks of a stored event
+	// with exactly this text, so identical text is embedded once.
+	StoredChunksForContent(ctx context.Context, content string) ([]Chunk, bool, error)
+	// UpdateEvent replaces a stored event's fields and chunks (none leaves
+	// it without vectors), keyed by UID; used when the source's version
+	// changed.
+	UpdateEvent(ctx context.Context, ev event.Event, chunks []Chunk) error
+	// SaveEvent stores the event and its embedded chunks. It returns false
+	// without error when the UID already exists (RF1.5).
+	SaveEvent(ctx context.Context, ev event.Event, chunks []Chunk) (bool, error)
 	// EventsBetween returns events with from <= timestamp < to, oldest first.
 	EventsBetween(ctx context.Context, from, to time.Time) ([]event.Event, error)
-	// SearchSimilar returns the nearest events to the query embedding that
-	// also satisfy the query's source and time filters.
+	// SearchSimilar returns the nearest chunks to the query embedding that
+	// also satisfy the query's source and time filters, one hit per chunk
+	// (an event can appear more than once), closest first.
 	SearchSimilar(ctx context.Context, query SimilarityQuery) ([]ScoredEvent, error)
-	// EmbeddingsFor returns the stored embeddings of the given event UIDs;
-	// events without one are absent from the map. Used to rank an exactly
-	// filtered set of events by similarity.
-	EmbeddingsFor(ctx context.Context, uids []string) (map[string][]float32, error)
+	// ChunksFor returns the embedded chunks of the given event UIDs, with
+	// vectors; events without any are absent from the map. Used to rank an
+	// exactly filtered set of events by similarity.
+	ChunksFor(ctx context.Context, uids []string) (map[string][]Chunk, error)
 	// FileModificationsBetween returns the file versions seen in
 	// [from, to), oldest first: a file is one event, its edits live here.
 	FileModificationsBetween(ctx context.Context, from, to time.Time) ([]FileModification, error)
@@ -66,11 +68,29 @@ type FileModification struct {
 	Size       int64
 }
 
+// Chunk is one embedded piece of an event's text: bytes [Start, End) of
+// Content, the Ordinal-th (from 0) of the event's chunks. Short text is a
+// single chunk covering it all.
+type Chunk struct {
+	Ordinal int
+	Start   int
+	End     int
+	Vector  []float32
+}
+
+// Text is the chunk's part of content.
+func (c Chunk) Text(content string) string {
+	return content[min(c.Start, len(content)):min(c.End, len(content))]
+}
+
 // ScoredEvent is a search hit. Distance is cosine distance: 0 is identical,
-// 2 is opposite.
+// 2 is opposite. Chunk is the piece that matched (without its vector) and
+// ChunkCount how many the event has.
 type ScoredEvent struct {
-	Event    event.Event
-	Distance float64
+	Event      event.Event
+	Distance   float64
+	Chunk      Chunk
+	ChunkCount int
 	// Repeats counts other events retrieval folded into this one (more
 	// visits to the page, older versions of the file); LatestAt is the
 	// most recent of them all. Zero when nothing was folded.
@@ -98,8 +118,8 @@ type EmbeddingIndex interface {
 	FinishReindex(ctx context.Context) error
 }
 
-// EventEmbedding pairs a stored event with its new vector.
+// EventEmbedding pairs a stored event with its new embedded chunks.
 type EventEmbedding struct {
 	Event  event.Event
-	Vector []float32
+	Chunks []Chunk
 }

@@ -235,6 +235,8 @@ Outros campos (criados pelo `cade init`):
 | `retrieval.max_best_distance` | `0.62` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 
+Notas, mensagens e commits longos são divididos em pedaços de até ~1.200 caracteres (o modelo de embedding lê 512 tokens), e a resposta mostra o pedaço que casou ("arquitetura.md, trecho 7 de 20"). Ao atualizar de uma versão sem pedaços, rode `cade reindex` uma vez: ele embute os eventos longos (1.568 de 108 mil num histórico real, cerca de um minuto).
+
 Para trocar o modelo de embedding, ajuste `embedding.model_path` e rode `cade reindex`: ele recalcula todos os vetores a partir do texto guardado e continua de onde parou se for interrompido (~300 eventos/s numa RTX 3060, alguns minutos para 100 mil eventos). O banco registra de qual modelo vieram os vetores; `ingest` e `ask` recusam um modelo diferente em vez de misturar vetores incompatíveis.
 
 Mudanças de esquema são aplicadas automaticamente ao abrir o banco (migrações numeradas). Um passo que reescreve dados antes salva uma cópia como `cade.db.before-vN-<data>` e avisa onde; apague-a quando estiver satisfeito.

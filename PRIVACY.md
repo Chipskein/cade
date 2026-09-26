@@ -15,7 +15,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 | Path | Contents | Mode |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text and embeddings | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text) and embeddings, file edit history | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models (public files) | — |
@@ -45,9 +45,9 @@ Choose `directories` with care: a `.env` or a notes file with passwords under th
 
 Both models run in-process through llama.cpp.
 
-- **Embedding model:** the start of each event's text, up to the model's context (512 tokens, about 2,000 characters) when it is ingested, and the search text of each question.
+- **Embedding model:** the whole text of each event, in chunks of up to 1,200 characters, when it is ingested (identical text is embedded once), and the search text of each question.
 - **Question interpretation:** only your question, with fixed instructions and examples.
-- **Answers:** your question, today's date and up to `top_k` (8) events, each cut to 700 characters.
+- **Answers:** your question, today's date and up to `top_k` (8) events; for a long event, only the chunk that matched (up to 1,200 characters), otherwise its text up to that length.
 - Nothing else in the database is given to the model. Listings and task reports do not use the generation model; a listing with a topic ("pages about redis") embeds only the topic.
 
 ## Logs

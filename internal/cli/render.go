@@ -117,7 +117,7 @@ func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, loca
 	description := describeEvent(ev)
 	fmt.Fprintf(out, "  [%d] %-9s %s  %s\n", number, "["+string(ev.Source)+"]",
 		ev.Timestamp.In(location).Format(fullStampLayout), description)
-	if note := rag.RepeatNote(hit, location); note != "" {
+	if note := rag.EvidenceNote(hit, location); note != "" {
 		fmt.Fprintf(out, "      (%s)\n", note)
 	}
 	if locator := provenance.Of(ev).Locator; !strings.Contains(description, locator) {

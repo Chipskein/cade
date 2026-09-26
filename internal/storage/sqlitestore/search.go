@@ -18,21 +18,24 @@ import (
 // statement covers both "any source" and "one source" (vec0 has no OR).
 const similarityQuery = `
 WITH nearest AS (
-	SELECT event_id, distance FROM event_embeddings
+	SELECT chunk_id, distance FROM chunk_embeddings
 	WHERE embedding MATCH ? AND k = ?
 	  AND occurred_at >= ? AND occurred_at < ?
 	  AND source %s ?
 )
-SELECT ` + eventColumns + `, nearest.distance
-FROM nearest JOIN events ON events.id = nearest.event_id
+SELECT ` + eventColumns + `, nearest.distance, chunks.ordinal, chunks.char_start, chunks.char_end,
+	(SELECT COUNT(*) FROM chunks AS siblings WHERE siblings.event_id = chunks.event_id)
+FROM nearest
+JOIN chunks ON chunks.id = nearest.chunk_id
+JOIN events ON events.id = chunks.event_id
 ORDER BY nearest.distance`
 
 // anySourceSentinel never matches a real source, so "source != sentinel"
 // means "all sources".
 const anySourceSentinel = "\x00any"
 
-// SearchSimilar returns the events nearest to query.Embedding that satisfy
-// the source and time filters.
+// SearchSimilar returns the chunks nearest to query.Embedding that satisfy
+// the source and time filters, each with its event.
 func (s *Store) SearchSimilar(ctx context.Context, query storage.SimilarityQuery) ([]storage.ScoredEvent, error) {
 	ready, err := s.vectorTableExists(ctx)
 	if err != nil || !ready {
@@ -79,12 +82,13 @@ func collectScoredEvents(rows *sql.Rows) ([]storage.ScoredEvent, error) {
 	defer rows.Close()
 	var hits []storage.ScoredEvent
 	for rows.Next() {
-		var distance float64
-		ev, err := scanEvent(rows, &distance)
+		var hit storage.ScoredEvent
+		ev, err := scanEvent(rows, &hit.Distance, &hit.Chunk.Ordinal, &hit.Chunk.Start, &hit.Chunk.End, &hit.ChunkCount)
 		if err != nil {
 			return nil, err
 		}
-		hits = append(hits, storage.ScoredEvent{Event: ev, Distance: distance})
+		hit.Event = ev
+		hits = append(hits, hit)
 	}
 	return hits, rows.Err()
 }

@@ -91,11 +91,26 @@ func keepLatestVersion(ctx context.Context, tx *sql.Tx, path string, latest file
 }
 
 func deleteEventRow(ctx context.Context, tx *sql.Tx, eventID int64) error {
-	if err := deleteEmbedding(ctx, tx, eventID); err != nil {
+	if err := deleteVersion4Vector(ctx, tx, eventID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM events WHERE id = ?`, eventID); err != nil {
 		return fmt.Errorf("delete older version event id %d: %w", eventID, err)
+	}
+	return nil
+}
+
+// deleteVersion4Vector deletes an event's vector in the schema migration 4
+// runs on: one vector per event in event_embeddings (migration 5 moved
+// vectors to chunks). Migrations must keep working on the schema of their
+// own version.
+func deleteVersion4Vector(ctx context.Context, tx *sql.Tx, eventID int64) error {
+	_, found, err := storedDimensions(ctx, tx)
+	if err != nil || !found {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_embeddings WHERE event_id = ?`, eventID); err != nil {
+		return fmt.Errorf("delete vector of event id %d: %w", eventID, err)
 	}
 	return nil
 }

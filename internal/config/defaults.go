@@ -19,10 +19,12 @@ func Defaults() Config {
 		},
 		// 0.72 was calibrated on nomic-embed-text-v2-moe: relevant hits fell
 		// at 0.59–0.71, unrelated ones mostly above 0.74. The LLM's
-		// SEM_INFORMACAO reply is the final guard for the overlap. 0.62 gates
-		// whole unfiltered questions: on the retrieval suite the closest event
-		// was at most 0.60 when something answered and at least 0.64 when not.
-		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxBestDistance: 0.62, MaxAnswerTokens: 512},
+		// SEM_INFORMACAO reply is the final guard for the overlap. 0.61 gates
+		// whole unfiltered questions: the midpoint the calibration set of the
+		// retrieval suite reports with chunked vectors (closest event at most
+		// 0.596 when something answered, at least 0.624 when not); the test
+		// set, never used for tuning, checks it.
+		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxBestDistance: 0.61, MaxAnswerTokens: 512},
 		Sources:   defaultSources(),
 		Tasks:     TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
 	}

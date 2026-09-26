@@ -8,14 +8,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/storage"
 )
-
-// maxEmbeddedChars caps the text sent to the embedder; the model truncates
-// to its context anyway, this just avoids tokenizing huge files.
-const maxEmbeddedChars = 8000
 
 // EmitFunc receives each event a collector produces. Returning an error
 // stops the collection.
@@ -116,14 +113,14 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 		report.AlreadyStored++
 		return nil
 	}
-	embedding, err := p.embeddingFor(ctx, ev)
+	chunks, err := p.chunksFor(ctx, ev)
 	if err != nil {
 		return err
 	}
 	if known {
-		return p.update(ctx, ev, embedding, report)
+		return p.update(ctx, ev, chunks, report)
 	}
-	return p.insert(ctx, ev, embedding, report)
+	return p.insert(ctx, ev, chunks, report)
 }
 
 // replaces reports whether incoming should overwrite stored. With a
@@ -140,8 +137,8 @@ func replaces(incoming, stored event.Event) bool {
 	return incoming.Content != stored.Content
 }
 
-func (p *Pipeline) insert(ctx context.Context, ev event.Event, embedding []float32, report *Report) error {
-	inserted, err := p.store.SaveEvent(ctx, ev, embedding)
+func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {
+	inserted, err := p.store.SaveEvent(ctx, ev, chunks)
 	if err != nil {
 		return err
 	}
@@ -151,8 +148,8 @@ func (p *Pipeline) insert(ctx context.Context, ev event.Event, embedding []float
 	return nil
 }
 
-func (p *Pipeline) update(ctx context.Context, ev event.Event, embedding []float32, report *Report) error {
-	if err := p.store.UpdateEvent(ctx, ev, embedding); err != nil {
+func (p *Pipeline) update(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {
+	if err := p.store.UpdateEvent(ctx, ev, chunks); err != nil {
 		return err
 	}
 	report.Updated++
@@ -160,31 +157,27 @@ func (p *Pipeline) update(ctx context.Context, ev event.Event, embedding []float
 	return nil
 }
 
-// embeddingFor returns nil for events without text: they still appear in
-// the timeline, they just cannot be found by semantic search (RF2.2). Text
-// already stored with a vector (a revisited page, a message cached twice)
-// reuses it instead of running the embedder again.
-func (p *Pipeline) embeddingFor(ctx context.Context, ev event.Event) ([]float32, error) {
+// chunksFor splits the event's text into chunks and embeds each; events
+// without text get none: they still appear in the timeline, they just
+// cannot be found by semantic search (RF2.2). Text already stored with
+// chunks (a revisited page, a message cached twice) reuses them instead of
+// running the embedder again.
+func (p *Pipeline) chunksFor(ctx context.Context, ev event.Event) ([]storage.Chunk, error) {
 	if ev.Content == "" {
 		return nil, nil
 	}
-	if vector, found, err := p.store.StoredEmbeddingForContent(ctx, ev.Content); err != nil || found {
-		return vector, err
+	if chunks, found, err := p.store.StoredChunksForContent(ctx, ev.Content); err != nil || found {
+		return chunks, err
 	}
-	text := truncateRunes(ev.Content, maxEmbeddedChars)
-	embedding, err := p.embedder.Embed(p.documentPrefix + text)
-	if err != nil {
-		return nil, fmt.Errorf("embed %s event %q: %w", ev.Source, ev.UID, err)
+	var chunks []storage.Chunk
+	for ordinal, span := range chunking.Split(ev.Content) {
+		vector, err := p.embedder.Embed(p.documentPrefix + ev.Content[span.Start:span.End])
+		if err != nil {
+			return nil, fmt.Errorf("embed chunk %d of %s event %q: %w", ordinal, ev.Source, ev.UID, err)
+		}
+		chunks = append(chunks, storage.Chunk{Ordinal: ordinal, Start: span.Start, End: span.End, Vector: vector})
 	}
-	return embedding, nil
-}
-
-func truncateRunes(text string, limit int) string {
-	runes := []rune(text)
-	if len(runes) <= limit {
-		return text
-	}
-	return string(runes[:limit])
+	return chunks, nil
 }
 
 func boolToInt(value bool) int {

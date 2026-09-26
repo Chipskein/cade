@@ -100,18 +100,6 @@ func TestRunReportsProgressAfterEachEvent(t *testing.T) {
 	}
 }
 
-func TestTruncateRunesKeepsWholeCharacters(t *testing.T) {
-	if got := truncateRunes("ãéí", 2); got != "ãé" {
-		t.Fatalf("expected %q, got %q", "ãé", got)
-	}
-}
-
-func TestTruncateRunesShortTextUnchanged(t *testing.T) {
-	if got := truncateRunes("abc", 10); got != "abc" {
-		t.Fatalf("expected unchanged text, got %q", got)
-	}
-}
-
 func TestBoolToInt(t *testing.T) {
 	if boolToInt(true) != 1 || boolToInt(false) != 0 {
 		t.Fatal("expected true=1 false=0")
@@ -232,5 +220,34 @@ func TestNonSnapshotOrFailedRunsMarkNothing(t *testing.T) {
 	newTestPipeline(store, &testfakes.FakeEmbedder{FailWith: errors.New("gpu")}).Run(context.Background(), failing, nil)
 	if len(store.MarkedRoots) != 0 {
 		t.Fatalf("expected no root marked, got %v", store.MarkedRoots)
+	}
+}
+
+func longNote() event.Event {
+	return event.Event{UID: "nota", Source: event.SourceFile, Timestamp: time.Unix(1, 0),
+		Content: "arquitetura.md\n" + strings.Repeat("Parágrafo sobre filas e custos. ", 120)}
+}
+
+// Regression: a long note was one vector cut at the embedder's context, so
+// its second half could never be found.
+func TestRunEmbedsEachChunkOfALongEvent(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote()}}, nil)
+	chunks := store.Chunks["nota"]
+	if len(chunks) < 3 || len(embedder.Inputs) != len(chunks) || chunks[len(chunks)-1].End != len(longNote().Content) {
+		t.Fatalf("expected one embedding per chunk covering the text, got %d chunks and %d calls", len(chunks), len(embedder.Inputs))
+	}
+	if !strings.HasPrefix(embedder.Inputs[1], "doc: ") || chunks[1].Ordinal != 1 {
+		t.Fatalf("expected prefixed, ordered chunks, got %q and %+v", embedder.Inputs[1][:10], chunks[1])
+	}
+}
+
+func TestRunReusesAllChunksOfIdenticalLongText(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	copy := longNote()
+	copy.UID = "copia"
+	newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote(), copy}}, nil)
+	if len(store.Chunks["copia"]) != len(store.Chunks["nota"]) || len(embedder.Inputs) != len(store.Chunks["nota"]) {
+		t.Fatalf("expected the copy to reuse every chunk, got %d chunks and %d calls", len(store.Chunks["copia"]), len(embedder.Inputs))
 	}
 }

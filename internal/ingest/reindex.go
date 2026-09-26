@@ -66,11 +66,11 @@ func (p *Pipeline) reindexBatch(ctx context.Context, index storage.EmbeddingInde
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		vector, err := p.embeddingFor(ctx, ev)
+		chunks, err := p.chunksFor(ctx, ev)
 		if err != nil {
 			return 0, err
 		}
-		embeddings = append(embeddings, storage.EventEmbedding{Event: ev, Vector: vector})
+		embeddings = append(embeddings, storage.EventEmbedding{Event: ev, Chunks: chunks})
 	}
 	if err := index.SaveEmbeddings(ctx, embeddings); err != nil {
 		return 0, fmt.Errorf("save %d reindexed embeddings: %w", len(embeddings), err)

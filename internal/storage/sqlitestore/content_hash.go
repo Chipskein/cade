@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/chipskein/cade/internal/storage"
 )
 
 // contentHash identifies an event's text. Events with the same text have
@@ -61,9 +63,9 @@ func contentHashes(ctx context.Context, tx *sql.Tx) (map[int64]string, error) {
 // one of them with a vector will do.
 const reuseCandidates = 8
 
-// StoredEmbeddingForContent returns the vector of a stored event with the
-// same text, if one has a vector.
-func (s *Store) StoredEmbeddingForContent(ctx context.Context, content string) ([]float32, bool, error) {
+// StoredChunksForContent returns the embedded chunks of a stored event
+// with the same text, if one has them: same text, same chunks and vectors.
+func (s *Store) StoredChunksForContent(ctx context.Context, content string) ([]storage.Chunk, bool, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT uid FROM events WHERE content_hash = ? LIMIT ?`, contentHash(content), reuseCandidates)
 	if err != nil {
 		return nil, false, fmt.Errorf("find events with the same content: %w", err)
@@ -72,13 +74,13 @@ func (s *Store) StoredEmbeddingForContent(ctx context.Context, content string) (
 	if err != nil {
 		return nil, false, err
 	}
-	vectors, err := s.EmbeddingsFor(ctx, uids)
 	for _, uid := range uids {
-		if vector, found := vectors[uid]; found {
-			return vector, true, err
+		chunks, err := s.chunksOf(ctx, uid)
+		if err != nil || len(chunks) > 0 {
+			return chunks, len(chunks) > 0, err
 		}
 	}
-	return nil, false, err
+	return nil, false, nil
 }
 
 func collectStrings(rows *sql.Rows) ([]string, error) {

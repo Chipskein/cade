@@ -36,10 +36,10 @@ func TestReindexAcceptsANewDimension(t *testing.T) {
 	if len(missing) != 1 || missing[0].UID != "a" || count != 1 {
 		t.Fatalf("expected only the event with text missing, got %+v (count %d)", missing, count)
 	}
-	if err := store.SaveEmbeddings(ctx, []storage.EventEmbedding{{Event: commit, Vector: []float32{0, 0, 1}}}); err != nil {
+	if err := store.SaveEmbeddings(ctx, []storage.EventEmbedding{{Event: commit, Chunks: whole(commit, []float32{0, 0, 1})}}); err != nil {
 		t.Fatal(err)
 	}
-	vectors, _ := store.EmbeddingsFor(ctx, []string{"a"})
+	vectors := firstVectors(t, store, "a")
 	remaining, _ := store.CountEventsWithoutEmbedding(ctx)
 	if len(vectors["a"]) != 3 || remaining != 0 {
 		t.Fatalf("expected the 3-dim vector stored and nothing left, got %v (%d left)", vectors, remaining)
@@ -60,7 +60,7 @@ func TestReindexPendingUntilFinished(t *testing.T) {
 
 func TestSaveEmbeddingsRejectsUnknownEvent(t *testing.T) {
 	store := openTestStore(t)
-	err := store.SaveEmbeddings(context.Background(), []storage.EventEmbedding{{Event: event.Event{UID: "zz"}, Vector: []float32{1}}})
+	err := store.SaveEmbeddings(context.Background(), []storage.EventEmbedding{{Event: event.Event{UID: "zz"}, Chunks: whole(event.Event{UID: "zz", Content: "x"}, []float32{1})}})
 	if err == nil || !strings.Contains(err.Error(), `"zz"`) {
 		t.Fatalf("expected an error naming the uid, got %v", err)
 	}

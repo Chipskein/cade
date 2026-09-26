@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/storage"
 )
 
 func fileVersionEvent(path, text string, modified time.Time) event.Event {
@@ -50,34 +49,26 @@ func TestMarkMissingFilesFlagsAndClears(t *testing.T) {
 
 // Migration 4 turns one event per version into one per path.
 func TestCollapseFileVersionsMigration(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cade.db")
-	store, _ := Open(context.Background(), path)
-	store.db.Exec(`DROP TABLE file_modifications`)
-	store.db.Exec(`PRAGMA user_version = 3`)
+	legacy := newLegacyDatabase(t, 3)
 	for i, text := range []string{"v1", "v2", "v3"} {
 		old := fileVersionEvent("/notas/a.md", text, fileDay.Add(time.Duration(i)*time.Hour))
 		old.UID = old.UID + text
-		metadata, _ := encodeMetadata(old.Metadata)
-		store.db.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata, content_hash) VALUES (?, ?, 'file', ?, ?, ?)`,
-			old.UID, toUnixMillis(old.Timestamp), old.Content, metadata, contentHash(old.Content))
-		if err := store.SaveEmbeddings(context.Background(), []storage.EventEmbedding{{Event: old, Vector: []float32{float32(i), 1}}}); err != nil {
-			t.Fatal(err)
-		}
+		legacy.add(old, []float32{float32(i), 1})
 	}
-	store.Close()
+	legacy.close()
 	var backups []string
-	migrated, err := OpenWithHooks(context.Background(), path, Hooks{BackupCreated: func(p string) { backups = append(backups, p) }})
+	migrated, err := OpenWithHooks(context.Background(), legacy.Path, Hooks{BackupCreated: func(p string) { backups = append(backups, p) }})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer migrated.Close()
 	current, found, _ := migrated.StoredEvent(context.Background(), event.StableID(event.SourceFile, "/notas/a.md"))
-	var events, vectors int
+	var events, chunks int
 	migrated.db.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&events)
-	migrated.db.QueryRow(`SELECT COUNT(*) FROM event_embeddings`).Scan(&vectors)
+	migrated.db.QueryRow(`SELECT COUNT(*) FROM chunks`).Scan(&chunks)
 	history, _ := migrated.FileModificationsBetween(context.Background(), fileDay, fileDay.Add(24*time.Hour))
-	if !found || current.Content != "v3" || events != 1 || vectors != 1 || len(history) != 3 || len(backups) != 1 {
-		t.Fatalf("expected v3 kept alone with 3 versions in history and a backup, got %q, %d events, %d vectors, %d versions, %v", current.Content, events, vectors, len(history), backups)
+	if !found || current.Content != "v3" || events != 1 || chunks != 1 || len(history) != 3 || len(backups) != 1 {
+		t.Fatalf("expected v3 kept alone with 3 versions in history and a backup, got %q, %d events, %d chunks, %d versions, %v", current.Content, events, chunks, len(history), backups)
 	}
 	if revision, _ := current.Revision(); revision != fileDay.Add(2*time.Hour).UnixNano() {
 		t.Fatalf("expected the latest modification as revision, got %d", revision)

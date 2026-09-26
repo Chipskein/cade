@@ -2,12 +2,14 @@ package rag
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/storage"
@@ -19,8 +21,9 @@ import (
 const NotFoundMarker = "SEM_INFORMACAO"
 
 // maxEvidenceChars bounds each event's text in the prompt so top_k events
-// fit the generation context.
-const maxEvidenceChars = 700
+// fit the generation context: one whole chunk, 8 × 1200 characters being
+// about 3k tokens of the generator's 8k.
+const maxEvidenceChars = chunking.MaxChars
 
 const evidenceTimeLayout = "2006-01-02 15:04"
 
@@ -58,7 +61,7 @@ func formatEvidence(hits []storage.ScoredEvent, location *time.Location) string 
 	var builder strings.Builder
 	for i, hit := range hits {
 		fmt.Fprintf(&builder, "[%d] %s, %s%s\n%s\n\n", i+1, sourceLabel(hit.Event.Source),
-			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(RepeatNote(hit, location)), clip(hit.Event.Content, maxEvidenceChars))
+			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(EvidenceNote(hit, location)), clip(evidenceText(hit), maxEvidenceChars))
 	}
 	return builder.String()
 }
@@ -115,4 +118,41 @@ func parenthesized(note string) string {
 		return ""
 	}
 	return " (" + note + ")"
+}
+
+// evidenceText is the chunk that matched for a long event, not its start:
+// the answer in the second half of a note used to be cut off.
+func evidenceText(hit storage.ScoredEvent) string {
+	if hit.ChunkCount > 1 {
+		return hit.Chunk.Text(hit.Event.Content)
+	}
+	return hit.Event.Content
+}
+
+// EvidenceNote joins what a source line adds to the event: which chunk of a
+// long event matched and how many repeats were folded, e.g.
+// "arquitetura.md, trecho 7 de 20; 3 versões, última em …".
+//
+//	note := rag.EvidenceNote(hit, time.Local)
+func EvidenceNote(hit storage.ScoredEvent, location *time.Location) string {
+	var notes []string
+	for _, note := range []string{chunkNote(hit), RepeatNote(hit, location)} {
+		if note != "" {
+			notes = append(notes, note)
+		}
+	}
+	return strings.Join(notes, "; ")
+}
+
+// chunkNote names the part of a long event; for files, with the file name,
+// since only the first chunk starts with it.
+func chunkNote(hit storage.ScoredEvent) string {
+	if hit.ChunkCount <= 1 {
+		return ""
+	}
+	position := fmt.Sprintf("trecho %d de %d", hit.Chunk.Ordinal+1, hit.ChunkCount)
+	if hit.Event.Source == event.SourceFile {
+		return filepath.Base(hit.Event.File().Path) + ", " + position
+	}
+	return position
 }

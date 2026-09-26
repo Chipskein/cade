@@ -168,3 +168,35 @@ func TestKeepTeamsTextRecoversTextOfOldEvents(t *testing.T) {
 		t.Fatalf("expected the old layout left untouched, got %+v", old)
 	}
 }
+
+// Migration 5 keeps the vector of every short event as its single chunk and
+// leaves long events for reindex.
+func TestSplitIntoChunksKeepsShortVectors(t *testing.T) {
+	legacy := newLegacyDatabase(t, 4)
+	short := sampleEvent("curto", event.SourceGit, 0)
+	long := sampleEvent("longo", event.SourceFile, 0)
+	long.Content = strings.Repeat("parágrafo longo. ", 200)
+	legacy.add(short, []float32{0, 1})
+	legacy.add(long, []float32{1, 0})
+	legacy.close()
+	store, err := Open(context.Background(), legacy.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	chunks, _ := store.ChunksFor(context.Background(), []string{"curto", "longo"})
+	pending, _ := store.ReindexPending(context.Background())
+	missing, _ := store.EventsWithoutEmbedding(context.Background(), 10)
+	if len(chunks["curto"]) != 1 || chunks["curto"][0].Vector[1] != 1 || chunks["curto"][0].End != len(short.Content) || len(chunks["longo"]) != 0 {
+		t.Fatalf("expected the short vector kept as one chunk and the long event without chunks, got %+v", chunks)
+	}
+	if !pending || len(missing) != 1 || missing[0].UID != "longo" {
+		t.Fatalf("expected a pending reindex of the long event, got pending=%v missing=%+v", pending, missing)
+	}
+	var oldTables, freePages int
+	store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'event_embeddings'`).Scan(&oldTables)
+	store.db.QueryRow(`PRAGMA freelist_count`).Scan(&freePages)
+	if oldTables != 0 || freePages != 0 {
+		t.Fatalf("expected the per-event vector table dropped and its space reclaimed, got %d tables and %d free pages", oldTables, freePages)
+	}
+}

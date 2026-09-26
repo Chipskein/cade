@@ -15,7 +15,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 
 | Caminho | Conteúdo | Permissão |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto e embeddings | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto) e embeddings, histórico de edição de arquivos | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
 | `~/.config/cade/config.json` | quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
 | `~/.local/share/cade/models/` | os dois modelos (arquivos públicos) | — |
@@ -45,9 +45,9 @@ Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro de
 
 Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
-- **Modelo de embedding:** o início do texto de cada evento, até o contexto do modelo (512 tokens, cerca de 2.000 caracteres) na ingestão, e o texto de busca de cada pergunta.
+- **Modelo de embedding:** o texto inteiro de cada evento, em pedaços de até 1.200 caracteres, na ingestão (texto idêntico é embutido uma vez), e o texto de busca de cada pergunta.
 - **Interpretação da pergunta:** só a sua pergunta, com instruções e exemplos fixos.
-- **Respostas:** a sua pergunta, a data de hoje e até `top_k` (8) eventos, cada um cortado em 700 caracteres.
+- **Respostas:** a sua pergunta, a data de hoje e até `top_k` (8) eventos; de um evento longo, só o pedaço que casou (até 1.200 caracteres), senão o texto até esse tamanho.
 - Nada mais do banco é passado ao modelo. Listagens e relatórios de tarefas não usam o modelo de geração; uma listagem com assunto ("páginas sobre redis") só embute o assunto.
 
 ## Logs

@@ -15,8 +15,11 @@ import (
 // the canned SearchResults (filtered like the real store) and records the
 // last query.
 type FakeEventStore struct {
-	Events        []event.Event
-	Embeddings    map[string][]float32
+	Events     []event.Event
+	Embeddings map[string][]float32
+	// Chunks holds the chunks given to SaveEvent, UpdateEvent and
+	// SaveEmbeddings; Embeddings mirrors each event's first chunk vector.
+	Chunks        map[string][]storage.Chunk
 	SearchResults []storage.ScoredEvent
 	// Updated lists the UIDs passed to UpdateEvent, in order.
 	Updated   []string
@@ -59,22 +62,23 @@ func (f *FakeEventStore) indexOf(uid string) int {
 }
 
 // UpdateEvent replaces the event and records the UID in Updated.
-func (f *FakeEventStore) UpdateEvent(_ context.Context, ev event.Event, embedding []float32) error {
+func (f *FakeEventStore) UpdateEvent(_ context.Context, ev event.Event, chunks []storage.Chunk) error {
 	index := f.indexOf(ev.UID)
 	if index < 0 || f.FailWith != nil {
 		return f.FailWith
 	}
-	f.Events[index], f.Embeddings[ev.UID] = ev, embedding
+	f.Events[index] = ev
+	f.storeChunks(ev.UID, chunks)
 	f.Updated = append(f.Updated, ev.UID)
 	return nil
 }
 
-func (f *FakeEventStore) SaveEvent(_ context.Context, ev event.Event, embedding []float32) (bool, error) {
+func (f *FakeEventStore) SaveEvent(_ context.Context, ev event.Event, chunks []storage.Chunk) (bool, error) {
 	if f.indexOf(ev.UID) >= 0 || f.FailWith != nil {
 		return false, f.FailWith
 	}
 	f.Events = append(f.Events, ev)
-	f.Embeddings[ev.UID] = embedding
+	f.storeChunks(ev.UID, chunks)
 	return true, nil
 }
 
@@ -117,14 +121,43 @@ func (f *FakeEventStore) Close() error {
 	return nil
 }
 
-func (f *FakeEventStore) EmbeddingsFor(_ context.Context, uids []string) (map[string][]float32, error) {
-	found := map[string][]float32{}
+// ChunksFor returns the stored chunks; an event given only a vector in
+// Embeddings is one chunk covering its whole text.
+func (f *FakeEventStore) ChunksFor(_ context.Context, uids []string) (map[string][]storage.Chunk, error) {
+	found := map[string][]storage.Chunk{}
 	for _, uid := range uids {
-		if vector := f.Embeddings[uid]; vector != nil {
-			found[uid] = vector
+		if chunks := f.chunksOf(uid); len(chunks) > 0 {
+			found[uid] = chunks
 		}
 	}
 	return found, f.FailWith
+}
+
+func (f *FakeEventStore) chunksOf(uid string) []storage.Chunk {
+	if chunks := f.Chunks[uid]; len(chunks) > 0 {
+		return chunks
+	}
+	vector := f.Embeddings[uid]
+	if vector == nil {
+		return nil
+	}
+	end := 0
+	if index := f.indexOf(uid); index >= 0 {
+		end = len(f.Events[index].Content)
+	}
+	return []storage.Chunk{{End: end, Vector: vector}}
+}
+
+// storeChunks keeps the chunks and, as a shortcut for tests, the first
+// chunk's vector in Embeddings.
+func (f *FakeEventStore) storeChunks(uid string, chunks []storage.Chunk) {
+	if f.Chunks == nil {
+		f.Chunks = map[string][]storage.Chunk{}
+	}
+	f.Chunks[uid], f.Embeddings[uid] = chunks, nil
+	if len(chunks) > 0 {
+		f.Embeddings[uid] = chunks[0].Vector
+	}
 }
 
 // Embedding index: the fake records the model and a pending rebuild, and
@@ -140,7 +173,7 @@ func (f *FakeEventStore) RecordEmbeddingModel(_ context.Context, model string) e
 }
 
 func (f *FakeEventStore) StartReindex(_ context.Context, model string) error {
-	f.Embeddings, f.EmbeddingModelName, f.ReindexStarted, f.Pending = map[string][]float32{}, model, f.ReindexStarted+1, true
+	f.Embeddings, f.Chunks, f.EmbeddingModelName, f.ReindexStarted, f.Pending = map[string][]float32{}, nil, model, f.ReindexStarted+1, true
 	return f.FailWith
 }
 
@@ -160,7 +193,7 @@ func (f *FakeEventStore) CountEventsWithoutEmbedding(context.Context) (int, erro
 func (f *FakeEventStore) missingEmbeddings() []event.Event {
 	var missing []event.Event
 	for _, ev := range f.Events {
-		if ev.Content != "" && f.Embeddings[ev.UID] == nil {
+		if ev.Content != "" && len(f.chunksOf(ev.UID)) == 0 {
 			missing = append(missing, ev)
 		}
 	}
@@ -172,7 +205,7 @@ func (f *FakeEventStore) SaveEmbeddings(_ context.Context, embeddings []storage.
 		return f.FailWith
 	}
 	for _, pair := range embeddings {
-		f.Embeddings[pair.Event.UID] = pair.Vector
+		f.storeChunks(pair.Event.UID, pair.Chunks)
 	}
 	return nil
 }
@@ -182,12 +215,12 @@ func (f *FakeEventStore) FinishReindex(context.Context) error {
 	return f.FailWith
 }
 
-// StoredEmbeddingForContent returns the embedding of an event with the
-// same content, as the real store does by content hash.
-func (f *FakeEventStore) StoredEmbeddingForContent(_ context.Context, content string) ([]float32, bool, error) {
+// StoredChunksForContent returns the chunks of an event with the same
+// content, as the real store does by content hash.
+func (f *FakeEventStore) StoredChunksForContent(_ context.Context, content string) ([]storage.Chunk, bool, error) {
 	for _, ev := range f.Events {
-		if vector := f.Embeddings[ev.UID]; ev.Content == content && vector != nil {
-			return vector, true, f.FailWith
+		if chunks := f.chunksOf(ev.UID); ev.Content == content && len(chunks) > 0 {
+			return chunks, true, f.FailWith
 		}
 	}
 	return nil, false, f.FailWith

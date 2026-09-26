@@ -52,6 +52,12 @@ type evidenceReport struct {
 	// (visits to the same page, versions of the same file).
 	Occurrences int       `json:"occurrences"`
 	LatestAt    time.Time `json:"latest_at"`
+	// Chunk (from 1) of Chunks matched; ExcerptStart and ExcerptEnd are its
+	// byte offsets in the event's text, the part given to the model.
+	Chunk        int `json:"chunk"`
+	Chunks       int `json:"chunks"`
+	ExcerptStart int `json:"excerpt_start"`
+	ExcerptEnd   int `json:"excerpt_end"`
 	provenance.Reference
 }
 
@@ -99,7 +105,8 @@ func answerReportOf(answer rag.Answer) *answerReport {
 	report := &answerReport{Found: answer.Found, Text: answer.Text, UnknownCitations: nonNil(answer.UnknownCitations), Evidence: []evidenceReport{}}
 	for i, hit := range answer.Evidence {
 		report.Evidence = append(report.Evidence, evidenceReport{Number: i + 1, Cited: cited[i+1], Distance: hit.Distance,
-			Occurrences: hit.Repeats + 1, LatestAt: latestOccurrence(hit), Reference: provenance.Of(hit.Event)})
+			Occurrences: hit.Repeats + 1, LatestAt: latestOccurrence(hit), Chunk: hit.Chunk.Ordinal + 1, Chunks: max(hit.ChunkCount, 1),
+			ExcerptStart: hit.Chunk.Start, ExcerptEnd: excerptEnd(hit), Reference: provenance.Of(hit.Event)})
 	}
 	return report
 }
@@ -139,4 +146,13 @@ func latestOccurrence(hit storage.ScoredEvent) time.Time {
 		return hit.Event.Timestamp
 	}
 	return hit.LatestAt
+}
+
+// excerptEnd covers the whole text for single-chunk events found without
+// chunk offsets (a store that does not split).
+func excerptEnd(hit storage.ScoredEvent) int {
+	if hit.Chunk.End == 0 {
+		return len(hit.Event.Content)
+	}
+	return hit.Chunk.End
 }

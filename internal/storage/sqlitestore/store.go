@@ -65,8 +65,8 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// SaveEvent inserts the event and its embedding atomically.
-func (s *Store) SaveEvent(ctx context.Context, ev event.Event, embedding []float32) (bool, error) {
+// SaveEvent inserts the event and its chunks atomically.
+func (s *Store) SaveEvent(ctx context.Context, ev event.Event, chunks []storage.Chunk) (bool, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("begin transaction: %w", err)
@@ -79,7 +79,7 @@ func (s *Store) SaveEvent(ctx context.Context, ev event.Event, embedding []float
 	if err := recordFileModification(ctx, tx, ev); err != nil {
 		return false, err
 	}
-	if err := insertEmbedding(ctx, tx, eventID, ev, embedding); err != nil {
+	if err := insertChunks(ctx, tx, eventID, ev, chunks); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -106,26 +106,6 @@ func insertEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, boo
 	}
 	eventID, err := result.LastInsertId()
 	return eventID, err == nil, err
-}
-
-func insertEmbedding(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event, embedding []float32) error {
-	if len(embedding) == 0 {
-		return nil
-	}
-	if err := ensureVectorTable(ctx, tx, len(embedding)); err != nil {
-		return err
-	}
-	blob, err := sqlitevec.SerializeFloat32(embedding)
-	if err != nil {
-		return fmt.Errorf("serialize embedding of event %q: %w", ev.UID, err)
-	}
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO event_embeddings (event_id, embedding, source, occurred_at) VALUES (?, ?, ?, ?)`,
-		eventID, blob, string(ev.Source), toUnixMillis(ev.Timestamp))
-	if err != nil {
-		return fmt.Errorf("insert embedding of event %q: %w", ev.UID, err)
-	}
-	return nil
 }
 
 // EventsBetween returns events with from <= timestamp < to, oldest first.

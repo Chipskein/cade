@@ -154,6 +154,15 @@ O cabeçalho do GGUF do nomic-embed-text-v2-moe informa `nomic-bert-moe.context_
 6. `reindex` recalcula os chunks e os vetores.
 7. **Reindexação obrigatória.** Trocar o vec0 de eventos para chunks invalida todos os vetores. A migração marca a reindexação como pendente (mecanismo que já existe); até o `cade reindex` terminar, `ask` avisa. As notas de versão estimam o tempo (~300 eventos/s numa RTX 3060 hoje, ~6 min para 108 mil eventos; mais com chunks).
 
+### Situação (2026-09-26): concluída
+
+- `internal/chunking` divide textos acima de 1.200 caracteres (títulos Markdown, parágrafos, linhas, espaços; sobreposição de 120). Vetores por pedaço em `chunk_embeddings`, posições em `chunks`; a busca junta os pedaços por evento (o mais próximo) antes de juntar repetições, e o prompt recebe o pedaço que casou, com "trecho i de n". O `--json` traz `chunk`, `chunks`, `excerpt_start` e `excerpt_end`.
+- Teste: recall 0,80 → 0,87, MRR 0,74 → 0,81 (a nota longa com a resposta no fim passou); escala 0,73 → 0,80. Restam os casos de identificador (Fase 3).
+- Calibração: o limite sugerido passou a 0,61 (pior com resposta 0,596, melhor sem resposta 0,624); `max_best_distance` foi para 0,61, e o teste ficou igual.
+- Migração 5 (com cópia e compactação): eventos curtos mantêm o vetor como pedaço único; os longos ficam pendentes para `cade reindex`. Numa cópia do banco real: migração de v2 a v5 em 49 s, banco de 516 MB para 417 MB; `reindex` de 1.568 eventos longos em 80 s; 112.684 pedaços para 108.014 eventos.
+- Custo (100 mil eventos): busca 103 → 112 ms, gravação 0,62 → 0,71 ms, 3.498 → 3.698 bytes por evento, vetores de 1.000 eventos 165 → 207 ms (alvo da Fase 6).
+- A compactação no fim da migração veio de um teste na cópia real: sem ela, apagar a tabela antiga deixava o banco com 902 MB.
+
 ### Critério de aceite
 
 - Nos casos da Fase 0 com a resposta na metade final de notas longas, o recall passa a ser equivalente ao de notas curtas.

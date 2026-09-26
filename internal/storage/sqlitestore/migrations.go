@@ -19,7 +19,10 @@ type migration struct {
 	description string
 	// backup copies the database first; set for steps that rewrite data.
 	backup bool
-	apply  func(ctx context.Context, tx *sql.Tx) error
+	// compact reclaims the space of what the step deleted: dropping the
+	// per-event vector table left ~500 MB of free pages in a 108k history.
+	compact bool
+	apply   func(ctx context.Context, tx *sql.Tx) error
 }
 
 // schemaMigrations lists every step, in order. Version 1 is the schema
@@ -30,6 +33,7 @@ var schemaMigrations = []migration{
 	{version: 2, description: "Teams message text kept in metadata", backup: true, apply: keepTeamsText},
 	{version: 3, description: "content_hash to reuse vectors of identical text", apply: addContentHash},
 	{version: 4, description: "one event per file, versions in file_modifications", backup: true, apply: collapseFileVersions},
+	{version: 5, description: "vectors per chunk instead of per event", backup: true, compact: true, apply: splitIntoChunks},
 }
 
 // Hooks lets the caller report what opening the database did.
@@ -53,13 +57,17 @@ func migrate(ctx context.Context, db *sql.DB, path string, steps []migration, ho
 	if latest := steps[len(steps)-1].version; current > latest {
 		return fmt.Errorf("database %q is at schema version %d, newer than this cade supports (%d); update cade", path, current, latest)
 	}
-	backedUp := false
+	backedUp, compact := false, false
 	for _, step := range steps[current:] {
 		if err := applyMigration(ctx, db, path, step, hooks, &backedUp); err != nil {
 			return err
 		}
+		compact = compact || step.compact
 	}
-	return nil
+	if !compact {
+		return nil
+	}
+	return (&Store{db: db}).compact(ctx)
 }
 
 func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {

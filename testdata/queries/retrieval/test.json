@@ -1,6 +1,6 @@
 {
- "minimum_recall": 0.73,
- "minimum_mrr": 0.67,
+ "minimum_recall": 0.8,
+ "minimum_mrr": 0.74,
  "minimum_rejection": 0.88,
  "cases": [
   {

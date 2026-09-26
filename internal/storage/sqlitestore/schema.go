@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS store_settings (
 // applies the filters (CA9.1); filtering after the top-k cut would silently
 // drop matching events that ranked below k.
 const createVectorTableTemplate = `
-CREATE VIRTUAL TABLE IF NOT EXISTS event_embeddings USING vec0(
-	event_id    INTEGER PRIMARY KEY,
+CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
+	chunk_id    INTEGER PRIMARY KEY,
 	embedding   float[%d] distance_metric=cosine,
 	source      TEXT,
 	occurred_at INTEGER
