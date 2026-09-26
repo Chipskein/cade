@@ -36,8 +36,8 @@ func collapseRepeats(hits []storage.ScoredEvent) []storage.ScoredEvent {
 			kept = append(kept, hit)
 			continue
 		}
-		kept[index].Repeats++
-		kept[index].LatestAt = later(kept[index].LatestAt, hit.Event.Timestamp)
+		kept[index].Repeats += hit.Repeats + 1
+		kept[index].LatestAt = later(kept[index].LatestAt, later(hit.LatestAt, hit.Event.Timestamp))
 	}
 	return kept
 }

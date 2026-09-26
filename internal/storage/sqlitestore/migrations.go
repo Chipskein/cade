@@ -34,6 +34,7 @@ var schemaMigrations = []migration{
 	{version: 3, description: "content_hash to reuse vectors of identical text", apply: addContentHash},
 	{version: 4, description: "one event per file, versions in file_modifications", backup: true, apply: collapseFileVersions},
 	{version: 5, description: "vectors per chunk instead of per event", backup: true, compact: true, apply: splitIntoChunks},
+	{version: 6, description: "keyword index over chunks (FTS5)", apply: indexExistingChunks},
 }
 
 // Hooks lets the caller report what opening the database did.

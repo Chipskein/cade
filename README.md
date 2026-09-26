@@ -19,6 +19,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Configuration](#configuration)
 - [Tests](#tests)
 - [Privacy](PRIVACY.md)
+- [Benchmarks with charts](docs/BENCHMARKS.md) (Portuguese)
 
 > **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. `cade help` and `cade <command> -h` follow the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise); other CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 
@@ -72,6 +73,8 @@ make uninstall
 
 `uninstall` only removes the binary. Models, config and database live in `~/.local/share/cade` and `~/.config/cade`.
 
+Build through `make`: keyword search needs SQLite's FTS5, which the Go driver only compiles with `-tags sqlite_fts5` (a bare `go build` produces a binary that refuses to open the database, saying so). For `go test` in an editor, set the same tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
+
 ## Usage
 
 ```sh
@@ -106,6 +109,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Names are matched as whole words, ignoring case, accents, doubled letters and y/i ("sillva" finds "Leandro Silva"). A name that matches no sender or conversation (a client, a nickname) filters by text instead of being dropped.
 - "Received" leaves out group messages that only @mention other people ("pronto? @Vitor"); a mention of you, a team or tag keeps them.
 - Messages with no content ("ok", "valeu", "bom dia") are not used as evidence for answers; listings still show them.
+- Search is hybrid: meaning (vectors) and keywords (FTS5) are fused. A question naming an identifier — a task or error code (`PROJ-481`, `ORA-01722`), a commit hash, a PR number — returns the events that contain it.
 - Repeats count once in answers: 12 visits to a page or several versions of a note become one source, shown as "(12 visitas, última em …)". Files deleted from their folder leave answers but stay in the timeline.
 - Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
@@ -232,7 +236,8 @@ Other fields (written by `cade init`):
 | `generation.threads`, `embedding.threads` | `0` | CPU threads; `0` = physical cores |
 | `retrieval.top_k` | `8` | events sent to the model per question |
 | `retrieval.max_distance` | `0.72` | relevance cutoff for unfiltered questions |
-| `retrieval.max_best_distance` | `0.62` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
+| `retrieval.mode` | `hybrid` | `hybrid` fuses vector and keyword (FTS5) search; `vector` or `lexical` use one |
+| `retrieval.max_best_distance` | `0.61` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 
 Long notes, messages and commits are split into chunks of up to ~1,200 characters (the embedding model reads 512 tokens), and an answer shows the chunk that matched ("arquitetura.md, trecho 7 de 20"). After upgrading from a version without chunks, run `cade reindex` once: it embeds the long events (1,568 of 108k in a real history, about a minute).

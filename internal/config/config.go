@@ -58,6 +58,9 @@ type RetrievalConfig struct {
 	// closest event is farther: nothing in the history answers it.
 	MaxBestDistance float64 `json:"max_best_distance"`
 	MaxAnswerTokens int     `json:"max_answer_tokens"`
+	// Mode is "hybrid" (vector and keyword search fused), "vector" or
+	// "lexical".
+	Mode string `json:"mode"`
 }
 
 // SourcesConfig lists the default ingestion targets per source.

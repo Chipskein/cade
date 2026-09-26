@@ -121,7 +121,7 @@ func dependencies(t *testing.T, embedder llm.Embedder) Dependencies {
 	t.Cleanup(func() { store.Close() })
 	defaults := config.Defaults()
 	settings := rag.Settings{TopK: defaults.Retrieval.TopK, MaxDistance: defaults.Retrieval.MaxDistance,
-		MaxBestDistance: defaults.Retrieval.MaxBestDistance, QueryPrefix: defaults.Embedding.QueryPrefix}
+		MaxBestDistance: defaults.Retrieval.MaxBestDistance, QueryPrefix: defaults.Embedding.QueryPrefix, Mode: evalMode(t)}
 	return Dependencies{Store: store, Embedder: embedder, Settings: settings, DocumentPrefix: defaults.Embedding.DocumentPrefix,
 		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))}
 }
@@ -134,4 +134,15 @@ func logCase(t *testing.T) CaseDone {
 		}
 		t.Logf("[%2d/%d] %s %s", done, total, mark, result.Question)
 	}
+}
+
+// evalMode lets `make eval-retrieval MODE=vector` compare modes on the same
+// sets; unset means the default.
+func evalMode(t *testing.T) rag.Mode {
+	t.Helper()
+	mode, err := rag.ParseMode(os.Getenv("CADE_EVAL_MODE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return mode
 }

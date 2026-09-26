@@ -21,6 +21,7 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 - [Configuração](#configuração)
 - [Testes](#testes)
 - [Privacidade](PRIVACY.pt-BR.md)
+- [Benchmarks com gráficos](docs/BENCHMARKS.md)
 
 ## Como funciona
 
@@ -72,6 +73,8 @@ make uninstall
 
 `uninstall` remove só o binário. Modelos, configuração e banco ficam em `~/.local/share/cade` e `~/.config/cade`.
 
+Compile pelo `make`: a busca por palavra usa o FTS5 do SQLite, que o driver Go só compila com `-tags sqlite_fts5` (um `go build` puro gera um binário que se recusa a abrir o banco e diz por quê). Para `go test` no editor, use a mesma tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
+
 ## Uso
 
 ```sh
@@ -106,6 +109,7 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Nomes são comparados por palavra inteira, ignorando maiúsculas, acentos, letras dobradas e y/i ("sillva" encontra "Leandro Silva"). Um nome que não é de nenhum remetente ou conversa (um cliente, um apelido) filtra pelo texto em vez de ser descartado.
 - "Recebidas" deixa de fora mensagens de grupo que só marcam outras pessoas ("pronto? @Vitor"); uma menção a você, a um time ou tag mantém a mensagem.
 - Mensagens sem conteúdo ("ok", "valeu", "bom dia") não entram como evidência nas respostas; as listagens continuam mostrando.
+- A busca é híbrida: significado (vetores) e palavras (FTS5) são combinados. Uma pergunta que cita um identificador — código de tarefa ou de erro (`PROJ-481`, `ORA-01722`), hash de commit, número de PR — traz os eventos que o contêm.
 - Repetições contam uma vez nas respostas: 12 visitas a uma página ou várias versões de uma nota viram uma fonte só, mostrada como "(12 visitas, última em …)". Arquivos apagados da pasta saem das respostas, mas continuam na timeline.
 - Período, fonte, pessoas e direção são filtros exatos; só o assunto é buscado por significado ("commits de ontem sobre autenticação" busca "autenticação" entre os commits de ontem). Perguntas sem filtro são buscadas inteiras.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
@@ -232,7 +236,8 @@ Outros campos (criados pelo `cade init`):
 | `generation.threads`, `embedding.threads` | `0` | threads de CPU; `0` = núcleos físicos |
 | `retrieval.top_k` | `8` | eventos enviados ao modelo por pergunta |
 | `retrieval.max_distance` | `0.72` | corte de relevância em perguntas sem filtros |
-| `retrieval.max_best_distance` | `0.62` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
+| `retrieval.mode` | `hybrid` | `hybrid` junta busca por significado e por palavra (FTS5); `vector` ou `lexical` usam uma só |
+| `retrieval.max_best_distance` | `0.61` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 
 Notas, mensagens e commits longos são divididos em pedaços de até ~1.200 caracteres (o modelo de embedding lê 512 tokens), e a resposta mostra o pedaço que casou ("arquitetura.md, trecho 7 de 20"). Ao atualizar de uma versão sem pedaços, rode `cade reindex` uma vez: ele embute os eventos longos (1.568 de 108 mil num histórico real, cerca de um minuto).

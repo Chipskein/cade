@@ -232,3 +232,20 @@ func BenchmarkDatabaseSize(b *testing.B) {
 		b.ReportMetric(float64(info.Size())/float64(bench.size()), "bytes/event")
 	})
 }
+
+// BenchmarkSearchLexical is the keyword half of hybrid retrieval: a word
+// query and an identifier (hash prefix) query.
+func BenchmarkSearchLexical(b *testing.B) {
+	queries := map[string]string{"words": `"deploy" OR "cache" OR "login"`, "hash-prefix": `e5f6a7b*`}
+	forEachSize(b, func(b *testing.B, bench benchStore) {
+		for name, match := range queries {
+			b.Run(name, func(b *testing.B) {
+				for b.Loop() {
+					if _, err := bench.store.SearchLexical(context.Background(), storage.LexicalQuery{Match: match, Limit: 96}); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
+	})
+}

@@ -62,7 +62,8 @@ func runCase(ctx context.Context, answerer *rag.Answerer, suite Suite, suiteCase
 		return CaseResult{}, fmt.Errorf("retrieve %q: %w", suiteCase.Question, err)
 	}
 	groups, distances := hitGroups(suite, hits)
-	return CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: groups, Distances: distances, Scoped: query.IsScoped()}, nil
+	gated := !query.IsScoped() && !rag.HasIdentifier(suiteCase.Question)
+	return CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: groups, Distances: distances, Gated: gated}, nil
 }
 
 func hitGroups(suite Suite, hits []storage.ScoredEvent) ([]string, []float64) {

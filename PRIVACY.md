@@ -15,7 +15,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 | Path | Contents | Mode |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text) and embeddings, file edit history | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text), embeddings, a keyword index of the words of each chunk (plus commit hashes and file paths), file edit history | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models (public files) | — |
@@ -64,6 +64,7 @@ Both models run in-process through llama.cpp.
 | Remove the configuration | `rm -r ~/.config/cade` |
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
+- The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.

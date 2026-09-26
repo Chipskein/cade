@@ -35,7 +35,8 @@ func (s *Store) StartReindex(ctx context.Context, model string) error {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
-	statements := []string{`DROP TABLE IF EXISTS chunk_embeddings`, `DELETE FROM chunks`, `DELETE FROM store_settings WHERE key = '` + dimensionsSettingKey + `'`}
+	statements := []string{`DROP TABLE IF EXISTS chunk_embeddings`, `INSERT INTO chunks_fts (chunks_fts) VALUES ('delete-all')`,
+		`DELETE FROM chunks`, `DELETE FROM store_settings WHERE key = '` + dimensionsSettingKey + `'`}
 	for _, statement := range statements {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("drop vectors for reindex: %w", err)

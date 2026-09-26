@@ -53,6 +53,10 @@ func OpenWithHooks(ctx context.Context, path string, hooks Hooks) (*Store, error
 	// One connection: SQLite serialises writes anyway, and this keeps the
 	// lazily created vec0 table visible to every statement.
 	db.SetMaxOpenConns(1)
+	if err := requireFTS5(ctx, db); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := migrate(ctx, db, path, schemaMigrations, hooks); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("prepare database %q: %w", path, err)

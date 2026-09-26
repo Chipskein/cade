@@ -132,10 +132,10 @@ func TestWriteReportExplainsFailures(t *testing.T) {
 
 func TestCalibrateUsesUnscopedClosestDistances(t *testing.T) {
 	board := Scoreboard{Results: []CaseResult{
-		{Relevant: []string{"a"}, Retrieved: []string{"a"}, Distances: []float64{0.5}},
-		{Relevant: []string{"b"}, Retrieved: []string{"b"}, Distances: []float64{0.58}},
-		{Retrieved: []string{"x"}, Distances: []float64{0.66}},
-		{Retrieved: []string{"y"}, Distances: []float64{0.1}, Scoped: true},
+		{Relevant: []string{"a"}, Retrieved: []string{"a"}, Distances: []float64{0.5}, Gated: true},
+		{Relevant: []string{"b"}, Retrieved: []string{"c", "b"}, Distances: []float64{0.7, 0.58}, Gated: true},
+		{Retrieved: []string{"x"}, Distances: []float64{0.66}, Gated: true},
+		{Retrieved: []string{"y"}, Distances: []float64{0.1}},
 	}}
 	calibration := Calibrate(board)
 	if calibration.Answerable != 2 || calibration.Unanswerable != 1 || !calibration.Separates() || math.Abs(calibration.Suggested()-0.62) > 1e-9 {

@@ -24,7 +24,7 @@ func Defaults() Config {
 		// retrieval suite reports with chunked vectors (closest event at most
 		// 0.596 when something answered, at least 0.624 when not); the test
 		// set, never used for tuning, checks it.
-		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxBestDistance: 0.61, MaxAnswerTokens: 512},
+		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxBestDistance: 0.61, MaxAnswerTokens: 512, Mode: "hybrid"},
 		Sources:   defaultSources(),
 		Tasks:     TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
 	}

@@ -32,6 +32,10 @@ type EventStore interface {
 	// also satisfy the query's source and time filters, one hit per chunk
 	// (an event can appear more than once), closest first.
 	SearchSimilar(ctx context.Context, query SimilarityQuery) ([]ScoredEvent, error)
+	// SearchLexical returns the chunks matching a keyword query that also
+	// satisfy its source and time filters, best match first; hits carry
+	// no distance.
+	SearchLexical(ctx context.Context, query LexicalQuery) ([]ScoredEvent, error)
 	// ChunksFor returns the embedded chunks of the given event UIDs, with
 	// vectors; events without any are absent from the map. Used to rank an
 	// exactly filtered set of events by similarity.
@@ -58,6 +62,16 @@ type SimilarityQuery struct {
 	// From and To bound the timestamp as From <= t < To; zero means unbounded.
 	From time.Time
 	To   time.Time
+}
+
+// LexicalQuery describes a filtered keyword search. Match is an FTS5
+// expression over folded words ("\"redis\" OR \"cache\"", "\"e5f6a7b\"*").
+type LexicalQuery struct {
+	Match  string
+	Limit  int
+	Source event.Source
+	From   time.Time
+	To     time.Time
 }
 
 // FileModification is one version of a file: when it was saved and its

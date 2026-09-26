@@ -44,7 +44,11 @@ func (m *askModels) answerer(ctx context.Context) (*rag.Answerer, error) {
 		m.embedder = embedder
 	}
 	deps := rag.Dependencies{Store: m.store, Embedder: m.embedder, Generator: m.generator, Now: m.env.toolkit.Now, Logger: m.env.logger}
-	return rag.NewAnswerer(deps, ragSettings(m.cfg)), nil
+	settings, err := ragSettings(m.cfg)
+	if err != nil {
+		return nil, err
+	}
+	return rag.NewAnswerer(deps, settings), nil
 }
 
 func (m *askModels) close() {

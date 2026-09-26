@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ type Settings struct {
 	MaxBestDistance float64
 	QueryPrefix     string
 	MaxAnswerTokens int
+	// Mode combines vector and keyword search; empty means hybrid.
+	Mode Mode
 }
 
 // Answer is the generated reply and the events it was grounded on.
@@ -140,7 +143,10 @@ func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer
 	if !query.Criteria.IsEmpty() {
 		return a.retrieveAmong(ctx, query, embedding, observer)
 	}
-	hits, err := a.searchDistinct(ctx, embedding, query)
+	if hits, err := a.identifierHits(ctx, embedding, query); err != nil || len(hits) > 0 {
+		return hits, err
+	}
+	hits, err := a.search(ctx, embedding, query)
 	if err != nil {
 		return nil, err
 	}
@@ -149,6 +155,37 @@ func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer
 		return hits, nil
 	}
 	return a.relevantHits(hits), nil
+}
+
+// identifierHits answers a question naming an identifier (PROJ-481, a
+// commit hash, "PR 45") with the events that contain it: the explicit
+// token is the relevance signal, so the distance gates do not apply. None
+// found falls back to the regular search.
+func (a *Answerer) identifierHits(ctx context.Context, embedding []float32, query queryplan.Query) ([]storage.ScoredEvent, error) {
+	match := identifierMatch(query.Question)
+	if match == "" || a.settings.Mode == ModeVector {
+		return nil, nil
+	}
+	a.logger.Debug("identifier search", "match", match)
+	return a.searchLexical(ctx, embedding, query, match)
+}
+
+// search runs the configured mode: vector neighbours, keyword matches on
+// the question's content words, or both fused.
+func (a *Answerer) search(ctx context.Context, embedding []float32, query queryplan.Query) ([]storage.ScoredEvent, error) {
+	if a.settings.Mode == ModeVector {
+		return a.searchDistinct(ctx, embedding, query)
+	}
+	lexical, err := a.searchLexical(ctx, embedding, query, wordsMatch(searchText(query)))
+	if err != nil || a.settings.Mode == ModeLexical {
+		return lexical, err
+	}
+	vector, err := a.searchDistinct(ctx, embedding, query)
+	if err != nil {
+		return nil, err
+	}
+	fused := collapseRepeats(fuseRankings(vector, lexical))
+	return fused[:min(len(fused), a.settings.TopK)], nil
 }
 
 // relevantHits answers an unfiltered question only if its closest event is
@@ -161,11 +198,21 @@ func (a *Answerer) relevantHits(hits []storage.ScoredEvent) []storage.ScoredEven
 	if len(hits) == 0 {
 		return nil
 	}
-	if a.settings.MaxBestDistance > 0 && hits[0].Distance > a.settings.MaxBestDistance {
-		a.logger.Debug("question rejected: closest event too far", "closest_distance", hits[0].Distance, "max_best_distance", a.settings.MaxBestDistance)
+	if closest := closestDistance(hits); a.settings.MaxBestDistance > 0 && closest > a.settings.MaxBestDistance {
+		a.logger.Debug("question rejected: closest event too far", "closest_distance", closest, "max_best_distance", a.settings.MaxBestDistance)
 		return nil
 	}
 	return withinDistance(hits, a.settings.MaxDistance)
+}
+
+// closestDistance is the smallest distance: after fusing rankings the
+// first hit is not necessarily the closest.
+func closestDistance(hits []storage.ScoredEvent) float64 {
+	closest := math.Inf(1)
+	for _, hit := range hits {
+		closest = min(closest, hit.Distance)
+	}
+	return closest
 }
 
 // searchText falls back to the question for queries built without Resolve.
@@ -203,10 +250,11 @@ func similarityQuery(embedding []float32, query queryplan.Query, limit int) stor
 
 // withinDistance drops weak matches; hits arrive sorted by distance.
 func withinDistance(hits []storage.ScoredEvent, maxDistance float64) []storage.ScoredEvent {
-	for i, hit := range hits {
-		if hit.Distance > maxDistance {
-			return hits[:i]
+	var kept []storage.ScoredEvent
+	for _, hit := range hits {
+		if hit.Distance <= maxDistance {
+			kept = append(kept, hit)
 		}
 	}
-	return hits
+	return kept
 }

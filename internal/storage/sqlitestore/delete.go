@@ -31,6 +31,9 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 	if err := deleteSourceHistory(ctx, tx, source); err != nil {
 		return 0, err
 	}
+	if err := unindexSource(ctx, tx, source); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE source = ?`, string(source))
 	if err != nil {
 		return 0, fmt.Errorf("delete %s events: %w", source, err)

@@ -192,6 +192,14 @@ Não há busca lexical em nenhum lugar do código (nenhuma referência a FTS5 ou
 4. **Rejeição.** Uma correspondência lexical de um termo raro (IDF alto) conta como sinal de relevância. O gate `max_best_distance` passa a considerar os dois sinais. Os limiares são recalibrados **só** no conjunto de calibração da Fase 0.
 5. Configuração: `retrieval.mode = "hybrid" | "vector" | "lexical"`, com padrão `hybrid`.
 
+### Situação (2026-09-26): concluída
+
+- Índice `chunks_fts` (FTS5, `contentless_delete=1`, acentos ignorados) mantido junto com os pedaços; `forget`, edições e `reindex` removem os termos (há teste). O primeiro pedaço indexa também o hash do commit e o caminho do arquivo. Migração 6 sem cópia; a abertura falha com mensagem clara se o binário não tiver FTS5, e todo `go build`/`go test` do Makefile usa `-tags sqlite_fts5`.
+- Identificadores (código, hash, número de PR) viram filtro forte; o resto funde vetor e BM25 por RRF; `retrieval.mode` escolhe `hybrid` (padrão), `vector` ou `lexical`, e `make eval-retrieval MODE=…` compara.
+- Teste (24 perguntas): vetorial 22/24, recall 0,87, MRR 0,81; híbrida 24/24, recall 1,00, MRR 0,88, rejeição 1,00, redundância 0,00. Escala (10 mil eventos): recall 0,80 → 0,93, MRR 0,80 → 0,82. A calibração manteve 0,61.
+- Duas correções achadas pelas métricas: a fusão deixava passar repetições (redundância 0,03; agora repetições são juntadas depois da fusão) e a calibração olhava o primeiro resultado em vez do mais próximo e incluía perguntas com identificador.
+- Custo: busca por palavra 76 ms em 100 mil eventos sintéticos com palavras muito comuns, 0,1 ms por hash. Cópia do banco real: migração de v2 a v6 em 50 s, `reindex` em 77 s, 450 MB.
+
 ### Critério de aceite
 
 - Os casos de identificador exato da Fase 0 têm recall 1,0 no conjunto de teste **novo e maior**. (PROJ-418 × PROJ-481 já tem recall 1,0 hoje só com vetores, no corpus de 255 eventos; o critério só prova algo no corpus em escala.)

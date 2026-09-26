@@ -42,6 +42,9 @@ func insertChunks(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event
 		if err := insertVector(ctx, tx, chunkID, ev, chunk.Vector); err != nil {
 			return err
 		}
+		if err := indexChunk(ctx, tx, chunkID, ev, chunk); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -69,6 +72,9 @@ func deleteChunks(ctx context.Context, tx *sql.Tx, eventID int64) error {
 	for _, id := range ids {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM chunk_embeddings WHERE chunk_id = ?`, id); err != nil {
 			return fmt.Errorf("delete vector of chunk %d: %w", id, err)
+		}
+		if err := unindexChunk(ctx, tx, id); err != nil {
+			return err
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM chunks WHERE event_id = ?`, eventID); err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 )
 
 // Calibration summarizes, for questions without filters (the only ones
@@ -22,10 +23,10 @@ type Calibration struct {
 func Calibrate(board Scoreboard) Calibration {
 	calibration := Calibration{AnswerableMax: math.Inf(-1), UnanswerableMin: math.Inf(1)}
 	for _, result := range board.Results {
-		if result.Scoped || len(result.Distances) == 0 {
+		if !result.Gated || len(result.Distances) == 0 {
 			continue
 		}
-		closest := result.Distances[0]
+		closest := slices.Min(result.Distances)
 		if result.Answerable() {
 			calibration.Answerable++
 			calibration.AnswerableMax = max(calibration.AnswerableMax, closest)

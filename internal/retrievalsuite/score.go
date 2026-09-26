@@ -14,9 +14,9 @@ type CaseResult struct {
 	Retrieved []string
 	// Distances match Retrieved; they show where max_distance would cut.
 	Distances []float64
-	// Scoped questions had exact filters; only unscoped ones go through
-	// the distance gates, so calibration looks at those.
-	Scoped bool
+	// Gated questions are the ones the distance gates judge: no exact
+	// filter and no identifier. Calibration looks only at those.
+	Gated bool
 }
 
 // Repeats counts retrieved slots taken by a group already retrieved: the

@@ -37,6 +37,10 @@ type FakeEventStore struct {
 	MarkedRoots   []string
 	LastPresent   map[string]bool
 	MissingFiles  int
+	// LexicalResults are returned by SearchLexical, which records each
+	// query in LexicalQueries.
+	LexicalResults []storage.ScoredEvent
+	LexicalQueries []storage.LexicalQuery
 }
 
 // NewFakeEventStore returns an empty store.
@@ -241,4 +245,17 @@ func (f *FakeEventStore) FileModificationsBetween(_ context.Context, from, to ti
 func (f *FakeEventStore) MarkMissingFiles(_ context.Context, root string, present map[string]bool, _ time.Time) (int, error) {
 	f.MarkedRoots, f.LastPresent = append(f.MarkedRoots, root), present
 	return f.MissingFiles, f.FailWith
+}
+
+// SearchLexical records the query and returns LexicalResults filtered like
+// the real store.
+func (f *FakeEventStore) SearchLexical(_ context.Context, query storage.LexicalQuery) ([]storage.ScoredEvent, error) {
+	f.LexicalQueries = append(f.LexicalQueries, query)
+	var hits []storage.ScoredEvent
+	for _, hit := range f.LexicalResults {
+		if len(hits) < query.Limit && (query.Source == "" || hit.Event.Source == query.Source) {
+			hits = append(hits, hit)
+		}
+	}
+	return hits, f.FailWith
 }
