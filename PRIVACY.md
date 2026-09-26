@@ -16,6 +16,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | Path | Contents | Mode |
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text and embeddings | `600` |
+| `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models (public files) | — |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | copies of the browser history and Teams IndexedDB while one ingestion runs; removed when it ends | `700` |
@@ -64,5 +65,6 @@ Both models run in-process through llama.cpp.
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
 - Replaced text, such as an edited message, is zeroed as well (SQLite `secure_delete`).
+- `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - There is no command to delete a single event.

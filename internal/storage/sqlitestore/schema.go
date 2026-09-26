@@ -35,13 +35,6 @@ CREATE VIRTUAL TABLE IF NOT EXISTS event_embeddings USING vec0(
 
 const dimensionsSettingKey = "embedding_dimensions"
 
-func createSchema(ctx context.Context, db *sql.DB) error {
-	if _, err := db.ExecContext(ctx, createEventsTable); err != nil {
-		return fmt.Errorf("create events schema: %w", err)
-	}
-	return nil
-}
-
 // ensureVectorTable creates the vector table on first use, because its
 // dimension is only known once the embedding model has produced a vector.
 func ensureVectorTable(ctx context.Context, tx *sql.Tx, dimensions int) error {

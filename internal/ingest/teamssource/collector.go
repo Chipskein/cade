@@ -42,24 +42,27 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 		senders:       profileNames(records),
 		origin:        originName(c.dir),
 	}
+	tally := formatTally{records: len(records)}
 	for _, record := range records {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
-		if err := emitReplyChain(record, messages, emit); err != nil {
+		if err := emitReplyChain(record, messages, emit, &tally); err != nil {
 			return err
 		}
 	}
-	return nil
+	return tally.check(c.dir)
 }
 
 // emitReplyChain emits the messages of one reply chain (a thread root and
 // its replies, keyed by message id in messageMap).
-func emitReplyChain(record indexeddb.Record, messages messageContext, emit ingest.EmitFunc) error {
+func emitReplyChain(record indexeddb.Record, messages messageContext, emit ingest.EmitFunc, tally *formatTally) error {
 	if !isStore(record, replyChainDatabasePrefix, replyChainStore) {
 		return nil
 	}
+	tally.replyChains++
 	for _, entry := range record.Value.Get("messageMap").Properties {
+		tally.countMessage(entry.Value)
 		message, ok := parseMessage(entry.Value, messages.senders)
 		if !ok {
 			continue

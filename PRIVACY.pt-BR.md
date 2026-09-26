@@ -16,6 +16,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 | Caminho | Conteúdo | Permissão |
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto e embeddings | `600` |
+| `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
 | `~/.config/cade/config.json` | quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
 | `~/.local/share/cade/models/` | os dois modelos (arquivos públicos) | — |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | cópias do histórico do navegador e do IndexedDB do Teams durante uma ingestão; apagadas ao final | `700` |
@@ -64,5 +65,6 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
 - Texto substituído, como o de uma mensagem editada, também é zerado (`secure_delete` do SQLite).
+- O `forget` não mexe nas cópias de migração (`cade.db.before-v*`); apague-as você mesmo.
 - Cópias feitas fora do cade não são afetadas: backups, snapshots, ou saídas de `cade ask --json` que você salvou.
 - Não há comando para apagar um evento isolado.

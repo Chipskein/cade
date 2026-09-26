@@ -1,0 +1,103 @@
+package sqlitestore
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"os"
+	"time"
+)
+
+// Schema changes are numbered migrations; PRAGMA user_version records the
+// last one applied. Re-ingesting is not a way to change the schema: the
+// Teams cache and browser history expire, so events lost to a rebuild do
+// not come back.
+
+// migration brings the database from version-1 to version.
+type migration struct {
+	version     int
+	description string
+	// backup copies the database first; set for steps that rewrite data.
+	backup bool
+	apply  func(ctx context.Context, tx *sql.Tx) error
+}
+
+// schemaMigrations lists every step, in order. Version 1 is the schema
+// from before versioning; its IF NOT EXISTS makes it a no-op on databases
+// created by earlier versions.
+var schemaMigrations = []migration{
+	{version: 1, description: "events and store_settings tables", apply: createBaseSchema},
+}
+
+// Hooks lets the caller report what opening the database did.
+type Hooks struct {
+	// BackupCreated receives the path of the copy made before a migration.
+	BackupCreated func(backupPath string)
+}
+
+func createBaseSchema(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, createEventsTable)
+	return err
+}
+
+// migrate applies the pending steps, each in its own transaction together
+// with the new user_version, so a failure leaves the last good version.
+func migrate(ctx context.Context, db *sql.DB, path string, steps []migration, hooks Hooks) error {
+	current, err := schemaVersion(ctx, db)
+	if err != nil {
+		return err
+	}
+	if latest := steps[len(steps)-1].version; current > latest {
+		return fmt.Errorf("database %q is at schema version %d, newer than this cade supports (%d); update cade", path, current, latest)
+	}
+	for _, step := range steps[current:] {
+		if err := applyMigration(ctx, db, path, step, hooks); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
+	var version int
+	if err := db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
+		return 0, fmt.Errorf("read schema version: %w", err)
+	}
+	return version, nil
+}
+
+func applyMigration(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
+	if step.backup {
+		if err := backupBefore(ctx, db, path, step, hooks); err != nil {
+			return err
+		}
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin migration %d: %w", step.version, err)
+	}
+	defer tx.Rollback()
+	if err := step.apply(ctx, tx); err != nil {
+		return fmt.Errorf("migration %d (%s): %w", step.version, step.description, err)
+	}
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, step.version)); err != nil {
+		return fmt.Errorf("record schema version %d: %w", step.version, err)
+	}
+	return tx.Commit()
+}
+
+// backupBefore writes a consistent copy (VACUUM INTO includes what is
+// still in the WAL) next to the database, owner-only like the original.
+func backupBefore(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
+	backupPath := fmt.Sprintf("%s.before-v%d-%s", path, step.version, time.Now().Format("20060102-150405"))
+	if _, err := db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
+		return fmt.Errorf("back up %q to %q before migration %d: %w", path, backupPath, step.version, err)
+	}
+	if err := os.Chmod(backupPath, privateFileMode); err != nil {
+		return fmt.Errorf("restrict backup %q: %w", backupPath, err)
+	}
+	if hooks.BackupCreated != nil {
+		hooks.BackupCreated(backupPath)
+	}
+	return nil
+}

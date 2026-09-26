@@ -113,9 +113,46 @@ func TestCollectIgnoresOtherStores(t *testing.T) {
 	pinned := replyChain(message("1", "Text", "oi"))
 	pinned.Store = "pinned-messages-store"
 	failed := indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, DecodeErr: errors.New("bad")}
-	events, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{pinned, failed}})
-	if err != nil || len(events) != 0 {
-		t.Fatalf("expected nothing from other stores or failed records, got %d (err %v)", len(events), err)
+	valid := replyChain(message("2", "Text", "tchau"))
+	events, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{pinned, failed, valid}})
+	if err != nil || len(events) != 1 || !strings.Contains(events[0].Content, "tchau") {
+		t.Fatalf("expected only the reply chain's message, got %d (err %v)", len(events), err)
+	}
+}
+
+// Regression guard: a Teams update renaming the message store made
+// ingestion report "0 novos" silently.
+func TestCollectFailsWhenMessageStoreIsMissing(t *testing.T) {
+	renamed := replyChain(message("1", "Text", "oi"))
+	renamed.Store = "replychains-v2"
+	_, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{conversationRecord(), renamed}})
+	if err == nil || !strings.Contains(err.Error(), `nenhum no store "replychains"`) || !strings.Contains(err.Error(), "cade teams-schema") {
+		t.Fatalf("expected an unrecognized-format error pointing to teams-schema, got %v", err)
+	}
+}
+
+func TestCollectFailsWhenNoMessageHasTheExpectedFields(t *testing.T) {
+	renamed := obj("id", str("1"), "conversationId", str(testConversationID), "messageType", str("Text"),
+		"body", str("oi"), "originalArrivalTime", num(float64(sentAt.UnixMilli())))
+	_, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{replyChain(renamed)}})
+	if err == nil || !strings.Contains(err.Error(), "1 mensagens no cache e nenhuma com os campos") {
+		t.Fatalf("expected an unrecognized-fields error, got %v", err)
+	}
+}
+
+// System and deleted messages are skipped on purpose, not an unknown format.
+func TestCollectAcceptsCacheWithOnlySkippedMessages(t *testing.T) {
+	deleted := message("1", "Text", "segredo")
+	deleted.Properties = append(deleted.Properties, v8value.Property{Key: "deletionInfo", Value: obj()})
+	records := []indexeddb.Record{replyChain(deleted, message("2", "ThreadActivity/AddMember", "<addmember/>"))}
+	if events, err := collectTeams(t, FakeIndexedDBReader{Records: records}); err != nil || len(events) != 0 {
+		t.Fatalf("expected no events and no error, got %d (err %v)", len(events), err)
+	}
+}
+
+func TestCollectAcceptsEmptyIndexedDB(t *testing.T) {
+	if _, err := collectTeams(t, FakeIndexedDBReader{}); err != nil {
+		t.Fatalf("an empty origin is not a format change, got %v", err)
 	}
 }
 

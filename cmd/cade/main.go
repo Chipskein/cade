@@ -52,7 +52,9 @@ func openStore(ctx context.Context, path string) (storage.EventStore, error) {
 	if err := os.Chmod(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
-	return sqlitestore.Open(ctx, path)
+	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: func(backupPath string) {
+		fmt.Fprintf(os.Stderr, "Banco atualizado para o novo esquema; cópia da versão anterior em %s\n", backupPath)
+	}})
 }
 
 func loadEmbedder(settings config.EmbeddingConfig) (cli.ClosableEmbedder, error) {

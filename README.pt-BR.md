@@ -197,6 +197,8 @@ cade ingest teams $T/https_teams.cloud.microsoft_0.indexeddb.leveldb \
 
 Apenas mensagens já carregadas pelo cliente estão disponíveis.
 
+Se uma atualização do Teams renomear o que o cade lê, o `ingest teams` falha com "formato do Teams não reconhecido" em vez de não achar nada em silêncio. As mensagens já guardadas não são afetadas. `cade teams-schema DIR` mostra a nova estrutura sem valores, para adaptar o leitor.
+
 Eventos já ingeridos só são reprocessados se o conteúdo mudou na fonte (uma mensagem editada no Teams substitui o texto guardado; o `ingest` os conta como "atualizados"). Após atualizar o `cade`, para reingerir uma fonte do zero:
 
 ```sh
@@ -232,6 +234,8 @@ Outros campos (criados pelo `cade init`):
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 
 Trocar o modelo de embedding exige um banco novo.
+
+Mudanças de esquema são aplicadas automaticamente ao abrir o banco (migrações numeradas). Um passo que reescreve dados antes salva uma cópia como `cade.db.before-vN-<data>` e avisa onde; apague-a quando estiver satisfeito.
 
 ## Testes
 

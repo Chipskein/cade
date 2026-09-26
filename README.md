@@ -197,6 +197,8 @@ cade ingest teams $T/https_teams.cloud.microsoft_0.indexeddb.leveldb \
 
 Only messages the client has already loaded are available.
 
+If a Teams update renames what cade reads, `ingest teams` fails with "formato do Teams não reconhecido" instead of silently finding nothing. Messages already stored are not affected. `cade teams-schema DIR` shows the new structure without values, to adapt the reader.
+
 Events already ingested are only reprocessed when their content changed at the source (an edited Teams message replaces the stored text; `ingest` reports them as "atualizados"). After updating `cade`, to re-ingest a source from scratch:
 
 ```sh
@@ -232,6 +234,8 @@ Other fields (written by `cade init`):
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 
 Changing the embedding model requires a new database.
+
+Schema changes are applied automatically when the database is opened (numbered migrations). A step that rewrites data first saves a copy as `cade.db.before-vN-<date>` and says where; delete it once you are satisfied.
 
 ## Tests
 

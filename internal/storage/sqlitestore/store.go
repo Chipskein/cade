@@ -30,13 +30,19 @@ type Store struct {
 
 var _ storage.EventStore = (*Store)(nil)
 
-// Open opens (creating if needed) the database file at path.
+// Open opens (creating if needed) the database file at path and applies
+// pending schema migrations.
 //
 //	store, err := sqlitestore.Open(ctx, "~/.local/share/cade/cade.db")
-//
-// secure_delete zeroes the old text when an event is deleted or replaced
-// (an edited message), instead of leaving it in free pages.
 func Open(ctx context.Context, path string) (*Store, error) {
+	return OpenWithHooks(ctx, path, Hooks{})
+}
+
+// OpenWithHooks is Open reporting through hooks, e.g. where a migration
+// backup was written. secure_delete zeroes the old text when an event is
+// deleted or replaced (an edited message), instead of leaving it in free
+// pages.
+func OpenWithHooks(ctx context.Context, path string, hooks Hooks) (*Store, error) {
 	if err := restrictPermissions(path); err != nil {
 		return nil, err
 	}
@@ -47,7 +53,7 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	// One connection: SQLite serialises writes anyway, and this keeps the
 	// lazily created vec0 table visible to every statement.
 	db.SetMaxOpenConns(1)
-	if err := createSchema(ctx, db); err != nil {
+	if err := migrate(ctx, db, path, schemaMigrations, hooks); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("prepare database %q: %w", path, err)
 	}
