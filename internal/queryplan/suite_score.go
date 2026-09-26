@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -127,11 +128,33 @@ func (s *Scoreboard) Accuracy(field Field) float64 {
 	return float64(s.Correct[field]) / float64(s.Cases)
 }
 
-// BelowMinimum lists the fields whose accuracy fell under the suite's floor.
+// Interval is the 95% Wilson score interval of field's accuracy. With a
+// few dozen cases one miss moves the accuracy by several points, so floors
+// are checked against the lower bound, not the point estimate.
+func (s *Scoreboard) Interval(field Field) (float64, float64) {
+	return wilsonInterval(s.Correct[field], s.Cases)
+}
+
+// wilsonZ is the normal quantile for a 95% interval.
+const wilsonZ = 1.96
+
+func wilsonInterval(successes, trials int) (float64, float64) {
+	if trials == 0 {
+		return 0, 1
+	}
+	n, p := float64(trials), float64(successes)/float64(trials)
+	center := (p + wilsonZ*wilsonZ/(2*n)) / (1 + wilsonZ*wilsonZ/n)
+	margin := wilsonZ * math.Sqrt(p*(1-p)/n+wilsonZ*wilsonZ/(4*n*n)) / (1 + wilsonZ*wilsonZ/n)
+	return max(0, center-margin), min(1, center+margin)
+}
+
+// BelowMinimum lists the fields whose interval's lower bound fell under
+// the suite's floor.
 func (s *Scoreboard) BelowMinimum(minimums map[Field]float64) []Field {
 	var below []Field
 	for _, field := range scoredFields {
-		if minimum, enforced := minimums[field]; enforced && s.Accuracy(field) < minimum {
+		low, _ := s.Interval(field)
+		if minimum, enforced := minimums[field]; enforced && low < minimum {
 			below = append(below, field)
 		}
 	}
@@ -142,7 +165,8 @@ func (s *Scoreboard) BelowMinimum(minimums map[Field]float64) []Field {
 func (s *Scoreboard) WriteReport(out io.Writer) {
 	fmt.Fprintf(out, "%d perguntas, %d totalmente corretas\n", s.Cases, s.Cases-len(s.Failures))
 	for _, field := range scoredFields {
-		fmt.Fprintf(out, "  %-10s %3d/%d  %3.0f%%\n", field, s.Correct[field], s.Cases, 100*s.Accuracy(field))
+		low, high := s.Interval(field)
+		fmt.Fprintf(out, "  %-10s %3d/%d  %3.0f%%  [%3.0f%%–%3.0f%%]\n", field, s.Correct[field], s.Cases, 100*s.Accuracy(field), 100*low, 100*high)
 	}
 	for _, failure := range s.Failures {
 		fmt.Fprintf(out, "✗ %s\n", failure.Question)

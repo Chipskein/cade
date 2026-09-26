@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 const shippedSuitePath = "../../testdata/queries/plan.json"
@@ -99,9 +101,24 @@ func TestScoreboardAccuracyAndMinimums(t *testing.T) {
 	if board.Accuracy(FieldMode) != 0.5 || board.Accuracy(FieldDays) != 1 || len(board.Failures) != 1 {
 		t.Fatalf("unexpected scoreboard %+v", board)
 	}
-	below := board.BelowMinimum(map[Field]float64{FieldMode: 0.8, FieldDays: 1})
+	below := board.BelowMinimum(map[Field]float64{FieldMode: 0.8, FieldDays: 0.3})
 	if len(below) != 1 || below[0] != FieldMode {
 		t.Fatalf("expected only mode below its floor, got %v", below)
+	}
+}
+
+// Floors are checked against the lower bound: 2/2 correct is not proof of
+// 100% accuracy.
+func TestWilsonInterval(t *testing.T) {
+	low, high := wilsonInterval(45, 50)
+	if math.Abs(low-0.7864) > 0.001 || math.Abs(high-0.9565) > 0.001 {
+		t.Fatalf("expected [0.786, 0.957], got [%.4f, %.4f]", low, high)
+	}
+	if low, high := wilsonInterval(2, 2); low > 0.35 || high != 1 {
+		t.Fatalf("expected a wide interval for 2/2, got [%.2f, %.2f]", low, high)
+	}
+	if low, high := wilsonInterval(0, 0); low != 0 || high != 1 {
+		t.Fatalf("expected [0, 1] without trials, got [%.2f, %.2f]", low, high)
 	}
 }
 
@@ -110,7 +127,7 @@ func TestWriteReportListsFailures(t *testing.T) {
 	board.Add(CaseResult{Question: "quais tickets?", Mismatches: []Mismatch{{FieldStatus, "em_andamento", ""}}})
 	var out strings.Builder
 	board.WriteReport(&out)
-	if !strings.Contains(out.String(), "status       0/1") || !strings.Contains(out.String(), `status: esperado "em_andamento", veio ""`) {
+	if !strings.Contains(out.String(), "status       0/1    0%  [  0%– 79%]") || !strings.Contains(out.String(), `status: esperado "em_andamento", veio ""`) {
 		t.Fatalf("unexpected report:\n%s", out.String())
 	}
 }
@@ -174,4 +191,28 @@ func TestRunSuiteReportsEachCase(t *testing.T) {
 	if strings.Join(seen, ",") != "1/2 a,2/2 b" {
 		t.Fatalf("unexpected progress %v", seen)
 	}
+}
+
+// Expected periods must be what the deterministic parser reads from the
+// question, so a typo in a hand-written date fails here, not as a model
+// mistake.
+func TestShippedSuitePeriodsMatchTheParser(t *testing.T) {
+	suite := loadShippedSuite(t)
+	for _, suiteCase := range suite.Cases {
+		resolved := describeDays(ResolvePeriod(suiteCase.Question, "", suite.Now))
+		expected := suiteCase.Expect.Days
+		if expected != "" && suiteCase.Expect.Mode == "tarefas" && resolved == "" {
+			expected = ""
+		}
+		if resolved != expected {
+			t.Errorf("%q: parser reads %q, suite expects %q", suiteCase.Question, resolved, suiteCase.Expect.Days)
+		}
+	}
+}
+
+func describeDays(days *timeline.DayRange) string {
+	if days == nil {
+		return ""
+	}
+	return days.String()
 }

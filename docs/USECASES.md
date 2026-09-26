@@ -116,8 +116,8 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RNF6.1** Fontes (repositórios, históricos do browser, diretórios, diretórios do Teams), modelos e parâmetros de busca são configuráveis em `~/.config/cade/config.json`, sem hardcode.
 
 ### RNF7 — Qualidade da interpretação
-- **RNF7.1** Uma suíte de perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, tarefas, ambíguas, PT e EN) fixa o plano esperado de cada uma. `make eval-plan` roda a suíte com o modelo real e mede o acerto por campo (tipo, período, fonte, pessoas, direção, assunto, status).
-- **RNF7.2** Cada campo tem um piso (`minimum_accuracy`); mudanças de prompt ou modelo que o derrubem falham o teste, em vez de regredirem em silêncio.
+- **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `make eval-plan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.
+- **RNF7.2** Cada campo tem um piso (`minimum_accuracy`) comparado com o limite inferior do intervalo: mudanças de prompt ou modelo que o derrubem falham o teste, em vez de regredirem em silêncio, e um erro isolado não reprova.
 - **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `make eval-retrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `make eval-scale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
 
 ---

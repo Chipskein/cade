@@ -43,6 +43,13 @@ A ordem importa. A **Fase 0** (avaliação) vem primeiro porque as outras mudan�
 4. **Suíte de plano maior.** Levar `plan.json` a pelo menos 150 casos, distribuídos entre PT e EN e entre modos. Reportar cada campo com intervalo de confiança (Wilson 95%). O `minimum_accuracy` passa a ser comparado com o limite inferior do intervalo.
 5. **Casos reais anonimizados.** Documentar em `testdata/README.md` como transformar perguntas reais em casos, trocando nomes, URLs e IDs por fictícios.
 
+### Situação (2026-09-26): concluída
+
+- Recuperação: corpus de 291 eventos, 25 casos de calibração e 24 de teste; `make eval-scale` e `bench/retrieval-scale.txt`. Baseline em `bench/retrieval-baseline.txt`: recall 0,80, MRR 0,74, rejeição 1,00, redundância 0,17 no teste. A calibração mostra sobreposição: nenhum `max_best_distance` separa perguntas com e sem resposta (pior com resposta 0,669, melhor sem resposta 0,634).
+- Plano: 153 casos, intervalo de Wilson 95%, pisos no limite inferior. Baseline em `bench/plan-baseline.txt`: 129/153 totalmente corretas; os erros se concentram em empresa, time ou projeto lido como pessoa e em direção ausente com "me enviou" e "from".
+- Guia de anonimização em `testdata/README.md`.
+- O benchmark de modelos passou a aquecer antes de medir: o embedding custa ~3,5 ms, e não 27 ms (`bench/baseline.txt`).
+
 ### Critério de aceite
 
 - `make eval` imprime as métricas do conjunto de teste separadas das de calibração.

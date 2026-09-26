@@ -1,0 +1,73 @@
+# cade plan baseline — 2026-09-26, 153 casos, pisos comparados ao limite inferior de Wilson 95%
+        153 perguntas, 129 totalmente corretas
+          mode       146/153   95%  [ 91%– 98%]
+          days       153/153  100%  [ 98%–100%]
+          source     146/153   95%  [ 91%– 98%]
+          people     145/153   95%  [ 90%– 97%]
+          direction  149/153   97%  [ 93%– 99%]
+          topic      142/153   93%  [ 88%– 96%]
+          status     153/153  100%  [ 98%–100%]
+        ✗ que mensagem eu mandei pra Juliana sobre o contrato?
+            source: esperado "teams", veio ""
+        ✗ conversas com a Beatriz e o Tiago na última semana
+            mode: esperado "listar", veio "responder"
+        ✗ o que eu pesquisei na web sobre a migração do banco em 20/09?
+            mode: esperado "responder", veio "listar"
+        ✗ o que eu sei sobre o cliente Acme?
+            people: esperado "", veio "acme"
+            topic: esperado "Acme", veio ""
+        ✗ Quais foram as tarefas da Acme que me passaram ontem
+            people: esperado "", veio "acme"
+            topic: esperado "Acme", veio ""
+        ✗ onde está documentada a política de backup?
+            source: esperado "", veio "file"
+        ✗ como configurei o pre-commit no repositório?
+            source: esperado "", veio "git"
+        ✗ o que a Beatriz me mandou hoje?
+            mode: esperado "responder", veio "listar"
+            source: esperado "", veio "teams"
+        ✗ conversas com a Juliana essa semana
+            mode: esperado "listar", veio "responder"
+        ✗ mensagens da Ana no chat do projeto
+            direction: esperado "recebidas", veio ""
+        ✗ mensagens que o Leandro me enviou este mês
+            direction: esperado "recebidas", veio ""
+        ✗ messages from Beatriz this week
+            direction: esperado "recebidas", veio ""
+        ✗ what did I tell Rui about the contract?
+            direction: esperado "enviadas", veio ""
+        ✗ conversations with Carla last week
+            mode: esperado "listar", veio "responder"
+        ✗ show me what Juliana sent me today
+            source: esperado "", veio "teams"
+        ✗ o que a Zenite pediu no último contrato?
+            people: esperado "", veio "zenite"
+            topic: esperado "Zenite", veio "contrato"
+        ✗ o que o time de QA reportou ontem?
+            mode: esperado "responder", veio "listar"
+            source: esperado "", veio "teams"
+            people: esperado "", veio "time of qa"
+            topic: esperado "QA", veio ""
+        ✗ falei com o suporte da AWS sobre o limite?
+            people: esperado "", veio "suporte da aws"
+            topic: esperado "AWS", veio "limite"
+        ✗ what did Globex ask for in the renewal?
+            people: esperado "", veio "globex"
+            topic: esperado "Globex", veio "renewal"
+        ✗ did the QA team report anything yesterday?
+            source: esperado "", veio "teams"
+            people: esperado "", veio "qa team"
+            topic: esperado "QA", veio ""
+        ✗ quais demandas ficaram pendentes essa semana?
+            topic: esperado "", veio "pendentes"
+        ✗ quais cards o Pedro me passou hoje?
+            mode: esperado "tarefas", veio "listar"
+            topic: esperado "", veio "cards"
+        ✗ tarefas da Zenite que me mandaram essa semana
+            people: esperado "", veio "zenite"
+            topic: esperado "Zenite", veio ""
+        ✗ what tickets are still pending?
+            topic: esperado "", veio "pending"
+--- PASS: TestPlanSuiteWithModel (134.06s)
+PASS
+ok  	github.com/chipskein/cade/internal/queryplan	134.220s
