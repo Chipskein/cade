@@ -53,9 +53,9 @@ func nameCandidates(name string) []string {
 }
 
 func (p personMatcher) matches(ev event.Event) bool {
-	sender := firstNonEmpty(ev.Metadata["sender"], ev.Metadata["author"])
+	sender := firstNonEmpty(ev.Message().Sender, ev.Commit().Author)
 	return p.asSender && containsName(sender, p.name) ||
-		p.inConversation && containsName(ev.Metadata["conversation"], p.name)
+		p.inConversation && containsName(ev.Message().Conversation, p.name)
 }
 
 func matchesAnyPerson(ev event.Event, people []personMatcher) bool {

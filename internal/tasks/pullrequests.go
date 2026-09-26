@@ -52,7 +52,7 @@ func recordCreationPage(ev event.Event, creations map[string][]time.Time) {
 	if ev.Source != event.SourceBrowser {
 		return
 	}
-	if repo, ok := createRepo(ev.Metadata["url"]); ok {
+	if repo, ok := createRepo(ev.Visit().URL); ok {
 		creations[repo] = append(creations[repo], ev.Timestamp)
 	}
 }
@@ -64,7 +64,7 @@ func recordPRSighting(pr *PullRequest, ev event.Event, taskPatterns []*regexp.Re
 		if pr.firstSeen.IsZero() || ev.Timestamp.Before(pr.firstSeen) {
 			pr.firstSeen = ev.Timestamp
 		}
-		if title := ownPRTitle(ev.Metadata["title"]); title != "" {
+		if title := ownPRTitle(ev.Visit().Title); title != "" {
 			pr.Title = title
 		}
 		return
@@ -72,7 +72,7 @@ func recordPRSighting(pr *PullRequest, ev event.Event, taskPatterns []*regexp.Re
 	if task, ok := singleTask(taskRefs(taskPatterns, ev.Content)); ok {
 		pr.TaskKeys = appendUnique(pr.TaskKeys, task)
 	}
-	if ev.Metadata["sent_by_me"] == "true" {
+	if ev.Message().SentByMe {
 		pr.markOpened(ev.Timestamp)
 	}
 }

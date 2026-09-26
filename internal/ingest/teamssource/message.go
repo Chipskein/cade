@@ -1,7 +1,6 @@
 package teamssource
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -103,11 +102,8 @@ func (m teamsMessage) toEvent(conversation conversationInfo, origin string) even
 		Timestamp: m.sentAt,
 		Source:    event.SourceTeams,
 		Content:   m.sender + ": " + m.text + "\n" + conversationLine(conversation) + "\n" + directionLine(m.sentByMe, conversation.kind),
-		Metadata: event.Metadata{
-			"conversation_id": m.conversationID, "conversation": conversation.title, "conversation_kind": string(conversation.kind),
-			"message_id": m.id, "sender": m.sender, "sender_mri": m.senderMRI,
-			"sent_by_me": strconv.FormatBool(m.sentByMe), "origin": origin, event.RevisionKey: m.version,
-		},
+		Metadata: event.Message{ConversationID: m.conversationID, Conversation: conversation.title, Kind: conversation.kind,
+			MessageID: m.id, Sender: m.sender, SenderMRI: m.senderMRI, SentByMe: m.sentByMe, Origin: origin, Revision: m.version}.Metadata(),
 	}
 }
 
@@ -121,11 +117,11 @@ func conversationLine(conversation conversationInfo) string {
 	return "Conversa: " + string(conversation.kind) + " " + conversation.title
 }
 
-func directionLine(sentByMe bool, kind conversationKind) string {
+func directionLine(sentByMe bool, kind event.ConversationKind) string {
 	switch {
 	case sentByMe:
 		return "Enviada por você"
-	case kind == kindChannel:
+	case kind == event.KindChannel:
 		return "Publicada no canal (não enviada diretamente a você)"
 	}
 	return "Recebida por você"

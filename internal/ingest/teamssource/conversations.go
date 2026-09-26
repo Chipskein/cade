@@ -3,6 +3,7 @@ package teamssource
 import (
 	"strings"
 
+	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 )
@@ -18,20 +19,9 @@ const (
 	defaultChannelName         = "Geral"
 )
 
-// conversationKind says who a message was addressed to, which is what
-// separates "messages I received" from announcements posted to a team.
-type conversationKind string
-
-const (
-	kindChat    conversationKind = "chat"
-	kindChannel conversationKind = "canal"
-	kindMeeting conversationKind = "reunião"
-	kindOther   conversationKind = "conversa"
-)
-
 // conversationInfo is what an event shows about its conversation.
 type conversationInfo struct {
-	kind  conversationKind
+	kind  event.ConversationKind
 	title string
 }
 
@@ -77,15 +67,15 @@ func teamNames(conversations map[string]*v8value.Value) map[string]string {
 func describeConversation(conversation *v8value.Value, teams map[string]string) conversationInfo {
 	switch conversation.Get("type").String() {
 	case "Topic":
-		return conversationInfo{kind: kindChannel, title: channelTitle(teams[conversation.Get("teamId").String()], threadProperty(conversation, "topic"))}
+		return conversationInfo{kind: event.KindChannel, title: channelTitle(teams[conversation.Get("teamId").String()], threadProperty(conversation, "topic"))}
 	case "Space":
-		return conversationInfo{kind: kindChannel, title: channelTitle(threadProperty(conversation, "spaceThreadTopic"), threadProperty(conversation, "topic"))}
+		return conversationInfo{kind: event.KindChannel, title: channelTitle(threadProperty(conversation, "spaceThreadTopic"), threadProperty(conversation, "topic"))}
 	case "Meeting":
-		return conversationInfo{kind: kindMeeting, title: firstNonEmpty(threadProperty(conversation, "topic"), longTitle(conversation))}
+		return conversationInfo{kind: event.KindMeeting, title: firstNonEmpty(threadProperty(conversation, "topic"), longTitle(conversation))}
 	case "Chat", "StreamOfNotes":
-		return conversationInfo{kind: kindChat, title: chatTitle(conversation)}
+		return conversationInfo{kind: event.KindChat, title: chatTitle(conversation)}
 	}
-	return conversationInfo{kind: kindOther, title: threadProperty(conversation, "topic")}
+	return conversationInfo{kind: event.KindOther, title: threadProperty(conversation, "topic")}
 }
 
 // channelTitle joins team and channel; an unnamed channel is the team's

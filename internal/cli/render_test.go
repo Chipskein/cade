@@ -39,19 +39,19 @@ func TestDescribeTeamsMessage(t *testing.T) {
 }
 
 func TestDescribeConversationEmpty(t *testing.T) {
-	if got := describeConversation(event.Metadata{}); got != "" {
+	if got := describeConversation(event.Message{}); got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}
 }
 
 func TestDescribeVisitWithoutTitle(t *testing.T) {
-	if got := describeVisit(event.Metadata{"url": "https://x.io"}); got != "https://x.io" {
+	if got := describeVisit(event.Visit{URL: "https://x.io"}); got != "https://x.io" {
 		t.Fatalf("expected bare URL, got %q", got)
 	}
 }
 
 func TestDescribeCommitOriginShortensHash(t *testing.T) {
-	got := describeCommitOrigin(event.Metadata{"repository": "/src/app", "hash": "0123456789abcdef"})
+	got := describeCommitOrigin(event.Commit{Repository: "/src/app", Hash: "0123456789abcdef"})
 	if got != "  (app 01234567)" {
 		t.Fatalf("expected short hash, got %q", got)
 	}

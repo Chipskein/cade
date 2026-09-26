@@ -70,11 +70,11 @@ func (c Criteria) keepDirection(ev event.Event) bool {
 	if ev.Source != event.SourceTeams || c.Direction == AnyDirection {
 		return true
 	}
-	sentByMe := ev.Metadata["sent_by_me"] == "true"
+	message := ev.Message()
 	if c.Direction == Sent {
-		return sentByMe
+		return message.SentByMe
 	}
-	return !sentByMe && ev.Metadata["conversation_kind"] != "canal"
+	return !message.SentByMe && message.Kind != event.KindChannel
 }
 
 func filterEvents(events []event.Event, keep func(event.Event) bool) []event.Event {

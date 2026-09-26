@@ -30,16 +30,15 @@ func Of(ev event.Event) Reference {
 }
 
 func locator(ev event.Event) string {
-	metadata := ev.Metadata
 	switch {
-	case ev.Source == event.SourceGit && metadata["hash"] != "":
-		return metadata["repository"] + "@" + metadata["hash"]
-	case ev.Source == event.SourceBrowser && metadata["url"] != "":
-		return metadata["url"]
-	case ev.Source == event.SourceFile && metadata["path"] != "":
-		return metadata["path"]
-	case ev.Source == event.SourceTeams && metadata["message_id"] != "":
-		return teamsMessageLink(metadata["conversation_id"], metadata["message_id"])
+	case ev.Source == event.SourceGit && ev.Commit().Hash != "":
+		return ev.Commit().Repository + "@" + ev.Commit().Hash
+	case ev.Source == event.SourceBrowser && ev.Visit().URL != "":
+		return ev.Visit().URL
+	case ev.Source == event.SourceFile && ev.File().Path != "":
+		return ev.File().Path
+	case ev.Source == event.SourceTeams && ev.Message().MessageID != "":
+		return teamsMessageLink(ev.Message().ConversationID, ev.Message().MessageID)
 	}
 	return "cade:" + ev.UID
 }

@@ -109,6 +109,6 @@ func fileEvent(absolutePath string, info fs.FileInfo, text string) event.Event {
 		Timestamp: modifiedAt,
 		Source:    event.SourceFile,
 		Content:   content,
-		Metadata:  event.Metadata{"path": absolutePath, "size": strconv.FormatInt(info.Size(), 10)},
+		Metadata:  event.File{Path: absolutePath, Size: info.Size()}.Metadata(),
 	}
 }

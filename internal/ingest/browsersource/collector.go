@@ -93,6 +93,6 @@ func visitEvent(browser, historyPath string, visitedAt time.Time, url, title str
 		Timestamp: visitedAt,
 		Source:    event.SourceBrowser,
 		Content:   content,
-		Metadata:  event.Metadata{"browser": browser, "url": url, "title": title, "history": historyPath},
+		Metadata:  event.Visit{Browser: browser, URL: url, Title: title, History: historyPath}.Metadata(),
 	}
 }

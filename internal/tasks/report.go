@@ -106,7 +106,7 @@ func (b Builder) involvement(task *Task) Involvement {
 		if !b.cites(ev, task.Key) {
 			continue
 		}
-		if ev.Source == event.SourceTeams && ev.Metadata["sent_by_me"] == "true" {
+		if ev.Source == event.SourceTeams && ev.Message().SentByMe {
 			return Mine
 		}
 		if ev.Source == event.SourceBrowser {
@@ -188,12 +188,13 @@ func (b Builder) CitedBy(tasks []Task, events []event.Event) []Task {
 
 // adoptTitle names the task after its page title in the browser.
 func (b Builder) adoptTitle(task *Task, ev event.Event) {
-	if ev.Source != event.SourceBrowser || ev.Metadata["title"] == "" {
+	visit := ev.Visit()
+	if ev.Source != event.SourceBrowser || visit.Title == "" {
 		return
 	}
-	for _, ref := range taskRefs(b.taskPatterns, ev.Metadata["url"]) {
+	for _, ref := range taskRefs(b.taskPatterns, visit.URL) {
 		if ref.Key == task.Key {
-			task.Title = ev.Metadata["title"]
+			task.Title = visit.Title
 		}
 	}
 }

@@ -88,10 +88,7 @@ func parseCommit(record, repository string) (event.Event, error) {
 		Timestamp: authoredAt,
 		Source:    event.SourceGit,
 		Content:   commitContent(message, files),
-		Metadata: event.Metadata{
-			"repository": repository, "hash": hash, "author": author, "email": email,
-			"files": strings.Join(files, "\n"),
-		},
+		Metadata:  event.Commit{Repository: repository, Hash: hash, Author: author, Email: email, Files: files}.Metadata(),
 	}, nil
 }
 

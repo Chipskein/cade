@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 )
@@ -74,7 +75,7 @@ func conversationFor(messages messageContext, conversationID string) conversatio
 	if info, found := messages.conversations[conversationID]; found {
 		return info
 	}
-	return conversationInfo{kind: kindOther}
+	return conversationInfo{kind: event.KindOther}
 }
 
 // originName is the directory's base name without the IndexedDB suffix,

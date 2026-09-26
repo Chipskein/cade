@@ -27,7 +27,7 @@ func eventsMentioningAll(events []event.Event, terms []string) []event.Event {
 	}
 	var kept []event.Event
 	for _, ev := range events {
-		text := textnorm.Fold(ev.Content + "\n" + ev.Metadata["conversation"])
+		text := textnorm.Fold(ev.Content + "\n" + ev.Message().Conversation)
 		if containsAllTerms(text, terms) {
 			kept = append(kept, ev)
 		}

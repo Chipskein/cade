@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 )
@@ -52,25 +53,25 @@ func TestIsDeleted(t *testing.T) {
 }
 
 func TestConversationLine(t *testing.T) {
-	if conversationLine(conversationInfo{kind: kindChat}) != "Conversa: chat" ||
-		conversationLine(conversationInfo{kind: kindMeeting, title: "Daily"}) != "Conversa: reunião Daily" {
+	if conversationLine(conversationInfo{kind: event.KindChat}) != "Conversa: chat" ||
+		conversationLine(conversationInfo{kind: event.KindMeeting, title: "Daily"}) != "Conversa: reunião Daily" {
 		t.Fatal("unexpected conversation line")
 	}
 }
 
 func TestDirectionLine(t *testing.T) {
-	if directionLine(true, kindChannel) != "Enviada por você" || directionLine(false, kindChat) != "Recebida por você" ||
-		!strings.HasPrefix(directionLine(false, kindChannel), "Publicada no canal") {
+	if directionLine(true, event.KindChannel) != "Enviada por você" || directionLine(false, event.KindChat) != "Recebida por você" ||
+		!strings.HasPrefix(directionLine(false, event.KindChannel), "Publicada no canal") {
 		t.Fatal("unexpected direction lines")
 	}
 }
 
 func TestDescribeConversationKinds(t *testing.T) {
 	cases := map[string]conversationInfo{
-		"Chat":    {kind: kindChat, title: "Ana, Bruno"},
-		"Meeting": {kind: kindMeeting, title: "Daily"},
-		"Space":   {kind: kindChannel, title: "Oficina5 › Geral"},
-		"Other":   {kind: kindOther},
+		"Chat":    {kind: event.KindChat, title: "Ana, Bruno"},
+		"Meeting": {kind: event.KindMeeting, title: "Daily"},
+		"Space":   {kind: event.KindChannel, title: "Oficina5 › Geral"},
+		"Other":   {kind: event.KindOther},
 	}
 	values := map[string]*v8value.Value{
 		"Chat":    obj("type", str("Chat"), "chatTitle", obj("longTitle", str("Ana, Bruno"))),

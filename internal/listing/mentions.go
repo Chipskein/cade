@@ -25,12 +25,13 @@ type addressees struct {
 func addresseesOf(events []event.Event) addressees {
 	known := addressees{self: map[string]bool{}, people: map[string]bool{}}
 	for _, ev := range events {
-		first := firstNameWord(ev.Metadata["sender"])
+		message := ev.Message()
+		first := firstNameWord(message.Sender)
 		if ev.Source != event.SourceTeams || first == "" {
 			continue
 		}
 		known.people[first] = true
-		if ev.Metadata["sent_by_me"] == "true" {
+		if message.SentByMe {
 			known.self[first] = true
 		}
 	}

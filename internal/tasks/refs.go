@@ -66,7 +66,7 @@ var (
 // anything else (Teams keeps pasted links as text).
 func refText(ev event.Event) string {
 	if ev.Source == event.SourceBrowser {
-		return ev.Metadata["url"]
+		return ev.Visit().URL
 	}
 	return ev.Content
 }

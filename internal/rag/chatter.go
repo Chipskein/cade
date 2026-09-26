@@ -46,7 +46,7 @@ func isChatter(ev event.Event) bool {
 // messageWords splits the message text (the headline without "Sender: ")
 // into folded words; digits stay inside words, so "15h" is content.
 func messageWords(ev event.Event) []string {
-	text := strings.TrimPrefix(ev.Headline(), ev.Metadata["sender"]+":")
+	text := strings.TrimPrefix(ev.Headline(), ev.Message().Sender+":")
 	return strings.FieldsFunc(textnorm.Fold(text), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	})

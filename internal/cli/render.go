@@ -45,38 +45,38 @@ func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event)
 func describeEvent(ev event.Event) string {
 	switch ev.Source {
 	case event.SourceGit:
-		return clipLine(ev.Headline()) + describeCommitOrigin(ev.Metadata)
+		return clipLine(ev.Headline()) + describeCommitOrigin(ev.Commit())
 	case event.SourceBrowser:
-		return describeVisit(ev.Metadata)
+		return describeVisit(ev.Visit())
 	case event.SourceFile:
-		return ev.Metadata["path"]
+		return ev.File().Path
 	case event.SourceTeams:
-		return clipLine(ev.Headline()) + describeConversation(ev.Metadata)
+		return clipLine(ev.Headline()) + describeConversation(ev.Message())
 	}
 	return clipLine(ev.Headline())
 }
 
-func describeCommitOrigin(metadata event.Metadata) string {
-	hash := metadata["hash"]
+func describeCommitOrigin(commit event.Commit) string {
+	hash := commit.Hash
 	if len(hash) > 8 {
 		hash = hash[:8]
 	}
-	return fmt.Sprintf("  (%s %s)", filepath.Base(metadata["repository"]), hash)
+	return fmt.Sprintf("  (%s %s)", filepath.Base(commit.Repository), hash)
 }
 
-func describeConversation(metadata event.Metadata) string {
-	label := strings.TrimSpace(metadata["conversation_kind"] + " " + metadata["conversation"])
+func describeConversation(message event.Message) string {
+	label := strings.TrimSpace(string(message.Kind) + " " + message.Conversation)
 	if label == "" {
 		return ""
 	}
 	return "  (" + clipLine(label) + ")"
 }
 
-func describeVisit(metadata event.Metadata) string {
-	if metadata["title"] == "" {
-		return clipLine(metadata["url"])
+func describeVisit(visit event.Visit) string {
+	if visit.Title == "" {
+		return clipLine(visit.URL)
 	}
-	return clipLine(metadata["title"] + " — " + metadata["url"])
+	return clipLine(visit.Title + " — " + visit.URL)
 }
 
 func clipLine(text string) string {
