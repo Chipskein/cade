@@ -1,0 +1,10 @@
+<html><head><meta charset="utf-8"></head><body><script>
+const req = indexedDB.open("Teams:replychain-manager:fixture", 2);
+req.onupgradeneeded = () => req.result.createObjectStore("bulk");
+req.onsuccess = () => {
+  const tx = req.result.transaction(["bulk"], "readwrite");
+  const text = "lorem ipsum dolor sit amet ".repeat(600);
+  for (let i = 0; i < 320; i++) tx.objectStore("bulk").put({ n: i, text }, i);
+  tx.oncomplete = () => { document.body.textContent = "DONE3"; };
+};
+</script></body></html>

@@ -1,0 +1,52 @@
+package config
+
+// allGPULayers offloads every layer in CUDA builds; both default models
+// together need about 3 GB of VRAM.
+const allGPULayers = -1
+
+// Defaults returns the configuration used when no file overrides it. Paths
+// may start with "~"; Load expands them.
+func Defaults() Config {
+	return Config{
+		DatabasePath: "~/.local/share/cade/cade.db",
+		Embedding:    defaultEmbedding(),
+		// 3B rather than 1.5B: the smaller model answered SEM_INFORMACAO to
+		// scoped listing questions and rarely cited evidence.
+		Generation: ModelConfig{
+			ModelPath:     "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+			ContextTokens: 8192,
+			GPULayers:     allGPULayers,
+		},
+		// 0.72 was calibrated on nomic-embed-text-v2-moe: relevant hits fell
+		// at 0.59–0.71, unrelated ones mostly above 0.74. The LLM's
+		// SEM_INFORMACAO reply is the final guard for the overlap.
+		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxAnswerTokens: 512},
+		Sources:   defaultSources(),
+	}
+}
+
+func defaultEmbedding() EmbeddingConfig {
+	return EmbeddingConfig{
+		ModelConfig: ModelConfig{
+			// Multilingual: v1.5 is English-centric and ranked Portuguese
+			// questions poorly.
+			ModelPath:     "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
+			ContextTokens: 2048,
+			GPULayers:     allGPULayers,
+		},
+		QueryPrefix:    "search_query: ",
+		DocumentPrefix: "search_document: ",
+	}
+}
+
+func defaultSources() SourcesConfig {
+	return SourcesConfig{
+		GitRepositories:    []string{},
+		GitAuthors:         []string{},
+		BrowserHistories:   []string{},
+		TeamsIndexedDBDirs: []string{},
+		Directories:        []string{},
+		IgnoredDirNames:    []string{".git", "node_modules", "vendor", "__pycache__", ".venv", "target"},
+		MaxFileBytes:       256 * 1024,
+	}
+}

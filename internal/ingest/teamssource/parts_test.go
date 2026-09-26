@@ -1,0 +1,138 @@
+package teamssource
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/v8value"
+)
+
+func TestHTMLToText(t *testing.T) {
+	cases := map[string]string{
+		"<p>Olá <b>time</b></p>":                   "Olá time",
+		"linha 1<br>linha 2<br/>":                  "linha 1\nlinha 2",
+		"<p>a</p><p></p><p>b</p>":                  "a\nb",
+		"R&amp;D &lt;3 &quot;ok&quot;&nbsp;fim":    `R&D <3 "ok" fim`,
+		"<style>.x{}</style><div>visível</div>":    "visível",
+		"<span itemtype=\"x\">@Bruno</span>, veja": "@Bruno, veja",
+	}
+	for input, expected := range cases {
+		if got := htmlToText(input); got != expected {
+			t.Errorf("htmlToText(%q) = %q, expected %q", input, got, expected)
+		}
+	}
+}
+
+func TestParseMessageRequiresTimestamp(t *testing.T) {
+	value := obj("id", str("1"), "conversationId", str("c"), "messageType", str("Text"), "content", str("oi"))
+	if _, ok := parseMessage(value, nil); ok {
+		t.Fatal("expected a message without arrival time to be rejected")
+	}
+}
+
+func TestArrivalTimeFallsBackToClient(t *testing.T) {
+	value := obj("clientArrivalTime", num(1000))
+	if got := arrivalTime(value); got.UnixMilli() != 1000 {
+		t.Fatalf("expected client arrival time, got %s", got)
+	}
+}
+
+func TestSenderNameFallbacks(t *testing.T) {
+	if senderName(obj("fromDisplayNameInToken", str("Bruno")), nil) != "Bruno" || senderName(obj(), nil) != "desconhecido" {
+		t.Fatal("expected token name fallback, then desconhecido")
+	}
+}
+
+func TestIsDeleted(t *testing.T) {
+	undefined := &v8value.Value{Kind: v8value.KindUndefined}
+	if isDeleted(obj("deletionInfo", undefined)) || !isDeleted(obj("deletionInfo", obj())) {
+		t.Fatal("expected only a deletionInfo object to mean deleted")
+	}
+}
+
+func TestConversationLine(t *testing.T) {
+	if conversationLine(conversationInfo{kind: kindChat}) != "Conversa: chat" ||
+		conversationLine(conversationInfo{kind: kindMeeting, title: "Daily"}) != "Conversa: reunião Daily" {
+		t.Fatal("unexpected conversation line")
+	}
+}
+
+func TestDirectionLine(t *testing.T) {
+	if directionLine(true, kindChannel) != "Enviada por você" || directionLine(false, kindChat) != "Recebida por você" ||
+		!strings.HasPrefix(directionLine(false, kindChannel), "Publicada no canal") {
+		t.Fatal("unexpected direction lines")
+	}
+}
+
+func TestDescribeConversationKinds(t *testing.T) {
+	cases := map[string]conversationInfo{
+		"Chat":    {kind: kindChat, title: "Ana, Bruno"},
+		"Meeting": {kind: kindMeeting, title: "Daily"},
+		"Space":   {kind: kindChannel, title: "Oficina5 › Geral"},
+		"Other":   {kind: kindOther},
+	}
+	values := map[string]*v8value.Value{
+		"Chat":    obj("type", str("Chat"), "chatTitle", obj("longTitle", str("Ana, Bruno"))),
+		"Meeting": obj("type", str("Meeting"), "threadProperties", obj("topic", str("Daily"))),
+		"Space":   obj("type", str("Space"), "threadProperties", obj("spaceThreadTopic", str("Oficina5"))),
+		"Other":   obj("type", str("Thread")),
+	}
+	for name, expected := range cases {
+		if got := describeConversation(values[name], nil); got != expected {
+			t.Errorf("%s: expected %+v, got %+v", name, expected, got)
+		}
+	}
+}
+
+func TestChannelTitleWithoutTeam(t *testing.T) {
+	if channelTitle("", "Avisos") != "Avisos" || channelTitle("Time", "") != "Time › Geral" {
+		t.Fatal("unexpected channel titles")
+	}
+}
+
+func TestProfileNames(t *testing.T) {
+	record := indexeddb.Record{Database: "Teams:profiles:x", Store: "profiles", Value: obj("mri", str("8:orgid:a"), "displayName", str("Ana"))}
+	if names := profileNames([]indexeddb.Record{record}); names["8:orgid:a"] != "Ana" {
+		t.Fatalf("unexpected profile names %v", names)
+	}
+}
+
+func TestConversationTitleFromParticipants(t *testing.T) {
+	users := &v8value.Value{Kind: v8value.KindArray, Items: []*v8value.Value{
+		obj("displayName", str("Ana")), nil, obj("displayName", str("Bruno")),
+	}}
+	conversation := obj("id", str("c1"), "type", str("Chat"), "chatTitle", obj("avatarUsersInfo", users))
+	infos := conversationInfos([]indexeddb.Record{{Database: testConversationDB, Store: conversationStore, Value: conversation}})
+	if infos["c1"].title != "Ana, Bruno" {
+		t.Fatalf("expected participant names, got %q", infos["c1"].title)
+	}
+}
+
+func TestParticipantNamesCapsList(t *testing.T) {
+	users := &v8value.Value{Kind: v8value.KindArray}
+	for _, name := range []string{"a", "b", "c", "d", "e"} {
+		users.Items = append(users.Items, obj("displayName", str(name)))
+	}
+	if got := participantNames(users); got != "a, b, c, d" {
+		t.Fatalf("expected four names, got %q", got)
+	}
+}
+
+// Regression: quote authors and mentions were glued to the following text
+// ("Marcos Lisboa - Oficina5mas é estranho").
+func TestHTMLToTextSeparatesQuotesAndMentions(t *testing.T) {
+	body := `<blockquote itemscope="" itemtype="http://schema.skype.com/Reply"><strong itemprop="mri" itemid="8:orgid:x">Marcos Lisboa - Oficina5</strong><span itemprop="time"></span><p itemprop="preview">mas é estranho</p></blockquote>` +
+		`<p><span itemtype="http://schema.skype.com/Mention" itemscope="" itemid="0">Vitor Hugo</span>, veja isso</p>`
+	expected := "@Vitor Hugo, veja isso\n↪ em resposta a Marcos Lisboa - Oficina5: mas é estranho"
+	if got := htmlToText(body); got != expected {
+		t.Fatalf("expected %q, got %q", expected, got)
+	}
+}
+
+func TestExtractQuotesWithoutQuote(t *testing.T) {
+	remaining, quotes := extractQuotes("<p>oi</p>")
+	if remaining != "<p>oi</p>" || quotes != nil {
+		t.Fatalf("expected no quotes, got %q / %v", remaining, quotes)
+	}
+}

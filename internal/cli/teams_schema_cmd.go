@@ -1,0 +1,76 @@
+package cli
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+
+	"github.com/chipskein/cade/internal/idbschema"
+	"github.com/chipskein/cade/internal/v8value"
+)
+
+// maxFieldsPerStore keeps the report readable; the most frequent paths are
+// the ones an ingestor needs.
+const maxFieldsPerStore = 80
+
+// runTeamsSchema prints the masked structure of IndexedDB directories so
+// an ingestor can be designed without anyone seeing message content.
+func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("informe o diretório: cade teams-schema ~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb")
+	}
+	for _, dir := range args {
+		records, err := env.toolkit.ReadIndexedDB(dir)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(env.stdout, "# %s\n", maskedDirName(dir))
+		for _, summary := range idbschema.Summarize(records) {
+			renderStoreSummary(env.stdout, summary)
+		}
+	}
+	return nil
+}
+
+// maskedDirName keeps only the directory's base name (the origin), not the
+// home path.
+func maskedDirName(dir string) string {
+	trimmed := strings.TrimRight(dir, "/")
+	return trimmed[strings.LastIndex(trimmed, "/")+1:]
+}
+
+func renderStoreSummary(out io.Writer, summary idbschema.StoreSummary) {
+	fmt.Fprintf(out, "\nbanco %q · store %q: %d registros (%d falhas, %d em blob)\n",
+		summary.Database, summary.Store, summary.Records, summary.Failed, summary.BlobWrapped)
+	fields := mostFrequentFields(summary.Fields, maxFieldsPerStore)
+	for _, field := range fields {
+		fmt.Fprintf(out, "  %8d  %-22s %s\n", field.Count, describeKinds(field.Kinds), field.Path)
+	}
+	if omitted := len(summary.Fields) - len(fields); omitted > 0 {
+		fmt.Fprintf(out, "  (+%d caminhos menos frequentes omitidos)\n", omitted)
+	}
+}
+
+// mostFrequentFields keeps the top limit fields by count, then restores
+// path order so parents stay above children.
+func mostFrequentFields(fields []idbschema.FieldStat, limit int) []idbschema.FieldStat {
+	if len(fields) <= limit {
+		return fields
+	}
+	ranked := append([]idbschema.FieldStat(nil), fields...)
+	sort.SliceStable(ranked, func(i, j int) bool { return ranked[i].Count > ranked[j].Count })
+	ranked = ranked[:limit]
+	sort.Slice(ranked, func(i, j int) bool { return ranked[i].Path < ranked[j].Path })
+	return ranked
+}
+
+func describeKinds(kinds map[v8value.Kind]int) string {
+	names := make([]string, 0, len(kinds))
+	for kind := range kinds {
+		names = append(names, kind.String())
+	}
+	sort.Strings(names)
+	return strings.Join(names, "|")
+}

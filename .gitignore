@@ -1,0 +1,7 @@
+.claude
+USECASES.md
+/bin/
+/third_party/llama.cpp/
+*.db
+*.db-wal
+*.db-shm

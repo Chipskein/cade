@@ -1,0 +1,29 @@
+<html><head><meta charset="utf-8"></head><body><script>
+const req = indexedDB.open("Teams:replychain-manager:fixture", 1);
+req.onupgradeneeded = () => {
+  req.result.createObjectStore("replychains", { keyPath: "id" });
+  req.result.createObjectStore("people");
+};
+req.onsuccess = () => {
+  const db = req.result;
+  const tx = db.transaction(["replychains", "people"], "readwrite");
+  const shared = { tag: "compartilhado" };
+  const chains = tx.objectStore("replychains");
+  chains.put({ id: "19:abc@thread.v2", conversationId: "19:abc@thread.v2",
+    messageMap: {
+      "1727280000000": { id: "1727280000000", clientmessageid: "111", content: "<p>Olá, revisão do <b>PR</b> às 15h? ção ✓</p>",
+        imDisplayName: "Ana Souza", originalArrivalTime: "2026-09-25T15:00:00.000Z", messageType: "RichText/Html",
+        version: 1727280000000, isDeleted: false, props: shared, emoji: "🎉" },
+      "1727283600000": { id: "1727283600000", clientmessageid: "222", content: "ok, fechado", imDisplayName: "Bruno",
+        originalArrivalTime: "2026-09-25T16:00:00.000Z", messageType: "Text", version: 1727283600000,
+        isDeleted: false, props: shared, count: -7, ratio: 0.5, big: 4294967296, nothing: null, undef: undefined }
+    },
+    when: new Date(Date.UTC(2026, 8, 25, 15)), tags: ["a", "b", 3], sparse: (() => { const a = []; a[5] = "x"; return a; })(),
+    lookup: new Map([["k1", 1], ["k2", "v"]]), uniq: new Set([1, 2]) });
+  chains.put({ id: "19:big@thread.v2", payload: "x".repeat(200000) + "fim" });
+  chains.put({ id: "19:medium@thread.v2", payload: "lorem ipsum ".repeat(1500) });
+  tx.objectStore("people").put({ displayName: "Ana" }, "8:orgid:0000");
+  tx.oncomplete = () => { document.title = "DONE"; document.body.textContent = "DONE"; };
+  tx.onerror = () => { document.body.textContent = "ERR " + tx.error; };
+};
+</script></body></html>

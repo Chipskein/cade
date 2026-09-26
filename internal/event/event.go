@@ -1,0 +1,60 @@
+// Package event defines the normalized activity record every source is
+// converted into (RF2). Queries only ever see this type, which is what lets a
+// new source become searchable without touching timeline or RAG code (RNF4).
+package event
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"strings"
+	"time"
+)
+
+// Source identifies where an event came from.
+type Source string
+
+const (
+	SourceGit     Source = "git"
+	SourceBrowser Source = "browser"
+	SourceFile    Source = "file"
+	SourceTeams   Source = "teams"
+)
+
+// Metadata holds source-specific attributes (commit hash, URL, file path...).
+type Metadata map[string]string
+
+// Event is one unit of user activity.
+type Event struct {
+	// UID is the deduplication key; see StableID.
+	UID       string
+	Timestamp time.Time
+	Source    Source
+	Content   string
+	Metadata  Metadata
+}
+
+// StableID derives a deterministic deduplication key from the source and the
+// fields that make an event unique within it. Parts are NUL-separated so that
+// ("ab","c") and ("a","bc") never collide (RNF3.2).
+//
+//	id := event.StableID(event.SourceGit, commitHash)
+func StableID(source Source, parts ...string) string {
+	digest := sha256.New()
+	digest.Write([]byte(source))
+	for _, part := range parts {
+		digest.Write([]byte{0})
+		digest.Write([]byte(part))
+	}
+	return hex.EncodeToString(digest.Sum(nil))
+}
+
+// Headline returns the first non-empty line of the content, for one-line
+// terminal rendering.
+func (e Event) Headline() string {
+	for _, line := range strings.Split(e.Content, "\n") {
+		if trimmed := strings.TrimSpace(line); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
