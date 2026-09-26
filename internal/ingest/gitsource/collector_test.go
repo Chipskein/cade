@@ -193,7 +193,7 @@ func TestUnresolvedIdentityLeavesAuthorshipUnknown(t *testing.T) {
 	}
 }
 
-// Acceptance (docs/USECASES2.md, phase 4) against the real git binary: a
+// Acceptance (phase 4, see CHANGELOG.md) against the real git binary: a
 // repository with two authors marks only the configured user's commit.
 func TestRealRepositoryWithTwoAuthors(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {

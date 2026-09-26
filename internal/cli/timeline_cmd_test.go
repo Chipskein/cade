@@ -13,7 +13,7 @@ func commitBy(uid, author string, authorship event.Authorship) event.Event {
 		Metadata: event.Commit{Repository: "/src/api", Hash: uid, Author: author, Authorship: authorship}.Metadata()}
 }
 
-// Acceptance (docs/USECASES2.md, phase 4): the timeline shows the user's
+// Acceptance (phase 4, see CHANGELOG.md): the timeline shows the user's
 // commits; --all-authors shows everyone's.
 func TestTimelineHidesOthersCommits(t *testing.T) {
 	world := newFakeWorld()

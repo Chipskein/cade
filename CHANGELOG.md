@@ -1,0 +1,117 @@
+# Changelog
+
+**English** · [Português](CHANGELOG.pt-BR.md)
+
+What changed in each version, the schema migrations, and what each migration rewrites. What is left for the release is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+## Unreleased (first version)
+
+### Upgrading an existing database
+
+- **When:** migrations run by themselves the first time any command opens the database.
+- **Backup:** before the first migration that rewrites data, cade writes one copy, `cade.db.before-vN-<date>`, with permission `600`. You can delete it once you have checked that everything works.
+  - On a real copy (108 thousand events, schema 2 → 6), migrating took ~50 s, and the database went from 516 MB to 450 MB.
+- **Reindex:** after migration 5, run `cade reindex` once. Long texts have no vectors until it finishes, and `ask` warns about it.
+  - On the same copy, it took ~80 s on an RTX 3060.
+- **No re-import:** reimporting would lose data, because the Teams cache expires and Chrome keeps ~90 days of history.
+
+### Migrations
+
+| Version | What it does | Backup | Rewrites data |
+|---|---|---|---|
+| 1 | `events` and `store_settings` tables | — | — |
+| 2 | keeps the Teams message text in the metadata | yes | Teams events |
+| 3 | `content_hash`, to reuse the vector of identical text | no | adds a column |
+| 4 | one event per file; earlier versions become dates and sizes in `file_modifications` | yes | file events (older versions are collapsed, UIDs rewritten) |
+| 5 | vectors per chunk (`chunks`, `chunk_embeddings`) instead of per event; the database is compacted afterwards | yes | vectors (long events wait for `cade reindex`) |
+| 6 | keyword index over chunks (`chunks_fts`, FTS5) | no | fills the index from existing chunks |
+
+The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
+
+### Git authorship (phase 4)
+
+- **Identities:** each commit is marked `mine` or `other` by `sources.git_identities`.
+  - The default, `["auto"]`, reads `git config user.email` and `user.name` in each repository.
+  - An unmarked commit counts as yours.
+  - Stored commits are re-marked on every `ingest git`, with no migration.
+- **Where the mark counts:**
+  - `timeline` hides other people's commits; `--all-authors` shows them.
+  - First-person questions that name no person ("what did I do…", "o que eu fiz…") leave out other people's commits.
+  - Task reports ignore other people's commits, and one of your commits that cites a task makes it yours.
+- **Effect:** on a real history, 1,037 of 61,645 commits were the user's. Until now, all of them counted as the user's work.
+
+### Hybrid search (phase 3)
+
+- **Keywords:** FTS5 keyword search (accents ignored) now runs alongside vector search, and the two rankings are fused by reciprocal rank fusion.
+- **Identifiers** (task or error codes like `PROJ-481`, commit hashes, PR numbers) act as a strong filter.
+- **Modes:** `retrieval.mode` chooses `hybrid` (the default), `vector` or `lexical`.
+- **Results:**
+
+  | | recall | MRR |
+  |---|---|---|
+  | test set, before | 0.87 | 0.81 |
+  | test set, after | 1.00 | 0.88 |
+  | 10 thousand events, before | 0.80 | 0.80 |
+  | 10 thousand events, after | 0.93 | 0.82 |
+
+  Rejection stayed at 1.00.
+
+### Chunks (phase 2)
+
+- **Split:** texts over 1,200 characters are split by Markdown headings, paragraphs, lines and spaces, with a 120-character overlap. Each chunk gets its own vector.
+- **In answers:** the prompt receives the chunk that matched ("chunk i of n"), not the start of the file. `--json` shows `chunk`, `chunks`, `excerpt_start` and `excerpt_end`.
+- **Results:**
+
+  | | recall | MRR |
+  |---|---|---|
+  | test set, before | 0.80 | 0.74 |
+  | test set, after | 0.87 | 0.81 |
+
+  The gain comes from a long note with the answer near its end.
+
+### Deduplication (phase 1)
+
+- **Repeated visits** to a page, or matches from the same file, show as one item, with the count and the latest date. Timelines still show each visit.
+- **Vectors:** identical text is embedded once. On a real history, 89% of browser visits repeat a text that is already stored.
+- **Files:**
+  - one event per file, with the edit dates in `file_modifications`;
+  - files removed from their folder drop out of answers;
+  - ten versions of a 200 KB file take the space of one.
+- **Results:** redundancy on the test set went from 0.17 to 0.00.
+
+### Fixed
+
+- **Embedder context (phase 0.5):** the embedder ran with a 2,048-token context, but the model was trained on 512.
+  - It now uses the smaller of the two, and `--verbose` shows the effective context and every truncation.
+  - Vectors of long texts only improve after `cade reindex`.
+- **Migrations:** opening the database with several pending migrations made one copy per migration; it now makes one.
+- **`forget`:** it now erases file history and the keyword index along with events.
+
+### Evaluation (phase 0)
+
+- **Retrieval suite:**
+  - a 291-event corpus;
+  - separate calibration (25 questions) and test (24 questions) sets; thresholds come only from the calibration set;
+  - a scale curve with synthetic distractors (`make eval-scale`);
+  - metrics: recall, MRR, rejection and redundancy.
+- **Plan suite:** 153 questions, reported with 95% Wilson intervals. Floors are checked against the lower bound.
+- **Anonymization:** `testdata/README.md` explains how to turn a real question into a test case.
+- **Benchmarks:** models warm up before measuring.
+
+### Earlier in this version
+
+- **Questions:** `cade ask` plans each question (mode, source, period, people, direction, topic, task status). Filters run in SQL, and only the topic is matched by meaning.
+  - Unscoped questions whose closest event is far away are rejected instead of answered.
+  - Answers cite their sources.
+- **Tasks:** `cade tasks` shows the period's tasks, their pull requests and whether each one is yours.
+- **Teams:**
+  - message text is kept (migration 2);
+  - edited messages replace the old version;
+  - ingestion fails clearly on an unrecognized cache format, and `teams-schema` helps diagnose it.
+- **Reindex:** `cade reindex` recomputes vectors, and a changed embedding model is detected.
+- **Privacy:**
+  - the database file is readable only by you, and its directory only by you;
+  - replaced and forgotten text is zeroed on disk;
+  - see [PRIVACY.md](PRIVACY.md).
+- **Help:** `cade help` and `-h` follow the locale (English or Portuguese).
+- **License:** GPLv2.

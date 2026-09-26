@@ -22,6 +22,8 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 - [Testes](#testes)
 - [Privacidade](PRIVACY.pt-BR.md)
 - [Benchmarks com gráficos](docs/BENCHMARKS.md)
+- [Changelog](CHANGELOG.pt-BR.md): migrações e o que cada uma reescreve
+- [Roadmap](docs/ROADMAP.md)
 
 ## Como funciona
 

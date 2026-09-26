@@ -86,7 +86,7 @@ func TestForgetFileErasesHistory(t *testing.T) {
 	}
 }
 
-// Acceptance (docs/USECASES2.md, phase 1): ten versions of a 200 KB file
+// Acceptance (phase 1, see CHANGELOG.md): ten versions of a 200 KB file
 // take about the space of one.
 func TestTenVersionsTakeTheSpaceOfOne(t *testing.T) {
 	sizeAfter := func(versions int) int64 {

@@ -3,7 +3,7 @@
 Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:
 - `bench/baseline.txt` (`make bench`);
 - `bench/retrieval-baseline.txt`, `bench/retrieval-scale.txt` e `bench/plan-baseline.txt` (`make eval`, `make eval-scale`);
-- das situações registradas em `docs/USECASES2.md`.
+- das medições por fase registradas no `CHANGELOG.pt-BR.md`.
 
 Os gráficos são Mermaid e precisam ser atualizados à mão depois de uma nova medição. O Mermaid não desenha legenda, então ela vem escrita abaixo de cada gráfico.
 

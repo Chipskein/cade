@@ -20,6 +20,8 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Tests](#tests)
 - [Privacy](PRIVACY.md)
 - [Benchmarks with charts](docs/BENCHMARKS.md) (Portuguese)
+- [Changelog](CHANGELOG.md): migrations and what each one rewrites
+- [Roadmap](docs/ROADMAP.md) (Portuguese)
 
 > **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. `cade help` and `cade <command> -h` follow the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise); other CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 
