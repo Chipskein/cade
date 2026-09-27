@@ -11,6 +11,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 var baseTime = time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC)
@@ -79,7 +80,7 @@ func TestUpdateEventWithoutEmbeddingRemovesVector(t *testing.T) {
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
 	emptied := sampleEvent("a", event.SourceGit, 0)
 	emptied.Content = ""
-	store.UpdateEvent(context.Background(), emptied, nil)
+	testcheck.NoError(t, store.UpdateEvent(context.Background(), emptied, nil))
 	if vectors := firstVectors(t, store, "a"); len(vectors) != 0 {
 		t.Fatalf("expected no vector left, got %v", vectors)
 	}
@@ -126,7 +127,9 @@ func TestSaveEventRejectsDimensionChange(t *testing.T) {
 func TestSaveEventRollsBackEventWhenEmbeddingFails(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})
-	store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), whole(sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0}))
+	if _, err := store.SaveEvent(context.Background(), sampleEvent("b", event.SourceGit, 0), whole(sampleEvent("b", event.SourceGit, 0), []float32{1, 0, 0})); err == nil {
+		t.Fatal("expected the wrong-sized embedding to be refused")
+	}
 	if _, found, _ := store.StoredEvent(context.Background(), "b"); found {
 		t.Fatal("event must not persist without its embedding, or re-ingestion would skip it forever")
 	}
@@ -204,7 +207,9 @@ func TestDeleteSourceRemovesEventsAndEmbeddings(t *testing.T) {
 func TestDeleteSourceAllowsReingest(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("teams-1", event.SourceTeams, 0), []float32{1, 0})
-	store.DeleteSource(context.Background(), event.SourceTeams)
+	if _, err := store.DeleteSource(context.Background(), event.SourceTeams); err != nil {
+		t.Fatal(err)
+	}
 	inserted, err := store.SaveEvent(context.Background(), sampleEvent("teams-1", event.SourceTeams, 0), whole(sampleEvent("teams-1", event.SourceTeams, 0), []float32{1, 0}))
 	if err != nil || !inserted {
 		t.Fatalf("expected the event to be insertable again, got %v (err %v)", inserted, err)
@@ -264,8 +269,8 @@ func TestOpenCreatesOwnerOnlyDatabase(t *testing.T) {
 // Regression: databases created by earlier versions were world-readable.
 func TestOpenRestrictsExistingDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
-	os.WriteFile(path, nil, 0o644)
-	os.WriteFile(path+"-shm", nil, 0o644)
+	testcheck.NoError(t, os.WriteFile(path, nil, 0o644))
+	testcheck.NoError(t, os.WriteFile(path+"-shm", nil, 0o644))
 	store, err := Open(context.Background(), path)
 	if err != nil {
 		t.Fatal(err)
@@ -324,9 +329,15 @@ func TestStoredChunksForContentFindsIdenticalText(t *testing.T) {
 func TestContentHashMigrationFillsOldEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
 	legacy := openRaw(t, path)
-	legacy.Exec(createEventsTable)
-	legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('a', 0, 'git', 'antigo', '{}')`)
-	legacy.Exec(`PRAGMA user_version = 2`)
+	if _, err := legacy.Exec(createEventsTable); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('a', 0, 'git', 'antigo', '{}')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`PRAGMA user_version = 2`); err != nil {
+		t.Fatal(err)
+	}
 	legacy.Close()
 	store, err := Open(context.Background(), path)
 	if err != nil {
@@ -334,7 +345,7 @@ func TestContentHashMigrationFillsOldEvents(t *testing.T) {
 	}
 	defer store.Close()
 	var hash string
-	store.db.QueryRow(`SELECT content_hash FROM events WHERE uid = 'a'`).Scan(&hash)
+	testcheck.NoError(t, store.db.QueryRow(`SELECT content_hash FROM events WHERE uid = 'a'`).Scan(&hash))
 	if hash != contentHash("antigo") {
 		t.Fatalf("expected the old event hashed, got %q", hash)
 	}

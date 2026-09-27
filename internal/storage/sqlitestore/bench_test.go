@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 // Storage benchmarks run on synthetic stores shaped like a real history
@@ -186,9 +187,9 @@ func BenchmarkEventsBetween(b *testing.B) {
 // them (the person-filtered answer path).
 func BenchmarkChunksFor(b *testing.B) {
 	forEachSize(b, func(b *testing.B, bench benchStore) {
-		uids := make([]string, 0, 1000)
-		for i := 0; i < 1000 && i < bench.size(); i++ {
-			uids = append(uids, fmt.Sprintf("bench-%d", i*bench.size()/1000))
+		uids, size := make([]string, 0, 1000), bench.size(b)
+		for i := 0; i < 1000 && i < size; i++ {
+			uids = append(uids, fmt.Sprintf("bench-%d", i*size/1000))
 		}
 		for b.Loop() {
 			if _, err := bench.store.ChunksFor(context.Background(), uids); err != nil {
@@ -198,9 +199,9 @@ func BenchmarkChunksFor(b *testing.B) {
 	})
 }
 
-func (s benchStore) size() int {
+func (s benchStore) size(b *testing.B) int {
 	var n int
-	s.store.db.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&n)
+	testcheck.NoError(b, s.store.db.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&n))
 	return n
 }
 
@@ -223,13 +224,15 @@ func BenchmarkSaveEvent(b *testing.B) {
 func BenchmarkDatabaseSize(b *testing.B) {
 	forEachSize(b, func(b *testing.B, bench benchStore) {
 		for b.Loop() {
-			bench.store.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+			if _, err := bench.store.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+				b.Fatal(err)
+			}
 		}
 		info, err := os.Stat(bench.path)
 		if err != nil {
 			b.Fatal(err)
 		}
-		b.ReportMetric(float64(info.Size())/float64(bench.size()), "bytes/event")
+		b.ReportMetric(float64(info.Size())/float64(bench.size(b)), "bytes/event")
 	})
 }
 

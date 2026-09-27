@@ -16,6 +16,7 @@ import (
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage/sqlitestore"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 // embeddingModelEnv points at the real GGUF model (Makefile targets
@@ -70,7 +71,7 @@ func TestRetrievalScaleWithModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cached.Save()
+	defer func() { testcheck.NoError(t, cached.Save()) }()
 	for _, size := range strings.Split(sizes, ",") {
 		total, err := strconv.Atoi(strings.TrimSpace(size))
 		if err != nil {

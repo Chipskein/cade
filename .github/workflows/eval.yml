@@ -1,0 +1,69 @@
+name: Eval
+
+# The model suites need ~2.4 GB of models and hours on a CPU runner, so they
+# stay off the push path: run by hand, or weekly to catch drift.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  LLAMA_NATIVE: "OFF"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Read pinned versions
+        id: versions
+        run: |
+          echo "llama=$(make -s print-LLAMA_TAG)" >> "$GITHUB_OUTPUT"
+          echo "models=$(make -s print-EMBEDDING_MODEL_URL print-GENERATION_MODEL_URL | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      # Same key as the CI workflow, so a build from either is reused.
+      - name: Cache the llama.cpp build
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.llama }}-portable
+
+      - name: Install the llama.cpp build tools
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Cache the models
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/cade/models
+          key: models-${{ steps.versions.outputs.models }}
+
+      # Embeddings of the corpus, keyed by model and context; a new entry per
+      # run keeps the cache growing instead of freezing at the first run.
+      - name: Cache the eval embeddings
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/cade/eval
+          key: eval-embeddings-${{ steps.versions.outputs.models }}-${{ github.run_id }}
+          restore-keys: eval-embeddings-${{ steps.versions.outputs.models }}-
+
+      - name: Plan and retrieval suites (CPU)
+        shell: bash
+        run: make eval GO_TAGS= EVAL_TIMEOUT=5h 2>&1 | tee eval-report.txt
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report.txt

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 // The fixture is a real Chrome IndexedDB directory holding only synthetic
@@ -71,7 +73,7 @@ func TestReadLatestMissingDirectory(t *testing.T) {
 
 func TestReadLatestIgnoresOtherFiles(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "LOG"), []byte("text log"), 0o600)
+	testcheck.NoError(t, os.WriteFile(filepath.Join(dir, "LOG"), []byte("text log"), 0o600))
 	entries, err := ReadLatest(dir)
 	if err != nil || len(entries) != 0 {
 		t.Fatalf("expected no entries and no error, got %d (err %v)", len(entries), err)
@@ -80,7 +82,7 @@ func TestReadLatestIgnoresOtherFiles(t *testing.T) {
 
 func TestReadLatestRejectsCorruptTable(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "000001.ldb"), bytes.Repeat([]byte{1}, 60), 0o600)
+	testcheck.NoError(t, os.WriteFile(filepath.Join(dir, "000001.ldb"), bytes.Repeat([]byte{1}, 60), 0o600))
 	if _, err := ReadLatest(dir); err == nil || !strings.Contains(err.Error(), "magic") {
 		t.Fatalf("expected a magic-number error, got %v", err)
 	}

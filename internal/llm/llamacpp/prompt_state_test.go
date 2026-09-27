@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestPromptStatePathDependsOnIdentityAndTokens(t *testing.T) {
@@ -40,9 +41,9 @@ func TestPromptStateStoreNeedsTheModelFile(t *testing.T) {
 
 func TestPromptStateIdentityFollowsModelFile(t *testing.T) {
 	dir, model := t.TempDir(), filepath.Join(t.TempDir(), "model.gguf")
-	os.WriteFile(model, []byte("v1"), 0o600)
+	testcheck.NoError(t, os.WriteFile(model, []byte("v1"), 0o600))
 	first, _ := newPromptStateStore(dir, ModelOptions{Path: model}, 4096)
-	os.WriteFile(model, []byte("v2 longer"), 0o600)
+	testcheck.NoError(t, os.WriteFile(model, []byte("v2 longer"), 0o600))
 	second, _ := newPromptStateStore(dir, ModelOptions{Path: model}, 4096)
 	larger, _ := newPromptStateStore(dir, ModelOptions{Path: model}, 8192)
 	if first.identity == second.identity || second.identity == larger.identity {
@@ -55,7 +56,7 @@ func TestRemoveOthersKeepsOnlyCurrentState(t *testing.T) {
 	store := promptStateStore{dir: dir}
 	keep := filepath.Join(dir, promptStatePrefix+"new"+promptStateExtension)
 	for _, name := range []string{keep, filepath.Join(dir, promptStatePrefix+"old"+promptStateExtension), filepath.Join(dir, promptStatePrefix+"x.kvstate.9.tmp"), filepath.Join(dir, "other.txt")} {
-		os.WriteFile(name, nil, 0o600)
+		testcheck.NoError(t, os.WriteFile(name, nil, 0o600))
 	}
 	store.removeOthers(keep)
 	entries, _ := os.ReadDir(dir)

@@ -59,7 +59,8 @@ func (c Criteria) directionFilter(events []event.Event) func(event.Event) bool {
 	}
 	known := addresseesOf(events)
 	return func(ev event.Event) bool {
-		return c.keepDirection(ev) && !(ev.Source == event.SourceTeams && known.addressedToOthers(ev))
+		sentToOthers := ev.Source == event.SourceTeams && known.addressedToOthers(ev)
+		return c.keepDirection(ev) && !sentToOthers
 	}
 }
 

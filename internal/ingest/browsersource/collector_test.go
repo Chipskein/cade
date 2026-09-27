@@ -104,7 +104,9 @@ func TestCollectRejectsUnknownSchema(t *testing.T) {
 func TestCollectLeavesOriginalUntouched(t *testing.T) {
 	path := firefoxHistory(t)
 	before, _ := os.Stat(path)
-	collectAll(t, path)
+	if _, err := collectAll(t, path); err != nil {
+		t.Fatal(err)
+	}
 	after, _ := os.Stat(path)
 	if !before.ModTime().Equal(after.ModTime()) || before.Size() != after.Size() {
 		t.Fatal("the live history file must not be modified")

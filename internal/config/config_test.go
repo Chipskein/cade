@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestLoadMissingFileReturnsExpandedDefaults(t *testing.T) {
@@ -17,7 +19,7 @@ func TestLoadMissingFileReturnsExpandedDefaults(t *testing.T) {
 
 func TestLoadOverridesOnlyGivenFields(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	os.WriteFile(path, []byte(`{"retrieval": {"top_k": 3}, "sources": {"directories": ["/notes"]}}`), 0o600)
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"retrieval": {"top_k": 3}, "sources": {"directories": ["/notes"]}}`), 0o600))
 	cfg, err := Load(path)
 	if err != nil || cfg.Retrieval.TopK != 3 || cfg.Retrieval.MaxAnswerTokens != 512 || cfg.Sources.Directories[0] != "/notes" {
 		t.Fatalf("expected override merged over defaults, got %+v (err %v)", cfg, err)
@@ -26,7 +28,7 @@ func TestLoadOverridesOnlyGivenFields(t *testing.T) {
 
 func TestLoadRejectsInvalidJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	os.WriteFile(path, []byte(`{not json`), 0o600)
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{not json`), 0o600))
 	if _, err := Load(path); err == nil {
 		t.Fatal("expected a parse error")
 	}
@@ -45,7 +47,7 @@ func TestWriteDefaultThenLoad(t *testing.T) {
 
 func TestWriteDefaultRefusesOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
-	os.WriteFile(path, []byte(`{}`), 0o600)
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{}`), 0o600))
 	if err := WriteDefault(path); err == nil {
 		t.Fatal("expected refusal to overwrite an existing config")
 	}

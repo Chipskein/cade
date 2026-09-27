@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func openRaw(t *testing.T, path string) *sql.DB {
@@ -55,8 +56,12 @@ func latestVersion() int {
 func TestUnversionedDatabaseKeepsItsEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
 	legacy := openRaw(t, path)
-	legacy.Exec(createEventsTable)
-	legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('a', 0, 'git', 'antigo', '{}')`)
+	if _, err := legacy.Exec(createEventsTable); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('a', 0, 'git', 'antigo', '{}')`); err != nil {
+		t.Fatal(err)
+	}
 	legacy.Close()
 	var backups []string
 	store, err := OpenWithHooks(context.Background(), path, Hooks{BackupCreated: func(p string) { backups = append(backups, p) }})
@@ -72,7 +77,9 @@ func TestUnversionedDatabaseKeepsItsEvents(t *testing.T) {
 
 func TestNewerDatabaseIsRefused(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
-	openRaw(t, path).Exec(`PRAGMA user_version = 99`)
+	if _, err := openRaw(t, path).Exec(`PRAGMA user_version = 99`); err != nil {
+		t.Fatal(err)
+	}
 	_, err := Open(context.Background(), path)
 	if err == nil || !strings.Contains(err.Error(), "version 99") || !strings.Contains(err.Error(), "update cade") {
 		t.Fatalf("expected a refusal naming both versions, got %v", err)
@@ -116,7 +123,7 @@ func TestDataMigrationBacksUpFirst(t *testing.T) {
 	}
 	copied := openRaw(t, backup)
 	var count int
-	copied.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&count)
+	testcheck.NoError(t, copied.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&count))
 	if count != 1 || versionOf(t, copied) != latestVersion() {
 		t.Fatalf("expected the backup at the previous version with the event, got v%d with %d events", versionOf(t, copied), count)
 	}
@@ -145,14 +152,20 @@ func TestMigrationsAreNumberedInOrder(t *testing.T) {
 func TestKeepTeamsTextRecoversTextOfOldEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
 	legacy := openRaw(t, path)
-	legacy.Exec(createEventsTable)
+	if _, err := legacy.Exec(createEventsTable); err != nil {
+		t.Fatal(err)
+	}
 	message := event.Message{Sender: "Ana", Conversation: "Ana, Eu", Kind: event.KindChat, MessageID: "1", Text: "deploy\nàs 19h"}
 	withoutText := message.Metadata()
 	delete(withoutText, "text")
 	withoutText["extra"] = "mantido"
 	encoded, _ := encodeMetadata(withoutText)
-	legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('m', 0, 'teams', ?, ?)`, message.Content(), encoded)
-	legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('old', 0, 'teams', 'Ana: layout antigo', '{"sender":"Ana"}')`)
+	if _, err := legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('m', 0, 'teams', ?, ?)`, message.Content(), encoded); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := legacy.Exec(`INSERT INTO events (uid, occurred_at, source, content, metadata) VALUES ('old', 0, 'teams', 'Ana: layout antigo', '{"sender":"Ana"}')`); err != nil {
+		t.Fatal(err)
+	}
 	legacy.Close()
 	store, err := Open(context.Background(), path)
 	if err != nil {
@@ -194,8 +207,8 @@ func TestSplitIntoChunksKeepsShortVectors(t *testing.T) {
 		t.Fatalf("expected a pending reindex of the long event, got pending=%v missing=%+v", pending, missing)
 	}
 	var oldTables, freePages int
-	store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'event_embeddings'`).Scan(&oldTables)
-	store.db.QueryRow(`PRAGMA freelist_count`).Scan(&freePages)
+	testcheck.NoError(t, store.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'event_embeddings'`).Scan(&oldTables))
+	testcheck.NoError(t, store.db.QueryRow(`PRAGMA freelist_count`).Scan(&freePages))
 	if oldTables != 0 || freePages != 0 {
 		t.Fatalf("expected the per-event vector table dropped and its space reclaimed, got %d tables and %d free pages", oldTables, freePages)
 	}

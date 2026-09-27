@@ -28,6 +28,17 @@ What changed in each version, the schema migrations, and what each migration rew
 
 The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
 
+### Continuous integration (phase 10)
+
+- **On every push and pull request** (`.github/workflows/ci.yml`): `gofmt`, `go vet`, `golangci-lint` and the tests with coverage, all with the `sqlite_fts5` tag. `make check` runs the same locally.
+  - The llama.cpp build is cached by `LLAMA_TAG`. It is built with the new `LLAMA_NATIVE=OFF` (AVX2, FMA, F16C), because a library tuned to one runner's CPU can crash on another. Local builds keep `ON`.
+- **Model suites off the push path** (`.github/workflows/eval.yml`): `make eval` on CPU, by hand or weekly, with the models and the corpus embeddings cached. The report is uploaded as the `eval-report` artifact. `EVAL_TIMEOUT` (default `1h`) lifts Go's 10-minute test limit, which a CPU runner exceeds.
+- **Lint:** `errcheck`, `staticcheck`, `unused` and `ineffassign`, version pinned in the Makefile. What they found was fixed rather than silenced:
+  - 75 test lines ignored errors from setup steps (writing fixtures, saving events, running the pipeline), so a broken setup could pass silently or fail in a later, misleading assertion. They now stop the test (`internal/testcheck`).
+  - two tests ran a call that fails on purpose without checking that it failed; they now assert the error.
+  - the exclusions are golangci's standard set (`Close`, terminal prints, removing temporary files) plus `tx.Rollback` after `Commit`, each with its reason in `.golangci.yml`.
+- **Coverage:** 82.1% of statements. The total goes to the run summary and to a README badge, served from a `coverage.json` on the `badges` branch, with no external service.
+
 ### Faster `ask` (phase 5)
 
 - **Rules before the model:** a question made only of a period, a source and generic words ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") is read without the model. Any other word (a name, a topic, a number) sends it to the model, so the rules never guess.

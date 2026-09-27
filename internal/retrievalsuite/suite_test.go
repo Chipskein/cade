@@ -172,8 +172,12 @@ func TestCachingEmbedderPersistsVectors(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache", "model.gob")
 	first := &testfakes.FakeEmbedder{}
 	cache, _ := NewCachingEmbedder(first, path)
-	cache.Embed("a")
-	cache.Embed("a")
+	if _, err := cache.Embed("a"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cache.Embed("a"); err != nil {
+		t.Fatal(err)
+	}
 	if err := cache.Save(); err != nil || len(first.Inputs) != 1 {
 		t.Fatalf("expected one real embedding and a saved cache, got %d (err %v)", len(first.Inputs), err)
 	}

@@ -7,14 +7,15 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestEmbeddingModelIsRecorded(t *testing.T) {
 	store := openTestStore(t)
 	ctx := context.Background()
 	empty, _ := store.EmbeddingModel(ctx)
-	store.RecordEmbeddingModel(ctx, "a.gguf")
-	store.RecordEmbeddingModel(ctx, "b.gguf")
+	testcheck.NoError(t, store.RecordEmbeddingModel(ctx, "a.gguf"))
+	testcheck.NoError(t, store.RecordEmbeddingModel(ctx, "b.gguf"))
 	if model, _ := store.EmbeddingModel(ctx); empty != "" || model != "b.gguf" {
 		t.Fatalf("expected no model then the last recorded, got %q and %q", empty, model)
 	}
@@ -49,9 +50,9 @@ func TestReindexAcceptsANewDimension(t *testing.T) {
 func TestReindexPendingUntilFinished(t *testing.T) {
 	store := openTestStore(t)
 	ctx := context.Background()
-	store.StartReindex(ctx, "novo.gguf")
+	testcheck.NoError(t, store.StartReindex(ctx, "novo.gguf"))
 	pending, _ := store.ReindexPending(ctx)
-	store.FinishReindex(ctx)
+	testcheck.NoError(t, store.FinishReindex(ctx))
 	finished, _ := store.ReindexPending(ctx)
 	if model, _ := store.EmbeddingModel(ctx); !pending || finished || model != "novo.gguf" {
 		t.Fatalf("expected pending then finished with the model recorded, got %v %v %q", pending, finished, model)

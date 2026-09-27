@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 // FakeGitRunner returns canned git output and records the arguments used.
@@ -71,7 +72,9 @@ func TestCollectEventsUsesHashAsStableID(t *testing.T) {
 
 func TestCollectEventsPassesAuthorFilter(t *testing.T) {
 	runner := &FakeGitRunner{}
-	collect(t, runner)
+	if _, err := collect(t, runner); err != nil {
+		t.Fatal(err)
+	}
 	if !slices.Contains(runner.LastArgs, "--author=ana@x.io") {
 		t.Fatalf("expected author filter in %v", runner.LastArgs)
 	}
@@ -128,7 +131,7 @@ func TestCollectEventsAgainstRealRepository(t *testing.T) {
 func initRepositoryWithCommit(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("hello"), 0o600)
+	testcheck.NoError(t, os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("hello"), 0o600))
 	for _, args := range [][]string{
 		{"init", "-q"}, {"add", "."},
 		{"-c", "user.name=T", "-c", "user.email=t@t", "commit", "-q", "-m", "first commit"},
@@ -209,10 +212,11 @@ func TestRealRepositoryWithTwoAuthors(t *testing.T) {
 		}
 	}
 	var mine, others int
-	NewCollector(ExecRunner{}, repository, nil, []string{AutoIdentity}).CollectEvents(context.Background(), func(ev event.Event) error {
+	err := NewCollector(ExecRunner{}, repository, nil, []string{AutoIdentity}).CollectEvents(context.Background(), func(ev event.Event) error {
 		mine, others = mine+boolInt(ev.Commit().Authorship == event.AuthorshipMine), others+boolInt(ev.IsOthersCommit())
 		return nil
 	})
+	testcheck.NoError(t, err)
 	if mine != 1 || others != 1 {
 		t.Fatalf("expected one commit of each, got %d mine and %d others", mine, others)
 	}

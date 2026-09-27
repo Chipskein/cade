@@ -20,12 +20,24 @@ LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 
 PREFIX ?= $(HOME)/.local
 
+# ON tunes llama.cpp to this CPU. CI builds with OFF (AVX2, FMA, F16C: every
+# x86-64 runner has them) because the cached library may run on another
+# machine, where a native build can die with an illegal instruction.
+LLAMA_NATIVE ?= ON
+
+# Pinned so `make lint` and CI agree; CI builds it with this module's Go,
+# since a golangci-lint built with an older Go refuses newer modules.
+GOLANGCI_LINT_VERSION := v2.14.0
+
+# Go test timeout for the model suites; CPU runners need hours, not minutes.
+EVAL_TIMEOUT ?= 1h
+
 # The SQLite driver only compiles FTS5 (keyword search) with this tag; every
 # build and test needs it. GO_TAGS adds cuda for the GPU build.
 comma := ,
 TAGS = sqlite_fts5$(if $(GO_TAGS),$(comma)$(GO_TAGS))
 
-.PHONY: build cuda install uninstall test test-models eval eval-plan eval-retrieval eval-scale bench fmt llama llama-cuda models clean
+.PHONY: build cuda install uninstall test cover test-models eval eval-plan eval-retrieval eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
 
 build: llama
 	go build -tags sqlite_fts5 -o bin/cade ./cmd/cade
@@ -45,6 +57,12 @@ cuda: llama-cuda
 test: llama
 	go test -tags sqlite_fts5 ./...
 
+# Same tests with a coverage profile; prints the per-function table and the
+# total last.
+cover: llama
+	go test -tags sqlite_fts5 -coverprofile=coverage.out ./...
+	go tool cover -func=coverage.out
+
 # Also runs the llama.cpp binding against the real models.
 test-models: llama models
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags sqlite_fts5 ./...
@@ -55,13 +73,13 @@ test-models: llama models
 GO_TAGS ?= $(if $(wildcard $(CUDA_HOME)/bin/nvcc),cuda)
 
 eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
-	CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags $(TAGS) -count=1 -v -run TestPlanSuiteWithModel ./internal/queryplan
+	CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run TestPlanSuiteWithModel ./internal/queryplan
 
 # Scores retrieval with the real embedder and SQLite store: the calibration
 # set reports where the distance gates belong, the test set (never used for
 # tuning) is checked against its floors. testdata/queries/retrieval/.
 eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
-	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -run 'TestRetrieval(Calibration|Suite)WithModel' ./internal/retrievalsuite
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run 'TestRetrieval(Calibration|Suite)WithModel' ./internal/retrievalsuite
 
 # Test-set metrics as the corpus grows with distractors, saved next to the
 # benchmark baseline. Embeddings are cached in ~/.cache/cade/eval, so only
@@ -85,17 +103,36 @@ bench: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) models
 fmt:
 	gofmt -w cmd internal
 
+# Fails listing the files gofmt would change.
+fmt-check:
+	@unformatted=$$(gofmt -l cmd internal); test -z "$$unformatted" || { echo "gofmt would change:"; echo "$$unformatted"; exit 1; }
+
+vet: llama
+	go vet -tags sqlite_fts5 ./...
+
+# Linters and exclusions are in .golangci.yml. Install the pinned version
+# with: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+lint: llama
+	golangci-lint run ./...
+
+# What CI runs on every push and pull request.
+check: fmt-check vet lint test
+
+# Prints a variable for CI cache keys: make -s print-LLAMA_TAG
+print-%:
+	@echo '$($*)'
+
 llama: $(LLAMA_DIR)/build/src/libllama.a
 
 llama-cuda: $(LLAMA_DIR)/build-cuda/src/libllama.a
 
 $(LLAMA_DIR)/build/src/libllama.a: | $(LLAMA_DIR)
-	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=ON
+	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=$(LLAMA_NATIVE)
 	cmake --build $(LLAMA_DIR)/build --target llama
 
 $(LLAMA_DIR)/build-cuda/src/libllama.a: | $(LLAMA_DIR)
 	test -x $(CUDA_HOME)/bin/nvcc || { echo "nvcc não encontrado em $(CUDA_HOME); instale o CUDA Toolkit (pacman -S cuda)"; exit 1; }
-	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build-cuda $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=ON \
+	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build-cuda $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=$(LLAMA_NATIVE) \
 		-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=$(CUDA_ARCH) -DCMAKE_CUDA_COMPILER=$(CUDA_HOME)/bin/nvcc \
 		$(if $(NVCC_CCBIN),-DCMAKE_CUDA_HOST_COMPILER=$(NVCC_CCBIN))
 	cmake --build $(LLAMA_DIR)/build-cuda --target llama
@@ -110,4 +147,4 @@ $(EMBEDDING_MODEL) $(GENERATION_MODEL):
 	curl -fL -o $@ $(if $(filter $@,$(EMBEDDING_MODEL)),$(EMBEDDING_MODEL_URL),$(GENERATION_MODEL_URL))
 
 clean:
-	rm -rf bin $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda
+	rm -rf bin coverage.out $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda

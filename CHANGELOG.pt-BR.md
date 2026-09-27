@@ -28,6 +28,17 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
 
+### Integração contínua (fase 10)
+
+- **A cada push e pull request** (`.github/workflows/ci.yml`): `gofmt`, `go vet`, `golangci-lint` e os testes com cobertura, todos com a tag `sqlite_fts5`. `make check` roda o mesmo localmente.
+  - O build do llama.cpp fica em cache pela `LLAMA_TAG`. Ele é compilado com a nova opção `LLAMA_NATIVE=OFF` (AVX2, FMA, F16C), porque uma biblioteca ajustada à CPU de um runner pode falhar em outro. O build local continua `ON`.
+- **Suítes com modelo fora do caminho de cada push** (`.github/workflows/eval.yml`): `make eval` em CPU, manual ou semanal, com os modelos e os embeddings do corpus em cache. O relatório é publicado como o artefato `eval-report`. `EVAL_TIMEOUT` (padrão `1h`) sobe o limite de 10 minutos do Go, que um runner em CPU ultrapassa.
+- **Lint:** `errcheck`, `staticcheck`, `unused` e `ineffassign`, com a versão fixada no Makefile. O que eles acharam foi corrigido, não silenciado:
+  - 75 linhas de teste ignoravam erros de passos de preparação (gravar fixtures, salvar eventos, rodar o pipeline), então uma preparação quebrada podia passar em silêncio ou falhar numa asserção posterior, enganosa. Agora elas param o teste (`internal/testcheck`).
+  - dois testes rodavam uma chamada que falha de propósito sem conferir que ela falhou; agora verificam o erro.
+  - as exclusões são o conjunto padrão do golangci (`Close`, impressões no terminal, remoção de arquivos temporários), mais `tx.Rollback` depois do `Commit`, cada uma com o motivo em `.golangci.yml`.
+- **Cobertura:** 82,1% das instruções. O total vai para o resumo da execução e para um badge no README, servido por um `coverage.json` no branch `badges`, sem serviço externo.
+
 ### `ask` mais rápido (fase 5)
 
 - **Regras antes do modelo:** uma pergunta feita só de período, fonte e palavras genéricas ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") é lida sem o modelo. Qualquer outra palavra (um nome, um assunto, um número) a manda para o modelo, então as regras nunca chutam.

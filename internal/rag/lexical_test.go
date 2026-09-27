@@ -71,7 +71,9 @@ func TestVectorModeSkipsKeywords(t *testing.T) {
 	store := storeWithHits(scored("a", event.SourceGit, 0.1))
 	answerer, _ := newTestAnswerer(store, &testfakes.FakeGenerator{})
 	answerer.settings.Mode = ModeVector
-	answerer.Retrieve(context.Background(), queryplan.Query{Question: "o que foi o commit e5f6a7b?", Source: event.SourceGit}, AnswerObserver{})
+	if _, err := answerer.Retrieve(context.Background(), queryplan.Query{Question: "o que foi o commit e5f6a7b?", Source: event.SourceGit}, AnswerObserver{}); err != nil {
+		t.Fatal(err)
+	}
 	if len(store.LexicalQueries) != 0 {
 		t.Fatalf("expected no keyword search, got %+v", store.LexicalQueries)
 	}

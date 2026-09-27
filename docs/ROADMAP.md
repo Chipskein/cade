@@ -20,7 +20,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 3 | Busca híbrida (FTS5 + vetor) | concluída | alto | médio |
 | 4 | Autoria no git | concluída | alto | baixo |
 | 5 | Latência do `ask` | concluída | médio | médio |
-| 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | pendente | alto | baixo |
+| 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | concluída; falta medir no GitHub | alto | baixo |
 | 6 | [Filtros de pessoa no SQL](#fase-6--filtros-de-pessoa-no-sql) | pendente | médio | baixo |
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | pendente | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | pendente | alto | médio |
@@ -30,7 +30,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | — | [A definir](#a-definir) | em aberto | — | — |
 
 A tabela está na ordem sugerida:
-- **CI (10) primeiro:** é barata e protege todas as fases seguintes.
+- **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue; falta medir no GitHub.
 - **Depois as mudanças de código:** 6 e 7. A 5 foi feita antes da 10, a pedido.
 - **Em seguida, a experiência de quem instala:** 11 e 12.
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
@@ -39,26 +39,11 @@ A tabela está na ordem sugerida:
 
 ## Fase 10 — Integração contínua e qualidade
 
-### Problema
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)). Falta o que só dá para verificar com os workflows rodando no GitHub:
 
-- Não há CI (nenhum workflow em `.github/`). Hoje só a disciplina de rodar `make test` antes do commit impede uma regressão de entrar no `dev`.
-- Não há análise estática além do `gofmt`, nem medida de cobertura.
-
-### Mudanças
-
-1. **Workflow de testes a cada push e PR** (GitHub Actions):
-   - `gofmt -l` (falha se listar algo), `go vet` e `make test`, com a tag `sqlite_fts5`;
-   - o build CPU do llama.cpp em cache, com chave `LLAMA_TAG`, para não recompilar a cada execução.
-2. **Suíte de avaliação fora do caminho crítico.** `make eval` precisa dos modelos (~2,4 GB) e leva minutos em CPU. Rodar em workflow manual ou agendado, com os modelos em cache, e publicar o relatório como artefato.
-3. **`golangci-lint`** com um conjunto pequeno de linters (`errcheck`, `staticcheck`, `unused`, `ineffassign`), corrigindo o que já aparece hoje.
-4. **Cobertura:** `go test -cover` no relatório do workflow.
-5. **Badges** de build e cobertura no README.
-
-### Critério de aceite
-
-- Um PR que quebra um teste ou o `gofmt` fica vermelho.
-- Com o cache quente, o workflow de testes termina em poucos minutos (medir e registrar).
-- O `golangci-lint` passa sem exceções novas.
+- registrar aqui o tempo do workflow de testes com o cache quente (a segunda execução em diante) e com o cache frio;
+- confirmar que um PR que quebra um teste ou o `gofmt` fica vermelho;
+- rodar o `eval.yml` uma vez à mão e registrar quanto leva em CPU.
 
 ---
 

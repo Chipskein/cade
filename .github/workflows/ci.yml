@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Portable llama.cpp build: the cached library may run on another runner CPU.
+  LLAMA_NATIVE: "OFF"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      coverage: ${{ steps.cover.outputs.total }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Read pinned versions
+        id: versions
+        run: |
+          echo "llama=$(make -s print-LLAMA_TAG)" >> "$GITHUB_OUTPUT"
+          echo "golangci=$(make -s print-GOLANGCI_LINT_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the llama.cpp build
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.llama }}-portable
+
+      - name: Install the llama.cpp build tools
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Build llama.cpp
+        run: make llama
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ steps.versions.outputs.golangci }}
+
+      - name: gofmt
+        run: make fmt-check
+
+      - name: go vet
+        run: make vet
+
+      - name: golangci-lint
+        run: make lint
+
+      - name: Tests with coverage
+        id: cover
+        shell: bash
+        run: |
+          make cover | tee cover.txt
+          total=$(awk '/^total:/ {print $NF}' cover.txt)
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Coverage: $total"
+            echo
+            echo "<details><summary>Per function</summary>"
+            echo
+            echo '```'
+            grep -v '^ok\|^?' cover.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  coverage-badge:
+    # Only the main line's coverage goes on the README badge.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish the coverage badge to the badges branch
+        run: .github/scripts/publish-coverage-badge.sh "${{ needs.test.outputs.coverage }}"

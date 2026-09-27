@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/testcheck"
 	"github.com/chipskein/cade/internal/timeline"
 )
 
@@ -188,9 +189,10 @@ func TestRunSuiteReportsEachCase(t *testing.T) {
 	generator := &FakeStructuredGenerator{Reply: `{"tipo": "responder", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": null}`}
 	suite := Suite{Now: suiteNow, Cases: []SuiteCase{{Question: "a"}, {Question: "b"}}}
 	var seen []string
-	RunSuite(context.Background(), NewPlanner(generator), suite, func(done, total int, result CaseResult) {
+	_, err := RunSuite(context.Background(), NewPlanner(generator), suite, func(done, total int, result CaseResult) {
 		seen = append(seen, fmt.Sprintf("%d/%d %s", done, total, result.Question))
 	})
+	testcheck.NoError(t, err)
 	if strings.Join(seen, ",") != "1/2 a,2/2 b" {
 		t.Fatalf("unexpected progress %v", seen)
 	}

@@ -1,5 +1,8 @@
 # cade
 
+[![CI](https://github.com/Chipskein/cade/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Chipskein/cade/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Chipskein/cade/badges/coverage.json)](https://github.com/Chipskein/cade/actions/workflows/ci.yml)
+
 [English](README.md) · **Português**
 
 CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos e mensagens do Teams, e permite consultar por data ou por pergunta em linguagem natural.
@@ -260,7 +263,15 @@ make eval-plan     # mede a interpretação das perguntas (GPU se o CUDA Toolkit
 make eval-retrieval  # mede a busca: recall, MRR, rejeição
 make eval          # as duas
 make bench         # latência e memória: banco com 1k/10k/100k eventos, modelos, um ask inteiro (GO_TAGS= para o build CPU)
+make check         # o que a CI roda: gofmt, go vet, golangci-lint, testes
+make cover         # testes com cobertura (por função, total no fim)
 ```
+
+**CI** (GitHub Actions, `.github/workflows/`):
+- `ci.yml`, a cada push e pull request: `make fmt-check`, `vet`, `lint` e `cover`. O build do llama.cpp fica em cache pela `LLAMA_TAG`, compilado com `LLAMA_NATIVE=OFF` (AVX2, sem ajuste à CPU do runner) para que a biblioteca em cache rode em qualquer runner. O total de cobertura vai para o resumo da execução e, no `dev`, para o badge acima (um `coverage.json` no branch `badges`, sem serviço externo).
+- `eval.yml`, manual ou toda segunda-feira: `make eval` em CPU com os modelos em cache, e o relatório publicado como o artefato `eval-report`. Leva horas num runner, por isso fica fora do caminho de cada push.
+
+O `golangci-lint` roda `errcheck`, `staticcheck`, `unused` e `ineffassign` (`.golangci.yml`); instale a versão fixada no Makefile (`make -s print-GOLANGCI_LINT_VERSION`) com `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<versão>`.
 
 `eval-plan` passa ~150 perguntas de `testdata/queries/plan.json` (período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa; PT e EN) pelo modelo real e mostra a taxa de acerto de cada campo (tipo, período, fonte, pessoas, direção, assunto, status) com o intervalo de Wilson de 95%, e cada pergunta interpretada errado. Falha quando o limite inferior de um campo cai abaixo do `minimum_accuracy` do arquivo, então mudanças no prompt ou no modelo não pioram a interpretação em silêncio, e um caso isolado não reprova. `testdata/README.md` explica como transformar uma pergunta real num caso anonimizado.
 

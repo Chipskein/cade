@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/testcheck"
 	"github.com/chipskein/cade/internal/testfakes"
 )
 
@@ -49,7 +50,9 @@ func TestRunStoresEventsAndReports(t *testing.T) {
 func TestRunTwiceDoesNotDuplicate(t *testing.T) {
 	store := testfakes.NewFakeEventStore()
 	pipeline := newTestPipeline(store, &testfakes.FakeEmbedder{})
-	pipeline.Run(context.Background(), twoEvents(), nil)
+	if _, err := pipeline.Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
 	report, _ := pipeline.Run(context.Background(), twoEvents(), nil)
 	if report != (Report{Collected: 2, AlreadyStored: 2}) || len(store.Events) != 2 {
 		t.Fatalf("expected re-run to skip both, got %+v with %d stored", report, len(store.Events))
@@ -59,8 +62,12 @@ func TestRunTwiceDoesNotDuplicate(t *testing.T) {
 func TestRunSkipsEmbeddingForKnownEvents(t *testing.T) {
 	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
 	pipeline := newTestPipeline(store, embedder)
-	pipeline.Run(context.Background(), twoEvents(), nil)
-	pipeline.Run(context.Background(), twoEvents(), nil)
+	if _, err := pipeline.Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pipeline.Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
 	if len(embedder.Inputs) != 1 {
 		t.Fatalf("expected a single embedding call overall, got %d", len(embedder.Inputs))
 	}
@@ -68,7 +75,9 @@ func TestRunSkipsEmbeddingForKnownEvents(t *testing.T) {
 
 func TestRunEmbedsWithDocumentPrefix(t *testing.T) {
 	embedder := &testfakes.FakeEmbedder{}
-	newTestPipeline(testfakes.NewFakeEventStore(), embedder).Run(context.Background(), twoEvents(), nil)
+	if _, err := newTestPipeline(testfakes.NewFakeEventStore(), embedder).Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
 	if embedder.Inputs[0] != "doc: fix bug" {
 		t.Fatalf("expected prefixed text, got %q", embedder.Inputs[0])
 	}
@@ -76,7 +85,9 @@ func TestRunEmbedsWithDocumentPrefix(t *testing.T) {
 
 func TestRunStoresEventWithoutContentWithoutEmbedding(t *testing.T) {
 	store := testfakes.NewFakeEventStore()
-	newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(), nil)
+	if _, err := newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
 	if store.Embeddings["b"] != nil || store.Embeddings["a"] == nil {
 		t.Fatalf("expected embedding only for content-bearing event, got %v", store.Embeddings)
 	}
@@ -93,8 +104,9 @@ func TestRunAbortsOnEmbeddingFailure(t *testing.T) {
 
 func TestRunReportsProgressAfterEachEvent(t *testing.T) {
 	var seen []Report
-	newTestPipeline(testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(),
+	_, err := newTestPipeline(testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(),
 		func(report Report) { seen = append(seen, report) })
+	testcheck.NoError(t, err)
 	if len(seen) != 2 || seen[0] != (Report{Collected: 1, Inserted: 1}) || seen[1].Collected != 2 {
 		t.Fatalf("expected running totals after each event, got %+v", seen)
 	}
@@ -131,7 +143,9 @@ func teamsVersion(content, revision string) event.Event {
 func TestRunReplacesEditedEventAndReembeds(t *testing.T) {
 	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
 	pipeline := newTestPipeline(store, embedder)
-	pipeline.Run(context.Background(), FakeCollector{Events: []event.Event{teamsVersion("deploy às 18h", "100")}}, nil)
+	if _, err := pipeline.Run(context.Background(), FakeCollector{Events: []event.Event{teamsVersion("deploy às 18h", "100")}}, nil); err != nil {
+		t.Fatal(err)
+	}
 	report, err := pipeline.Run(context.Background(), FakeCollector{Events: []event.Event{teamsVersion("deploy às 19h", "200")}}, nil)
 	if err != nil || report != (Report{Collected: 1, Updated: 1}) || store.Events[0].Content != "deploy às 19h" || len(embedder.Inputs) != 2 {
 		t.Fatalf("expected the edit stored and re-embedded, got %+v, %q, %d embeds (err %v)", report, store.Events[0].Content, len(embedder.Inputs), err)
@@ -144,7 +158,9 @@ func TestRunKeepsNewestRevision(t *testing.T) {
 	store := testfakes.NewFakeEventStore()
 	pipeline := newTestPipeline(store, &testfakes.FakeEmbedder{})
 	versions := FakeCollector{Events: []event.Event{teamsVersion("nova", "200"), teamsVersion("antiga", "100")}}
-	pipeline.Run(context.Background(), versions, nil)
+	if _, err := pipeline.Run(context.Background(), versions, nil); err != nil {
+		t.Fatal(err)
+	}
 	report, _ := pipeline.Run(context.Background(), versions, nil)
 	if store.Events[0].Content != "nova" || report.Updated != 0 || len(store.Updated) != 0 {
 		t.Fatalf("expected the newest kept without updates, got %q, %+v, updates %v", store.Events[0].Content, report, store.Updated)
@@ -215,11 +231,13 @@ func TestSnapshotMarksMissingFiles(t *testing.T) {
 // must not flag anything.
 func TestNonSnapshotOrFailedRunsMarkNothing(t *testing.T) {
 	store := testfakes.NewFakeEventStore()
-	newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(), nil)
+	if _, err := newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), twoEvents(), nil); err != nil {
+		t.Fatal(err)
+	}
 	failing := SnapshotFake{FakeCollector: FakeCollector{Events: []event.Event{fileAt("/notas/a.md", "a")}}, Root: "/notas"}
-	newTestPipeline(store, &testfakes.FakeEmbedder{FailWith: errors.New("gpu")}).Run(context.Background(), failing, nil)
-	if len(store.MarkedRoots) != 0 {
-		t.Fatalf("expected no root marked, got %v", store.MarkedRoots)
+	_, err := newTestPipeline(store, &testfakes.FakeEmbedder{FailWith: errors.New("gpu")}).Run(context.Background(), failing, nil)
+	if err == nil || len(store.MarkedRoots) != 0 {
+		t.Fatalf("expected a failed run and no root marked, got %v (err %v)", store.MarkedRoots, err)
 	}
 }
 
@@ -232,7 +250,9 @@ func longNote() event.Event {
 // its second half could never be found.
 func TestRunEmbedsEachChunkOfALongEvent(t *testing.T) {
 	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
-	newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote()}}, nil)
+	if _, err := newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote()}}, nil); err != nil {
+		t.Fatal(err)
+	}
 	chunks := store.Chunks["nota"]
 	if len(chunks) < 3 || len(embedder.Inputs) != len(chunks) || chunks[len(chunks)-1].End != len(longNote().Content) {
 		t.Fatalf("expected one embedding per chunk covering the text, got %d chunks and %d calls", len(chunks), len(embedder.Inputs))
@@ -246,7 +266,9 @@ func TestRunReusesAllChunksOfIdenticalLongText(t *testing.T) {
 	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
 	copy := longNote()
 	copy.UID = "copia"
-	newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote(), copy}}, nil)
+	if _, err := newTestPipeline(store, embedder).Run(context.Background(), FakeCollector{Events: []event.Event{longNote(), copy}}, nil); err != nil {
+		t.Fatal(err)
+	}
 	if len(store.Chunks["copia"]) != len(store.Chunks["nota"]) || len(embedder.Inputs) != len(store.Chunks["nota"]) {
 		t.Fatalf("expected the copy to reuse every chunk, got %d chunks and %d calls", len(store.Chunks["copia"]), len(embedder.Inputs))
 	}
@@ -263,7 +285,9 @@ func (AuthoredFake) CommitAuthorship() (string, []string) {
 
 func TestAuthoredCollectorMarksStoredCommits(t *testing.T) {
 	store := testfakes.NewFakeEventStore()
-	newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), AuthoredFake{}, nil)
+	if _, err := newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), AuthoredFake{}, nil); err != nil {
+		t.Fatal(err)
+	}
 	if len(store.AuthorshipMarks) != 1 || store.AuthorshipMarks[0] != "/src/api" {
 		t.Fatalf("expected the repository marked, got %v", store.AuthorshipMarks)
 	}

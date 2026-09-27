@@ -61,7 +61,7 @@ func stripBlinkHeader(serialized []byte) ([]byte, error) {
 	rest := serialized[1+width:]
 	if len(rest) > 0 && rest[0] == blinkTrailerTag {
 		if len(rest) < 1+blinkTrailerFieldsLen {
-			return nil, fmt.Errorf("Blink trailer offset needs %d bytes, %d remain", 1+blinkTrailerFieldsLen, len(rest))
+			return nil, fmt.Errorf("the Blink trailer offset needs %d bytes, %d remain", 1+blinkTrailerFieldsLen, len(rest))
 		}
 		rest = rest[1+blinkTrailerFieldsLen:]
 	}

@@ -15,8 +15,9 @@ func TestDecodeKeyPrefixOneByteIDs(t *testing.T) {
 }
 
 func TestDecodeKeyPrefixWideIDs(t *testing.T) {
-	// database id width 2, store id width 3, index id width 1.
-	first := byte(1<<5 | 2<<2 | 0)
+	// database id width 2, store id width 3, index id width 1 (stored as
+	// width-1, so its bits are zero).
+	first := byte(1<<5 | 2<<2)
 	prefix, _, err := decodeKeyPrefix([]byte{first, 0x34, 0x12, 0x01, 0x00, 0x01, 1})
 	if err != nil || prefix.databaseID != 0x1234 || prefix.objectStoreID != 0x010001 {
 		t.Fatalf("unexpected prefix %+v (err %v)", prefix, err)

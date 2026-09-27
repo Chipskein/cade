@@ -4,11 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestFileCopiesContent(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a"), []byte("hello"), 0o600)
+	testcheck.NoError(t, os.WriteFile(filepath.Join(dir, "a"), []byte("hello"), 0o600))
 	err := File(filepath.Join(dir, "a"), filepath.Join(dir, "b"))
 	copied, _ := os.ReadFile(filepath.Join(dir, "b"))
 	if err != nil || string(copied) != "hello" {
@@ -25,8 +27,8 @@ func TestFileMissingSource(t *testing.T) {
 
 func TestFlatDirectorySkipsSubdirectories(t *testing.T) {
 	source, destination := t.TempDir(), filepath.Join(t.TempDir(), "copy")
-	os.WriteFile(filepath.Join(source, "000001.log"), []byte("x"), 0o600)
-	os.Mkdir(filepath.Join(source, "nested"), 0o700)
+	testcheck.NoError(t, os.WriteFile(filepath.Join(source, "000001.log"), []byte("x"), 0o600))
+	testcheck.NoError(t, os.Mkdir(filepath.Join(source, "nested"), 0o700))
 	err := FlatDirectory(source, destination)
 	entries, _ := os.ReadDir(destination)
 	if err != nil || len(entries) != 1 || entries[0].Name() != "000001.log" {

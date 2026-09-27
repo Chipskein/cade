@@ -45,7 +45,9 @@ func TestPlanWithoutFilters(t *testing.T) {
 
 func TestPlanUsesGrammarAndQuestion(t *testing.T) {
 	generator := &FakeStructuredGenerator{Reply: `{"tipo": "responder", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": null}`}
-	NewPlanner(generator).Plan(context.Background(), "pergunta final")
+	if _, err := NewPlanner(generator).Plan(context.Background(), "pergunta final"); err != nil {
+		t.Fatal(err)
+	}
 	last := generator.LastPrompt[len(generator.LastPrompt)-1]
 	if generator.LastGrammar != planGrammar || last.Content != "pergunta final" || last.Role != llm.RoleUser {
 		t.Fatalf("expected the grammar and the question as last user turn, got %+v", last)

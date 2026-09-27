@@ -124,6 +124,11 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RNF7.2** Cada campo tem um piso (`minimum_accuracy`) comparado com o limite inferior do intervalo: mudanças de prompt ou modelo que o derrubem falham o teste, em vez de regredirem em silêncio, e um erro isolado não reprova.
 - **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `make eval-retrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `make eval-scale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
 
+### RNF8 — Qualidade do código
+- **RNF8.1** Cada push e pull request passa por `gofmt`, `go vet`, `golangci-lint` (`errcheck`, `staticcheck`, `unused`, `ineffassign`) e `make test` na CI (`.github/workflows/ci.yml`); qualquer falha deixa a execução vermelha. `make check` roda o mesmo localmente.
+- **RNF8.2** As suítes com modelo (`make eval`) rodam em workflow manual ou semanal (`.github/workflows/eval.yml`), em CPU, com o relatório publicado como artefato.
+- **RNF8.3** A cobertura dos testes aparece no resumo de cada execução e num badge do README.
+
 ---
 
 ## 4. Critérios de aceite

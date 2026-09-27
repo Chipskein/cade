@@ -6,6 +6,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func commitEvent(uid, message, hash string) event.Event {
@@ -49,18 +50,20 @@ func TestDeletedTextIsNotSearchable(t *testing.T) {
 	mustSave(t, store, secret, []float32{1, 0})
 	edited := secret
 	edited.Content = "texto novo"
-	store.UpdateEvent(ctx, edited, whole(edited, []float32{1, 0}))
+	testcheck.NoError(t, store.UpdateEvent(ctx, edited, whole(edited, []float32{1, 0})))
 	if got := lexicalUIDs(t, store, `"cofre"`); len(got) != 0 {
 		t.Fatalf("expected the old text gone after an edit, got %v", got)
 	}
-	store.StartReindex(ctx, "outro.gguf")
+	testcheck.NoError(t, store.StartReindex(ctx, "outro.gguf"))
 	if got := lexicalUIDs(t, store, `"novo"`); len(got) != 0 {
 		t.Fatalf("expected no terms after reindex starts, got %v", got)
 	}
-	store.SaveEmbeddings(ctx, []storage.EventEmbedding{{Event: edited, Chunks: whole(edited, []float32{1, 0})}})
-	store.DeleteSource(ctx, event.SourceGit)
+	testcheck.NoError(t, store.SaveEmbeddings(ctx, []storage.EventEmbedding{{Event: edited, Chunks: whole(edited, []float32{1, 0})}}))
+	if _, err := store.DeleteSource(ctx, event.SourceGit); err != nil {
+		t.Fatal(err)
+	}
 	var rows int
-	store.db.QueryRow(`SELECT COUNT(*) FROM chunks_fts`).Scan(&rows)
+	testcheck.NoError(t, store.db.QueryRow(`SELECT COUNT(*) FROM chunks_fts`).Scan(&rows))
 	if got := lexicalUIDs(t, store, `"novo"`); len(got) != 0 || rows != 0 {
 		t.Fatalf("expected nothing searchable after forget, got %v and %d rows", got, rows)
 	}

@@ -82,7 +82,9 @@ func TestAnswerPassesFiltersToSearch(t *testing.T) {
 	store := storeWithHits()
 	answerer, embedder := newTestAnswerer(store, &testfakes.FakeGenerator{})
 	days, _ := timeline.ParseDayRange("2026-09-20", "2026-09-26", fixedNow)
-	answerer.Answer(context.Background(), queryplan.Query{Question: "sqlite", Source: event.SourceBrowser, Days: &days}, AnswerObserver{})
+	if _, err := answerer.Answer(context.Background(), queryplan.Query{Question: "sqlite", Source: event.SourceBrowser, Days: &days}, AnswerObserver{}); err != nil {
+		t.Fatal(err)
+	}
 	query := store.LastQuery
 	if query.Source != event.SourceBrowser || !query.From.Equal(days.Start()) || !query.To.Equal(days.End()) || query.Limit != 5*chatterHeadroom {
 		t.Fatalf("expected filters in query, got %+v", query)
@@ -109,7 +111,9 @@ func TestAnswerReportsStagesAndStreamsReply(t *testing.T) {
 		StageStarted: func(stage AnswerStage) { stages = append(stages, stage) },
 		Generation:   llm.GenerationProgress{TokenGenerated: func(piece string) { streamed += piece }},
 	}
-	answerer.Answer(context.Background(), queryplan.Query{Question: "o que fiz?"}, observer)
+	if _, err := answerer.Answer(context.Background(), queryplan.Query{Question: "o que fiz?"}, observer); err != nil {
+		t.Fatal(err)
+	}
 	if len(stages) != 2 || stages[0] != StageSearching || stages[1] != StageGenerating || streamed != "Você fez [1]." {
 		t.Fatalf("unexpected stages %v / stream %q", stages, streamed)
 	}
@@ -118,7 +122,9 @@ func TestAnswerReportsStagesAndStreamsReply(t *testing.T) {
 func TestAnswerSkipsGeneratingStageWithoutEvidence(t *testing.T) {
 	answerer, _ := newTestAnswerer(storeWithHits(), &testfakes.FakeGenerator{})
 	var stages []AnswerStage
-	answerer.Answer(context.Background(), queryplan.Query{Question: "x"}, AnswerObserver{StageStarted: func(stage AnswerStage) { stages = append(stages, stage) }})
+	if _, err := answerer.Answer(context.Background(), queryplan.Query{Question: "x"}, AnswerObserver{StageStarted: func(stage AnswerStage) { stages = append(stages, stage) }}); err != nil {
+		t.Fatal(err)
+	}
 	if len(stages) != 1 || stages[0] != StageSearching {
 		t.Fatalf("expected only the search stage, got %v", stages)
 	}
@@ -151,7 +157,9 @@ func TestAnswerEmbedsSemanticTextAndPromptsWithQuestion(t *testing.T) {
 	generator := &testfakes.FakeGenerator{Reply: "Você corrigiu o JWT [1]."}
 	answerer, embedder := newTestAnswerer(storeWithHits(scored("a", event.SourceGit, 0.9)), generator)
 	query := queryplan.Query{Question: "commits de ontem sobre autenticação", SemanticText: "autenticação", Source: event.SourceGit}
-	answerer.Answer(context.Background(), query, AnswerObserver{})
+	if _, err := answerer.Answer(context.Background(), query, AnswerObserver{}); err != nil {
+		t.Fatal(err)
+	}
 	last := generator.LastMessages[len(generator.LastMessages)-1].Content
 	if len(embedder.Inputs) != 1 || embedder.Inputs[0] != "q: autenticação" || !strings.Contains(last, "commits de ontem sobre autenticação") {
 		t.Fatalf("expected the topic embedded and the question prompted, got %q / %q", embedder.Inputs, last)

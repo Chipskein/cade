@@ -1,0 +1,27 @@
+# golangci-lint v2. `make lint` runs it; CI runs the same version.
+version: "2"
+
+run:
+  # FTS5 is compiled only with this tag (see Makefile); without it the
+  # SQLite store fails to type-check the same way it fails to build.
+  build-tags:
+    - sqlite_fts5
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        # `defer tx.Rollback()` runs after Commit too, where it returns
+        # sql.ErrTxDone by design; the error that matters is Commit's.
+        - (*database/sql.Tx).Rollback
+  exclusions:
+    presets:
+      # Close on read paths, fmt.Fprint* to the terminal, os.Remove of
+      # temporary files: failures there change nothing the user can act on.
+      - std-error-handling

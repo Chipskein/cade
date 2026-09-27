@@ -1,5 +1,8 @@
 # cade
 
+[![CI](https://github.com/Chipskein/cade/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Chipskein/cade/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Chipskein/cade/badges/coverage.json)](https://github.com/Chipskein/cade/actions/workflows/ci.yml)
+
 **English** · [Português](README.pt-BR.md)
 
 Personal history CLI. Ingests git commits, browser history, files and Microsoft Teams messages, and lets you query them by date or with natural-language questions.
@@ -260,7 +263,15 @@ make eval-plan     # scores question interpretation (GPU when the CUDA Toolkit i
 make eval-retrieval  # scores retrieval: recall, MRR, rejection
 make eval          # both
 make bench         # latency and memory: storage at 1k/10k/100k events, models, a whole ask (GO_TAGS= for the CPU build)
+make check         # what CI runs: gofmt, go vet, golangci-lint, tests
+make cover         # tests with coverage (per function, total last)
 ```
+
+**CI** (GitHub Actions, `.github/workflows/`):
+- `ci.yml`, on every push and pull request: `make fmt-check`, `vet`, `lint` and `cover`. The llama.cpp build is cached by `LLAMA_TAG`, built with `LLAMA_NATIVE=OFF` (AVX2, no tuning to the runner's CPU) so the cached library runs on any runner. The coverage total goes to the run summary and, on `dev`, to the badge above (a `coverage.json` on the `badges` branch; no external service).
+- `eval.yml`, by hand or every Monday: `make eval` on CPU with the models cached, the report uploaded as the `eval-report` artifact. It takes hours on a runner, so it stays off the push path.
+
+`golangci-lint` runs `errcheck`, `staticcheck`, `unused` and `ineffassign` (`.golangci.yml`); install the version pinned in the Makefile (`make -s print-GOLANGCI_LINT_VERSION`) with `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<version>`.
 
 `eval-plan` runs ~150 questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, people, tasks, companies read as people; PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) with its 95% Wilson interval, plus every misread question. It fails when a field's lower bound drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently, and one unlucky case does not fail it. `testdata/README.md` explains how to turn a real question into an anonymized case.
 
