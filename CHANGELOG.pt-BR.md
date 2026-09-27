@@ -29,6 +29,15 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
 
+### Documentação e manutenção (fase 8)
+
+- **Corrigido:** o `ingest teams` entrava em pânico (ponteiro nulo) com uma reply chain sem `messageMap`. Achado pelo novo teste de amostra de formato; ganhou teste de regressão.
+- **README:** requisitos de hardware (memória, latência de embedding e do `ask` em GPU e CPU, disco) tirados de `bench/baseline*.txt`; seção de navegadores com os caminhos do Chromium e do Firefox; o que fazem a deduplicação, os pedaços, a busca híbrida e a autoria no git; aviso de política de dados antes de ingerir o Teams (também no PRIVACY).
+- **Fuzz tests** (`make fuzz`, `FUZZTIME` por alvo, padrão 30 s) para os leitores de LevelDB, V8 e IndexedDB e para o coletor do Teams. Com 20 s por alvo (~25 milhões de entradas), os leitores não quebraram. O alvo do coletor acha o pânico do `messageMap` em segundos quando a correção é desfeita.
+- **Amostra do formato do Teams:** `testdata/teams-formats/2026-09.leveldb`, um cache do Teams no formato atual gravado por um Chrome de verdade a partir de uma página sintética (chat, canal de time, perfil, mensagens apagadas e de sistema, uma chain sem mensagens). Um teste confere o texto, o remetente, a conversa e a direção que o leitor extrai. O `testdata/README.md` explica como acrescentar o próximo formato. O fixture `chrome-indexeddb.leveldb` testa o leitor de IndexedDB, mas não está no formato do Teams.
+- **Sem rede, verificado (CA10):** num namespace de rede só com o loopback, desligado (`unshare -rn`), o `cade ingest all` e um `ask` que carrega os dois modelos funcionam.
+- **Referências a requisitos:** os 23 ids distintos de `RF`, `RNF` e `CA` citados no código existem em `docs/USECASES.md`.
+
 ### Idioma da interface (fase 12)
 
 - **Todos os rótulos seguem o idioma:** timeline, tarefas, `ask` (o que foi entendido, filtros de pessoa, fontes, "não encontrei"), progresso do ingest e do reindex, `forget`, `teams-schema`, avisos de migração e erros. Antes, só o `help` e as descrições das flags seguiam; o resto era em português. O idioma vem do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`), como no `help`.

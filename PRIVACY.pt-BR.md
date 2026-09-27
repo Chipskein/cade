@@ -37,6 +37,7 @@ Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro de
 
 ## Teams
 
+- **Confira antes a política de dados da sua organização.** O cache do Teams guarda mensagens de outras pessoas, em chats e canais, e ingeri-lo copia essas mensagens para o banco do cade no seu disco. Muitas organizações restringem guardar mensagens de trabalho fora das ferramentas aprovadas. O `cade init` deixa o Teams de fora a menos que você o escolha.
 - As mensagens vêm do IndexedDB que o Teams na web mantém no Chrome. O cade copia a pasta inteira do IndexedDB para uma pasta temporária (os arquivos em uso ficam travados), decodifica só os stores de mensagens, conversas e perfis, e apaga a cópia.
 - Só existe o que o cliente do Teams tem em cache. Mensagens antigas não são buscadas, porque o cade nunca fala com a Microsoft.
 - Uma mensagem editada substitui o texto guardado na próxima ingestão. Uma mensagem apagada no Teams depois de ingerida **continua** no cade até você rodar `cade forget teams`.

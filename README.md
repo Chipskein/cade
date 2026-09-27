@@ -12,12 +12,13 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 ## Contents
 
 - [How it works](#how-it-works)
-- [Models](#models)
+- [Models](#models) and [hardware](#hardware)
 - [Install](#install)
 - [Usage](#usage)
   - [Questions (`ask`)](#questions-ask)
 - [Sample output](#sample-output)
 - [Tasks](#tasks)
+- [Browsers](#browsers)
 - [Teams](#teams)
 - [Configuration](#configuration)
 - [Tests](#tests)
@@ -55,6 +56,13 @@ flowchart LR
     busca --> llm[Local LLM<br/>answer with sources]
 ```
 
+What ingestion and search do with the history:
+
+- **Deduplication:** running `ingest` again skips what is stored and replaces what changed at the source (an edited Teams message). Identical text is embedded once and its vectors reused. A file is one event, its earlier versions kept as dates and sizes. In answers, repeats count once: 12 visits to a page become one source, "(12 visitas, última em …)".
+- **Chunks:** text longer than ~1,200 characters is split into chunks (the embedding model reads 512 tokens), each with its own vector, so the answer at the end of a long note is found; the source line says which chunk matched.
+- **Hybrid search:** a question is matched by meaning (vectors, sqlite-vec) and by words (SQLite FTS5), and the two rankings are fused; identifiers such as `PROJ-481` or a commit hash are found by the words.
+- **Git authorship:** each commit is marked as yours or someone else's (`sources.git_identities`). The timeline, first-person questions and task reports show only yours.
+
 ## Models
 
 | Use | Model | Size |
@@ -63,6 +71,19 @@ flowchart LR
 | Generation | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) Q4_K_M | 2.1 GB |
 
 Any llama.cpp-compatible GGUF model can be used via `embedding.model_path` and `generation.model_path` in the config.
+
+### Hardware
+
+Measured on a Ryzen 5 5500 (6 cores), with and without an RTX 3060 ([bench/baseline.txt](bench/baseline.txt), [bench/baseline-cpu.txt](bench/baseline-cpu.txt); charts in [docs/BENCHMARKS.md](docs/BENCHMARKS.md)):
+
+| | GPU (`make cuda`) | CPU only (`make build`) |
+|---|---|---|
+| Memory while answering | ~2.5 GB of VRAM + ~1.2 GB of RAM | ~3.9 GB of RAM |
+| Embedding one event (ingest) | 3.4 ms | 36 ms |
+| A whole `ask`, up to the first answer token | 1.6–2.9 s (7.7–8.8 s right after a reboot, reading the models from disk) | 22–41 s (27–45 s after a reboot) |
+| Reading a question with the model | 1.4 s | 19.7 s |
+
+The range of `ask` goes from a question read by rules to one read by the model. Disk: 2.4 GB of models, the database (~450 MB for a real history of 108 thousand events) and ~55 MB of saved prompt state in `~/.cache/cade`.
 
 ## Install
 
@@ -212,7 +233,25 @@ Citadas só por outras pessoas: 3 tarefas — use --all para listar.
 Sem tarefa: 12 eventos
 ```
 
+## Browsers
+
+`ingest browser` reads Chromium (`History`) and Firefox (`places.sqlite`) history files; the format is detected from the file. `cade init` finds them. By hand:
+
+| Browser | History file |
+|---|---|
+| Chrome | `~/.config/google-chrome/<profile>/History` (`Default`, `Profile 1`…) |
+| Chromium, Brave, Edge, Vivaldi | `~/.config/chromium/…`, `~/.config/BraveSoftware/Brave-Browser/…`, `~/.config/microsoft-edge/…`, `~/.config/vivaldi/…`, each `<profile>/History` |
+| Firefox | `~/.mozilla/firefox/<profile>/places.sqlite` (profile names such as `abcd1234.default-release`, listed in `profiles.ini`); snap: `~/snap/firefox/common/.mozilla/firefox/…` |
+
+```sh
+cade ingest browser ~/.mozilla/firefox/abcd1234.default-release/places.sqlite
+```
+
+The file is copied before reading, so the browser can stay open. Chrome keeps about 90 days of history; what it dropped before the first ingest is gone.
+
 ## Teams
+
+> **Before ingesting Teams,** check your organization's data policy: the cache holds other people's messages, and cade copies them into its database (see [PRIVACY.md](PRIVACY.md#teams)).
 
 Messages are read from the IndexedDB that Teams on the web keeps in Chrome:
 
@@ -282,6 +321,7 @@ make eval          # all three
 make bench         # latency and memory: storage at 1k/10k/100k events, models, a whole ask (GO_TAGS= for the CPU build)
 make check         # what CI runs: gofmt, go vet, golangci-lint, tests
 make cover         # tests with coverage (per function, total last)
+make fuzz          # fuzzes the Teams cache parsers, FUZZTIME per target (default 30s)
 ```
 
 **CI** (GitHub Actions, `.github/workflows/`):

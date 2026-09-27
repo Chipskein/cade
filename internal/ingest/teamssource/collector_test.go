@@ -236,3 +236,13 @@ func TestCollectCarriesVersionAsRevision(t *testing.T) {
 		t.Fatalf("expected the message version as revision, got %v %v", revision, ok)
 	}
 }
+
+// Regression: a reply chain without messageMap panicked with a nil pointer
+// (found by the format sample test).
+func TestReplyChainWithoutMessageMapIsSkipped(t *testing.T) {
+	bare := indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, Value: obj("id", str("19:big@thread.v2"))}
+	events, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{bare, replyChain(message("1", "Text", "oi"))}})
+	if err != nil || len(events) != 1 {
+		t.Fatalf("expected the other chain's message and no error, got %d events, %v", len(events), err)
+	}
+}

@@ -61,7 +61,13 @@ func emitReplyChain(record indexeddb.Record, messages messageContext, emit inges
 		return nil
 	}
 	tally.replyChains++
-	for _, entry := range record.Value.Get("messageMap").Properties {
+	// A chain can come without messageMap (the fixture's large payload
+	// records): it has no messages, and reading its properties panicked.
+	messageMap := record.Value.Get("messageMap")
+	if messageMap == nil {
+		return nil
+	}
+	for _, entry := range messageMap.Properties {
 		tally.countMessage(entry.Value)
 		message, ok := parseMessage(entry.Value, messages.senders)
 		if !ok {

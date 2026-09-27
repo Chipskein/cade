@@ -37,7 +37,7 @@ EVAL_TIMEOUT ?= 1h
 comma := ,
 TAGS = sqlite_fts5$(if $(GO_TAGS),$(comma)$(GO_TAGS))
 
-.PHONY: build cuda install uninstall test cover test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
+.PHONY: build cuda install uninstall test cover fuzz test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
 
 build: llama
 	go build -tags sqlite_fts5 -o bin/cade ./cmd/cade
@@ -62,6 +62,20 @@ test: llama
 cover: llama
 	go test -tags sqlite_fts5 -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
+
+# Fuzzes the Teams cache parsers, each target for FUZZTIME; what a run
+# finds lands in testdata/fuzz/ and is replayed by every `make test`.
+FUZZTIME ?= 30s
+FUZZ_TARGETS := leveldbraw:FuzzJournalBatches leveldbraw:FuzzDecodeBatch leveldbraw:FuzzTableEntries \
+	leveldbraw:FuzzBlockEntries v8value:FuzzDecode indexeddb:FuzzDecodeKeyPrefix indexeddb:FuzzDecodeRecords \
+	ingest/teamssource:FuzzCollectReplyChain
+
+fuzz:
+	@for target in $(FUZZ_TARGETS); do \
+		pkg=$${target%%:*}; name=$${target##*:}; \
+		echo "== $$pkg $$name"; \
+		go test -tags sqlite_fts5 -run '^$$' -fuzz "^$$name\$$" -fuzztime $(FUZZTIME) ./internal/$$pkg || exit 1; \
+	done
 
 # Also runs the llama.cpp binding against the real models.
 test-models: llama models

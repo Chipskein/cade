@@ -3,10 +3,16 @@
 # only the synthetic data in these pages. Three browser sessions produce a
 # snappy-compressed table (bulk.html overflows the write buffer) plus a
 # journal with a later insert and a deletion (second.html).
+#
+# With arguments, writes another directory from other pages, e.g. a Teams
+# cache format sample:
+#   ./generate.sh ../teams-formats/2026-09.leveldb teams-2026-09.html
 set -euo pipefail
 
 pages_dir="$(cd "$(dirname "$0")" && pwd)"
-output_dir="$pages_dir/../chrome-indexeddb.leveldb"
+output_dir="$pages_dir/${1:-../chrome-indexeddb.leveldb}"
+pages=("${@:2}")
+[ ${#pages[@]} -gt 0 ] || pages=(index.html bulk.html second.html)
 port=8765
 profile="$(mktemp -d)"
 trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$profile"' EXIT
@@ -19,7 +25,7 @@ python3 -m http.server "$port" --bind 127.0.0.1 --directory "$pages_dir" >/dev/n
 server_pid=$!
 sleep 1
 
-for page in index.html bulk.html second.html; do
+for page in "${pages[@]}"; do
 	google-chrome-stable --headless=new --no-first-run --disable-gpu \
 		--user-data-dir="$profile" "http://127.0.0.1:$port/$page" >/dev/null 2>&1 &
 	chrome_pid=$!
@@ -30,5 +36,7 @@ for page in index.html bulk.html second.html; do
 done
 
 rm -rf "$output_dir" && mkdir -p "$output_dir"
+# A small database may have only the journal, no .ldb table yet.
+shopt -s nullglob
 cp "$profile"/Default/IndexedDB/*.indexeddb.leveldb/{*.log,*.ldb,CURRENT,MANIFEST-*} "$output_dir"/
 ls -la "$output_dir"

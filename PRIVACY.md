@@ -37,6 +37,7 @@ Choose `directories` with care: a `.env` or a notes file with passwords under th
 
 ## Teams
 
+- **Check your organization's data policy first.** The Teams cache holds other people's messages, in chats and channels, and ingesting it copies them into cade's database on your disk. Many organizations restrict keeping work messages outside the tools they approve. `cade init` leaves Teams out unless you choose it.
 - Messages come from the IndexedDB that Teams on the web keeps in Chrome. cade copies the whole IndexedDB directory to a temporary folder (the live files are locked), decodes only the message, conversation and profile stores, and deletes the copy.
 - Only what the Teams client has cached is available. Older messages are not fetched, since cade never talks to Microsoft.
 - An edited message replaces the stored text on the next ingestion. A message deleted in Teams after being ingested **stays** in cade until you run `cade forget teams`.

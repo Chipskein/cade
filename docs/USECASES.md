@@ -151,13 +151,13 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 | CA8 | Uma pergunta retorna resposta baseada nos eventos recuperados, com fontes e datas citadas. | Atendido |
 | CA9 | Uma pergunta sem resposta nos dados retorna "Não encontrei informação" em vez de inventar. | Atendido |
 | CA9.1 | A busca vetorial combinada com filtro de fonte e/ou período respeita o filtro. | Atendido |
-| CA10 | Nenhuma operação faz requisição de rede com dados de atividade. | Atendido por construção; verificação de tráfego pendente |
+| CA10 | Nenhuma operação faz requisição de rede com dados de atividade. | Atendido e verificado sem rede |
 | CA11 | Um novo ingestor torna seus eventos consultáveis sem alterar as consultas. | Atendido (Teams foi adicionado assim) |
 
 Notas:
 - **CA8** — A qualidade da resposta depende do modelo de geração. O Qwen2.5-3B nem sempre cita os eventos com `[n]`; nesse caso a CLI lista todos os eventos consultados.
 - **CA9.1** — O filtro é aplicado dentro da busca KNN do sqlite-vec (colunas de metadata do `vec0`), não após o corte top-k; há teste de regressão para isso. O período vem das flags ou de uma data citada na pergunta ("o que pesquisei semana passada" filtra a semana anterior). Dias da semana ("na segunda") ainda não são reconhecidos.
-- **CA10** — O código não usa cliente de rede e o llama.cpp é compilado sem suporte a download. Falta a verificação prática, por exemplo com `strace -f -e trace=network cade ask "..."` ou executando sem rede (`unshare -rn cade ask "..."`).
+- **CA10** — O código não usa cliente de rede e o llama.cpp é compilado sem suporte a download. Verificado em 2026-09-27 num namespace sem rede (`unshare -rn`, só o loopback, desligado): `cade ingest all` e um `cade ask` que carrega os dois modelos funcionaram, com a resposta e a fonte certas.
 
 ---
 

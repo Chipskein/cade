@@ -14,12 +14,13 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 ## Índice
 
 - [Como funciona](#como-funciona)
-- [Modelos](#modelos)
+- [Modelos](#modelos) e [hardware](#hardware)
 - [Instalação](#instalação)
 - [Uso](#uso)
   - [Perguntas (`ask`)](#perguntas-ask)
 - [Exemplo de saída](#exemplo-de-saída)
 - [Tarefas](#tarefas)
+- [Navegadores](#navegadores)
 - [Teams](#teams)
 - [Configuração](#configuração)
 - [Testes](#testes)
@@ -55,6 +56,13 @@ flowchart LR
     busca --> llm[LLM local<br/>resposta com fontes]
 ```
 
+O que a ingestão e a busca fazem com o histórico:
+
+- **Deduplicação:** rodar o `ingest` de novo pula o que já está guardado e substitui o que mudou na origem (uma mensagem editada no Teams). Texto idêntico é embutido uma vez só, e os vetores são reaproveitados. Um arquivo é um evento, e as versões anteriores ficam como datas e tamanhos. Nas respostas, repetições contam uma vez: 12 visitas a uma página viram uma fonte, "(12 visitas, última em …)".
+- **Pedaços:** texto com mais de ~1.200 caracteres é dividido em pedaços (o modelo de embedding lê 512 tokens), cada um com seu vetor, para que a resposta no fim de uma nota longa seja encontrada; a linha da fonte diz qual pedaço casou.
+- **Busca híbrida:** a pergunta é comparada por significado (vetores, sqlite-vec) e por palavras (FTS5 do SQLite), e as duas ordenações são combinadas; identificadores como `PROJ-481` ou um hash de commit são achados pelas palavras.
+- **Autoria no git:** cada commit é marcado como seu ou de outra pessoa (`sources.git_identities`). A timeline, as perguntas em primeira pessoa e o relatório de tarefas mostram só os seus.
+
 ## Modelos
 
 | Uso | Modelo | Tamanho |
@@ -63,6 +71,19 @@ flowchart LR
 | Geração | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) Q4_K_M | 2,1 GB |
 
 Qualquer modelo GGUF compatível com llama.cpp pode ser usado via `embedding.model_path` e `generation.model_path` na configuração.
+
+### Hardware
+
+Medido num Ryzen 5 5500 (6 núcleos), com e sem uma RTX 3060 ([bench/baseline.txt](bench/baseline.txt), [bench/baseline-cpu.txt](bench/baseline-cpu.txt); gráficos em [docs/BENCHMARKS.md](docs/BENCHMARKS.md)):
+
+| | GPU (`make cuda`) | Só CPU (`make build`) |
+|---|---|---|
+| Memória ao responder | ~2,5 GB de VRAM + ~1,2 GB de RAM | ~3,9 GB de RAM |
+| Embutir um evento (ingest) | 3,4 ms | 36 ms |
+| Um `ask` inteiro, até o primeiro token da resposta | 1,6–2,9 s (7,7–8,8 s logo depois de reiniciar, lendo os modelos do disco) | 22–41 s (27–45 s depois de reiniciar) |
+| Ler uma pergunta com o modelo | 1,4 s | 19,7 s |
+
+A faixa do `ask` vai de uma pergunta lida pelas regras a uma lida pelo modelo. Disco: 2,4 GB de modelos, o banco (~450 MB para um histórico real de 108 mil eventos) e ~55 MB do estado salvo do prompt em `~/.cache/cade`.
 
 ## Instalação
 
@@ -212,7 +233,25 @@ Citadas só por outras pessoas: 3 tarefas — use --all para listar.
 Sem tarefa: 12 eventos
 ```
 
+## Navegadores
+
+O `ingest browser` lê os históricos do Chromium (`History`) e do Firefox (`places.sqlite`); o formato é detectado pelo arquivo. O `cade init` os encontra. À mão:
+
+| Navegador | Arquivo de histórico |
+|---|---|
+| Chrome | `~/.config/google-chrome/<perfil>/History` (`Default`, `Profile 1`…) |
+| Chromium, Brave, Edge, Vivaldi | `~/.config/chromium/…`, `~/.config/BraveSoftware/Brave-Browser/…`, `~/.config/microsoft-edge/…`, `~/.config/vivaldi/…`, cada um em `<perfil>/History` |
+| Firefox | `~/.mozilla/firefox/<perfil>/places.sqlite` (perfis como `abcd1234.default-release`, listados em `profiles.ini`); snap: `~/snap/firefox/common/.mozilla/firefox/…` |
+
+```sh
+cade ingest browser ~/.mozilla/firefox/abcd1234.default-release/places.sqlite
+```
+
+O arquivo é copiado antes da leitura, então o navegador pode ficar aberto. O Chrome guarda cerca de 90 dias de histórico; o que ele descartou antes do primeiro ingest não volta.
+
 ## Teams
+
+> **Antes de ingerir o Teams,** confira a política de dados da sua organização: o cache guarda mensagens de outras pessoas, e o cade as copia para o banco (veja [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md#teams)).
 
 As mensagens são lidas do IndexedDB do Teams web no Chrome:
 
@@ -282,6 +321,7 @@ make eval          # as três
 make bench         # latência e memória: banco com 1k/10k/100k eventos, modelos, um ask inteiro (GO_TAGS= para o build CPU)
 make check         # o que a CI roda: gofmt, go vet, golangci-lint, testes
 make cover         # testes com cobertura (por função, total no fim)
+make fuzz          # fuzzing dos leitores do cache do Teams, FUZZTIME por alvo (padrão 30s)
 ```
 
 **CI** (GitHub Actions, `.github/workflows/`):

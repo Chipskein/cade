@@ -25,7 +25,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | concluída; 1 caso de injeção ainda falha | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | concluída; binários prontos passam para a fase 9 | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | concluída | médio | médio |
-| 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | pendente | baixo | baixo |
+| 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | concluída | baixo | baixo |
 | 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | pendente | pré-requisito do lançamento | baixo |
 | — | [A definir](#a-definir) | em aberto | — | — |
 
@@ -33,7 +33,7 @@ A tabela está na ordem sugerida:
 - **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue.
 - **Depois as mudanças de código:** 6 e 7 (entregues). A 5 foi feita antes da 10, a pedido.
 - **Em seguida, a experiência de quem instala:** 11 e 12 (entregues).
-- **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
+- **Docs (8, entregue) e empacotamento (9) por último:** descrevem o estado final.
 
 ---
 
@@ -69,16 +69,7 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): os rótulos seguem o idioma
 
 ## Fase 8 — Documentação e manutenção
 
-1. **README.**
-   - Documentar o suporte ao Firefox: `browsersource/flavor.go` já suporta, mas o README só mostra caminhos do Chrome.
-   - Adicionar uma tabela de requisitos de hardware com RAM, VRAM e latência em CPU e GPU, tirada de `bench/baseline.txt` e `bench/baseline-cpu.txt` (fase 5).
-   - Explicar a deduplicação, os pedaços, a busca híbrida e a autoria no git.
-2. **Requisitos referenciados.** O código cita `CA9`, `CA9.1`, `RF4`, `RNF3.1` etc. (34 referências). Conferir que cada uma existe em `docs/USECASES.md`, ou trocá-la por uma explicação no comentário.
-3. **Teams.**
-   - **Fuzz tests** (`go test -fuzz`) para `internal/leveldbraw`, `internal/v8value` e `internal/indexeddb`. São cerca de 2.200 linhas de parsers de um formato binário não documentado, onde fuzzing encontra problemas com pouco custo.
-   - **Aviso de política:** no README e no PRIVACY.md, pedir que o usuário verifique a política de dados da organização antes de ingerir mensagens do Teams, que incluem mensagens de terceiros.
-   - **Fragilidade:** a leitura depende do formato interno do IndexedDB do Chrome e do Teams. O `teams-schema` já diagnostica, e a ingestão falha quando não reconhece o formato. Falta guardar amostras anonimizadas de cada formato já visto, como testes de regressão.
-4. **CHANGELOG.** Mantê-lo em dia a cada entrega, com as migrações novas e o que cada uma reescreve.
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): README com hardware, navegadores e como a busca trata o histórico; referências a requisitos conferidas; fuzz tests e amostra do formato do Teams (que acharam um pânico no coletor); aviso de política de dados; CA10 verificado sem rede. O CHANGELOG segue sendo atualizado a cada entrega.
 
 ---
 

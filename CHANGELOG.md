@@ -29,6 +29,15 @@ What changed in each version, the schema migrations, and what each migration rew
 
 The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
 
+### Documentation and maintenance (phase 8)
+
+- **Fixed:** `ingest teams` panicked (nil pointer) on a reply chain with no `messageMap`. Found by the new format sample test; regression test added.
+- **README:** hardware requirements (memory, embedding and `ask` latency on GPU and CPU, disk) from `bench/baseline*.txt`; a Browsers section with Chromium and Firefox paths; what deduplication, chunks, hybrid search and git authorship do; a data policy notice before ingesting Teams (also in PRIVACY).
+- **Fuzz tests** (`make fuzz`, `FUZZTIME` per target, default 30 s) for the LevelDB, V8 and IndexedDB parsers and for the Teams collector. At 20 s per target (~25 million inputs) the parsers had no crash. The collector target finds the `messageMap` panic in seconds when the fix is reverted.
+- **Teams format sample:** `testdata/teams-formats/2026-09.leveldb`, a Teams cache in the current format written by a real Chrome from a synthetic page (chat, team channel, profile, deleted and system messages, a chain without messages). A test checks the text, sender, conversation and direction the reader gets from it. `testdata/README.md` explains how to add the next format. The existing `chrome-indexeddb.leveldb` fixture tests the IndexedDB reader but is not in the Teams format.
+- **No network, verified (CA10):** in a network namespace with only a downed loopback (`unshare -rn`), `cade ingest all` and an `ask` that loads both models work.
+- **Requirement references:** the 23 distinct `RF`, `RNF` and `CA` ids cited in the code all exist in `docs/USECASES.md`.
+
 ### Interface language (phase 12)
 
 - **Every label follows the language:** timeline, tasks, `ask` (what was understood, people filters, sources, "not found"), ingest and reindex progress, `forget`, `teams-schema`, migration notices and errors. Before, only `help` and the flag descriptions did; everything else was Portuguese. The language comes from the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), as for `help`.
