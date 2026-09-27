@@ -1,7 +1,8 @@
 // Package queryplan turns a natural-language question into explicit
 // filters using the local model. Rule-based parsing kept missing phrasings
 // ("me retorne as mensagens com o marcos"); the model reads the question and
-// a GBNF grammar guarantees its answer is well-formed.
+// a GBNF grammar guarantees its answer is well-formed. Rules only read
+// questions with no word they do not know (rules.go).
 package queryplan
 
 import (
@@ -50,6 +51,9 @@ type Plan struct {
 	Topic string
 	// TaskStatus only applies to ModeTasks.
 	TaskStatus TaskStatus
+	// ReadByRules is set when PlanByRules read the question without the
+	// model.
+	ReadByRules bool
 }
 
 // maxPlanTokens fits the JSON with a few names; the grammar ends it sooner.
@@ -67,8 +71,12 @@ func NewPlanner(generator llm.StructuredGenerator) Planner {
 	return Planner{generator: generator}
 }
 
-// Plan interprets question.
+// Plan interprets question, by rules when they cover every word, else with
+// the model.
 func (p Planner) Plan(ctx context.Context, question string) (Plan, error) {
+	if plan, ok := PlanByRules(question); ok {
+		return plan, nil
+	}
 	reply, err := p.generator.GenerateStructured(ctx, planMessages(question), maxPlanTokens, planGrammar)
 	if err != nil {
 		return Plan{}, fmt.Errorf("interpret question: %w", err)

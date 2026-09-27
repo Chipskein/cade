@@ -1,7 +1,7 @@
 # Benchmarks
 
 Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:
-- `bench/baseline.txt` (`make bench`);
+- `bench/baseline.txt` (`make bench`) e `bench/baseline-cpu.txt` (`make bench GO_TAGS=`, a mesma máquina sem a GPU);
 - `bench/retrieval-baseline.txt`, `bench/retrieval-scale.txt` e `bench/plan-baseline.txt` (`make eval`, `make eval-scale`);
 - das medições por fase registradas no `CHANGELOG.pt-BR.md`.
 
@@ -65,17 +65,60 @@ xychart-beta
 
 ## Latência do `ask` por etapa
 
-Cada modelo aquece antes da medição; a interpretação da pergunta roda com o cache de prompt frio, como num `cade ask` real.
+Cada modelo aquece antes da medição. A interpretação roda pelo modelo, com o cache de prompt frio e sem o estado salvo: é o custo de uma pergunta que as regras não leem.
 
 ```mermaid
 xychart-beta
   title "Latência por etapa (ms, GPU)"
   x-axis ["embedding de um evento", "interpretar a pergunta", "gerar a resposta"]
   y-axis "ms" 0 --> 1400
-  bar [3.5, 1283, 395]
+  bar [3.4, 1361, 399]
 ```
 
-Interpretar a pergunta custa mais que gerar a resposta: a saída é restrita por gramática, e o sampler com gramática do llama.cpp é lento por token. É o alvo da fase 5.
+Em CPU (Ryzen 5 5500, 6 threads) as mesmas etapas levam 36 ms, 19,7 s e 2,9 s. A interpretação custa mais que a resposta: o prompt do planejador tem ~2 mil tokens de instruções e exemplos, e o sampler com gramática do llama.cpp é lento por token.
+
+## Um `ask` inteiro (fase 5)
+
+Do início até o primeiro token da resposta, com o carregamento dos dois modelos (`BenchmarkColdAsk`). A pergunta é lida pelo modelo decodificando o prompt inteiro (como antes da fase 5), pelo modelo com o estado do prompt salvo, ou pelas regras, sem modelo. Cache de página quente: os modelos foram lidos há pouco. Frio: foram tirados da memória antes de cada rodada, como depois de reiniciar.
+
+```mermaid
+---
+config:
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
+---
+xychart-beta
+  title "ask até o primeiro token, CPU (s)"
+  x-axis ["cache quente", "cache frio"]
+  y-axis "s" 0 --> 50
+  bar [41.5, 45.2]
+  bar [26.0, 31.2]
+  bar [21.5, 26.6]
+```
+
+```mermaid
+---
+config:
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
+---
+xychart-beta
+  title "ask até o primeiro token, GPU (s)"
+  x-axis ["cache quente", "cache frio"]
+  y-axis "s" 0 --> 10
+  bar [2.93, 8.78]
+  bar [2.48, 8.52]
+  bar [1.59, 7.72]
+```
+
+Cinza: modelo, prompt decodificado inteiro. Azul: modelo com o estado salvo. Verde: regras.
+
+- **CPU:** o estado salvo corta 37% do `ask` com o cache quente (41,5 → 26,0 s), e as regras, 48%. O que sobra é quase todo a leitura das 8 evidências pelo modelo antes da resposta.
+- **GPU:** o ganho é menor em segundos (2,93 → 2,48 → 1,59 s), e o cache frio domina: ler ~2,4 GB de modelos do disco leva ~6 s.
+- **Estado salvo:** um arquivo de ~55 MB em `~/.cache/cade/prompt-state/`, gravado na primeira pergunta que vai ao modelo.
+- **Regras:** leem 67 das 153 perguntas da suíte de plano, sem nenhum erro. Uma listagem ou relatório de tarefas lido por elas nem carrega modelo.
 
 ## Busca vetorial no banco
 
@@ -158,8 +201,11 @@ Azul: RAM do processo. Laranja: memória da GPU. Numa build só de CPU, os pesos
 | vetores de 1.000 eventos (ms) | 170 | 152 | 165 |
 | bytes por evento | 3.633 | 3.563 | 3.498 |
 
-| Modelo | Latência | RAM | GPU |
-|---|---|---|---|
-| embedding de um evento | 3,5 ms | 979 MB | 390 MB |
-| interpretar a pergunta | 1.283 ms | 1.121 MB | 2.554 MB |
-| gerar a resposta (~45 tokens) | 395 ms | 1.174 MB | 2.554 MB |
+| Modelo | Latência GPU | Latência CPU | RAM | GPU |
+|---|---|---|---|---|
+| embedding de um evento | 3,4 ms | 36 ms | 964 MB | 328 MB |
+| interpretar a pergunta (modelo, sem estado salvo) | 1.361 ms | 19,7 s | 1.135 MB | 2.554 MB |
+| gerar a resposta (~40 tokens) | 399 ms | 2,9 s | 1.187 MB | 2.554 MB |
+| `ask` até o primeiro token, cache quente (modelo / estado salvo / regras) | 2,93 / 2,48 / 1,59 s | 41,5 / 26,0 / 21,5 s | | |
+
+RAM e GPU são do build CUDA. No build só de CPU os pesos ficam na RAM, e o processo com os dois modelos chega a ~3,9 GB.

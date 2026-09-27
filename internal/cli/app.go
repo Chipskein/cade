@@ -40,7 +40,7 @@ type Toolkit struct {
 	WriteConfig       func(path string) error
 	OpenStore         func(ctx context.Context, path string) (storage.EventStore, error)
 	LoadEmbedder      func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
-	LoadGenerator     func(settings config.ModelConfig) (ClosableGenerator, error)
+	LoadGenerator     func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
 	Sources           func(cfg config.Config) []ingest.SourceSpec
 	ReadIndexedDB     func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.

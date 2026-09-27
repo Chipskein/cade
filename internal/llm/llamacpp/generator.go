@@ -9,6 +9,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/chipskein/cade/internal/llm"
@@ -29,6 +30,8 @@ type Generator struct {
 	sampler   *C.struct_llama_sampler
 	batchSize int
 	cache     promptCache
+	states    promptStateStore
+	logger    *slog.Logger
 }
 
 var (
@@ -49,10 +52,17 @@ func LoadGenerator(opts ModelOptions) (*Generator, error) {
 		loaded.free()
 		return nil, fmt.Errorf("model %q has no chat template; expected an instruction-tuned GGUF", opts.Path)
 	}
+	states, err := newPromptStateStore(opts.PromptStateDir, opts, int(C.llama_n_ctx(loaded.ctx)))
+	if err != nil {
+		loaded.free()
+		return nil, err
+	}
 	return &Generator{
 		loaded:    loaded,
 		sampler:   newSampler(),
 		batchSize: int(params.n_batch),
+		states:    states,
+		logger:    opts.logger(),
 	}, nil
 }
 
@@ -84,7 +94,7 @@ func (g *Generator) Generate(ctx context.Context, messages []llm.ChatMessage, ma
 }
 
 func (g *Generator) promptTokens(messages []llm.ChatMessage, maxTokens int) ([]C.llama_token, error) {
-	prompt, err := applyChatTemplate(g.loaded.model, messages)
+	prompt, err := applyChatTemplate(g.loaded.model, messages, true)
 	if err != nil {
 		return nil, err
 	}

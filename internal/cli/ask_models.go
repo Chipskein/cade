@@ -8,9 +8,9 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 )
 
-// askModels holds the generator (always needed: it interprets the
-// question) and loads the embedder only on first use, so a plain listing
-// never pays for it.
+// askModels loads each model on first use: a question the rules read that
+// lists events or reports tasks never loads the generator, and a plain
+// listing never loads the embedder.
 type askModels struct {
 	env       commandEnv
 	cfg       config.Config
@@ -20,17 +20,28 @@ type askModels struct {
 	session   *askSession
 }
 
-func (env commandEnv) loadAskModels(cfg config.Config, store storage.EventStore, session *askSession) (*askModels, error) {
-	session.loadingModels()
-	generator, err := env.toolkit.LoadGenerator(cfg.Generation)
+func (env commandEnv) newAskModels(cfg config.Config, store storage.EventStore, session *askSession) *askModels {
+	return &askModels{env: env, cfg: cfg, store: store, session: session}
+}
+
+// loadedGenerator loads the generator on first call.
+func (m *askModels) loadedGenerator() (ClosableGenerator, error) {
+	if m.generator != nil {
+		return m.generator, nil
+	}
+	m.session.loadingModels()
+	generator, err := m.env.toolkit.LoadGenerator(m.cfg.Generation, m.env.logger)
 	if err != nil {
 		return nil, err
 	}
-	return &askModels{env: env, cfg: cfg, store: store, generator: generator, session: session}, nil
+	m.generator = generator
+	return generator, nil
 }
 
 // answerer builds the RAG answerer, loading the embedder if needed; the
-// stored vectors must come from the configured model.
+// stored vectors must come from the configured model. Its generator is
+// whatever is loaded: answering needs loadedGenerator first, ranking a
+// listing by topic does not.
 func (m *askModels) answerer(ctx context.Context) (*rag.Answerer, error) {
 	if m.embedder == nil {
 		if err := m.env.checkEmbeddingModel(ctx, m.cfg, m.store); err != nil {
@@ -55,5 +66,7 @@ func (m *askModels) close() {
 	if m.embedder != nil {
 		m.embedder.Close()
 	}
-	m.generator.Close()
+	if m.generator != nil {
+		m.generator.Close()
+	}
 }

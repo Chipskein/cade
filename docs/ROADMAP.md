@@ -19,8 +19,8 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 2 | Chunking de arquivos | concluída | alto | médio |
 | 3 | Busca híbrida (FTS5 + vetor) | concluída | alto | médio |
 | 4 | Autoria no git | concluída | alto | baixo |
+| 5 | Latência do `ask` | concluída | médio | médio |
 | 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | pendente | alto | baixo |
-| 5 | [Latência do `ask`](#fase-5--latência-do-ask) | pendente | médio | médio |
 | 6 | [Filtros de pessoa no SQL](#fase-6--filtros-de-pessoa-no-sql) | pendente | médio | baixo |
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | pendente | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | pendente | alto | médio |
@@ -31,7 +31,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 
 A tabela está na ordem sugerida:
 - **CI (10) primeiro:** é barata e protege todas as fases seguintes.
-- **Depois as mudanças de código:** 5, 6 e 7.
+- **Depois as mudanças de código:** 6 e 7. A 5 foi feita antes da 10, a pedido.
 - **Em seguida, a experiência de quem instala:** 11 e 12.
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
 
@@ -59,37 +59,6 @@ A tabela está na ordem sugerida:
 - Um PR que quebra um teste ou o `gofmt` fica vermelho.
 - Com o cache quente, o workflow de testes termina em poucos minutos (medir e registrar).
 - O `golangci-lint` passa sem exceções novas.
-
----
-
-## Fase 5 — Latência do `ask`
-
-### Problema
-
-- Pelo `bench/baseline.txt`, interpretar a pergunta leva cerca de 1,3 s na GPU, mais que gerar a resposta (cerca de 0,4 s): a saída é restrita por gramática, e o sampler com gramática do llama.cpp é lento por token.
-- O `promptCache` (`internal/llm/llamacpp/prompt_cache.go`) reaproveita o prefixo fixo do planejador, mas só dentro do mesmo processo. Cada `cade ask` é um processo novo, então em uso real o cache nunca é aproveitado; ele só acelera a suíte de avaliação.
-- O benchmark não mede o carregamento dos modelos nem roda em CPU.
-
-### Mudanças
-
-1. **Pré-parser determinístico.**
-   - Antes do LLM, tentar resolver a pergunta com regras: períodos com `internal/timeline/phrases*.go` e fontes por palavras-chave ("commits", "páginas", "mensagens").
-   - Se as regras resolverem tudo e a pergunta não tiver pessoas nem ambiguidade, o LLM não é chamado.
-   - Medir na suíte de plano qual fração das perguntas é resolvida só por regras e com que acurácia.
-2. **Persistir o prefixo do planejador.**
-   - Salvar o estado KV do prefixo fixo com `llama_state_seq_save_file` em `~/.cache/cade/`.
-   - Chave: hash do modelo, hash do prompt, versão do llama.cpp (`LLAMA_TAG`) e tipo de build (CPU/CUDA). Invalidar quando qualquer um mudar.
-   - Tamanho esperado: ~70 MB para ~2 mil tokens no Qwen2.5-3B.
-3. **Benchmarks de uso real.**
-   - `BenchmarkColdAsk`: do início do processo até o primeiro token, com o cache de página frio e quente.
-   - Rodar e registrar também um baseline só de CPU.
-4. **Fora do escopo desta versão:** modo daemon. Reavaliar depois de medir os itens acima.
-
-### Critério de aceite
-
-- O baseline passa a incluir cold start e CPU.
-- O tempo total de `cade ask` em CPU, com cache quente, cai de forma mensurável em relação ao baseline atual.
-- A acurácia do `eval-plan` não piora: o pré-parser não pode errar mais que o LLM nos campos que resolve.
 
 ---
 
@@ -184,14 +153,14 @@ As perguntas funcionam em inglês e português, e `cade help` segue o idioma do 
 
 1. **README.**
    - Documentar o suporte ao Firefox: `browsersource/flavor.go` já suporta, mas o README só mostra caminhos do Chrome.
-   - Adicionar uma tabela de requisitos de hardware com RAM, VRAM e latência em CPU e GPU, tirada do baseline da Fase 5.
+   - Adicionar uma tabela de requisitos de hardware com RAM, VRAM e latência em CPU e GPU, tirada de `bench/baseline.txt` e `bench/baseline-cpu.txt` (fase 5).
    - Explicar a deduplicação, os pedaços, a busca híbrida e a autoria no git.
 2. **Requisitos referenciados.** O código cita `CA9`, `CA9.1`, `RF4`, `RNF3.1` etc. (34 referências). Conferir que cada uma existe em `docs/USECASES.md`, ou trocá-la por uma explicação no comentário.
 3. **Teams.**
    - **Fuzz tests** (`go test -fuzz`) para `internal/leveldbraw`, `internal/v8value` e `internal/indexeddb`. São cerca de 2.200 linhas de parsers de um formato binário não documentado, onde fuzzing encontra problemas com pouco custo.
    - **Aviso de política:** no README e no PRIVACY.md, pedir que o usuário verifique a política de dados da organização antes de ingerir mensagens do Teams, que incluem mensagens de terceiros.
    - **Fragilidade:** a leitura depende do formato interno do IndexedDB do Chrome e do Teams. O `teams-schema` já diagnostica, e a ingestão falha quando não reconhece o formato. Falta guardar amostras anonimizadas de cada formato já visto, como testes de regressão.
-4. **Privacidade.** Atualizar PRIVACY.md com as tabelas novas das fases 5 e 6 (o cache de estado KV em `~/.cache/cade/` e `event_people`) e com como cada uma é apagada.
+4. **Privacidade.** Atualizar PRIVACY.md com a tabela nova da fase 6 (`event_people`) e como ela é apagada. O estado do prompt salvo da fase 5 já está lá.
 5. **CHANGELOG.** Mantê-lo em dia a cada entrega, com as migrações novas e o que cada uma reescreve.
 
 ---
@@ -221,6 +190,14 @@ As perguntas funcionam em inglês e português, e `cade help` segue o idioma do 
 ## A definir
 
 Outras ideias entram aqui antes de virar fase: problema, mudança proposta e critério de aceite, como nas fases acima.
+
+### Modo daemon para o `ask`
+
+Ficou fora da fase 5 para ser reavaliado depois das medições.
+
+- **Problema:** mesmo com o estado do prompt salvo e as regras, cada `cade ask` carrega os dois modelos. Com o cache de página frio, isso domina na GPU (7,7 s de 8,5 s). Em CPU, o que domina é ler as evidências da resposta (~20 s), que um daemon não evita.
+- **Mudança possível:** um processo que mantém os modelos carregados, atendendo o `cade ask` por um socket Unix com permissão só do dono, e que encerra depois de um tempo parado.
+- **A verificar:** se vale a memória ocupada o tempo todo (~2,5 GB de GPU ou ~3,9 GB de RAM), e se o ganho em CPU justifica, já que ali o custo é gerar, não carregar.
 
 ### Busca em PDFs e imagens (avaliar depois das fases)
 

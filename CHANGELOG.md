@@ -28,6 +28,24 @@ What changed in each version, the schema migrations, and what each migration rew
 
 The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
 
+### Faster `ask` (phase 5)
+
+- **Rules before the model:** a question made only of a period, a source and generic words ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") is read without the model. Any other word (a name, a topic, a number) sends it to the model, so the rules never guess.
+  - They read 67 of the 153 plan-suite questions, all correctly. The suite went from 129 to 131 fully correct questions, because the model sometimes invented a topic on those.
+  - A listing or task report read by the rules loads no model at all; the generator is loaded only when something needs it.
+- **Saved prompt state:** the planner's fixed instructions and examples (~2 thousand tokens) used to be decoded again by every `cade ask`. Their state is now saved once in `~/.cache/cade/prompt-state/` (~55 MB, owner-only) and loaded by later runs.
+  - The key covers the llama.cpp version and commit, CPU or CUDA build, the model file (path, size, modification time), the context size, the offloaded layers and the prompt tokens. Any change writes a new file and deletes the old one.
+  - It holds no question and nothing from the database. Deleting it is safe; it is rebuilt on the next question.
+- **Measured** (`BenchmarkColdAsk`, up to the first answer token, both models loaded, page cache warm):
+
+  | | model, whole prompt | model, saved state | rules |
+  |---|---|---|---|
+  | CPU (Ryzen 5 5500) | 41.5 s | 26.0 s | 21.5 s |
+  | GPU (RTX 3060) | 2.93 s | 2.48 s | 1.59 s |
+
+  With the page cache cold (models evicted, as after a reboot), CPU goes 45.2 → 31.2 → 26.6 s and GPU 8.8 → 8.5 → 7.7 s. What is left on CPU is mostly the model reading the evidence before answering.
+- **Benchmarks:** `make bench` also times a whole `ask`, and `make bench GO_TAGS=` saves the CPU-only baseline in `bench/baseline-cpu.txt`.
+
 ### Git authorship (phase 4)
 
 - **Identities:** each commit is marked `mine` or `other` by `sources.git_identities`.

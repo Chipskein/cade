@@ -1,11 +1,12 @@
-# cade plan baseline — 2026-09-26, 153 casos, pisos comparados ao limite inferior de Wilson 95%
-        153 perguntas, 129 totalmente corretas
+# cade plan baseline — 2026-09-27 (fase 5: pré-parser por regras), 153 casos, pisos comparados ao limite inferior de Wilson 95%
+        153 perguntas, 131 totalmente corretas
+          lidas só por regras: 67, com 0 erradas
           mode       146/153   95%  [ 91%– 98%]
           days       153/153  100%  [ 98%–100%]
           source     146/153   95%  [ 91%– 98%]
           people     145/153   95%  [ 90%– 97%]
           direction  149/153   97%  [ 93%– 99%]
-          topic      142/153   93%  [ 88%– 96%]
+          topic      144/153   94%  [ 89%– 97%]
           status     153/153  100%  [ 98%–100%]
         ✗ que mensagem eu mandei pra Juliana sobre o contrato?
             source: esperado "teams", veio ""
@@ -58,16 +59,9 @@
             source: esperado "", veio "teams"
             people: esperado "", veio "qa team"
             topic: esperado "QA", veio ""
-        ✗ quais demandas ficaram pendentes essa semana?
-            topic: esperado "", veio "pendentes"
         ✗ quais cards o Pedro me passou hoje?
             mode: esperado "tarefas", veio "listar"
             topic: esperado "", veio "cards"
         ✗ tarefas da Zenite que me mandaram essa semana
             people: esperado "", veio "zenite"
             topic: esperado "Zenite", veio ""
-        ✗ what tickets are still pending?
-            topic: esperado "", veio "pending"
---- PASS: TestPlanSuiteWithModel (134.06s)
-PASS
-ok  	github.com/chipskein/cade/internal/queryplan	134.220s

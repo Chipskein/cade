@@ -24,6 +24,8 @@ type Mismatch struct {
 type CaseResult struct {
 	Question   string
 	Mismatches []Mismatch
+	// ByRules is set when the rules read the question, not the model.
+	ByRules bool
 }
 
 // ScoreCase compares plan, resolved as `cade ask` resolves it, with what
@@ -32,7 +34,7 @@ type CaseResult struct {
 //	result := queryplan.ScoreCase(suiteCase, plan, suite.Now)
 func ScoreCase(suiteCase SuiteCase, plan Plan, now time.Time) CaseResult {
 	expected, got := expectedValues(suiteCase.Expect), observedValues(plan, suiteCase.Question, now)
-	result := CaseResult{Question: suiteCase.Question}
+	result := CaseResult{Question: suiteCase.Question, ByRules: plan.ReadByRules}
 	for _, field := range scoredFields {
 		if !fieldMatches(field, expected[field], got[field]) {
 			result.Mismatches = append(result.Mismatches, Mismatch{Field: field, Expected: expected[field], Got: got[field]})
@@ -96,6 +98,10 @@ type Scoreboard struct {
 	Cases    int
 	Correct  map[Field]int
 	Failures []CaseResult
+	// RuleCases and RuleFailures count the questions read without the
+	// model, to measure how many skip it and whether the rules err.
+	RuleCases    int
+	RuleFailures int
 }
 
 // NewScoreboard returns an empty scoreboard.
@@ -117,6 +123,17 @@ func (s *Scoreboard) Add(result CaseResult) {
 	}
 	if len(result.Mismatches) > 0 {
 		s.Failures = append(s.Failures, result)
+	}
+	s.addRuleCase(result)
+}
+
+func (s *Scoreboard) addRuleCase(result CaseResult) {
+	if !result.ByRules {
+		return
+	}
+	s.RuleCases++
+	if len(result.Mismatches) > 0 {
+		s.RuleFailures++
 	}
 }
 
@@ -164,6 +181,7 @@ func (s *Scoreboard) BelowMinimum(minimums map[Field]float64) []Field {
 // WriteReport prints the per-field scores, then each wrongly read question.
 func (s *Scoreboard) WriteReport(out io.Writer) {
 	fmt.Fprintf(out, "%d perguntas, %d totalmente corretas\n", s.Cases, s.Cases-len(s.Failures))
+	fmt.Fprintf(out, "  lidas só por regras: %d, com %d erradas\n", s.RuleCases, s.RuleFailures)
 	for _, field := range scoredFields {
 		low, high := s.Interval(field)
 		fmt.Fprintf(out, "  %-10s %3d/%d  %3.0f%%  [%3.0f%%–%3.0f%%]\n", field, s.Correct[field], s.Cases, 100*s.Accuracy(field), 100*low, 100*high)

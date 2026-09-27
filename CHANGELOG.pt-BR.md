@@ -28,6 +28,24 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
 
+### `ask` mais rápido (fase 5)
+
+- **Regras antes do modelo:** uma pergunta feita só de período, fonte e palavras genéricas ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") é lida sem o modelo. Qualquer outra palavra (um nome, um assunto, um número) a manda para o modelo, então as regras nunca chutam.
+  - Elas leem 67 das 153 perguntas da suíte de plano, todas certas. A suíte foi de 129 para 131 perguntas totalmente corretas, porque nessas o modelo às vezes inventava um assunto.
+  - Uma listagem ou relatório de tarefas lido pelas regras nem carrega modelo; o gerador só é carregado quando algo precisa dele.
+- **Estado do prompt salvo:** as instruções e exemplos fixos do planejador (~2 mil tokens) eram decodificados de novo a cada `cade ask`. Agora o estado deles é salvo uma vez em `~/.cache/cade/prompt-state/` (~55 MB, só o dono lê) e carregado nas execuções seguintes.
+  - A chave cobre a versão e o commit do llama.cpp, o build (CPU ou CUDA), o arquivo do modelo (caminho, tamanho, data de modificação), o tamanho do contexto, as camadas na GPU e os tokens do prompt. Qualquer mudança grava um arquivo novo e apaga o antigo.
+  - Não contém pergunta nenhuma nem nada do banco. Pode ser apagado; é refeito na próxima pergunta.
+- **Medido** (`BenchmarkColdAsk`, até o primeiro token da resposta, com o carregamento dos dois modelos, cache de página quente):
+
+  | | modelo, prompt inteiro | modelo, estado salvo | regras |
+  |---|---|---|---|
+  | CPU (Ryzen 5 5500) | 41,5 s | 26,0 s | 21,5 s |
+  | GPU (RTX 3060) | 2,93 s | 2,48 s | 1,59 s |
+
+  Com o cache de página frio (modelos tirados da memória, como depois de reiniciar), a CPU vai de 45,2 → 31,2 → 26,6 s, e a GPU de 8,8 → 8,5 → 7,7 s. O que sobra em CPU é quase todo o modelo lendo as evidências antes de responder.
+- **Benchmarks:** o `make bench` também cronometra um `ask` inteiro, e `make bench GO_TAGS=` grava o baseline só de CPU em `bench/baseline-cpu.txt`.
+
 ### Autoria no git (fase 4)
 
 - **Identidades:** cada commit é marcado como `mine` ou `other` por `sources.git_identities`.

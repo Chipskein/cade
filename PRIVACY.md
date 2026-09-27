@@ -46,7 +46,8 @@ Choose `directories` with care: a `.env` or a notes file with passwords under th
 Both models run in-process through llama.cpp.
 
 - **Embedding model:** the whole text of each event, in chunks of up to 1,200 characters, when it is ingested (identical text is embedded once), and the search text of each question.
-- **Question interpretation:** only your question, with fixed instructions and examples.
+- **Question interpretation:** only your question, with fixed instructions and examples. Questions the rules read (a period, a source and generic words) never reach the model.
+- **Saved prompt state:** `~/.cache/cade/prompt-state/` holds one file (~55 MB, owner-only) with the model's state after its fixed instructions and examples. It contains no question and nothing from the database.
 - **Answers:** your question, today's date and up to `top_k` (8) events; for a long event, only the chunk that matched (up to 1,200 characters), otherwise its text up to that length.
 - Nothing else in the database is given to the model. Listings and task reports do not use the generation model; a listing with a topic ("pages about redis") embeds only the topic.
 
@@ -62,6 +63,7 @@ Both models run in-process through llama.cpp.
 | Delete one source | `cade forget teams` (or `git`, `browser`, `file`) |
 | Delete everything | `rm ~/.local/share/cade/cade.db*` |
 | Remove the configuration | `rm -r ~/.config/cade` |
+| Remove the saved prompt state | `rm -r ~/.cache/cade/prompt-state` (rebuilt on the next question) |
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.

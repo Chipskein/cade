@@ -43,7 +43,7 @@ flowchart LR
     tasks[cade tasks] --> relatorio[Tasks and PRs<br/>from task and PR links]
     relatorio --> db
 
-    ask[cade ask] --> plano[Interpret the question<br/>LLM + grammar]
+    ask[cade ask] --> plano[Interpret the question<br/>rules, or LLM + grammar]
     plano -->|list| filtro[Filter in the database]
     plano -->|answer| busca[Filter + vector search]
     plano -->|tasks| relatorio
@@ -114,6 +114,8 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Search is hybrid: meaning (vectors) and keywords (FTS5) are fused. A question naming an identifier — a task or error code (`PROJ-481`, `ORA-01722`), a commit hash, a PR number — returns the events that contain it.
 - Repeats count once in answers: 12 visits to a page or several versions of a note become one source, shown as "(12 visitas, última em …)". Files deleted from their folder leave answers but stay in the timeline.
 - Period, source, people and direction are exact filters; only the topic is matched by meaning ("commits de ontem sobre autenticação" searches "autenticação" among yesterday's commits). Questions without filters are matched as a whole.
+- Plain questions made only of a period, a source and generic words ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") are read by rules, without the model; a listing or task report read that way loads no model at all. A question with a name, a topic or any other word goes to the model.
+- The model's fixed instructions and examples are read once and their state saved in `~/.cache/cade/prompt-state/` (~55 MB), so later questions skip them. The file is rebuilt when the model, the prompt or llama.cpp changes.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
 
 ## Sample output
@@ -257,11 +259,11 @@ make test-models   # also runs the tests against the real models
 make eval-plan     # scores question interpretation (GPU when the CUDA Toolkit is installed; GO_TAGS= forces CPU)
 make eval-retrieval  # scores retrieval: recall, MRR, rejection
 make eval          # both
-make bench         # latency and memory: storage at 1k/10k/100k events, models
+make bench         # latency and memory: storage at 1k/10k/100k events, models, a whole ask (GO_TAGS= for the CPU build)
 ```
 
 `eval-plan` runs ~150 questions in `testdata/queries/plan.json` (temporal, git, Teams, browser, files, semantic, people, tasks, companies read as people; PT and EN) through the real model and prints the accuracy of each field (mode, period, source, people, direction, topic, status) with its 95% Wilson interval, plus every misread question. It fails when a field's lower bound drops below the file's `minimum_accuracy`, so prompt or model changes cannot degrade interpretation silently, and one unlucky case does not fail it. `testdata/README.md` explains how to turn a real question into an anonymized case.
 
 `eval-retrieval` ingests a synthetic corpus (`testdata/queries/retrieval/corpus.json`: ~290 commits, pages, files and messages, with look-alikes such as PROJ-418 next to PROJ-481, pages visited many times, a file in several versions, long notes with the answer near the end, other authors' commits and everyday chatter) into a real SQLite store with the real embedder. Questions come in two sets: `calibration.json` reports where the distance gates belong (without changing them), and `test.json`, never used for tuning, is checked against its floors. It reports recall and MRR over answerable questions, rejection (questions nothing answers must retrieve nothing) and redundancy (results repeating the same page or file). `make eval-scale SCALE=1000,10000` reruns the test set on corpora grown with distractors and saves the curve to `bench/retrieval-scale.txt`; `bench/retrieval-baseline.txt` holds the results before the next version's retrieval changes.
 
-`bench` measures storage on synthetic histories of 1k, 10k and 100k events (vector search, reads by period, writes, bytes per event) and the models (embedding an event, interpreting a question, generating an answer) with process and GPU memory. `bench/baseline.txt` holds a reference run on an RTX 3060; save new runs and compare them with [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat).
+`bench` measures storage on synthetic histories of 1k, 10k and 100k events (vector search, reads by period, writes, bytes per event) and the models (embedding an event, interpreting a question, generating an answer) with process and GPU memory. `BenchmarkColdAsk` times a whole `cade ask` up to the first answer token (loading both models included), with the page cache warm or evicted, and the question read by the model, by the model with its saved prompt state, or by rules. `bench/baseline.txt` holds a reference run on an RTX 3060 and `bench/baseline-cpu.txt` the same machine without the GPU; save new runs and compare them with [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat).

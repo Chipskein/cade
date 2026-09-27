@@ -17,7 +17,9 @@ import (
 const grammarRootRule = "root"
 
 // GenerateStructured replies with text accepted by grammar (GBNF, rule
-// "root"), sampling greedily so the output is deterministic.
+// "root"), sampling greedily so the output is deterministic. With
+// PromptStateDir set, the messages before the last are a fixed prefix whose
+// memory is saved and reloaded across processes.
 //
 //	json, err := generator.GenerateStructured(ctx, messages, 96, `root ::= "{" ... "}"`)
 func (g *Generator) GenerateStructured(ctx context.Context, messages []llm.ChatMessage, maxTokens int, grammar string) (string, error) {
@@ -32,6 +34,7 @@ func (g *Generator) GenerateStructured(ctx context.Context, messages []llm.ChatM
 	if err != nil {
 		return "", err
 	}
+	g.restorePrefix(ctx, messages, tokens)
 	if err := g.ingestPrompt(ctx, tokens, llm.GenerationProgress{}); err != nil {
 		return "", err
 	}

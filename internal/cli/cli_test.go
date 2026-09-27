@@ -46,8 +46,11 @@ type fakeWorld struct {
 	generator     *testfakes.FakeGenerator
 	cfg           config.Config
 	embedderLoads int
-	writtenConfig string
-	language      Language
+	// generatorLoads counts loads; generatorLoadError fails them.
+	generatorLoads     int
+	generatorLoadError error
+	writtenConfig      string
+	language           Language
 }
 
 func newFakeWorld() *fakeWorld {
@@ -69,12 +72,20 @@ func (w *fakeWorld) toolkit() Toolkit {
 			w.embedderLoads++
 			return w.embedder, nil
 		},
-		LoadGenerator: func(config.ModelConfig) (ClosableGenerator, error) { return w.generator, nil },
+		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
 		ReadIndexedDB: w.readIndexedDB,
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
 	}
+}
+
+func (w *fakeWorld) loadGenerator(config.ModelConfig, *slog.Logger) (ClosableGenerator, error) {
+	w.generatorLoads++
+	if w.generatorLoadError != nil {
+		return nil, w.generatorLoadError
+	}
+	return w.generator, nil
 }
 
 func (w *fakeWorld) sources(cfg config.Config) []ingest.SourceSpec {
@@ -314,6 +325,25 @@ func TestAskListsFilteredEventsWithoutEmbedder(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "ana-msg") || strings.Contains(stdout, "ianne-msg") || strings.Contains(stdout, "enviada") || strings.Contains(stdout, "Fix login") {
 		t.Fatalf("expected only Ana's message, got:\n%s", stdout)
+	}
+}
+
+// A listing the rules read needs neither model.
+func TestAskListReadByRulesLoadsNoModel(t *testing.T) {
+	world := newFakeWorld()
+	dayOfTeamsMessages(world)
+	code, stdout, stderr := world.run("ask", "liste as mensagens de ontem")
+	if code != 0 || world.generatorLoads != 0 || world.embedderLoads != 0 || !strings.Contains(stdout, "ana-msg") {
+		t.Fatalf("expected a listing without models, got %d, %d/%d loads, %q %q", code, world.generatorLoads, world.embedderLoads, stdout, stderr)
+	}
+}
+
+func TestAskStopsWhenGeneratorDoesNotLoad(t *testing.T) {
+	world := newFakeWorld()
+	world.generatorLoadError = errors.New("model file missing")
+	code, _, stderr := world.run("ask", "o que a Ana me pediu?")
+	if code != 1 || !strings.Contains(stderr, "model file missing") {
+		t.Fatalf("expected the load error, got %d %q", code, stderr)
 	}
 }
 

@@ -74,11 +74,13 @@ eval-scale: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
 eval: eval-plan eval-retrieval
 
 # Latency and memory: storage at 1k/10k/100k synthetic events (search,
-# reads, writes, bytes per event) and the models (embedding, question
-# interpretation, answer generation). Save the output to compare runs.
+# reads, writes, bytes per event), the models (embedding, question
+# interpretation, answer generation) and a whole `cade ask` up to its first
+# token, with the page cache warm and cold. Save the output to compare
+# runs; GO_TAGS= measures the CPU build (bench/baseline-cpu.txt).
 bench: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) models
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) \
-		go test -tags $(TAGS) -run '^$$' -bench . -benchtime 5x ./internal/storage/sqlitestore ./internal/benchmarks
+		go test -tags $(TAGS) -run '^$$' -bench . -benchtime 5x -timeout 2h ./internal/storage/sqlitestore ./internal/benchmarks
 
 fmt:
 	gofmt -w cmd internal

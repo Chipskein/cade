@@ -14,15 +14,16 @@ import (
 )
 
 // applyChatTemplate renders messages with the chat template embedded in the
-// GGUF file, ending with the assistant turn opener.
-func applyChatTemplate(model *C.struct_llama_model, messages []llm.ChatMessage) (string, error) {
+// GGUF file, ending with the assistant turn opener when openAssistantTurn
+// (a prompt to reply to; a prefix of one leaves it out).
+func applyChatTemplate(model *C.struct_llama_model, messages []llm.ChatMessage, openAssistantTurn bool) (string, error) {
 	cMessages, release := toCChatMessages(messages)
 	defer release()
 	template := C.llama_model_chat_template(model, nil)
 	size := C.int32_t(2 * totalContentLength(messages))
 	for attempt := 0; attempt < 2; attempt++ {
 		buffer := make([]byte, max(size, 256))
-		written := C.llama_chat_apply_template(template, cMessages, C.size_t(len(messages)), C.bool(true),
+		written := C.llama_chat_apply_template(template, cMessages, C.size_t(len(messages)), C.bool(openAssistantTurn),
 			(*C.char)(unsafe.Pointer(&buffer[0])), C.int32_t(len(buffer)))
 		if written < 0 {
 			return "", fmt.Errorf("apply chat template to %d messages: unsupported template", len(messages))

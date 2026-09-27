@@ -40,6 +40,9 @@ type ModelOptions struct {
 	// Logger receives debug records (effective context, truncated inputs);
 	// nil discards them.
 	Logger *slog.Logger
+	// PromptStateDir keeps the generator's saved prompt prefixes (see
+	// prompt_state.go); empty disables them. Embedders ignore it.
+	PromptStateDir string
 }
 
 func (o ModelOptions) logger() *slog.Logger {

@@ -10,3 +10,7 @@ package llamacpp
 // #cgo LDFLAGS: -lllama -lggml -lggml-cpu -lggml-cuda -lggml-base -lstdc++ -lm -lpthread
 // #cgo LDFLAGS: -L/opt/cuda/lib64 -Wl,-rpath,/opt/cuda/lib64 -lcudart -lcublas -lcublasLt -lcuda
 import "C"
+
+// buildKind tells saved prompt states of CPU and CUDA builds apart: their
+// numbers differ slightly.
+const buildKind = "cuda"

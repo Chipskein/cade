@@ -136,11 +136,14 @@ func TestRunSuiteScoresPlannerReplies(t *testing.T) {
 	generator := &FakeStructuredGenerator{Reply: `{"tipo": "listar", "periodo": "ontem", "fonte": "git", "pessoas": [], "direcao": null, "assunto": null, "status": null}`}
 	suite := Suite{Now: suiteNow, Cases: []SuiteCase{
 		{Question: "liste meus commits de ontem", Expect: ExpectedPlan{Mode: "listar", Days: "2026-09-25", Source: "git"}},
-		{Question: "o que eu fiz?"},
+		{Question: "o que a Ana fez?"},
 	}}
 	board, err := RunSuite(context.Background(), NewPlanner(generator), suite, nil)
-	if err != nil || board.Cases != 2 || len(board.Failures) != 1 || board.Failures[0].Question != "o que eu fiz?" {
+	if err != nil || board.Cases != 2 || len(board.Failures) != 1 || board.Failures[0].Question != "o que a Ana fez?" {
 		t.Fatalf("expected only the second case to fail, got %+v (err %v)", board, err)
+	}
+	if board.RuleCases != 1 || board.RuleFailures != 0 {
+		t.Fatalf("expected the first case read by rules, got %d read and %d wrong", board.RuleCases, board.RuleFailures)
 	}
 }
 

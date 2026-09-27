@@ -65,8 +65,21 @@ func loadEmbedder(settings config.EmbeddingConfig, logger *slog.Logger) (cli.Clo
 	return llamacpp.LoadEmbedder(opts)
 }
 
-func loadGenerator(settings config.ModelConfig) (cli.ClosableGenerator, error) {
-	return llamacpp.LoadGenerator(modelOptions(settings))
+func loadGenerator(settings config.ModelConfig, logger *slog.Logger) (cli.ClosableGenerator, error) {
+	opts := modelOptions(settings)
+	opts.Logger, opts.PromptStateDir = logger, promptStateDir()
+	return llamacpp.LoadGenerator(opts)
+}
+
+// promptStateDir holds the question planner's saved prompt state (~70 MB,
+// instructions and examples only, no history). Without a cache directory
+// the planner just decodes its prompt every time.
+func promptStateDir() string {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(cache, "cade", "prompt-state")
 }
 
 func modelOptions(settings config.ModelConfig) llamacpp.ModelOptions {

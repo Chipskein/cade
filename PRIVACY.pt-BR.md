@@ -46,7 +46,8 @@ Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro de
 Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 - **Modelo de embedding:** o texto inteiro de cada evento, em pedaços de até 1.200 caracteres, na ingestão (texto idêntico é embutido uma vez), e o texto de busca de cada pergunta.
-- **Interpretação da pergunta:** só a sua pergunta, com instruções e exemplos fixos.
+- **Interpretação da pergunta:** só a sua pergunta, com instruções e exemplos fixos. Perguntas lidas por regras (período, fonte e palavras genéricas) nem chegam ao modelo.
+- **Estado do prompt salvo:** `~/.cache/cade/prompt-state/` guarda um arquivo (~55 MB, só o dono lê) com o estado do modelo depois das instruções e exemplos fixos. Não contém pergunta nenhuma nem nada do banco.
 - **Respostas:** a sua pergunta, a data de hoje e até `top_k` (8) eventos; de um evento longo, só o pedaço que casou (até 1.200 caracteres), senão o texto até esse tamanho.
 - Nada mais do banco é passado ao modelo. Listagens e relatórios de tarefas não usam o modelo de geração; uma listagem com assunto ("páginas sobre redis") só embute o assunto.
 
@@ -62,6 +63,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 | Apagar uma fonte | `cade forget teams` (ou `git`, `browser`, `file`) |
 | Apagar tudo | `rm ~/.local/share/cade/cade.db*` |
 | Remover a configuração | `rm -r ~/.config/cade` |
+| Remover o estado do prompt salvo | `rm -r ~/.cache/cade/prompt-state` (refeito na próxima pergunta) |
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
 - O índice de palavras acompanha o texto: uma edição, o `reindex` e o `forget` também tiram dele as palavras antigas.

@@ -1,37 +1,51 @@
-# cade benchmark baseline — 2026-09-26, commit b583f97 + working tree (model benchmarks warm up first)
+# cade benchmark baseline — 2026-09-27, commit f93d478 + working tree (fase 5; model benchmarks warm up first)
 # GPU: NVIDIA GeForce RTX 3060, 12288 MiB; build: make bench (CUDA)
 goos: linux
 goarch: amd64
 pkg: github.com/chipskein/cade/internal/storage/sqlitestore
 cpu: AMD Ryzen 5 5500                               
-BenchmarkSearchSimilar/events=1000/all-12     	       5	   2282754 ns/op
-BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	   1695356 ns/op
-BenchmarkSearchSimilar/events=1000/one-day-12              	       5	   1160678 ns/op
-BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   6595413 ns/op
-BenchmarkSearchSimilar/events=10000/all-12                 	       5	  12073381 ns/op
-BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   7551523 ns/op
-BenchmarkSearchSimilar/events=100000/all-12                	       5	 103136910 ns/op
-BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  59862690 ns/op
-BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  47404964 ns/op
-BenchmarkEventsBetween/events=1000/one-day-12              	       5	     45337 ns/op
-BenchmarkEventsBetween/events=1000/all-12                  	       5	   2509313 ns/op
-BenchmarkEventsBetween/events=10000/one-day-12             	       5	    161235 ns/op
-BenchmarkEventsBetween/events=10000/all-12                 	       5	  29732022 ns/op
-BenchmarkEventsBetween/events=100000/one-day-12            	       5	    749560 ns/op
-BenchmarkEventsBetween/events=100000/all-12                	       5	 345051233 ns/op
-BenchmarkEmbeddingsFor/events=1000-12                      	       5	 170324819 ns/op
-BenchmarkEmbeddingsFor/events=10000-12                     	       5	 151779866 ns/op
-BenchmarkEmbeddingsFor/events=100000-12                    	       5	 165410097 ns/op
-BenchmarkSaveEvent-12                                      	       5	    619673 ns/op
-BenchmarkDatabaseSize/events=1000-12                       	       5	    646716 ns/op	      3633 bytes/event
-BenchmarkDatabaseSize/events=10000-12                      	       5	    960542 ns/op	      3563 bytes/event
-BenchmarkDatabaseSize/events=100000-12                     	       5	   8191261 ns/op	      3498 bytes/event
-ok  	github.com/chipskein/cade/internal/storage/sqlitestore	20.160s
+BenchmarkSearchSimilar/events=1000/one-day-12 	       5	   1453839 ns/op
+BenchmarkSearchSimilar/events=1000/all-12     	       5	   1463870 ns/op
+BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	   1387178 ns/op
+BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   7814305 ns/op
+BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   5972893 ns/op
+BenchmarkSearchSimilar/events=10000/all-12                 	       5	  11620421 ns/op
+BenchmarkSearchSimilar/events=100000/all-12                	       5	 102543843 ns/op
+BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  59433520 ns/op
+BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  48024643 ns/op
+BenchmarkEventsBetween/events=1000/one-day-12              	       5	     44333 ns/op
+BenchmarkEventsBetween/events=1000/all-12                  	       5	   2088935 ns/op
+BenchmarkEventsBetween/events=10000/one-day-12             	       5	    130800 ns/op
+BenchmarkEventsBetween/events=10000/all-12                 	       5	  28271945 ns/op
+BenchmarkEventsBetween/events=100000/one-day-12            	       5	    763218 ns/op
+BenchmarkEventsBetween/events=100000/all-12                	       5	 341718489 ns/op
+BenchmarkChunksFor/events=1000-12                          	       5	 196142764 ns/op
+BenchmarkChunksFor/events=10000-12                         	       5	 199805074 ns/op
+BenchmarkChunksFor/events=100000-12                        	       5	 189910289 ns/op
+BenchmarkSaveEvent-12                                      	       5	    633761 ns/op
+BenchmarkDatabaseSize/events=1000-12                       	       5	    665570 ns/op	      3965 bytes/event
+BenchmarkDatabaseSize/events=10000-12                      	       5	    985846 ns/op	      3842 bytes/event
+BenchmarkDatabaseSize/events=100000-12                     	       5	   9319269 ns/op	      3781 bytes/event
+BenchmarkSearchLexical/events=1000/words-12                	       5	   1528442 ns/op
+BenchmarkSearchLexical/events=1000/hash-prefix-12          	       5	     89822 ns/op
+BenchmarkSearchLexical/events=10000/words-12               	       5	   8505581 ns/op
+BenchmarkSearchLexical/events=10000/hash-prefix-12         	       5	    103164 ns/op
+BenchmarkSearchLexical/events=100000/words-12              	       5	  74979995 ns/op
+BenchmarkSearchLexical/events=100000/hash-prefix-12        	       5	     91785 ns/op
+PASS
+ok  	github.com/chipskein/cade/internal/storage/sqlitestore	24.721s
 goos: linux
 goarch: amd64
 pkg: github.com/chipskein/cade/internal/benchmarks
 cpu: AMD Ryzen 5 5500                               
-BenchmarkEmbedEvent-12      	       5	   3494200 ns/op	       390.0 gpu_MB	       978.5 rss_MB
-BenchmarkPlanQuestion-12    	       5	1283330472 ns/op	      2554 gpu_MB	      1121 rss_MB
-BenchmarkAnswer-12          	       5	 395097763 ns/op	      2554 gpu_MB	        44.80 reply_tokens/op	      1174 rss_MB
-ok  	github.com/chipskein/cade/internal/benchmarks	12.778s
+BenchmarkEmbedEvent-12      	       5	   3369812 ns/op	       328.0 gpu_MB	       964.0 rss_MB
+BenchmarkPlanQuestion-12    	       5	1361171533 ns/op	      2554 gpu_MB	      1135 rss_MB
+BenchmarkAnswer-12          	       5	 399442232 ns/op	      2554 gpu_MB	        43.00 reply_tokens/op	      1187 rss_MB
+BenchmarkColdAsk/page=warm/planner=model-12         	       5	2930102429 ns/op
+BenchmarkColdAsk/page=warm/planner=model+state-12   	       5	2482106443 ns/op
+BenchmarkColdAsk/page=warm/planner=rules-12         	       5	1592854345 ns/op
+BenchmarkColdAsk/page=cold/planner=model-12         	       5	8784224932 ns/op
+BenchmarkColdAsk/page=cold/planner=model+state-12   	       5	8515919183 ns/op
+BenchmarkColdAsk/page=cold/planner=rules-12         	       5	7722543001 ns/op
+PASS
+ok  	github.com/chipskein/cade/internal/benchmarks	188.868s

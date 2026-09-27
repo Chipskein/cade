@@ -8,19 +8,21 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
-	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/timeline"
 )
 
-// resolveAskQuery reads the question's filters with the model, unless
-// --no-filters, and resolves them with the flags, which win.
-func (env commandEnv) resolveAskQuery(ctx context.Context, generator llm.StructuredGenerator, text string, filters askFlags, session *askSession) (queryplan.Query, error) {
+// resolveAskQuery reads the question's filters, unless --no-filters, and
+// resolves them with the flags, which win.
+func (env commandEnv) resolveAskQuery(ctx context.Context, models *askModels, text string, filters askFlags, session *askSession) (queryplan.Query, error) {
 	overrides, err := askOverrides(filters, env.toolkit.Now())
 	if err != nil {
 		return queryplan.Query{}, err
 	}
-	plan := env.interpret(ctx, generator, text, overrides.IgnoreQuestion, session)
+	plan, err := env.interpret(ctx, models, text, overrides.IgnoreQuestion, session)
+	if err != nil {
+		return queryplan.Query{}, err
+	}
 	query := queryplan.Resolve(text, plan, overrides, env.toolkit.Now())
 	env.logger.Debug("question resolved", "mode", modeLabels[query.Mode], "source", query.Source,
 		"period", describeDays(query.Days), "topic", query.Topic, "semantic_text", query.SemanticText)
@@ -32,18 +34,28 @@ func askOverrides(filters askFlags, now time.Time) (queryplan.Overrides, error) 
 	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters}, err
 }
 
-// interpret asks the model for filters; a failure only costs the filters.
-func (env commandEnv) interpret(ctx context.Context, generator llm.StructuredGenerator, text string, disabled bool, session *askSession) queryplan.Plan {
+// interpret reads the filters by rules when they cover the question, else
+// with the model; a model failure only costs the filters, but a model that
+// does not load stops the command.
+func (env commandEnv) interpret(ctx context.Context, models *askModels, text string, disabled bool, session *askSession) (queryplan.Plan, error) {
 	if disabled {
-		return queryplan.Plan{}
+		return queryplan.Plan{}, nil
+	}
+	if plan, ok := queryplan.PlanByRules(text); ok {
+		env.logger.Debug("question read by rules", "question_chars", len(text))
+		return plan, nil
+	}
+	generator, err := models.loadedGenerator()
+	if err != nil {
+		return queryplan.Plan{}, err
 	}
 	session.status.show("Interpretando pergunta…")
 	plan, err := queryplan.NewPlanner(generator).Plan(ctx, text)
 	if err != nil {
 		env.logger.Warn("question interpretation failed; answering without filters", "error", err.Error())
-		return queryplan.Plan{}
+		return queryplan.Plan{}, nil
 	}
-	return plan
+	return plan, nil
 }
 
 // announceQuery prints what was understood, so a wrong reading is visible

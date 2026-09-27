@@ -54,12 +54,9 @@ func runAsk(ctx context.Context, env commandEnv, args []string) error {
 // askWithStore interprets the question, then lists or answers.
 func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store storage.EventStore, text string, filters askFlags) error {
 	session := newAskSession(env, *filters.json)
-	models, err := env.loadAskModels(cfg, store, session)
-	if err != nil {
-		return err
-	}
+	models := env.newAskModels(cfg, store, session)
 	defer models.close()
-	query, err := env.resolveAskQuery(ctx, models.generator, text, filters, session)
+	query, err := env.resolveAskQuery(ctx, models, text, filters, session)
 	if err != nil {
 		return err
 	}
@@ -73,6 +70,9 @@ func (env commandEnv) askWithStore(ctx context.Context, cfg config.Config, store
 }
 
 func (env commandEnv) answerForQuery(ctx context.Context, models *askModels, query queryplan.Query, session *askSession) error {
+	if _, err := models.loadedGenerator(); err != nil {
+		return err
+	}
 	answerer, err := models.answerer(ctx)
 	if err != nil {
 		return err

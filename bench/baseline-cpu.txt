@@ -1,0 +1,51 @@
+# cade benchmark baseline — 2026-09-27, commit f93d478 + working tree (fase 5; model benchmarks warm up first)
+# CPU only: AMD Ryzen 5 5500, 6 threads; build: make bench GO_TAGS=
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/storage/sqlitestore
+cpu: AMD Ryzen 5 5500                               
+BenchmarkSearchSimilar/events=1000/all-12     	       5	   2228131 ns/op
+BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	   1563162 ns/op
+BenchmarkSearchSimilar/events=1000/one-day-12              	       5	   1315291 ns/op
+BenchmarkSearchSimilar/events=10000/all-12                 	       5	  12584929 ns/op
+BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   8382404 ns/op
+BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   6675802 ns/op
+BenchmarkSearchSimilar/events=100000/all-12                	       5	 105966214 ns/op
+BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  63749584 ns/op
+BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  51296895 ns/op
+BenchmarkEventsBetween/events=1000/one-day-12              	       5	     44224 ns/op
+BenchmarkEventsBetween/events=1000/all-12                  	       5	   2268811 ns/op
+BenchmarkEventsBetween/events=10000/one-day-12             	       5	    133593 ns/op
+BenchmarkEventsBetween/events=10000/all-12                 	       5	  33175216 ns/op
+BenchmarkEventsBetween/events=100000/one-day-12            	       5	    835963 ns/op
+BenchmarkEventsBetween/events=100000/all-12                	       5	 358939708 ns/op
+BenchmarkChunksFor/events=1000-12                          	       5	 195563308 ns/op
+BenchmarkChunksFor/events=10000-12                         	       5	 176254204 ns/op
+BenchmarkChunksFor/events=100000-12                        	       5	 187921447 ns/op
+BenchmarkSaveEvent-12                                      	       5	    751144 ns/op
+BenchmarkDatabaseSize/events=1000-12                       	       5	    678564 ns/op	      3965 bytes/event
+BenchmarkDatabaseSize/events=10000-12                      	       5	    932670 ns/op	      3842 bytes/event
+BenchmarkDatabaseSize/events=100000-12                     	       5	   9580172 ns/op	      3781 bytes/event
+BenchmarkSearchLexical/events=1000/hash-prefix-12          	       5	     92425 ns/op
+BenchmarkSearchLexical/events=1000/words-12                	       5	   1436388 ns/op
+BenchmarkSearchLexical/events=10000/words-12               	       5	   8821203 ns/op
+BenchmarkSearchLexical/events=10000/hash-prefix-12         	       5	     81880 ns/op
+BenchmarkSearchLexical/events=100000/words-12              	       5	  75199660 ns/op
+BenchmarkSearchLexical/events=100000/hash-prefix-12        	       5	    113125 ns/op
+PASS
+ok  	github.com/chipskein/cade/internal/storage/sqlitestore	24.732s
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/benchmarks
+cpu: AMD Ryzen 5 5500                               
+BenchmarkEmbedEvent-12      	       5	  35955338 ns/op	       629.7 rss_MB
+BenchmarkPlanQuestion-12    	       5	19678175043 ns/op	      3874 rss_MB
+BenchmarkAnswer-12          	       5	2920313812 ns/op	        39.80 reply_tokens/op	      3875 rss_MB
+BenchmarkColdAsk/page=warm/planner=model-12         	       5	41462839054 ns/op
+BenchmarkColdAsk/page=warm/planner=model+state-12   	       5	26017542426 ns/op
+BenchmarkColdAsk/page=warm/planner=rules-12         	       5	21543192177 ns/op
+BenchmarkColdAsk/page=cold/planner=model-12         	       5	45245557802 ns/op
+BenchmarkColdAsk/page=cold/planner=model+state-12   	       5	31173137925 ns/op
+BenchmarkColdAsk/page=cold/planner=rules-12         	       5	26565781923 ns/op
+PASS
+ok  	github.com/chipskein/cade/internal/benchmarks	1325.959s

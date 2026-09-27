@@ -81,10 +81,13 @@ func BenchmarkEmbedEvent(b *testing.B) {
 	reportMemory(b)
 }
 
-var planQuestions = []string{"o que a Carla me pediu ontem?", "liste os commits de 20/09", "quais tarefas finalizei essa semana?"}
+// planQuestions all name a person or a topic, so the model reads them;
+// questions the rules read skip it (see BenchmarkColdAsk).
+var planQuestions = []string{"o que a Carla me pediu ontem?", "liste os commits de 20/09 sobre autenticação", "quais tarefas o Rui me passou essa semana?"}
 
-// BenchmarkPlanQuestion measures interpreting one question with a cold
-// prompt cache, as each `cade ask` process does.
+// BenchmarkPlanQuestion measures the model interpreting one question with a
+// cold prompt cache and no saved prompt state, as each `cade ask` process
+// did before the state was saved.
 func BenchmarkPlanQuestion(b *testing.B) {
 	generator := loadGenerator(b)
 	planner := queryplan.NewPlanner(generator)
