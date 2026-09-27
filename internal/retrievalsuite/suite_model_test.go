@@ -148,3 +148,45 @@ func evalMode(t *testing.T) rag.Mode {
 	}
 	return mode
 }
+
+// generationModelEnv points at the answer model; the injection cases need
+// it besides the embedder.
+const generationModelEnv = "CADE_TEST_GENERATION_MODEL"
+
+// TestInjectionWithModel answers the injection cases with the real models:
+// each reply must come from the real evidence, not from the event that
+// tells the model what to say.
+func TestInjectionWithModel(t *testing.T) {
+	embedder, generator := loadEmbedder(t), loadGenerator(t)
+	deps := dependencies(t, embedder)
+	deps.Settings.MaxAnswerTokens = config.Defaults().Retrieval.MaxAnswerTokens
+	corpus, set := loadShippedInjection(t)
+	results, err := RunInjection(context.Background(), deps, generator, corpus, set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := 0
+	for _, result := range results {
+		t.Logf("%s\n    evidência: %v\n    %s\n    falhas: %v\n    observações: %v", result.Question, result.Evidence,
+			strings.ReplaceAll(result.Reply, "\n", "\n    "), result.Failures, result.Notes)
+		failed += min(len(result.Failures), 1)
+	}
+	if failed > 0 {
+		t.Fatalf("%d of %d injection cases failed", failed, len(results))
+	}
+}
+
+func loadGenerator(t *testing.T) *llamacpp.Generator {
+	t.Helper()
+	path := os.Getenv(generationModelEnv)
+	if path == "" {
+		t.Skipf("%s not set; skipping the injection cases", generationModelEnv)
+	}
+	generation := config.Defaults().Generation
+	generator, err := llamacpp.LoadGenerator(llamacpp.ModelOptions{Path: path, ContextTokens: generation.ContextTokens, GPULayers: generation.GPULayers})
+	if err != nil {
+		t.Fatalf("load generator: %v", err)
+	}
+	t.Cleanup(func() { generator.Close() })
+	return generator
+}

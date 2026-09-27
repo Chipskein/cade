@@ -37,7 +37,7 @@ EVAL_TIMEOUT ?= 1h
 comma := ,
 TAGS = sqlite_fts5$(if $(GO_TAGS),$(comma)$(GO_TAGS))
 
-.PHONY: build cuda install uninstall test cover test-models eval eval-plan eval-retrieval eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
+.PHONY: build cuda install uninstall test cover test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
 
 build: llama
 	go build -tags sqlite_fts5 -o bin/cade ./cmd/cade
@@ -81,6 +81,12 @@ eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
 eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run 'TestRetrieval(Calibration|Suite)WithModel' ./internal/retrievalsuite
 
+# Answers the prompt-injection cases (testdata/queries/injection.json) with
+# both real models: each reply must come from the real evidence, not from
+# the event telling the model what to say.
+eval-injection: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL) $(GENERATION_MODEL)
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run TestInjectionWithModel ./internal/retrievalsuite
+
 # Test-set metrics as the corpus grows with distractors, saved next to the
 # benchmark baseline. Embeddings are cached in ~/.cache/cade/eval, so only
 # the first run of a size pays for them (~3 ms per event on a GPU).
@@ -89,7 +95,7 @@ eval-scale: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
 	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_SCALE=$(SCALE) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout 3h \
 		-run TestRetrievalScaleWithModel ./internal/retrievalsuite | tee bench/retrieval-scale.txt
 
-eval: eval-plan eval-retrieval
+eval: eval-plan eval-retrieval eval-injection
 
 # Latency and memory: storage at 1k/10k/100k synthetic events (search,
 # reads, writes, bytes per event), the models (embedding, question

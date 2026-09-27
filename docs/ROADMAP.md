@@ -22,7 +22,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 5 | Latência do `ask` | concluída | médio | médio |
 | 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | concluída | alto | baixo |
 | 6 | Filtros de pessoa no SQL | concluída | médio | baixo |
-| 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | pendente | baixo | baixo |
+| 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | concluída; 1 caso de injeção ainda falha | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | pendente | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | pendente | médio | médio |
 | 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | pendente | baixo | baixo |
@@ -31,7 +31,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 
 A tabela está na ordem sugerida:
 - **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue.
-- **Depois as mudanças de código:** 6 (entregue) e 7. A 5 foi feita antes da 10, a pedido.
+- **Depois as mudanças de código:** 6 e 7 (entregues). A 5 foi feita antes da 10, a pedido.
 - **Em seguida, a experiência de quem instala:** 11 e 12.
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
 
@@ -49,19 +49,9 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)). A primeira execução no Gi
 
 ## Fase 7 — Evidência não confiável no prompt
 
-### Problema
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)), com uma diferença do plano: as tags `<evento>` foram medidas e pioraram, então cada evento que dá ordens ao assistente é marcado no cabeçalho, e a regra do prompt se refere à marca. Falta:
 
-Mensagens de terceiros (Teams), títulos de páginas e conteúdo de arquivos entram crus no prompt (`internal/rag/prompt.go`, `formatEvidence`). Como o modelo não tem ferramentas, o risco se limita a manipular a resposta, mas uma mensagem com instruções pode distorcer o que o usuário lê.
-
-### Mudanças
-
-1. Delimitar cada evidência, por exemplo `<evento n="3" fonte="teams" autor="Rui Costa">…</evento>`, e neutralizar delimitadores que apareçam dentro do conteúdo.
-2. Acrescentar às instruções do sistema que o conteúdo dos eventos é dado, nunca instrução.
-3. Usar como teste de regressão os casos de injeção que já estão no corpus da suíte de recuperação.
-
-### Critério de aceite
-
-- Nos casos de injeção, a resposta não segue a instrução embutida e continua citando as fontes corretamente.
+- o caso da nota que finge ser "nova instrução do sistema" ainda é seguido pelo modelo de 3B (`make eval-injection` fica vermelho nesse caso). Tirar o evento do prompt zera as injeções seguidas; a outra saída é um modelo de geração que siga a regra (ver [Migrar a geração para o Qwen3.5](#migrar-a-geração-para-o-qwen35)).
 
 ---
 
@@ -151,6 +141,26 @@ As perguntas funcionam em inglês e português, e `cade help` segue o idioma do 
 ## A definir
 
 Outras ideias entram aqui antes de virar fase: problema, mudança proposta e critério de aceite, como nas fases acima.
+
+### Migrar a geração para o Qwen3.5
+
+Hoje o modelo de geração é o Qwen2.5-3B-Instruct (Q4_K_M). A proposta é trocá-lo por um Qwen3.5 de tamanho parecido.
+
+- **Por quê:**
+  - o 2.5-3B não segue de forma confiável a regra contra injeção (fase 7: um caso ainda falha, e a redação da regra muda o resultado);
+  - às vezes não cita a evidência;
+  - a licença do 3B está em dúvida (fase 9).
+- **A verificar antes de virar fase:**
+  - **Suporte:** o llama.cpp fixado (`LLAMA_TAG` b11195) carrega a arquitetura e o template de chat do Qwen3.5? Se não, subir a tag, rodando `make test-models` e `make bench`.
+  - **Tamanho e memória:** qual variante cabe no mesmo orçamento (~2,5 GB de GPU, ~3,9 GB de RAM em CPU) e qual a latência do `ask` em CPU e GPU (`BenchmarkColdAsk`).
+  - **Raciocínio:** se o modelo tem modo de raciocínio, ele precisa ficar desligado ou fora da resposta, para não gastar tokens nem vazar texto no `ask`.
+  - **Licença:** conferir no model card e registrar no README (fase 9).
+  - **Qualidade:** `make eval` completo, comparado com o 2.5-3B:
+    - a suíte de plano (a saída restrita por gramática GBNF precisa continuar funcionando);
+    - a de injeção;
+    - as citações.
+  - **Prompt salvo:** o estado salvo do planejador é invalidado sozinho, porque a chave inclui o arquivo do modelo.
+- **Critério de aceite:** plano igual ou melhor por campo, nenhuma injeção seguida em `make eval-injection`, latência e memória dentro do orçamento, e licença que permita o uso.
 
 ### Modo daemon para o `ask`
 

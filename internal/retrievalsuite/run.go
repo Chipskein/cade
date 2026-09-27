@@ -31,13 +31,23 @@ type CaseDone func(done, total int, result CaseResult)
 //
 //	board, err := retrievalsuite.Run(ctx, deps, suite, nil)
 func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (Scoreboard, error) {
+	answerer, err := ingestCorpus(ctx, deps, suite, nil)
+	if err != nil {
+		return Scoreboard{}, err
+	}
+	return scoreCases(ctx, answerer, suite, onCase)
+}
+
+// ingestCorpus stores the suite's events through the ingestion pipeline
+// and returns an answerer over them; generator may be nil when nothing is
+// generated.
+func ingestCorpus(ctx context.Context, deps Dependencies, suite Suite, generator llm.Generator) (*rag.Answerer, error) {
 	pipeline := ingest.NewPipeline(deps.Store, deps.Embedder, deps.DocumentPrefix, deps.Logger)
 	if _, err := pipeline.Run(ctx, corpusCollector{events: suite.events()}, nil); err != nil {
-		return Scoreboard{}, fmt.Errorf("ingest corpus of %d events: %w", len(suite.events()), err)
+		return nil, fmt.Errorf("ingest corpus of %d events: %w", len(suite.events()), err)
 	}
-	answerer := rag.NewAnswerer(rag.Dependencies{Store: deps.Store, Embedder: deps.Embedder,
-		Now: func() time.Time { return suite.Now }, Logger: deps.Logger}, deps.Settings)
-	return scoreCases(ctx, answerer, suite, onCase)
+	return rag.NewAnswerer(rag.Dependencies{Store: deps.Store, Embedder: deps.Embedder, Generator: generator,
+		Now: func() time.Time { return suite.Now }, Logger: deps.Logger}, deps.Settings), nil
 }
 
 func scoreCases(ctx context.Context, answerer *rag.Answerer, suite Suite, onCase CaseDone) (Scoreboard, error) {
