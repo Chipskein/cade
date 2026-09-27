@@ -28,7 +28,7 @@ func TestDetectDayRange(t *testing.T) {
 		"ontem ou 12/08? a data explícita vence": "2026-08-12",
 	}
 	for question, expected := range cases {
-		days, ok := DetectDayRange(question, phraseNow)
+		days, ok := DetectDayRange(question, phraseNow, DayFirst)
 		if !ok || days.String() != expected {
 			t.Errorf("DetectDayRange(%q) = %v (%v), expected %s", question, days, ok, expected)
 		}
@@ -37,7 +37,7 @@ func TestDetectDayRange(t *testing.T) {
 
 func TestDetectDayRangeWithoutDate(t *testing.T) {
 	for _, question := range []string{"o que a Ana me passou?", "arquivo 31/02 inválido", "últimos 0 dias", "anteontemzinho"} {
-		if days, ok := DetectDayRange(question, phraseNow); ok {
+		if days, ok := DetectDayRange(question, phraseNow, DayFirst); ok {
 			t.Errorf("DetectDayRange(%q) = %v, expected no date", question, days)
 		}
 	}
@@ -45,7 +45,7 @@ func TestDetectDayRangeWithoutDate(t *testing.T) {
 
 func TestDetectDayRangeUsesLocalMidnight(t *testing.T) {
 	brt := time.FixedZone("BRT", -3*3600)
-	days, _ := DetectDayRange("ontem", time.Date(2026, 9, 26, 1, 0, 0, 0, brt))
+	days, _ := DetectDayRange("ontem", time.Date(2026, 9, 26, 1, 0, 0, 0, brt), DayFirst)
 	if !days.Start().Equal(time.Date(2026, 9, 25, 0, 0, 0, 0, brt)) {
 		t.Fatalf("expected BRT midnight of the 25th, got %s", days.Start())
 	}
@@ -81,7 +81,7 @@ func TestDetectDayRangeEnglish(t *testing.T) {
 		"what did we agree on Dec 30":            "2025-12-30",
 	}
 	for question, expected := range cases {
-		days, ok := DetectDayRange(question, phraseNow)
+		days, ok := DetectDayRange(question, phraseNow, DayFirst)
 		if !ok || days.String() != expected {
 			t.Errorf("DetectDayRange(%q) = %v (%v), expected %s", question, days, ok, expected)
 		}
@@ -90,7 +90,7 @@ func TestDetectDayRangeEnglish(t *testing.T) {
 
 func TestDetectDayRangeEnglishWithoutDate(t *testing.T) {
 	for _, question := range []string{"what did Ana send me?", "you may 5 times check", "February 30"} {
-		if days, ok := DetectDayRange(question, phraseNow); ok {
+		if days, ok := DetectDayRange(question, phraseNow, DayFirst); ok {
 			t.Errorf("DetectDayRange(%q) = %v, expected no date", question, days)
 		}
 	}
@@ -103,8 +103,8 @@ func TestEnglishMonthNumber(t *testing.T) {
 }
 
 func TestMayAsMonthNeedsDateContext(t *testing.T) {
-	onMay, _ := DetectDayRange("what happened on May 12?", phraseNow)
-	ordinal, _ := DetectDayRange("May 3rd meeting notes", phraseNow)
+	onMay, _ := DetectDayRange("what happened on May 12?", phraseNow, DayFirst)
+	ordinal, _ := DetectDayRange("May 3rd meeting notes", phraseNow, DayFirst)
 	if onMay.String() != "2026-05-12" || ordinal.String() != "2026-05-03" {
 		t.Fatalf("expected May dates with context, got %v / %v", onMay, ordinal)
 	}

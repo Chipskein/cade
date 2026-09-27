@@ -10,10 +10,10 @@ import (
 // deterministic parser finds in the question wins over the model's period
 // expression, which the model sometimes rewrites; nil means no period.
 //
-//	days := queryplan.ResolvePeriod("o que fiz ontem?", plan.Period, time.Now())
-func ResolvePeriod(question, modelPeriod string, now time.Time) *timeline.DayRange {
+//	days := queryplan.ResolvePeriod("o que fiz ontem?", plan.Period, time.Now(), timeline.DayFirst)
+func ResolvePeriod(question, modelPeriod string, now time.Time, order timeline.DateOrder) *timeline.DayRange {
 	for _, text := range []string{question, modelPeriod} {
-		if days, found := timeline.DetectDayRange(text, now); text != "" && found {
+		if days, found := timeline.DetectDayRange(text, now, order); text != "" && found {
 			return &days
 		}
 	}

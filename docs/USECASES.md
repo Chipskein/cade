@@ -81,6 +81,9 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF5.7** `cade doctor` confere os modelos (arquivo GGUF), o FTS5 do SQLite, o banco (versão do esquema, migração com cópia pendente, modelo dos vetores, reindexação pendente) e cada caminho configurado, dizendo como corrigir cada problema. Lê o banco sem migrá-lo e sai com código 1 quando algum comando falharia.
 - **RF5.8** A interface (ajuda, rótulos, progresso e erros da CLI) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos) ou `ui.language` (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta, e os códigos do `ask --json` não mudam com o idioma.
 - **RF5.9** `cade version` (ou `--version`) mostra a versão, o commit, a data, o tipo de build (CPU/CUDA) e a tag do llama.cpp.
+- **RF5.10** As flags de cada comando podem vir antes ou depois dos argumentos (`cade timeline ontem --source git`); depois de `--`, tudo é argumento.
+- **RF5.11** Mensagens com contagem concordam com o número nos dois idiomas ("1 evento", "0 eventos", "2 tarefas suas").
+- **RF5.12** Datas numéricas nas perguntas (`12/08`) seguem `ui.date_order` (`auto`, `dmy`, `mdy`); `auto` lê mês primeiro com o sistema (`LC_ALL`, `LC_TIME`, `LANG`) em `en_US` e dia primeiro nos outros casos. As datas da saída são sempre ISO (`AAAA-MM-DD`).
 
 ---
 
@@ -198,7 +201,6 @@ Notas:
 - Arquivos: apenas o início do texto (até `max_file_bytes`) é indexado; não há divisão em trechos.
 - Teams: o formato interno pode mudar em atualizações do cliente; mensagens apagadas depois de ingeridas continuam no banco.
 - Trocar o modelo de embedding exige um banco novo (a dimensão dos vetores é fixada no primeiro insert).
-- As flags de cada comando devem vir antes dos argumentos posicionais.
 - Tarefas passadas sem link (só em texto) não são reconhecidas.
 - O modelo de 3B às vezes lê empresas e clientes como pessoas; o filtro de texto para nomes desconhecidos compensa em listagens e tarefas.
 

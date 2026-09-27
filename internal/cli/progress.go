@@ -55,8 +55,8 @@ func (p *ingestProgress) interval() time.Duration {
 }
 
 func (p *ingestProgress) line(report ingest.Report, now time.Time) string {
-	return fmt.Sprintf(p.language.pick("%s: %d lidos, %d novos, %d atualizados, %d já existentes · %.0f/s", "%s: %d read, %d new, %d updated, %d already stored · %.0f/s"),
-		p.label, report.Collected, report.Inserted, report.Updated, report.AlreadyStored, eventsPerSecond(report.Collected, now.Sub(p.started)))
+	return fmt.Sprintf("%s: %s, %s · %.0f/s", p.label, p.language.count(report.Collected, collectedNoun), ingestTally(report, p.language),
+		eventsPerSecond(report.Collected, now.Sub(p.started)))
 }
 
 func eventsPerSecond(count int, elapsed time.Duration) float64 {

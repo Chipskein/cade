@@ -38,6 +38,8 @@ func TestPlanByRulesReadsPlainQuestions(t *testing.T) {
 		"tarefas que não finalizei":       {Mode: ModeTasks, TaskStatus: OnlyInProgress},
 		"which tasks did I finish today?": {Mode: ModeTasks, Period: "today", TaskStatus: OnlyDone},
 		"show everything from yesterday":  {Mode: ModeList, Period: "yesterday"},
+		"liste os commits de 20/09":       {Mode: ModeList, Period: "20/09", Source: event.SourceGit},
+		"list the commits from 9/20":      {Mode: ModeList, Period: "9/20", Source: event.SourceGit},
 	}
 	for question, expected := range cases {
 		expected.ReadByRules = true

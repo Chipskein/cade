@@ -9,7 +9,7 @@ CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos
 
 Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração. O que fica guardado, onde e como apagar: [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md).
 
-Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta. A interface (ajuda, rótulos, progresso, erros) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos), ou `ui.language` na configuração (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta. Os códigos do `ask --json` (`"mode": "listar"`) são os mesmos nos dois idiomas.
+Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta. A interface (ajuda, rótulos, progresso, erros) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos), ou `ui.language` na configuração (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta. Os códigos do `ask --json` (`"mode": "listar"`) são os mesmos nos dois idiomas. Datas numéricas nas perguntas seguem `ui.date_order`: por padrão, mês primeiro com o sistema em `en_US` (`12/08` é 8 de dezembro) e dia primeiro em qualquer outro (12 de agosto); as datas da saída são sempre `AAAA-MM-DD`. As palavras de período aceitas em cada idioma estão em [Períodos](#períodos).
 
 ## Índice
 
@@ -17,7 +17,7 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 - [Modelos](#modelos) e [hardware](#hardware)
 - [Instalação](#instalação)
 - [Uso](#uso)
-  - [Perguntas (`ask`)](#perguntas-ask)
+  - [Perguntas (`ask`)](#perguntas-ask) e [períodos](#períodos)
 - [Exemplo de saída](#exemplo-de-saída)
 - [Tarefas](#tarefas)
 - [Navegadores](#navegadores)
@@ -149,7 +149,7 @@ cade reindex                                # recalcula os vetores após trocar 
 cade teams-schema DIR                       # estrutura (sem valores) de um IndexedDB, para diagnóstico
 ```
 
-Fontes: `git`, `browser`, `file`, `teams`. Flags vêm antes dos argumentos.
+Fontes: `git`, `browser`, `file`, `teams`. As flags podem vir antes ou depois dos argumentos (`cade timeline ontem --source git`); tudo o que vem depois de `--` é argumento, mesmo começando com `-`.
 
 ### Perguntas (`ask`)
 
@@ -171,6 +171,31 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Perguntas simples, feitas só de período, fonte e palavras genéricas ("liste os commits de ontem", "o que fiz hoje?", "quais tarefas finalizei hoje?"), são lidas por regras, sem o modelo; uma listagem ou relatório de tarefas lido assim nem carrega modelo. Uma pergunta com nome, assunto ou qualquer outra palavra vai para o modelo.
 - As instruções e exemplos fixos do modelo são lidos uma vez, e o estado resultante fica salvo em `~/.cache/cade/prompt-state/` (~55 MB), então as perguntas seguintes pulam essa parte. O arquivo é refeito quando o modelo, o prompt ou o llama.cpp mudam.
 - Flags (`--source`, `--from`, `--to`) têm prioridade; `--no-filters` desativa a interpretação.
+
+### Períodos
+
+As perguntas do `ask` podem citar um período nos dois idiomas, ignorando maiúsculas e acentos; a semana começa na segunda. As regras e o modelo leem a mesma lista, e as datas são sempre resolvidas pelo mesmo parser determinístico.
+
+| Período | Português | Inglês |
+| ------- | --------- | ------ |
+| hoje | `hoje` | `today` |
+| ontem | `ontem` | `yesterday` |
+| anteontem | `anteontem` | `day before yesterday` |
+| esta semana, de segunda até hoje | `esta semana`, `essa semana`, `nesta semana`, `nessa semana` | `this week` |
+| a semana anterior, de segunda a domingo | `semana passada`, `semana anterior` | `last week`, `previous week` |
+| os últimos 7 dias, com hoje | `última semana` | `past week` |
+| os últimos N dias, com hoje | `últimos 3 dias` | `last 3 days`, `past 3 days` |
+| este mês, até hoje | `este mês`, `esse mês`, `neste mês`, `nesse mês` | `this month` |
+| o mês anterior | `mês passado`, `mês anterior` | `last month`, `previous month` |
+| este ano, até hoje | `este ano`, `esse ano`, `neste ano`, `nesse ano` | `this year` |
+| o ano anterior | `ano passado` | `last year` |
+| um dia | `12 de agosto`, `12 de agosto de 2025` | `Aug 12`, `August 12th, 2025`, `12 Aug`, `12th of August` |
+| um dia, em qualquer idioma | `2026-08-12`; `12/08`, `12/08/25`, `12/08/2025` na ordem de `ui.date_order` | |
+
+- Uma data sem ano é a mais recente: em 2026-09-26, `30/12` é 2025-12-30. Ano com dois dígitos é 20xx.
+- `May` como mês precisa de preposição antes (`on May 3`) ou ordinal depois (`May 3rd`), para "you may 5 times" não virar data.
+- Uma data explícita vence uma palavra relativa na mesma pergunta.
+- `timeline`, `tasks`, `--from` e `--to` aceitam `AAAA-MM-DD`, `hoje`/`today` ou `ontem`/`yesterday`.
 
 ## Exemplo de saída
 
@@ -195,7 +220,7 @@ Timeline de 2026-09-25 — 2 eventos
 
 $ cade ask "que páginas visitei em 25/09 sobre redis?"
 Entendi: listar · browser · 2026-09-25 · assunto: redis
-Timeline de 2026-09-25 — 1 eventos
+Timeline de 2026-09-25 — 1 evento
 
 ── 2026-09-25 (Fri) ──
 16:20  [browser] Redis client-side caching — https://redis.io/docs/latest/develop/use/client-side-caching/
@@ -234,7 +259,7 @@ Cada fonte citada mostra onde está o original (`↳`): `repositório@hash` para
 
 ```
 $ cade tasks ontem
-Tarefas de 2026-09-25 — 2 suas
+Tarefas de 2026-09-25 — 2 tarefas suas
 
 concluída     14/162  Ajuste de CEP  (38 eventos)
               PR acme/api#45 aberto 16:40 · fix-cep-162
@@ -317,6 +342,7 @@ O `cade init` grava `~/.config/cade/config.json`; o [`config.example.json`](conf
 | `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | nomes de pasta que o `ingest file` pula |
 | `sources.max_file_bytes` | `262144` (256 KB) | arquivos maiores entram sem o texto |
 | `ui.language` | `auto` | idioma da interface: `auto` segue o sistema, `pt` ou `en` o fixam. A resposta do `ask` segue o idioma da pergunta de qualquer forma |
+| `ui.date_order` | `auto` | como o `ask` lê datas numéricas como `12/08`: `dmy` (12 de agosto), `mdy` (8 de dezembro) ou `auto`, que é `mdy` com o sistema (`LC_ALL`, `LC_TIME`, `LANG`) em `en_US` e `dmy` nos outros casos. As datas da saída são `AAAA-MM-DD` de qualquer forma |
 | `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes que reconhecem links de tarefa (veja [Tarefas](#tarefas)) |
 
 Notas, mensagens e commits longos são divididos em pedaços de até ~1.200 caracteres (o modelo de embedding lê 512 tokens), e a resposta mostra o pedaço que casou ("arquitetura.md, trecho 7 de 20"). Ao atualizar de uma versão sem pedaços, rode `cade reindex` uma vez: ele embute os eventos longos (1.568 de 108 mil num histórico real, cerca de um minuto).

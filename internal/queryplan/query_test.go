@@ -5,6 +5,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 func TestResolveAppliesPlanAndDates(t *testing.T) {
@@ -16,7 +17,7 @@ func TestResolveAppliesPlanAndDates(t *testing.T) {
 }
 
 func TestResolveOverridesWin(t *testing.T) {
-	days := ResolvePeriod("hoje", "", suiteNow)
+	days := ResolvePeriod("hoje", "", suiteNow, timeline.DayFirst)
 	plan := Plan{Period: "ontem", Source: event.SourceGit}
 	query := Resolve("o que fiz ontem?", plan, Overrides{Source: event.SourceTeams, Days: days}, suiteNow)
 	if query.Source != event.SourceTeams || query.Days.String() != "2026-09-26" {
@@ -50,7 +51,7 @@ func TestSemanticTextUsesTopicOnlyWhenScoped(t *testing.T) {
 }
 
 func TestIsScoped(t *testing.T) {
-	days := ResolvePeriod("hoje", "", suiteNow)
+	days := ResolvePeriod("hoje", "", suiteNow, timeline.DayFirst)
 	scoped := []Query{{Days: days}, {Source: event.SourceGit}, {Criteria: listing.Criteria{Direction: listing.Sent}}}
 	for _, query := range scoped {
 		if !query.IsScoped() {
@@ -74,5 +75,13 @@ func TestFirstPersonQuestionsKeepOwnCommits(t *testing.T) {
 	withPerson := Resolve("o que eu pedi ao Rui?", Plan{Criteria: listing.Criteria{People: []string{"Rui"}}}, Overrides{}, suiteNow)
 	if withPerson.OwnCommitsOnly {
 		t.Fatal("a question naming a person is about that person too")
+	}
+}
+
+func TestResolveReadsNumericDatesInTheGivenOrder(t *testing.T) {
+	dayFirst := Resolve("o que fiz em 12/08?", Plan{}, Overrides{DateOrder: timeline.DayFirst}, suiteNow)
+	monthFirst := Resolve("what did I do on 12/08?", Plan{}, Overrides{DateOrder: timeline.MonthFirst}, suiteNow)
+	if dayFirst.Days.String() != "2026-08-12" || monthFirst.Days.String() != "2025-12-08" {
+		t.Fatalf("expected 12 August in dmy and December 8 in mdy, got %v / %v", dayFirst.Days, monthFirst.Days)
 	}
 }

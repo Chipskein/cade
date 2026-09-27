@@ -8,20 +8,22 @@ import (
 	"github.com/chipskein/cade/internal/textnorm"
 )
 
-// dayDetector returns the range a question refers to, if its phrase matches.
-type dayDetector func(text string, today time.Time) (DayRange, bool)
+// dayDetector returns the range a question refers to, if its phrase
+// matches; only slash dates depend on order.
+type dayDetector func(text string, today time.Time, order DateOrder) (DayRange, bool)
 
 // DetectDayRange finds a date reference in a Portuguese question ("ontem",
 // "semana passada", "12/08"...) relative to now. Without it, "o que fiz
 // ontem?" is matched by meaning only and finds messages that merely contain
-// the word "ontem", from any date. Explicit dates are checked first.
+// the word "ontem", from any date. Explicit dates are checked first; order
+// says whether "12/08" is 12 August or December 8.
 //
-//	days, ok := timeline.DetectDayRange("o que a Ana me passou ontem?", time.Now())
-func DetectDayRange(question string, now time.Time) (DayRange, bool) {
+//	days, ok := timeline.DetectDayRange("o que a Ana me passou ontem?", time.Now(), timeline.DayFirst)
+func DetectDayRange(question string, now time.Time, order DateOrder) (DayRange, bool) {
 	text := textnorm.Fold(question)
 	today := midnight(now)
 	for _, detect := range dayDetectors {
-		if days, ok := detect(text, today); ok {
+		if days, ok := detect(text, today, order); ok {
 			return days, true
 		}
 	}
@@ -40,7 +42,7 @@ var (
 var monthNumbers = map[string]int{"janeiro": 1, "fevereiro": 2, "marco": 3, "abril": 4, "maio": 5, "junho": 6,
 	"julho": 7, "agosto": 8, "setembro": 9, "outubro": 10, "novembro": 11, "dezembro": 12}
 
-func detectISODate(text string, today time.Time) (DayRange, bool) {
+func detectISODate(text string, today time.Time, _ DateOrder) (DayRange, bool) {
 	match := isoDatePattern.FindStringSubmatch(text)
 	if match == nil {
 		return DayRange{}, false
@@ -48,15 +50,16 @@ func detectISODate(text string, today time.Time) (DayRange, bool) {
 	return singleDay(atoi(match[1]), atoi(match[2]), atoi(match[3]), today)
 }
 
-func detectSlashDate(text string, today time.Time) (DayRange, bool) {
+func detectSlashDate(text string, today time.Time, order DateOrder) (DayRange, bool) {
 	match := slashDatePattern.FindStringSubmatch(text)
 	if match == nil {
 		return DayRange{}, false
 	}
-	return singleDay(resolveYear(match[3], today), atoi(match[2]), atoi(match[1]), today)
+	day, month := order.dayAndMonth(atoi(match[1]), atoi(match[2]))
+	return singleDay(resolveYear(match[3], today), month, day, today)
 }
 
-func detectMonthNameDate(text string, today time.Time) (DayRange, bool) {
+func detectMonthNameDate(text string, today time.Time, _ DateOrder) (DayRange, bool) {
 	match := monthNameDatePattern.FindStringSubmatch(text)
 	if match == nil {
 		return DayRange{}, false
@@ -64,7 +67,7 @@ func detectMonthNameDate(text string, today time.Time) (DayRange, bool) {
 	return singleDay(resolveYear(match[3], today), monthNumbers[match[2]], atoi(match[1]), today)
 }
 
-func detectLastNDays(text string, today time.Time) (DayRange, bool) {
+func detectLastNDays(text string, today time.Time, _ DateOrder) (DayRange, bool) {
 	match := lastNDaysPattern.FindStringSubmatch(text)
 	if match == nil || atoi(match[1]) < 1 {
 		return DayRange{}, false

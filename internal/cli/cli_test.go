@@ -17,6 +17,7 @@ import (
 	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 var cliNow = time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
@@ -53,6 +54,7 @@ type fakeWorld struct {
 	writtenConfig      string
 	writtenCfg         config.Config
 	language           Language
+	dateOrder          timeline.DateOrder
 	// files, stdin and database back init and doctor.
 	files    testfakes.FakeFileSystem
 	stdin    string
@@ -89,6 +91,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		ReadIndexedDB: w.readIndexedDB,
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
+		DateOrder:     w.dateOrder,
 	}
 }
 
@@ -145,7 +148,7 @@ func TestInitWritesConfigAtGivenPath(t *testing.T) {
 func TestIngestUsesConfiguredTargetsAndReports(t *testing.T) {
 	world := newFakeWorld()
 	code, stdout, stderr := world.run("ingest", "git")
-	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novos, 0 atualizados, 0 já existentes") {
+	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novo, 0 atualizados, 0 já existentes (1 lido)") {
 		t.Fatalf("expected one ingested commit, got %d %q %q", code, stdout, stderr)
 	}
 }
@@ -300,7 +303,7 @@ func TestForgetRemovesOnlyThatSource(t *testing.T) {
 	world := newFakeWorld()
 	world.store.Events = []event.Event{sampleCommit, {UID: "f", Source: event.SourceFile}}
 	code, stdout, _ := world.run("forget", "git")
-	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "1 eventos de git removidos") {
+	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git: 1 evento removido") {
 		t.Fatalf("expected only git removed, got %d %q with %d left", code, stdout, len(world.store.Events))
 	}
 }

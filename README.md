@@ -15,7 +15,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Models](#models) and [hardware](#hardware)
 - [Install](#install)
 - [Usage](#usage)
-  - [Questions (`ask`)](#questions-ask)
+  - [Questions (`ask`)](#questions-ask) and [periods](#periods)
 - [Sample output](#sample-output)
 - [Tasks](#tasks)
 - [Browsers](#browsers)
@@ -27,7 +27,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Changelog](CHANGELOG.md): migrations and what each one rewrites
 - [Roadmap](docs/ROADMAP.md) (Portuguese)
 
-> **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. The interface (help, labels, progress, errors) follows the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise), or `ui.language` in the config (`auto`, `pt`, `en`); the answer to `ask` follows the language of the question. The samples below are in Portuguese; `ask --json` codes (`"mode": "listar"`) are the same in both languages. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
+> **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. The interface (help, labels, progress, errors) follows the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise), or `ui.language` in the config (`auto`, `pt`, `en`); the answer to `ask` follows the language of the question. The samples below are in Portuguese; `ask --json` codes (`"mode": "listar"`) are the same in both languages. Numeric dates in questions follow `ui.date_order`: by default month first under `en_US` (`12/08` is December 8) and day first under every other locale (12 August); output dates are always `YYYY-MM-DD`. The period words each language accepts are in [Periods](#periods).
 
 ## How it works
 
@@ -149,7 +149,7 @@ cade reindex                                # recomputes vectors after changing 
 cade teams-schema DIR                       # structure (no values) of an IndexedDB, for diagnosis
 ```
 
-Sources: `git`, `browser`, `file`, `teams`. Flags go before the arguments.
+Sources: `git`, `browser`, `file`, `teams`. Flags can come before or after the arguments (`cade timeline ontem --source git`); everything after `--` is an argument, even if it starts with `-`.
 
 ### Questions (`ask`)
 
@@ -171,6 +171,31 @@ Entendi: listar · teams · 2026-09-25 · pessoas: Ana · recebidas
 - Plain questions made only of a period, a source and generic words ("liste os commits de ontem", "o que fiz hoje?", "which tasks did I finish today?") are read by rules, without the model; a listing or task report read that way loads no model at all. A question with a name, a topic or any other word goes to the model.
 - The model's fixed instructions and examples are read once and their state saved in `~/.cache/cade/prompt-state/` (~55 MB), so later questions skip them. The file is rebuilt when the model, the prompt or llama.cpp changes.
 - Flags (`--source`, `--from`, `--to`) take precedence; `--no-filters` disables the interpretation.
+
+### Periods
+
+Questions to `ask` can name a period in either language, ignoring case and accents; weeks start on Monday. Rules and the model read the same list, and the dates are always resolved by the same deterministic parser.
+
+| Period | Portuguese | English |
+| ------ | ---------- | ------- |
+| today | `hoje` | `today` |
+| yesterday | `ontem` | `yesterday` |
+| the day before yesterday | `anteontem` | `day before yesterday` |
+| this week, Monday to today | `esta semana`, `essa semana`, `nesta semana`, `nessa semana` | `this week` |
+| the previous week, Monday to Sunday | `semana passada`, `semana anterior` | `last week`, `previous week` |
+| the last 7 days, today included | `última semana` | `past week` |
+| the last N days, today included | `últimos 3 dias` | `last 3 days`, `past 3 days` |
+| this month, up to today | `este mês`, `esse mês`, `neste mês`, `nesse mês` | `this month` |
+| the previous month | `mês passado`, `mês anterior` | `last month`, `previous month` |
+| this year, up to today | `este ano`, `esse ano`, `neste ano`, `nesse ano` | `this year` |
+| the previous year | `ano passado` | `last year` |
+| one day | `12 de agosto`, `12 de agosto de 2025` | `Aug 12`, `August 12th, 2025`, `12 Aug`, `12th of August` |
+| one day, in any language | `2026-08-12`; `12/08`, `12/08/25`, `12/08/2025` in `ui.date_order` | |
+
+- A date without a year is the most recent one: on 2026-09-26, `30/12` is 2025-12-30. A two-digit year is 20xx.
+- `May` as a month needs a preposition before it (`on May 3`) or an ordinal after it (`May 3rd`), so "you may 5 times" is not a date.
+- An explicit date wins over a relative word in the same question.
+- `timeline`, `tasks`, `--from` and `--to` take `YYYY-MM-DD`, `hoje`/`today` or `ontem`/`yesterday`.
 
 ## Sample output
 
@@ -195,7 +220,7 @@ Timeline de 2026-09-25 — 2 eventos
 
 $ cade ask "que páginas visitei em 25/09 sobre redis?"
 Entendi: listar · browser · 2026-09-25 · assunto: redis
-Timeline de 2026-09-25 — 1 eventos
+Timeline de 2026-09-25 — 1 evento
 
 ── 2026-09-25 (Fri) ──
 16:20  [browser] Redis client-side caching — https://redis.io/docs/latest/develop/use/client-side-caching/
@@ -234,7 +259,7 @@ Each cited source shows where the original is (`↳`): `repository@hash` for a c
 
 ```
 $ cade tasks ontem
-Tarefas de 2026-09-25 — 2 suas
+Tarefas de 2026-09-25 — 2 tarefas suas
 
 concluída     14/162  Ajuste de CEP  (38 eventos)
               PR acme/api#45 aberto 16:40 · fix-cep-162
@@ -317,6 +342,7 @@ Anything no longer in the source (e.g. an expired Teams cache) does not come bac
 | `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | folder names `ingest file` skips |
 | `sources.max_file_bytes` | `262144` (256 KB) | larger files are recorded without their text |
 | `ui.language` | `auto` | language of the interface: `auto` follows the locale, `pt` or `en` fix it. Answers to `ask` follow the question's language either way |
+| `ui.date_order` | `auto` | how `ask` reads numeric dates such as `12/08`: `dmy` (12 August), `mdy` (December 8), or `auto`, which is `mdy` when the locale (`LC_ALL`, `LC_TIME`, `LANG`) is `en_US` and `dmy` otherwise. Output dates are `YYYY-MM-DD` either way |
 | `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes that recognize task links (see [Tasks](#tasks)) |
 
 Long notes, messages and commits are split into chunks of up to ~1,200 characters (the embedding model reads 512 tokens), and an answer shows the chunk that matched ("arquitetura.md, trecho 7 de 20"). After upgrading from a version without chunks, run `cade reindex` once: it embeds the long events (1,568 of 108k in a real history, about a minute).

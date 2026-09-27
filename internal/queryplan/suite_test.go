@@ -47,6 +47,8 @@ func TestLoadSuiteRejectsInvalidValues(t *testing.T) {
 		`{"now": "2026-09-26T10:00:00Z", "minimum_accuracy": {"mode": 1.5}, "cases": [{"question": "x"}]}`: "1.5",
 		`{"now": "2026-09-26T10:00:00Z", "cases": []}`:                                                     "0 cases",
 		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": ""}]}`:                                     "empty question",
+		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": "o que fiz em 12/08?"}]}`:                  "date_order",
+		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": "x", "date_order": "ymd"}]}`:               "ymd",
 	}
 	for raw, offending := range cases {
 		if _, err := LoadSuite(strings.NewReader(raw)); err == nil || !strings.Contains(err.Error(), offending) {
@@ -157,7 +159,7 @@ func TestRunSuiteStopsOnPlannerError(t *testing.T) {
 }
 
 func TestResolveModeNeedsPeriodToList(t *testing.T) {
-	today := ResolvePeriod("hoje", "", suiteNow)
+	today := ResolvePeriod("hoje", "", suiteNow, timeline.DayFirst)
 	if ResolveMode(ModeList, nil) != ModeAnswer || ResolveMode(ModeList, today) != ModeList || ResolveMode(ModeTasks, nil) != ModeTasks {
 		t.Fatal("expected only a period-less listing to become an answer")
 	}
@@ -172,10 +174,17 @@ func TestScoreCaseUsesResolvedMode(t *testing.T) {
 }
 
 func TestResolvePeriodPrefersQuestionDate(t *testing.T) {
-	fromQuestion := ResolvePeriod("o que fiz ontem?", "semana passada", suiteNow)
-	fromModel := ResolvePeriod("o que fiz?", "hoje", suiteNow)
-	if fromQuestion.String() != "2026-09-25" || fromModel.String() != "2026-09-26" || ResolvePeriod("o que fiz?", "", suiteNow) != nil {
+	fromQuestion := ResolvePeriod("o que fiz ontem?", "semana passada", suiteNow, timeline.DayFirst)
+	fromModel := ResolvePeriod("o que fiz?", "hoje", suiteNow, timeline.DayFirst)
+	if fromQuestion.String() != "2026-09-25" || fromModel.String() != "2026-09-26" || ResolvePeriod("o que fiz?", "", suiteNow, timeline.DayFirst) != nil {
 		t.Fatalf("unexpected periods %v / %v", fromQuestion, fromModel)
+	}
+}
+
+func TestScoreCaseUsesTheCaseDateOrder(t *testing.T) {
+	suiteCase := SuiteCase{Question: "what did I do on 9/20?", DateOrder: "mdy", Expect: ExpectedPlan{Days: "2026-09-20"}}
+	if result := ScoreCase(suiteCase, Plan{}, suiteNow); len(result.Mismatches) != 0 {
+		t.Fatalf("expected 9/20 read as September 20 in mdy, got %+v", result.Mismatches)
 	}
 }
 
@@ -204,7 +213,7 @@ func TestRunSuiteReportsEachCase(t *testing.T) {
 func TestShippedSuitePeriodsMatchTheParser(t *testing.T) {
 	suite := loadShippedSuite(t)
 	for _, suiteCase := range suite.Cases {
-		resolved := describeDays(ResolvePeriod(suiteCase.Question, "", suite.Now))
+		resolved := describeDays(ResolvePeriod(suiteCase.Question, "", suite.Now, suiteCase.dateOrder()))
 		expected := suiteCase.Expect.Days
 		if expected != "" && suiteCase.Expect.Mode == "tarefas" && resolved == "" {
 			expected = ""

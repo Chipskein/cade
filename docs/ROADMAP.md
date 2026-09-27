@@ -26,7 +26,7 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 | 13 | [Segredos fora do banco](#fase-13--segredos-fora-do-banco) | a fazer | alto | médio |
 | 14 | [Apagar eventos e retenção](#fase-14--apagar-eventos-e-retenção) | a fazer | alto | médio |
 | 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | a fazer | médio | baixo |
-| 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | a fazer | médio | baixo |
+| 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | feita | médio | baixo |
 | 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | a fazer | alto | médio |
 | 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | a fazer | alto | médio |
 | 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | a fazer; depende da 18 | alto | alto |
@@ -157,17 +157,7 @@ flowchart LR
 
 ## Fase 16 — Detalhes da CLI
 
-- **Problema:**
-  - plurais errados: "Timeline de 2026-09-25 — 1 eventos", "Tarefas de … — 2 suas";
-  - "flags vêm antes dos argumentos", uma limitação do pacote `flag` que contraria o que se espera de uma CLI;
-  - `12/08` é sempre 12 de agosto, inclusive com o sistema em inglês dos EUA;
-  - o README não diz quais palavras de período são aceitas em cada idioma.
-- **Mudança:**
-  - Uma função de plural por idioma e frases reescritas ("2 tarefas suas").
-  - Flags em qualquer posição: reordenar os argumentos antes do `flag.Parse`, sem dependência nova (a `pflag`/`cobra` só se isso não bastar; seria uma biblioteca de terceiros a embrulhar).
-  - `ui.date_order` (`auto`, `dmy`, `mdy`); `auto` segue o locale (`en_US` → `mdy`, o resto → `dmy`). A saída continua em ISO.
-  - Tabela das palavras de período (PT/EN) no README.
-- **Critério de aceite:** testes para 0, 1 e N em cada mensagem com contagem, nos dois idiomas; `cade timeline ontem --source git` funciona; teste de `12/08` com cada ordem; `make eval-plan` igual (as perguntas com data da suíte ganham o `date_order` explícito).
+Feita: plurais, flags em qualquer posição, `ui.date_order` e a tabela de períodos no README. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#detalhes-da-cli-fase-16).
 
 ---
 

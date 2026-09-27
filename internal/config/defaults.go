@@ -31,7 +31,7 @@ func Defaults() Config {
 			MaxFilteredEvents: 1000},
 		Sources: defaultSources(),
 		Tasks:   TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
-		UI:      UIConfig{Language: "auto"},
+		UI:      UIConfig{Language: "auto", DateOrder: "auto"},
 	}
 }
 

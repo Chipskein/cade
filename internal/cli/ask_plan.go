@@ -15,7 +15,7 @@ import (
 // resolveAskQuery reads the question's filters, unless --no-filters, and
 // resolves them with the flags, which win.
 func (env commandEnv) resolveAskQuery(ctx context.Context, models *askModels, text string, filters askFlags, session *askSession) (queryplan.Query, error) {
-	overrides, err := askOverrides(filters, env.toolkit.Now())
+	overrides, err := askOverrides(filters, env.toolkit.Now(), env.dateOrder)
 	if err != nil {
 		return queryplan.Query{}, err
 	}
@@ -29,9 +29,9 @@ func (env commandEnv) resolveAskQuery(ctx context.Context, models *askModels, te
 	return env.announceQuery(query, session), nil
 }
 
-func askOverrides(filters askFlags, now time.Time) (queryplan.Overrides, error) {
+func askOverrides(filters askFlags, now time.Time, order timeline.DateOrder) (queryplan.Overrides, error) {
 	days, err := parseOptionalDays(*filters.from, *filters.to, now)
-	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters}, err
+	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters, DateOrder: order}, err
 }
 
 // interpret reads the filters by rules when they cover the question, else
