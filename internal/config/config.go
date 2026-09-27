@@ -135,10 +135,19 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %q, expected a JSON object like `cade init` writes: %w", path, err)
 	}
+	cfg.migratePreviousGenerationDefault()
 	if err := cfg.UI.validate(); err != nil {
 		return Config{}, fmt.Errorf("config %q: %w", path, err)
 	}
 	return cfg.expandPaths()
+}
+
+// migratePreviousGenerationDefault moves configs written by cade init before
+// v0.0.0 to the current generation model. Other model paths remain user-set.
+func (c *Config) migratePreviousGenerationDefault() {
+	if c.Generation.ModelPath == previousGenerationModelPath {
+		c.Generation.ModelPath = defaultGenerationModelPath
+	}
 }
 
 func (ui UIConfig) validate() error {

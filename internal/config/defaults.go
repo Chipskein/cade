@@ -4,6 +4,11 @@ package config
 // together need about 2.3 GB of VRAM.
 const allGPULayers = -1
 
+const (
+	defaultGenerationModelPath  = "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf"
+	previousGenerationModelPath = "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf"
+)
+
 // Defaults returns the configuration used when no file overrides it. Paths
 // may start with "~"; Load expands them.
 func Defaults() Config {
@@ -15,7 +20,7 @@ func Defaults() Config {
 		// with the citation example in the answer prompt, cites every
 		// injection case. The 4B does not fit the ~2.5 GB of VRAM budget.
 		Generation: ModelConfig{
-			ModelPath:     "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf",
+			ModelPath:     defaultGenerationModelPath,
 			ContextTokens: 8192,
 			GPULayers:     allGPULayers,
 		},
