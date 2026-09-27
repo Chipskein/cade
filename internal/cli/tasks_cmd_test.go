@@ -47,7 +47,7 @@ func TestTasksRejectsInvalidPattern(t *testing.T) {
 }
 
 func TestParseTasksDaysDefaultsToToday(t *testing.T) {
-	days, err := parseTasksDays(nil, cliNow)
+	days, err := parseTasksDays(nil, cliNow, Portuguese)
 	if err != nil || days.String() != "2026-09-26" {
 		t.Fatalf("expected today, got %v (err %v)", days, err)
 	}
@@ -63,7 +63,7 @@ func TestFormatOpenedAtShowsDateBeforePeriod(t *testing.T) {
 }
 
 func TestLinkNoteAndTitleSuffix(t *testing.T) {
-	if linkNote(tasks.LinkProbable) != " (provável)" || linkNote(tasks.LinkExact) != "" || prTitleSuffix("") != "" {
+	if linkNote(tasks.LinkProbable, Portuguese) != " (provável)" || linkNote(tasks.LinkExact, Portuguese) != "" || prTitleSuffix("") != "" {
 		t.Fatal("unexpected link note or title suffix")
 	}
 }

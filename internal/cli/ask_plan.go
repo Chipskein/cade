@@ -24,7 +24,7 @@ func (env commandEnv) resolveAskQuery(ctx context.Context, models *askModels, te
 		return queryplan.Query{}, err
 	}
 	query := queryplan.Resolve(text, plan, overrides, env.toolkit.Now())
-	env.logger.Debug("question resolved", "mode", modeLabels[query.Mode], "source", query.Source,
+	env.logger.Debug("question resolved", "mode", planCodes.modes[query.Mode], "source", query.Source,
 		"period", describeDays(query.Days), "topic", query.Topic, "semantic_text", query.SemanticText)
 	return env.announceQuery(query, session), nil
 }
@@ -49,7 +49,7 @@ func (env commandEnv) interpret(ctx context.Context, models *askModels, text str
 	if err != nil {
 		return queryplan.Plan{}, err
 	}
-	session.status.show("Interpretando pergunta…")
+	session.status.show(env.language.pick("Interpretando pergunta…", "Reading the question…"))
 	plan, err := queryplan.NewPlanner(generator).Plan(ctx, text)
 	if err != nil {
 		env.logger.Warn("question interpretation failed; answering without filters", "error", err.Error())
@@ -62,27 +62,54 @@ func (env commandEnv) interpret(ctx context.Context, models *askModels, text str
 // and can be overridden with flags.
 func (env commandEnv) announceQuery(query queryplan.Query, session *askSession) queryplan.Query {
 	session.status.clear()
-	fmt.Fprintf(env.stderr, "Entendi: %s\n", describeQuery(query))
+	fmt.Fprintf(env.stderr, env.language.pick("Entendi: %s\n", "Understood: %s\n"), describeQuery(query, env.language))
 	return query
 }
 
-var (
-	directionLabels = map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"}
-	modeLabels      = map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"}
-	statusFilters   = map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"}
-)
+// queryLabels word describeQuery's parts in one language.
+type queryLabels struct {
+	modes      map[queryplan.Mode]string
+	directions map[listing.Direction]string
+	statuses   map[queryplan.TaskStatus]string
+	people     string
+	topic      string
+	noFilters  string
+}
 
-func describeQuery(query queryplan.Query) string {
-	parts := []string{modeLabels[query.Mode]}
+// planCodes are the plan's values in `ask --json` and the debug logs: the
+// JSON is an interface, so they stay the Portuguese labels whatever the
+// language.
+var planCodes = portugueseQueryLabels
+
+var portugueseQueryLabels = queryLabels{
+	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"},
+	directions: map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"},
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"},
+	people:     "pessoas: ", topic: "assunto: ", noFilters: "sem filtros",
+}
+
+var englishQueryLabels = queryLabels{
+	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "answer", queryplan.ModeList: "list", queryplan.ModeTasks: "tasks"},
+	directions: map[listing.Direction]string{listing.Received: "received", listing.Sent: "sent"},
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "finished", queryplan.OnlyInProgress: "in progress"},
+	people:     "people: ", topic: "topic: ", noFilters: "no filters",
+}
+
+func describeQuery(query queryplan.Query, language Language) string {
+	labels := portugueseQueryLabels
+	if language == English {
+		labels = englishQueryLabels
+	}
+	parts := []string{labels.modes[query.Mode]}
 	parts = appendIf(parts, string(query.Source), string(query.Source))
 	parts = appendIf(parts, describeDays(query.Days), describeDays(query.Days))
 	people := strings.Join(query.Criteria.People, ", ")
-	parts = appendIf(parts, people, "pessoas: "+people)
-	parts = appendIf(parts, directionLabels[query.Criteria.Direction], directionLabels[query.Criteria.Direction])
-	parts = appendIf(parts, query.Topic, "assunto: "+query.Topic)
-	parts = appendIf(parts, statusFilters[query.TaskStatus], statusFilters[query.TaskStatus])
+	parts = appendIf(parts, people, labels.people+people)
+	parts = appendIf(parts, labels.directions[query.Criteria.Direction], labels.directions[query.Criteria.Direction])
+	parts = appendIf(parts, query.Topic, labels.topic+query.Topic)
+	parts = appendIf(parts, labels.statuses[query.TaskStatus], labels.statuses[query.TaskStatus])
 	if len(parts) == 1 {
-		parts = append(parts, "sem filtros")
+		parts = append(parts, labels.noFilters)
 	}
 	return strings.Join(parts, " · ")
 }

@@ -15,7 +15,7 @@ import (
 // on this machine, asks which to include and writes the config: `cade
 // init`. It reads names only, never content.
 func runInit(_ context.Context, env commandEnv, args []string) error {
-	language := env.toolkit.Language
+	language := env.language
 	if len(args) != 0 {
 		return fmt.Errorf(language.pick("cade init não recebe argumentos, recebido %q", "cade init takes no arguments, got %q"), args)
 	}
@@ -38,7 +38,7 @@ func runInit(_ context.Context, env commandEnv, args []string) error {
 // askSources fills the source lists from the user's choices, written as
 // "~/..." like the defaults.
 func (env commandEnv) askSources(prompt *initPrompt, home string, sources config.SourcesConfig) config.SourcesConfig {
-	fsys, language := env.toolkit.RootFS, env.toolkit.Language
+	fsys, language := env.toolkit.RootFS, env.language
 	browsers := contractAll(discovery.BrowserHistories(fsys, home), home)
 	sources.BrowserHistories = chooseFound(prompt, language.pick("Históricos de navegador", "Browser histories"), browsers, true)
 	sources.TeamsIndexedDBDirs = chooseTeams(prompt, contractAll(discovery.TeamsCaches(fsys, home), home))
@@ -83,7 +83,7 @@ func (env commandEnv) askRepositories(prompt *initPrompt, home string, skipped [
 }
 
 func (env commandEnv) printInitSummary(sources config.SourcesConfig) {
-	language := env.toolkit.Language
+	language := env.language
 	fmt.Fprintf(env.stdout, language.pick("\nConfiguração criada em %s (só o seu usuário lê).\n", "\nConfig written to %s (readable by your user only).\n"), env.configPath)
 	fmt.Fprintf(env.stdout, language.pick("Fontes: %d históricos, %d caches do Teams, %d repositórios, %d pastas.\n", "Sources: %d histories, %d Teams caches, %d repositories, %d folders.\n"),
 		len(sources.BrowserHistories), len(sources.TeamsIndexedDBDirs), len(sources.GitRepositories), len(sources.Directories))

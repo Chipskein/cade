@@ -18,7 +18,7 @@ func TestRenderTimelineGroupsByDay(t *testing.T) {
 		{Source: event.SourceFile, Timestamp: time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC), Metadata: event.Metadata{"path": "/m.md"}},
 	}
 	var out strings.Builder
-	renderTimeline(&out, days, events)
+	renderTimeline(&out, days, events, Portuguese)
 	if strings.Count(out.String(), "── ") != 2 || !strings.Contains(out.String(), "08:00  [file]    /m.md") {
 		t.Fatalf("expected two day headers, got:\n%s", out.String())
 	}
@@ -67,7 +67,7 @@ func TestClipLine(t *testing.T) {
 func TestRenderAnswerListsAllEvidenceWhenNothingCited(t *testing.T) {
 	answer := rag.Answer{Found: true, Text: "resposta", Evidence: []storage.ScoredEvent{{Event: sampleCommit}}}
 	var out strings.Builder
-	renderAnswer(&out, answer, time.UTC)
+	renderAnswer(&out, answer, time.UTC, Portuguese)
 	if !strings.Contains(out.String(), "Eventos consultados") || !strings.Contains(out.String(), "[1] [git]") {
 		t.Fatalf("expected full evidence list, got:\n%s", out.String())
 	}

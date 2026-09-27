@@ -72,7 +72,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		DefaultConfigPath: func() (string, error) { return "/cfg/config.json", nil },
 		LoadConfig:        func(string) (config.Config, error) { return w.cfg, nil },
 		WriteConfig:       w.writeConfig,
-		OpenStore:         func(context.Context, string) (storage.EventStore, error) { return w.store, nil },
+		OpenStore:         func(context.Context, string, func(string)) (storage.EventStore, error) { return w.store, nil },
 		InspectDatabase:   func(context.Context, string) (storage.DatabaseState, error) { return w.database, nil },
 		RootFS:            w.files,
 		HomeDir:           func() (string, error) { return "/home/ana", nil },
@@ -268,7 +268,7 @@ func TestAskFallsBackWhenPlanIsInvalid(t *testing.T) {
 func TestDescribePlan(t *testing.T) {
 	query := queryplan.Query{Mode: queryplan.ModeList, Topic: "redis", Source: event.SourceTeams,
 		Criteria: listing.Criteria{Direction: listing.Received, People: []string{"Ana"}}}
-	if got := describeQuery(query); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
+	if got := describeQuery(query, Portuguese); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
 		t.Fatalf("unexpected description %q", got)
 	}
 }
@@ -281,14 +281,14 @@ func TestAskRequiresQuestion(t *testing.T) {
 
 func TestExitCodeForInterruption(t *testing.T) {
 	var stderr strings.Builder
-	if code := exitCode(fmt.Errorf("generate: %w", context.Canceled), &stderr); code != 130 || stderr.String() != "interrompido\n" {
+	if code := exitCode(fmt.Errorf("generate: %w", context.Canceled), &stderr, Portuguese); code != 130 || stderr.String() != "interrompido\n" {
 		t.Fatalf("expected 130 and interrompido, got %d %q", code, stderr.String())
 	}
 }
 
 func TestExitCodeReportsError(t *testing.T) {
 	var stderr strings.Builder
-	if code := exitCode(errors.New("boom"), &stderr); code != 1 || stderr.String() != "erro: boom\n" {
+	if code := exitCode(errors.New("boom"), &stderr, Portuguese); code != 1 || stderr.String() != "erro: boom\n" {
 		t.Fatalf("expected exit 1 with message, got %d %q", code, stderr.String())
 	}
 }

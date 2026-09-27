@@ -84,5 +84,6 @@ Examples:
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "what did I search about sqlite?"
 
-Output labels are in Portuguese. Flags of each command: cade <command> -h
+Labels follow the locale, or ui.language in the config; answers follow
+the question's language. Flags of each command: cade <command> -h
 `

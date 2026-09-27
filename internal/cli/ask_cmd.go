@@ -2,8 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
-	"fmt"
 	"strings"
 	"time"
 
@@ -37,14 +37,14 @@ func registerAskFlags(flags *flag.FlagSet, language Language) askFlags {
 }
 
 func runAsk(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("ask", env.stderr, env.toolkit.Language)
-	filters := registerAskFlags(flags, env.toolkit.Language)
+	flags := newFlagSet("ask", env.stderr, env.language)
+	filters := registerAskFlags(flags, env.language)
 	if err := flags.Parse(args); err != nil {
 		return usageError(err)
 	}
 	text := strings.Join(flags.Args(), " ")
 	if strings.TrimSpace(text) == "" {
-		return fmt.Errorf("informe a pergunta: cade ask \"o que fiz ontem?\"")
+		return errors.New(env.language.pick("informe a pergunta: cade ask \"o que fiz ontem?\"", "type the question: cade ask \"what did I do yesterday?\""))
 	}
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
 		return env.askWithStore(ctx, cfg, store, text, filters)

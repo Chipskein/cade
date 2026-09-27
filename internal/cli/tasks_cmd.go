@@ -18,13 +18,13 @@ const prHistorySpan = 90 * 24 * time.Hour
 
 // runTasks reports the tasks worked on in a period: `cade tasks [--all] [DATA [FIM]]`.
 func runTasks(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("tasks", env.stderr, env.toolkit.Language)
-	showAll := flags.Bool("all", false, env.toolkit.Language.pick("também lista tarefas que só apareceram em mensagens de outras pessoas",
+	flags := newFlagSet("tasks", env.stderr, env.language)
+	showAll := flags.Bool("all", false, env.language.pick("também lista tarefas que só apareceram em mensagens de outras pessoas",
 		"also list tasks that only appeared in other people's messages"))
 	if err := flags.Parse(args); err != nil {
 		return usageError(err)
 	}
-	days, err := parseTasksDays(flags.Args(), env.toolkit.Now())
+	days, err := parseTasksDays(flags.Args(), env.toolkit.Now(), env.language)
 	if err != nil {
 		return err
 	}
@@ -37,16 +37,16 @@ func runTasks(ctx context.Context, env commandEnv, args []string) error {
 		if err != nil {
 			return err
 		}
-		renderTaskReport(env.stdout, days, report, *showAll)
+		renderTaskReport(env.stdout, days, report, *showAll, env.language)
 		return nil
 	})
 }
 
-func parseTasksDays(args []string, now time.Time) (timeline.DayRange, error) {
+func parseTasksDays(args []string, now time.Time, language Language) (timeline.DayRange, error) {
 	if len(args) == 0 {
 		return timeline.ParseDayRange("hoje", "", now)
 	}
-	return parseTimelineDays(args, now)
+	return parseTimelineDays(args, now, language)
 }
 
 func compileTaskPatterns(patterns []string) ([]*regexp.Regexp, error) {

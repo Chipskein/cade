@@ -94,9 +94,9 @@ func writeAskReport(out io.Writer, report askReport) error {
 
 func newAskReport(query queryplan.Query) askReport {
 	return askReport{Question: query.Question, Plan: planReport{
-		Mode: modeLabels[query.Mode], Source: string(query.Source), Period: describeDays(query.Days),
-		People: query.Criteria.People, Direction: directionLabels[query.Criteria.Direction], Topic: query.Topic,
-		TaskStatus: statusFilters[query.TaskStatus], SemanticText: query.SemanticText,
+		Mode: planCodes.modes[query.Mode], Source: string(query.Source), Period: describeDays(query.Days),
+		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Topic: query.Topic,
+		TaskStatus: planCodes.statuses[query.TaskStatus], SemanticText: query.SemanticText,
 	}}
 }
 

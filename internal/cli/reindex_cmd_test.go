@@ -63,7 +63,7 @@ func TestReindexRejectsArguments(t *testing.T) {
 
 func TestReindexProgressLogsEveryTenPercentOffTerminal(t *testing.T) {
 	var out strings.Builder
-	progress := reindexProgress(&statusLine{out: &out})
+	progress := reindexProgress(&statusLine{out: &out}, Portuguese)
 	for done := 1; done <= 100; done++ {
 		progress(done, 100)
 	}

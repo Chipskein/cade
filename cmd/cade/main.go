@@ -48,7 +48,7 @@ func productionToolkit() cli.Toolkit {
 	}
 }
 
-func openStore(ctx context.Context, path string) (storage.EventStore, error) {
+func openStore(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error) {
 	directory := filepath.Dir(path)
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory for %q: %w", path, err)
@@ -58,9 +58,7 @@ func openStore(ctx context.Context, path string) (storage.EventStore, error) {
 	if err := os.Chmod(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
-	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: func(backupPath string) {
-		fmt.Fprintf(os.Stderr, "Banco atualizado para o novo esquema; cópia da versão anterior em %s\n", backupPath)
-	}})
+	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: backupCreated})
 }
 
 func loadEmbedder(settings config.EmbeddingConfig, logger *slog.Logger) (cli.ClosableEmbedder, error) {

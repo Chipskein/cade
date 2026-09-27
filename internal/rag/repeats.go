@@ -71,21 +71,19 @@ func (a *Answerer) searchDistinct(ctx context.Context, embedding []float32, quer
 	}
 }
 
-var repeatNouns = map[event.Source]string{event.SourceBrowser: "visitas", event.SourceFile: "versões"}
-
-// RepeatNote describes folded repeats for the prompt and the sources list,
-// e.g. "12 visitas, última em 2026-09-25 14:10"; "" when there are none.
+// RepeatNote describes folded repeats, e.g. "12 visitas, última em
+// 2026-09-25 14:10"; "" when there are none.
 //
-//	note := rag.RepeatNote(hit, time.Local)
-func RepeatNote(hit storage.ScoredEvent, location *time.Location) string {
+//	note := rag.RepeatNote(hit, time.Local, rag.PromptWording)
+func RepeatNote(hit storage.ScoredEvent, location *time.Location, wording NoteWording) string {
 	if hit.Repeats == 0 {
 		return ""
 	}
-	noun, known := repeatNouns[hit.Event.Source]
+	noun, known := wording.RepeatNouns[hit.Event.Source]
 	if !known {
-		noun = "ocorrências"
+		noun = wording.OtherRepeats
 	}
-	return fmt.Sprintf("%d %s, última em %s", hit.Repeats+1, noun, hit.LatestAt.In(location).Format(evidenceTimeLayout))
+	return fmt.Sprintf(wording.Repeat, hit.Repeats+1, noun, hit.LatestAt.In(location).Format(evidenceTimeLayout))
 }
 
 // withoutRemoved drops files that disappeared from their directory: the

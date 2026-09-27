@@ -14,7 +14,7 @@ import (
 // improved collector; deduplication would otherwise keep the old events.
 func runForget(ctx context.Context, env commandEnv, args []string) error {
 	if len(args) != 1 {
-		return fmt.Errorf("informe uma fonte: cade forget <git|browser|file|teams>, recebido %q", args)
+		return fmt.Errorf(env.language.pick("informe uma fonte: cade forget <git|browser|file|teams>, recebido %q", "name one source: cade forget <git|browser|file|teams>, got %q"), args)
 	}
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
 		if _, err := ingest.FindSource(env.toolkit.Sources(cfg), args[0]); err != nil {
@@ -24,7 +24,8 @@ func runForget(ctx context.Context, env commandEnv, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(env.stdout, "%d eventos de %s removidos. Rode `cade ingest %s` para ingerir de novo.\n", removed, args[0], args[0])
+		fmt.Fprintf(env.stdout, env.language.pick("%d eventos de %s removidos. Rode `cade ingest %s` para ingerir de novo.\n",
+			"%d %s events removed. Run `cade ingest %s` to ingest again.\n"), removed, args[0], args[0])
 		return nil
 	})
 }

@@ -26,7 +26,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 - [Changelog](CHANGELOG.md): migrations and what each one rewrites
 - [Roadmap](docs/ROADMAP.md) (Portuguese)
 
-> **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. `cade help` and `cade <command> -h` follow the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise); other CLI labels are in Portuguese. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
+> **Language:** questions can be asked in English or Portuguese ("what did Ana send me yesterday?", "o que a Ana me passou ontem?") and are answered in the same language. The interface (help, labels, progress, errors) follows the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`: Portuguese for `pt*`, English otherwise), or `ui.language` in the config (`auto`, `pt`, `en`); the answer to `ask` follows the language of the question. The samples below are in Portuguese; `ask --json` codes (`"mode": "listar"`) are the same in both languages. Numeric dates are day/month (`12/08` is 12 August); prefer `Aug 12` or `2026-08-12`.
 
 ## How it works
 
@@ -224,7 +224,7 @@ cade ingest teams $T/https_teams.cloud.microsoft_0.indexeddb.leveldb \
 
 Only messages the client has already loaded are available.
 
-If a Teams update renames what cade reads, `ingest teams` fails with "formato do Teams não reconhecido" instead of silently finding nothing. Messages already stored are not affected. `cade teams-schema DIR` shows the new structure without values, to adapt the reader.
+If a Teams update renames what cade reads, `ingest teams` fails with "unrecognized Teams format" instead of silently finding nothing. Messages already stored are not affected. `cade teams-schema DIR` shows the new structure without values, to adapt the reader.
 
 Events already ingested are only reprocessed when their content changed at the source (an edited Teams message replaces the stored text; `ingest` reports them as "atualizados"). After updating `cade`, to re-ingest a source from scratch:
 
@@ -261,6 +261,7 @@ Anything no longer in the source (e.g. an expired Teams cache) does not come bac
 | `sources.directories` | `[]` | folders for `ingest file` |
 | `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | folder names `ingest file` skips |
 | `sources.max_file_bytes` | `262144` (256 KB) | larger files are recorded without their text |
+| `ui.language` | `auto` | language of the interface: `auto` follows the locale, `pt` or `en` fix it. Answers to `ask` follow the question's language either way |
 | `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes that recognize task links (see [Tasks](#tasks)) |
 
 Long notes, messages and commits are split into chunks of up to ~1,200 characters (the embedding model reads 512 tokens), and an answer shows the chunk that matched ("arquitetura.md, trecho 7 de 20"). After upgrading from a version without chunks, run `cade reindex` once: it embeds the long events (1,568 of 108k in a real history, about a minute).

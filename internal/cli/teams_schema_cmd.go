@@ -19,7 +19,8 @@ const maxFieldsPerStore = 80
 // an ingestor can be designed without anyone seeing message content.
 func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
 	if len(args) == 0 {
-		return fmt.Errorf("informe o diretório: cade teams-schema ~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb")
+		return fmt.Errorf("%s: cade teams-schema ~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb",
+			env.language.pick("informe o diretório", "name the directory"))
 	}
 	for _, dir := range args {
 		records, err := env.toolkit.ReadIndexedDB(dir)
@@ -28,7 +29,7 @@ func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
 		}
 		fmt.Fprintf(env.stdout, "# %s\n", maskedDirName(dir))
 		for _, summary := range idbschema.Summarize(records) {
-			renderStoreSummary(env.stdout, summary)
+			renderStoreSummary(env.stdout, summary, env.language)
 		}
 	}
 	return nil
@@ -41,15 +42,15 @@ func maskedDirName(dir string) string {
 	return trimmed[strings.LastIndex(trimmed, "/")+1:]
 }
 
-func renderStoreSummary(out io.Writer, summary idbschema.StoreSummary) {
-	fmt.Fprintf(out, "\nbanco %q · store %q: %d registros (%d falhas, %d em blob)\n",
+func renderStoreSummary(out io.Writer, summary idbschema.StoreSummary, language Language) {
+	fmt.Fprintf(out, language.pick("\nbanco %q · store %q: %d registros (%d falhas, %d em blob)\n", "\ndatabase %q · store %q: %d records (%d failed, %d in blobs)\n"),
 		summary.Database, summary.Store, summary.Records, summary.Failed, summary.BlobWrapped)
 	fields := mostFrequentFields(summary.Fields, maxFieldsPerStore)
 	for _, field := range fields {
 		fmt.Fprintf(out, "  %8d  %-22s %s\n", field.Count, describeKinds(field.Kinds), field.Path)
 	}
 	if omitted := len(summary.Fields) - len(fields); omitted > 0 {
-		fmt.Fprintf(out, "  (+%d caminhos menos frequentes omitidos)\n", omitted)
+		fmt.Fprintf(out, language.pick("  (+%d caminhos menos frequentes omitidos)\n", "  (+%d less frequent paths left out)\n"), omitted)
 	}
 }
 

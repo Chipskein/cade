@@ -29,6 +29,15 @@ What changed in each version, the schema migrations, and what each migration rew
 
 The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
 
+### Interface language (phase 12)
+
+- **Every label follows the language:** timeline, tasks, `ask` (what was understood, people filters, sources, "not found"), ingest and reindex progress, `forget`, `teams-schema`, migration notices and errors. Before, only `help` and the flag descriptions did; everything else was Portuguese. The language comes from the locale (`LC_ALL`, `LC_MESSAGES`, `LANG`), as for `help`.
+- **`ui.language`** (`auto`, `pt`, `en`; default `auto`) overrides the locale. Another value fails with the accepted ones.
+- **What does not change with it:** the answer to `ask` follows the question's language; the model's prompt stays as it was (Portuguese, same bytes: the evaluation suites are unaffected); `ask --json` keeps its codes (`"mode": "listar"`, `"status": "concluida"`), since scripts read them.
+- **Task without a title:** a task whose page was never visited used to be titled "Tarefa 14/170"; the title is now empty (also in `ask --json`) and the report shows "(sem título)" or "(untitled)".
+- **Teams format error** is now in English, like the other internal errors: "unrecognized Teams format in …".
+- **Tests:** with the English locale, `timeline`, `tasks` and `ask` (answer, listing, tasks, not found) print none of the Portuguese labels; the Portuguese output tests are unchanged.
+
 ### Installation and configuration (phase 11, parts 1–3)
 
 - **Step by step in the README:** from a clean clone to the first `cade ask` (build tools per distribution, `make build`, `make models`, `make install`, `init`, `doctor`, `ingest`, `ask`). Followed as written from a copy of the repository with an empty home directory.

@@ -24,7 +24,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 6 | Filtros de pessoa no SQL | concluída | médio | baixo |
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | concluída; 1 caso de injeção ainda falha | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | concluída; binários prontos passam para a fase 9 | alto | médio |
-| 12 | [Idioma da interface](#fase-12--idioma-da-interface) | pendente | médio | médio |
+| 12 | [Idioma da interface](#fase-12--idioma-da-interface) | concluída | médio | médio |
 | 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | pendente | baixo | baixo |
 | 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | pendente | pré-requisito do lançamento | baixo |
 | — | [A definir](#a-definir) | em aberto | — | — |
@@ -32,7 +32,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 A tabela está na ordem sugerida:
 - **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue.
 - **Depois as mudanças de código:** 6 e 7 (entregues). A 5 foi feita antes da 10, a pedido.
-- **Em seguida, a experiência de quem instala:** 11 (entregue) e 12.
+- **Em seguida, a experiência de quem instala:** 11 e 12 (entregues).
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
 
 ---
@@ -63,20 +63,7 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `config.example.json` e a t
 
 ## Fase 12 — Idioma da interface
 
-### Problema
-
-As perguntas funcionam em inglês e português, e `cade help` segue o idioma do sistema. Os demais rótulos da CLI (timeline, tarefas, avisos) são em português, e a documentação técnica é em inglês. Quem não fala português se perde na saída.
-
-### Mudanças
-
-1. Levar os rótulos da saída para o mesmo catálogo de mensagens da ajuda (`internal/cli/usage.go`), seguindo o idioma do sistema.
-2. Opção `ui.language` (`auto`, `pt`, `en`) para sobrepor o idioma do sistema.
-3. Documentar a regra no README: a interface segue o sistema; a resposta do `ask` segue o idioma da pergunta.
-
-### Critério de aceite
-
-- Com `LANG=en_US.UTF-8`, nenhum rótulo em português na saída de `timeline`, `tasks` e `ask` (teste por comando).
-- Os testes de saída atuais continuam passando com `LANG=pt_BR.UTF-8`.
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): os rótulos seguem o idioma do sistema ou `ui.language`, com testes por comando em inglês. O prompt do modelo e os códigos do `ask --json` ficaram em português de propósito.
 
 ---
 

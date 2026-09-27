@@ -58,16 +58,16 @@ func TestRetrieveWidensSearchPastRepeats(t *testing.T) {
 
 func TestRepeatNote(t *testing.T) {
 	hit := visitHit("a", "https://k8s.io", fixedNow, 0.1)
-	if RepeatNote(hit, time.UTC) != "" {
+	if RepeatNote(hit, time.UTC, PromptWording) != "" {
 		t.Fatal("expected no note without repeats")
 	}
 	hit.Repeats, hit.LatestAt = 11, time.Date(2026, 9, 25, 14, 10, 0, 0, time.UTC)
-	if note := RepeatNote(hit, time.UTC); !strings.HasPrefix(note, "12 visitas, última em 2026-09-25") {
+	if note := RepeatNote(hit, time.UTC, PromptWording); !strings.HasPrefix(note, "12 visitas, última em 2026-09-25") {
 		t.Fatalf("unexpected note %q", note)
 	}
 	commit := storage.ScoredEvent{Event: event.Event{Source: event.SourceGit}, Repeats: 1, LatestAt: fixedNow}
-	if !strings.HasPrefix(RepeatNote(commit, time.UTC), "2 ocorrências") {
-		t.Fatalf("unexpected generic note %q", RepeatNote(commit, time.UTC))
+	if !strings.HasPrefix(RepeatNote(commit, time.UTC, PromptWording), "2 ocorrências") {
+		t.Fatalf("unexpected generic note %q", RepeatNote(commit, time.UTC, PromptWording))
 	}
 }
 
@@ -100,5 +100,17 @@ func TestFirstPersonEvidenceDropsOthersCommits(t *testing.T) {
 	everyone := usableEvidence(hits, queryplan.Query{})
 	if len(own) != 2 || own[0].Event.UID != "meu" || len(everyone) != 3 {
 		t.Fatalf("expected the colleague's commit dropped only for first person, got %d and %d", len(own), len(everyone))
+	}
+}
+
+func TestEvidenceNoteInEnglish(t *testing.T) {
+	hit := storage.ScoredEvent{
+		Event: event.Event{UID: "f", Source: event.SourceFile, Metadata: event.Metadata{"path": "/notes/plan.md"}},
+		Chunk: storage.Chunk{Ordinal: 6}, ChunkCount: 20, Repeats: 2,
+		LatestAt: time.Date(2026, 9, 25, 14, 10, 0, 0, time.UTC),
+	}
+	want := "plan.md, chunk 7 of 20; 3 versions, latest on 2026-09-25 14:10"
+	if got := EvidenceNote(hit, time.UTC, EnglishWording); got != want {
+		t.Fatalf("expected %q, got %q", want, got)
 	}
 }

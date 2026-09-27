@@ -35,9 +35,9 @@ func AddressesAssistant(ev event.Event) bool {
 	return ordersPattern.MatchString(textnorm.Fold(ev.Content))
 }
 
-func untrustedMark(ev event.Event) string {
+func untrustedMark(ev event.Event, wording NoteWording) string {
 	if AddressesAssistant(ev) {
-		return untrustedNote
+		return wording.Untrusted
 	}
 	return ""
 }

@@ -29,6 +29,15 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
 
+### Idioma da interface (fase 12)
+
+- **Todos os rótulos seguem o idioma:** timeline, tarefas, `ask` (o que foi entendido, filtros de pessoa, fontes, "não encontrei"), progresso do ingest e do reindex, `forget`, `teams-schema`, avisos de migração e erros. Antes, só o `help` e as descrições das flags seguiam; o resto era em português. O idioma vem do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`), como no `help`.
+- **`ui.language`** (`auto`, `pt`, `en`; padrão `auto`) sobrepõe o idioma do sistema. Outro valor falha, dizendo os aceitos.
+- **O que não muda com ele:** a resposta do `ask` segue o idioma da pergunta; o prompt do modelo fica como estava (em português, os mesmos bytes: as suítes de avaliação não são afetadas); o `ask --json` mantém os códigos (`"mode": "listar"`, `"status": "concluida"`), porque scripts os leem.
+- **Tarefa sem título:** uma tarefa cuja página nunca foi visitada tinha o título "Tarefa 14/170"; agora o título fica vazio (também no `ask --json`), e o relatório mostra "(sem título)" ou "(untitled)".
+- **Erro de formato do Teams** agora em inglês, como os outros erros internos: "unrecognized Teams format in …".
+- **Testes:** com o sistema em inglês, `timeline`, `tasks` e `ask` (resposta, listagem, tarefas, não encontrado) não mostram nenhum rótulo em português; os testes da saída em português não mudaram.
+
 ### Instalação e configuração (fase 11, partes 1–3)
 
 - **Passo a passo no README:** de um clone limpo até o primeiro `cade ask` (ferramentas de build por distribuição, `make build`, `make models`, `make install`, `init`, `doctor`, `ingest`, `ask`). Seguido à risca numa cópia do repositório com um diretório home vazio.

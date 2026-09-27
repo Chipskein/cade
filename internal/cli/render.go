@@ -21,12 +21,12 @@ const (
 	maxDescribedRunes = 110
 )
 
-func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event) {
+func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event, language Language) {
 	if len(events) == 0 {
-		fmt.Fprintf(out, "Nenhum evento em %s.\n", days)
+		fmt.Fprintf(out, language.pick("Nenhum evento em %s.\n", "No events on %s.\n"), days)
 		return
 	}
-	fmt.Fprintf(out, "Timeline de %s — %d eventos\n", days, len(events))
+	fmt.Fprintf(out, language.pick("Timeline de %s — %d eventos\n", "Timeline of %s — %d events\n"), days, len(events))
 	location := days.First.Location()
 	var currentDay string
 	for _, ev := range events {
@@ -87,37 +87,38 @@ func clipLine(text string) string {
 	return string(runes[:maxDescribedRunes-1]) + "…"
 }
 
-func renderAnswer(out io.Writer, answer rag.Answer, location *time.Location) {
+func renderAnswer(out io.Writer, answer rag.Answer, location *time.Location, language Language) {
 	if !answer.Found {
-		fmt.Fprintln(out, "Não encontrei informação sobre isso nos dados ingeridos.")
+		fmt.Fprintln(out, language.pick("Não encontrei informação sobre isso nos dados ingeridos.", "I found nothing about this in the ingested data."))
 		return
 	}
 	fmt.Fprintf(out, "%s\n\n", answer.Text)
-	renderSources(out, answer, location)
+	renderSources(out, answer, location, language)
 }
 
 // renderSources lists the cited evidence, or all of it when the reply cited
 // none, so the user can always check what the answer was based on.
-func renderSources(out io.Writer, answer rag.Answer, location *time.Location) {
-	title, numbers := "Fontes citadas:", answer.Cited
+func renderSources(out io.Writer, answer rag.Answer, location *time.Location, language Language) {
+	title, numbers := language.pick("Fontes citadas:", "Cited sources:"), answer.Cited
 	if len(numbers) == 0 {
-		title, numbers = "Eventos consultados (a resposta não citou nenhum):", allEvidenceNumbers(answer.Evidence)
+		title = language.pick("Eventos consultados (a resposta não citou nenhum):", "Events consulted (the answer cited none):")
+		numbers = allEvidenceNumbers(answer.Evidence)
 	}
 	fmt.Fprintln(out, title)
 	for _, number := range numbers {
-		renderEvidenceLine(out, number, answer.Evidence[number-1], location)
+		renderEvidenceLine(out, number, answer.Evidence[number-1], location, language)
 	}
-	renderUnknownCitations(out, answer.UnknownCitations)
+	renderUnknownCitations(out, answer.UnknownCitations, language)
 }
 
 // renderEvidenceLine adds the locator (full commit hash, Teams link) on a
 // second line unless the summary already shows it (a page's URL, a path).
-func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, location *time.Location) {
+func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, location *time.Location, language Language) {
 	ev := hit.Event
 	description := describeEvent(ev)
 	fmt.Fprintf(out, "  [%d] %-9s %s  %s\n", number, "["+string(ev.Source)+"]",
 		ev.Timestamp.In(location).Format(fullStampLayout), description)
-	if note := rag.EvidenceNote(hit, location); note != "" {
+	if note := rag.EvidenceNote(hit, location, noteWording(language)); note != "" {
 		fmt.Fprintf(out, "      (%s)\n", note)
 	}
 	if locator := provenance.Of(ev).Locator; !strings.Contains(description, locator) {
@@ -127,7 +128,7 @@ func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, loca
 
 // renderUnknownCitations flags numbers the model cited that match no
 // consulted event: the sentence next to them has no source.
-func renderUnknownCitations(out io.Writer, unknown []int) {
+func renderUnknownCitations(out io.Writer, unknown []int, language Language) {
 	if len(unknown) == 0 {
 		return
 	}
@@ -135,7 +136,16 @@ func renderUnknownCitations(out io.Writer, unknown []int) {
 	for i, number := range unknown {
 		labels[i] = fmt.Sprintf("[%d]", number)
 	}
-	fmt.Fprintf(out, "Atenção: a resposta cita %s, que não corresponde a nenhum evento consultado; esse trecho não tem fonte.\n", strings.Join(labels, ", "))
+	fmt.Fprintf(out, language.pick("Atenção: a resposta cita %s, que não corresponde a nenhum evento consultado; esse trecho não tem fonte.\n",
+		"Warning: the answer cites %s, which matches no consulted event; that part has no source.\n"), strings.Join(labels, ", "))
+}
+
+// noteWording is the sources list's wording of rag.EvidenceNote.
+func noteWording(language Language) rag.NoteWording {
+	if language == English {
+		return rag.EnglishWording
+	}
+	return rag.PromptWording
 }
 
 func allEvidenceNumbers(evidence []storage.ScoredEvent) []int {

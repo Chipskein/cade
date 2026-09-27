@@ -48,12 +48,12 @@ func isRecognized(value *v8value.Value) bool {
 // one of the two Teams origins can legitimately hold nothing.
 func (t formatTally) check(dir string) error {
 	if t.records > 0 && t.replyChains == 0 {
-		return fmt.Errorf("formato do Teams não reconhecido em %q: %d registros e nenhum no store %q (bancos %q…); o cliente pode ter mudado — rode `cade teams-schema %s` e compare",
+		return fmt.Errorf("unrecognized Teams format in %q: %d records and none in store %q (databases %q…); the client may have changed — run `cade teams-schema %s` and compare",
 			dir, t.records, replyChainStore, replyChainDatabasePrefix, dir)
 	}
 	if t.messages > 0 && t.recognized == 0 {
-		return fmt.Errorf("formato do Teams não reconhecido em %q: %d mensagens no cache e nenhuma com os campos %s e %s; o cliente pode ter mudado — rode `cade teams-schema %s` e compare",
-			dir, t.messages, strings.Join(requiredMessageFields, ", "), strings.Join(arrivalTimeFields, " ou "), dir)
+		return fmt.Errorf("unrecognized Teams format in %q: %d cached messages and none with the fields %s and %s; the client may have changed — run `cade teams-schema %s` and compare",
+			dir, t.messages, strings.Join(requiredMessageFields, ", "), strings.Join(arrivalTimeFields, " or "), dir)
 	}
 	return nil
 }

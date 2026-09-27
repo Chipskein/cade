@@ -25,8 +25,8 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 		events = ownCommitsOnly(events)
 	}
 	events, matched, unknown := query.Criteria.Apply(events)
-	reportPeople(env.stderr, matched, nil)
-	reportNamesAsText(env.stderr, unknown)
+	reportPeople(env.stderr, matched, nil, env.language)
+	reportNamesAsText(env.stderr, unknown, env.language)
 	events = eventsMentioningAll(events, unknown)
 	if events, err = env.narrowByTopic(ctx, models, query.Topic, events); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 		return session.writeReport(query, func(report *askReport) { report.Events = eventReferences(events) })
 	}
 	session.status.clear()
-	renderTimeline(env.stdout, days, events)
+	renderTimeline(env.stdout, days, events, env.language)
 	return nil
 }
 
@@ -52,11 +52,11 @@ func (env commandEnv) narrowByTopic(ctx context.Context, models *askModels, topi
 
 // reportPeople tells which names filtered and which matched nobody (a
 // misread name, a company) and were ignored.
-func reportPeople(out io.Writer, matched, unknown []string) {
+func reportPeople(out io.Writer, matched, unknown []string, language Language) {
 	if len(matched) > 0 {
-		fmt.Fprintf(out, "Filtrando por pessoa: %s\n", strings.Join(matched, ", "))
+		fmt.Fprintf(out, language.pick("Filtrando por pessoa: %s\n", "Filtering by person: %s\n"), strings.Join(matched, ", "))
 	}
 	if len(unknown) > 0 {
-		fmt.Fprintf(out, "Sem correspondência, ignorado: %s\n", strings.Join(unknown, ", "))
+		fmt.Fprintf(out, language.pick("Sem correspondência, ignorado: %s\n", "No match, ignored: %s\n"), strings.Join(unknown, ", "))
 	}
 }

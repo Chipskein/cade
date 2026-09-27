@@ -13,7 +13,7 @@ import (
 // paths, and says what to fix: `cade doctor`. It reads the database
 // without migrating it, and fails when a command would.
 func runDoctor(ctx context.Context, env commandEnv, args []string) error {
-	language := env.toolkit.Language
+	language := env.language
 	if len(args) != 0 {
 		return fmt.Errorf(language.pick("cade doctor não recebe argumentos, recebido %q", "cade doctor takes no arguments, got %q"), args)
 	}

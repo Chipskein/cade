@@ -34,11 +34,11 @@ func (env commandEnv) tasksForQuery(ctx context.Context, cfg config.Config, stor
 	if query.Criteria.IsEmpty() && query.Topic == "" {
 		return env.showTaskReport(query, report, session)
 	}
-	matching := tasksMatching(tasks.NewBuilder(patterns), report.Tasks, query, env.stderr)
+	matching := tasksMatching(tasks.NewBuilder(patterns), report.Tasks, query, env.stderr, env.language)
 	if session.jsonOutput {
 		return session.writeReport(query, func(json *askReport) { json.Tasks = taskReports(matching) })
 	}
-	renderFilteredTasks(env.stdout, *query.Days, matching)
+	renderFilteredTasks(env.stdout, *query.Days, matching, env.language)
 	return nil
 }
 
@@ -48,7 +48,7 @@ func (env commandEnv) showTaskReport(query queryplan.Query, report tasks.Report,
 	if session.jsonOutput {
 		return session.writeReport(query, func(json *askReport) { json.Tasks = taskReports(report.Tasks) })
 	}
-	renderTaskReport(env.stdout, *query.Days, report, false)
+	renderTaskReport(env.stdout, *query.Days, report, false, env.language)
 	return nil
 }
 
@@ -73,10 +73,10 @@ func withTaskStatus(list []tasks.Task, status queryplan.TaskStatus) []tasks.Task
 // direction select ("que a Ana me passou"), then those mentioning the
 // topic. A name that matches nobody is searched as a topic instead:
 // in "tarefas de Solaris" the model read a client as a person.
-func tasksMatching(builder tasks.Builder, list []tasks.Task, query queryplan.Query, out io.Writer) []tasks.Task {
+func tasksMatching(builder tasks.Builder, list []tasks.Task, query queryplan.Query, out io.Writer, language Language) []tasks.Task {
 	kept, matched, unknown := query.Criteria.Apply(taskEvents(list))
-	reportPeople(out, matched, nil)
-	reportNamesAsText(out, unknown)
+	reportPeople(out, matched, nil, language)
+	reportNamesAsText(out, unknown, language)
 	if len(matched) > 0 || query.Criteria.Direction != listing.AnyDirection {
 		list = builder.CitedBy(list, messagesOnly(kept))
 	}
@@ -132,11 +132,12 @@ func taskText(task tasks.Task) string {
 
 // renderFilteredTasks lists the narrowed tasks whoever they belong to: the
 // tasks someone passed on are usually not yet the user's.
-func renderFilteredTasks(out io.Writer, days timeline.DayRange, list []tasks.Task) {
+func renderFilteredTasks(out io.Writer, days timeline.DayRange, list []tasks.Task, language Language) {
 	if len(list) == 0 {
-		fmt.Fprintf(out, "Nenhuma tarefa encontrada em %s com esses filtros (tarefas são reconhecidas por links de tarefa nas mensagens e páginas).\n", days)
+		fmt.Fprintf(out, language.pick("Nenhuma tarefa encontrada em %s com esses filtros (tarefas são reconhecidas por links de tarefa nas mensagens e páginas).\n",
+			"No tasks found on %s with these filters (tasks are recognized by task links in messages and pages).\n"), days)
 		return
 	}
-	fmt.Fprintf(out, "Tarefas de %s — %d\n\n", days, len(list))
-	renderTasks(out, list, days)
+	fmt.Fprintf(out, language.pick("Tarefas de %s — %d\n\n", "Tasks of %s — %d\n\n"), days, len(list))
+	renderTasks(out, list, days, language)
 }

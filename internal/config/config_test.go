@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/chipskein/cade/internal/testcheck"
@@ -112,5 +113,21 @@ func TestDefaultTaskPatternsCompile(t *testing.T) {
 		if _, err := regexp.Compile(pattern); err != nil {
 			t.Errorf("default task pattern %q does not compile: %v", pattern, err)
 		}
+	}
+}
+
+func TestLoadRejectsUnknownUILanguage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"language": "fr"}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), `"fr"`) {
+		t.Fatalf("expected ui.language \"fr\" rejected, got %v", err)
+	}
+}
+
+func TestLoadAcceptsUILanguage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"language": "en"}}`), 0o600))
+	if cfg, err := Load(path); err != nil || cfg.UI.Language != "en" {
+		t.Fatalf("expected en, got %+v %v", cfg.UI, err)
 	}
 }

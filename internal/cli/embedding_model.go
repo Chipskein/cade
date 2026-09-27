@@ -26,7 +26,8 @@ func (env commandEnv) checkEmbeddingModel(ctx context.Context, cfg config.Config
 		return index.RecordEmbeddingModel(ctx, configured)
 	}
 	if stored != configured {
-		return fmt.Errorf("o banco foi indexado com %q e a configuração usa %q; rode `cade reindex` para recalcular os vetores com o novo modelo", stored, configured)
+		return fmt.Errorf(env.language.pick("o banco foi indexado com %q e a configuração usa %q; rode `cade reindex` para recalcular os vetores com o novo modelo",
+			"the database was indexed with %q and the config uses %q; run `cade reindex` to recompute the vectors with the new model"), stored, configured)
 	}
 	return env.warnPendingReindex(ctx, index)
 }
@@ -34,7 +35,8 @@ func (env commandEnv) checkEmbeddingModel(ctx context.Context, cfg config.Config
 func (env commandEnv) warnPendingReindex(ctx context.Context, index storage.EmbeddingIndex) error {
 	pending, err := index.ReindexPending(ctx)
 	if err == nil && pending {
-		fmt.Fprintln(env.stderr, "Reindexação incompleta: parte dos eventos ainda não tem vetor. Rode `cade reindex` para terminar.")
+		fmt.Fprintln(env.stderr, env.language.pick("Reindexação incompleta: parte dos eventos ainda não tem vetor. Rode `cade reindex` para terminar.",
+			"Unfinished reindex: some events have no vector yet. Run `cade reindex` to finish it."))
 	}
 	return err
 }

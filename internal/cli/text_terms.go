@@ -13,9 +13,9 @@ import (
 // person, a nickname) still restricts the result as text: dropping it
 // listed every message of the day for "mensagens que enviei pro sillva".
 
-func reportNamesAsText(out io.Writer, unknown []string) {
+func reportNamesAsText(out io.Writer, unknown []string, language Language) {
 	if len(unknown) > 0 {
-		fmt.Fprintf(out, "Nenhuma pessoa com esse nome; buscando como texto: %s\n", strings.Join(unknown, ", "))
+		fmt.Fprintf(out, language.pick("Nenhuma pessoa com esse nome; buscando como texto: %s\n", "No person by that name; searching it as text: %s\n"), strings.Join(unknown, ", "))
 	}
 }
 

@@ -59,5 +59,8 @@
       "github\\.com/([\\w.-]+/[\\w.-]+)/issues/(\\d+)",
       "dev\\.azure\\.com/[\\w.-]+/[\\w.%-]+/_workitems/edit/(\\d+)"
     ]
+  },
+  "ui": {
+    "language": "auto"
   }
 }

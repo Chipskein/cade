@@ -62,7 +62,7 @@ func formatEvidence(hits []storage.ScoredEvent, location *time.Location) string 
 	var builder strings.Builder
 	for i, hit := range hits {
 		fmt.Fprintf(&builder, "[%d] %s, %s%s\n%s\n\n", i+1, sourceLabel(hit.Event.Source),
-			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(EvidenceNote(hit, location)), clip(evidenceText(hit), maxEvidenceChars))
+			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(EvidenceNote(hit, location, PromptWording)), clip(evidenceText(hit), maxEvidenceChars))
 	}
 	return builder.String()
 }
@@ -133,12 +133,13 @@ func evidenceText(hit storage.ScoredEvent) string {
 // EvidenceNote joins what a source line adds to the event: whether it gives
 // the assistant orders, which chunk of a long event matched and how many
 // repeats were folded, e.g. "arquitetura.md, trecho 7 de 20; 3 versões,
-// última em …". The prompt and the CLI's sources list both show it.
+// última em …". The prompt uses PromptWording; the CLI's sources list, the
+// user's language.
 //
-//	note := rag.EvidenceNote(hit, time.Local)
-func EvidenceNote(hit storage.ScoredEvent, location *time.Location) string {
+//	note := rag.EvidenceNote(hit, time.Local, rag.EnglishWording)
+func EvidenceNote(hit storage.ScoredEvent, location *time.Location, wording NoteWording) string {
 	var notes []string
-	for _, note := range []string{untrustedMark(hit.Event), chunkNote(hit), RepeatNote(hit, location)} {
+	for _, note := range []string{untrustedMark(hit.Event, wording), chunkNote(hit, wording), RepeatNote(hit, location, wording)} {
 		if note != "" {
 			notes = append(notes, note)
 		}
@@ -148,11 +149,11 @@ func EvidenceNote(hit storage.ScoredEvent, location *time.Location) string {
 
 // chunkNote names the part of a long event; for files, with the file name,
 // since only the first chunk starts with it.
-func chunkNote(hit storage.ScoredEvent) string {
+func chunkNote(hit storage.ScoredEvent, wording NoteWording) string {
 	if hit.ChunkCount <= 1 {
 		return ""
 	}
-	position := fmt.Sprintf("trecho %d de %d", hit.Chunk.Ordinal+1, hit.ChunkCount)
+	position := fmt.Sprintf(wording.Chunk, hit.Chunk.Ordinal+1, hit.ChunkCount)
 	if hit.Event.Source == event.SourceFile {
 		return filepath.Base(hit.Event.File().Path) + ", " + position
 	}

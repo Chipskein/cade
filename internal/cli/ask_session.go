@@ -42,18 +42,20 @@ func (s *askSession) writeReport(query queryplan.Query, fill func(*askReport)) e
 	return writeAskReport(s.env.stdout, report)
 }
 
-var stageMessages = map[rag.AnswerStage]string{
-	rag.StageSearching:  "Buscando eventos…",
-	rag.StageGenerating: "Gerando resposta…",
+func (s *askSession) stageMessage(stage rag.AnswerStage) string {
+	if stage == rag.StageGenerating {
+		return s.env.language.pick("Gerando resposta…", "Writing the answer…")
+	}
+	return s.env.language.pick("Buscando eventos…", "Searching events…")
 }
 
 func (s *askSession) loadingModels() {
-	s.status.show("Carregando modelos…")
+	s.status.show(s.env.language.pick("Carregando modelos…", "Loading models…"))
 }
 
 func (s *askSession) observer() rag.AnswerObserver {
 	return rag.AnswerObserver{
-		StageStarted:   func(stage rag.AnswerStage) { s.status.show(stageMessages[stage]) },
+		StageStarted:   func(stage rag.AnswerStage) { s.status.show(s.stageMessage(stage)) },
 		PeopleResolved: s.peopleResolved,
 		Generation:     llm.GenerationProgress{PromptProcessed: s.promptProcessed, TokenGenerated: s.token},
 	}
@@ -63,13 +65,13 @@ func (s *askSession) observer() rag.AnswerObserver {
 // would add one line per chunk.
 func (s *askSession) promptProcessed(done, total int) {
 	if s.status.interactive && total > 0 {
-		s.status.show(fmt.Sprintf("Lendo contexto: %d%%", done*100/total))
+		s.status.show(fmt.Sprintf(s.env.language.pick("Lendo contexto: %d%%", "Reading context: %d%%"), done*100/total))
 	}
 }
 
 func (s *askSession) peopleResolved(matched, unknown []string) {
 	s.status.clear()
-	reportPeople(s.env.stderr, matched, unknown)
+	reportPeople(s.env.stderr, matched, unknown, s.env.language)
 }
 
 func (s *askSession) token(piece string) {
@@ -83,11 +85,11 @@ func (s *askSession) render(answer rag.Answer, location *time.Location) {
 	s.status.clear()
 	if s.stream.wroteAny() && answer.Found {
 		fmt.Fprint(s.env.stdout, "\n\n")
-		renderSources(s.env.stdout, answer, location)
+		renderSources(s.env.stdout, answer, location, s.env.language)
 		return
 	}
 	if s.stream.wroteAny() {
 		fmt.Fprintln(s.env.stdout)
 	}
-	renderAnswer(s.env.stdout, answer, location)
+	renderAnswer(s.env.stdout, answer, location, s.env.language)
 }

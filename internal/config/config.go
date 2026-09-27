@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -20,7 +21,18 @@ type Config struct {
 	Retrieval    RetrievalConfig `json:"retrieval"`
 	Sources      SourcesConfig   `json:"sources"`
 	Tasks        TasksConfig     `json:"tasks"`
+	UI           UIConfig        `json:"ui"`
 }
+
+// UIConfig sets the language of the CLI's labels and help.
+type UIConfig struct {
+	// Language is "auto" (follow the locale), "pt" or "en". Answers to
+	// `ask` follow the question's language regardless.
+	Language string `json:"language"`
+}
+
+// UILanguages are the accepted ui.language values.
+var UILanguages = []string{"auto", "pt", "en"}
 
 // TasksConfig tells `cade tasks` how to recognize task links.
 type TasksConfig struct {
@@ -114,6 +126,9 @@ func Load(path string) (Config, error) {
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %q, expected a JSON object like `cade init` writes: %w", path, err)
+	}
+	if !slices.Contains(UILanguages, cfg.UI.Language) {
+		return Config{}, fmt.Errorf("config %q: ui.language is %q, expected one of %v", path, cfg.UI.Language, UILanguages)
 	}
 	return cfg.expandPaths()
 }

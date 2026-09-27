@@ -126,7 +126,7 @@ func TestCollectFailsWhenMessageStoreIsMissing(t *testing.T) {
 	renamed := replyChain(message("1", "Text", "oi"))
 	renamed.Store = "replychains-v2"
 	_, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{conversationRecord(), renamed}})
-	if err == nil || !strings.Contains(err.Error(), `nenhum no store "replychains"`) || !strings.Contains(err.Error(), "cade teams-schema") {
+	if err == nil || !strings.Contains(err.Error(), `none in store "replychains"`) || !strings.Contains(err.Error(), "cade teams-schema") {
 		t.Fatalf("expected an unrecognized-format error pointing to teams-schema, got %v", err)
 	}
 }
@@ -135,7 +135,7 @@ func TestCollectFailsWhenNoMessageHasTheExpectedFields(t *testing.T) {
 	renamed := obj("id", str("1"), "conversationId", str(testConversationID), "messageType", str("Text"),
 		"body", str("oi"), "originalArrivalTime", num(float64(sentAt.UnixMilli())))
 	_, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{replyChain(renamed)}})
-	if err == nil || !strings.Contains(err.Error(), "1 mensagens no cache e nenhuma com os campos") {
+	if err == nil || !strings.Contains(err.Error(), "1 cached messages and none with the fields") {
 		t.Fatalf("expected an unrecognized-fields error, got %v", err)
 	}
 }

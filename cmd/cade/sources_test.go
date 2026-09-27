@@ -53,7 +53,7 @@ func TestModelOptionsCopiesSettings(t *testing.T) {
 
 func TestOpenStoreCreatesParentDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "cade.db")
-	store, err := openStore(t.Context(), path)
+	store, err := openStore(t.Context(), path, nil)
 	if err != nil {
 		t.Fatalf("expected store, got %v", err)
 	}

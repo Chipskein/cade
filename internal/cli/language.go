@@ -2,8 +2,8 @@ package cli
 
 import "strings"
 
-// Language selects the language of the help text and flag descriptions;
-// the other output stays Portuguese.
+// Language selects the language of the CLI's help, labels and messages.
+// Answers to `ask` follow the question's language instead.
 type Language int
 
 const (
@@ -38,4 +38,16 @@ func (l Language) pick(portuguese, english string) string {
 		return english
 	}
 	return portuguese
+}
+
+// languageFromSetting applies ui.language: "pt" or "en" override the
+// locale, anything else ("auto") keeps it.
+func languageFromSetting(setting string, fromLocale Language) Language {
+	switch setting {
+	case "pt":
+		return Portuguese
+	case "en":
+		return English
+	}
+	return fromLocale
 }

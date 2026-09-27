@@ -39,7 +39,9 @@ type Toolkit struct {
 	DefaultConfigPath func() (string, error)
 	LoadConfig        func(path string) (config.Config, error)
 	WriteConfig       func(path string, cfg config.Config) error
-	OpenStore         func(ctx context.Context, path string) (storage.EventStore, error)
+	// OpenStore migrates the database if needed; backupCreated hears where
+	// a migration saved the copy.
+	OpenStore func(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error)
 	// InspectDatabase reads the database without migrating it (doctor).
 	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
 	// RootFS is the filesystem at "/" (see rootfs), where init looks for
@@ -62,7 +64,9 @@ type Toolkit struct {
 // commandEnv is what every subcommand receives after global flags are
 // parsed.
 type commandEnv struct {
-	toolkit    Toolkit
+	toolkit Toolkit
+	// language is the locale's, or ui.language when the config sets it.
+	language   Language
 	configPath string
 	stdout     io.Writer
 	stderr     io.Writer
@@ -90,9 +94,10 @@ func usageError(err error) error {
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit Toolkit) int {
 	env, rest, err := parseGlobalFlags(args, stdout, stderr, toolkit)
 	if err != nil {
-		return exitCode(err, stderr)
+		return exitCode(err, stderr, toolkit.Language)
 	}
-	usage := usageFor(toolkit.Language)
+	env.language = configuredLanguage(env, toolkit.Language)
+	usage := usageFor(env.language)
 	if len(rest) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -103,10 +108,20 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	}
 	command, found := subcommands()[rest[0]]
 	if !found {
-		fmt.Fprintf(stderr, "%s %q\n\n%s", toolkit.Language.pick("comando desconhecido", "unknown command"), rest[0], usage)
+		fmt.Fprintf(stderr, "%s %q\n\n%s", env.language.pick("comando desconhecido", "unknown command"), rest[0], usage)
 		return 2
 	}
-	return exitCode(command(ctx, env, rest[1:]), stderr)
+	return exitCode(command(ctx, env, rest[1:]), stderr, env.language)
+}
+
+// configuredLanguage applies ui.language over the locale's language. A
+// config that does not load keeps the locale: the command reports why.
+func configuredLanguage(env commandEnv, fromLocale Language) Language {
+	cfg, err := env.toolkit.LoadConfig(env.configPath)
+	if err != nil {
+		return fromLocale
+	}
+	return languageFromSetting(cfg.UI.Language, fromLocale)
 }
 
 func subcommands() map[string]subcommand {
@@ -136,7 +151,7 @@ func parseGlobalFlags(args []string, stdout, stderr io.Writer, toolkit Toolkit) 
 	if err != nil {
 		return commandEnv{}, nil, err
 	}
-	env := commandEnv{toolkit: toolkit, configPath: path, stdout: stdout, stderr: stderr, logger: newLogger(stderr, *verbose)}
+	env := commandEnv{toolkit: toolkit, language: language, configPath: path, stdout: stdout, stderr: stderr, logger: newLogger(stderr, *verbose)}
 	return env, flags.Args(), nil
 }
 
@@ -166,7 +181,7 @@ func newFlagSet(name string, stderr io.Writer, language Language) *flag.FlagSet 
 	return flags
 }
 
-func exitCode(err error, stderr io.Writer) int {
+func exitCode(err error, stderr io.Writer, language Language) int {
 	if err == nil {
 		return 0
 	}
@@ -178,10 +193,10 @@ func exitCode(err error, stderr io.Writer) int {
 	}
 	// 130 is the conventional exit code for a Ctrl-C interruption.
 	if errors.Is(err, context.Canceled) {
-		fmt.Fprintln(stderr, "interrompido")
+		fmt.Fprintln(stderr, language.pick("interrompido", "interrupted"))
 		return 130
 	}
-	fmt.Fprintf(stderr, "erro: %v\n", err)
+	fmt.Fprintf(stderr, "%s: %v\n", language.pick("erro", "error"), err)
 	return 1
 }
 

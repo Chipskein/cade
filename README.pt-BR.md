@@ -9,7 +9,7 @@ CLI de histórico pessoal. Ingere commits git, histórico do navegador, arquivos
 
 Todo o processamento é local: SQLite + sqlite-vec para armazenamento e busca vetorial, llama.cpp embutido para embeddings e geração. O que fica guardado, onde e como apagar: [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md).
 
-Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta. `cade help` e `cade <comando> -h` seguem o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos); os demais rótulos da CLI são em português.
+Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da pergunta. A interface (ajuda, rótulos, progresso, erros) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos), ou `ui.language` na configuração (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta. Os códigos do `ask --json` (`"mode": "listar"`) são os mesmos nos dois idiomas.
 
 ## Índice
 
@@ -224,7 +224,7 @@ cade ingest teams $T/https_teams.cloud.microsoft_0.indexeddb.leveldb \
 
 Apenas mensagens já carregadas pelo cliente estão disponíveis.
 
-Se uma atualização do Teams renomear o que o cade lê, o `ingest teams` falha com "formato do Teams não reconhecido" em vez de não achar nada em silêncio. As mensagens já guardadas não são afetadas. `cade teams-schema DIR` mostra a nova estrutura sem valores, para adaptar o leitor.
+Se uma atualização do Teams renomear o que o cade lê, o `ingest teams` falha com "unrecognized Teams format" em vez de não achar nada em silêncio. As mensagens já guardadas não são afetadas. `cade teams-schema DIR` mostra a nova estrutura sem valores, para adaptar o leitor.
 
 Eventos já ingeridos só são reprocessados se o conteúdo mudou na fonte (uma mensagem editada no Teams substitui o texto guardado; o `ingest` os conta como "atualizados"). Após atualizar o `cade`, para reingerir uma fonte do zero:
 
@@ -261,6 +261,7 @@ O `cade init` grava `~/.config/cade/config.json`; o [`config.example.json`](conf
 | `sources.directories` | `[]` | pastas do `ingest file` |
 | `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | nomes de pasta que o `ingest file` pula |
 | `sources.max_file_bytes` | `262144` (256 KB) | arquivos maiores entram sem o texto |
+| `ui.language` | `auto` | idioma da interface: `auto` segue o sistema, `pt` ou `en` o fixam. A resposta do `ask` segue o idioma da pergunta de qualquer forma |
 | `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes que reconhecem links de tarefa (veja [Tarefas](#tarefas)) |
 
 Notas, mensagens e commits longos são divididos em pedaços de até ~1.200 caracteres (o modelo de embedding lê 512 tokens), e a resposta mostra o pedaço que casou ("arquitetura.md, trecho 7 de 20"). Ao atualizar de uma versão sem pedaços, rode `cade reindex` uma vez: ele embute os eventos longos (1.568 de 108 mil num histórico real, cerca de um minuto).

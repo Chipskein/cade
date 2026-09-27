@@ -18,6 +18,7 @@ const (
 type ingestProgress struct {
 	status      statusLine
 	label       string
+	language    Language
 	now         func() time.Time
 	started     time.Time
 	lastPrinted time.Time
@@ -27,7 +28,7 @@ func newIngestProgress(env commandEnv, label string) *ingestProgress {
 	started := env.toolkit.Now()
 	return &ingestProgress{
 		status: statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal},
-		label:  label, now: env.toolkit.Now, started: started, lastPrinted: started,
+		label:  label, language: env.language, now: env.toolkit.Now, started: started, lastPrinted: started,
 	}
 }
 
@@ -54,7 +55,7 @@ func (p *ingestProgress) interval() time.Duration {
 }
 
 func (p *ingestProgress) line(report ingest.Report, now time.Time) string {
-	return fmt.Sprintf("%s: %d lidos, %d novos, %d atualizados, %d já existentes · %.0f/s",
+	return fmt.Sprintf(p.language.pick("%s: %d lidos, %d novos, %d atualizados, %d já existentes · %.0f/s", "%s: %d read, %d new, %d updated, %d already stored · %.0f/s"),
 		p.label, report.Collected, report.Inserted, report.Updated, report.AlreadyStored, eventsPerSecond(report.Collected, now.Sub(p.started)))
 }
 

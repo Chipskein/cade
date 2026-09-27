@@ -51,7 +51,9 @@ const (
 
 // Task is one task's summary for the period.
 type Task struct {
-	Key         string
+	Key string
+	// Title is the task page's title; empty when no visit to it was seen
+	// (the CLI words the gap in the user's language).
 	Title       string
 	Status      Status
 	Involvement Involvement
@@ -159,7 +161,7 @@ func (b Builder) taskKeysOf(ev event.Event, assigned string) []string {
 func (b Builder) addEvent(byKey map[string]*Task, key string, ev event.Event) {
 	task := byKey[key]
 	if task == nil {
-		task = &Task{Key: key, Title: "Tarefa " + key}
+		task = &Task{Key: key}
 		byKey[key] = task
 	}
 	task.Events = append(task.Events, ev)
