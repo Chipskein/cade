@@ -41,7 +41,7 @@ var (
 
 // LoadGenerator loads a chat model. Call Close to release it.
 //
-//	generator, err := llamacpp.LoadGenerator(llamacpp.ModelOptions{Path: "qwen2.5-1.5b.gguf", ContextTokens: 8192})
+//	generator, err := llamacpp.LoadGenerator(llamacpp.ModelOptions{Path: "Qwen3.5-2B-Q4_K_M.gguf", ContextTokens: 8192})
 func LoadGenerator(opts ModelOptions) (*Generator, error) {
 	params := baseContextParams(opts)
 	loaded, err := loadModel(opts, func(*C.struct_llama_model) C.struct_llama_context_params { return params })

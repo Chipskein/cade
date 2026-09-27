@@ -27,7 +27,7 @@ jobs:
       - name: Read pinned versions
         id: versions
         run: |
-          echo "llama=$(make -s print-LLAMA_TAG)" >> "$GITHUB_OUTPUT"
+          echo "llama=$(make -s print-LLAMA_TAG)-$(make -s print-LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
           echo "models=$(make -s print-EMBEDDING_MODEL_URL print-GENERATION_MODEL_URL | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
 
       # Same key as the CI workflow, so a build from either is reused.

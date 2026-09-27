@@ -9,7 +9,7 @@
     "document_prefix": "search_document: "
   },
   "generation": {
-    "model_path": "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+    "model_path": "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf",
     "context_tokens": 8192,
     "threads": 0,
     "gpu_layers": -1

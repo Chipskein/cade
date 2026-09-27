@@ -27,6 +27,28 @@ func TestLoadOverridesOnlyGivenFields(t *testing.T) {
 	}
 }
 
+func TestLoadMigratesPreviousGenerationDefault(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	raw := `{"generation":{"model_path":"~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf"}}`
+	testcheck.NoError(t, os.WriteFile(path, []byte(raw), 0o600))
+
+	cfg, err := Load(path)
+	if err != nil || cfg.Generation.ModelPath != ExpandHome(defaultGenerationModelPath) {
+		t.Fatalf("expected migrated generation model path, got %q (err %v)", cfg.Generation.ModelPath, err)
+	}
+}
+
+func TestLoadKeepsCustomGenerationModel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	raw := `{"generation":{"model_path":"~/models/custom.gguf"}}`
+	testcheck.NoError(t, os.WriteFile(path, []byte(raw), 0o600))
+
+	cfg, err := Load(path)
+	if err != nil || cfg.Generation.ModelPath != ExpandHome("~/models/custom.gguf") {
+		t.Fatalf("expected custom generation model path, got %q (err %v)", cfg.Generation.ModelPath, err)
+	}
+}
+
 func TestLoadRejectsInvalidJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{not json`), 0o600))

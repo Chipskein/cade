@@ -1,67 +1,51 @@
-# cade plan baseline — 2026-09-27 (fase 5: pré-parser por regras), 153 casos, pisos comparados ao limite inferior de Wilson 95%
-        153 perguntas, 131 totalmente corretas
-          lidas só por regras: 67, com 0 erradas
-          mode       146/153   95%  [ 91%– 98%]
-          days       153/153  100%  [ 98%–100%]
-          source     146/153   95%  [ 91%– 98%]
-          people     145/153   95%  [ 90%– 97%]
-          direction  149/153   97%  [ 93%– 99%]
-          topic      144/153   94%  [ 89%– 97%]
-          status     153/153  100%  [ 98%–100%]
-        ✗ que mensagem eu mandei pra Juliana sobre o contrato?
-            source: esperado "teams", veio ""
-        ✗ conversas com a Beatriz e o Tiago na última semana
-            mode: esperado "listar", veio "responder"
-        ✗ o que eu pesquisei na web sobre a migração do banco em 20/09?
-            mode: esperado "responder", veio "listar"
-        ✗ o que eu sei sobre o cliente Acme?
-            people: esperado "", veio "acme"
-            topic: esperado "Acme", veio ""
-        ✗ Quais foram as tarefas da Acme que me passaram ontem
-            people: esperado "", veio "acme"
-            topic: esperado "Acme", veio ""
-        ✗ onde está documentada a política de backup?
-            source: esperado "", veio "file"
-        ✗ como configurei o pre-commit no repositório?
-            source: esperado "", veio "git"
-        ✗ o que a Beatriz me mandou hoje?
-            mode: esperado "responder", veio "listar"
-            source: esperado "", veio "teams"
-        ✗ conversas com a Juliana essa semana
-            mode: esperado "listar", veio "responder"
-        ✗ mensagens da Ana no chat do projeto
-            direction: esperado "recebidas", veio ""
-        ✗ mensagens que o Leandro me enviou este mês
-            direction: esperado "recebidas", veio ""
-        ✗ messages from Beatriz this week
-            direction: esperado "recebidas", veio ""
-        ✗ what did I tell Rui about the contract?
-            direction: esperado "enviadas", veio ""
-        ✗ conversations with Carla last week
-            mode: esperado "listar", veio "responder"
-        ✗ show me what Juliana sent me today
-            source: esperado "", veio "teams"
-        ✗ o que a Zenite pediu no último contrato?
-            people: esperado "", veio "zenite"
-            topic: esperado "Zenite", veio "contrato"
-        ✗ o que o time de QA reportou ontem?
-            mode: esperado "responder", veio "listar"
-            source: esperado "", veio "teams"
-            people: esperado "", veio "time of qa"
-            topic: esperado "QA", veio ""
-        ✗ falei com o suporte da AWS sobre o limite?
-            people: esperado "", veio "suporte da aws"
-            topic: esperado "AWS", veio "limite"
-        ✗ what did Globex ask for in the renewal?
-            people: esperado "", veio "globex"
-            topic: esperado "Globex", veio "renewal"
-        ✗ did the QA team report anything yesterday?
-            source: esperado "", veio "teams"
-            people: esperado "", veio "qa team"
-            topic: esperado "QA", veio ""
-        ✗ quais cards o Pedro me passou hoje?
-            mode: esperado "tarefas", veio "listar"
-            topic: esperado "", veio "cards"
-        ✗ tarefas da Zenite que me mandaram essa semana
-            people: esperado "", veio "zenite"
-            topic: esperado "Zenite", veio ""
+# cade plan baseline — 2026-09-27 (fase 18: Qwen3.5-2B Q4_K_M, Apache-2.0), commit ce1454b + working tree, RTX 3060; 153 casos, pisos comparados ao limite inferior de Wilson 95%
+153 perguntas, 135 totalmente corretas
+  lidas só por regras: 67, com 0 erradas
+  mode       147/153   96%  [ 92%– 98%]
+  days       153/153  100%  [ 98%–100%]
+  source     147/153   96%  [ 92%– 98%]
+  people     150/153   98%  [ 94%– 99%]
+  direction  150/153   98%  [ 94%– 99%]
+  topic      149/153   97%  [ 93%– 99%]
+  status     153/153  100%  [ 98%–100%]
+✗ quais commits fiz sobre autenticação essa semana?
+    mode: esperado "listar", veio "responder"
+✗ o que o Marcos me pediu ontem?
+    people: esperado "marcos", veio ""
+✗ conversas com a Beatriz e o Tiago na última semana
+    mode: esperado "listar", veio "responder"
+    topic: esperado "", veio "conversas"
+✗ quais tickets o Vitor me mandou essa semana?
+    people: esperado "vitor", veio ""
+✗ como faço deploy do serviço de notificações?
+    source: esperado "", veio "git"
+✗ como configurei o pre-commit no repositório?
+    source: esperado "", veio "git"
+✗ mensagens que recebi do Pedro ontem
+    mode: esperado "listar", veio "responder"
+✗ conversas com a Juliana essa semana
+    mode: esperado "listar", veio "responder"
+✗ o que o Marcos respondeu sobre o deploy?
+    source: esperado "", veio "teams"
+✗ mensagens da Ana no chat do projeto
+    direction: esperado "recebidas", veio ""
+    topic: esperado "", veio "the project"
+✗ o que pedi para o Rui fazer semana passada?
+    direction: esperado "enviadas", veio ""
+✗ o que a Carla falou sobre o CEP?
+    source: esperado "", veio "teams"
+✗ conversations with Carla last week
+    mode: esperado "listar", veio "responder"
+✗ what did Marcos say about the migration?
+    people: esperado "marcos", veio ""
+✗ show me what Juliana sent me today
+    mode: esperado "listar", veio "responder"
+    source: esperado "", veio "teams"
+✗ o que a Zenite pediu no último contrato?
+    topic: esperado "Zenite", veio "pedido no último contrato"
+✗ falei com o suporte da AWS sobre o limite?
+    source: esperado "", veio "teams"
+    direction: esperado "", veio "enviadas"
+✗ what did Globex ask for in the renewal?
+    topic: esperado "Globex", veio "renewal"
+

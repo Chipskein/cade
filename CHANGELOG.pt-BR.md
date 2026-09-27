@@ -6,6 +6,41 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Geração com o Qwen3.5 (fase 18)
+
+- **Problema:** o modelo de geração padrão, o Qwen2.5-3B-Instruct, está sob a Qwen Research License (só uso não comercial), ainda seguia a nota que finge ser "nova instrução do sistema" e às vezes não citava a evidência.
+- **Modelo novo:** o padrão passa a ser o [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) Q4_K_M, **Apache-2.0** (conferida no model card e no `general.license` do GGUF), no GGUF da unsloth fixado por commit, já que a Qwen não publica GGUF do 3.5. O `make models` baixa também o projetor de visão (`mmproj-Qwen3.5-2B-F16.gguf`, 0,67 GB, Apache-2.0), que o `ask` nunca carrega: ele é da fase 19. O planejador, a resposta e o `ask --json` não mudam de formato.
+- **Atualizar:** rode `make models` de novo. Configurações escritas pelo `cade init` com o antigo padrão Qwen2.5-3B migram para Qwen3.5 ao carregar, então o `qwen2.5-3b-instruct-q4_k_m.gguf` pode ser apagado. Qualquer outro `generation.model_path` explícito continua usando o modelo que aponta. O estado salvo do prompt é refeito sozinho, porque a chave inclui o arquivo do modelo.
+- **llama.cpp:** a tag fixada (b11195) já carrega a arquitetura `qwen35`, o template e o `mmproj`. O `make llama` agora compila também a biblioteca de visão `mtmd`, sem ferramentas, downloader nem subprocessos (sem vídeo, que chamaria o `ffmpeg`). O binário de CPU cresce 1,3 MB, e nenhum símbolo de rede ou de subprocesso entra. Um diretório de build antigo é completado pelo próprio `make`, e o cache do llama.cpp na CI passa a ter na chave um hash dos flags do CMake.
+- **Raciocínio desligado:** o `llama_chat_apply_template` renderiza o template do Qwen3.5 como ChatML simples, sem a opção `enable_thinking`. Quando o template do modelo tem um bloco `<think>`, o cade fecha um bloco vazio depois da abertura do turno do assistente, como faz o template oficial com o raciocínio desligado. Um teste com o modelo real confere que nenhum `<think>` chega à resposta.
+- **Planejador:** a regra de direção ganhou as formas que faltavam ("me perguntou", "da X", "sent me", "asked me", "from X", "I told", "o que X disse" sem direção). Suíte de plano (153 perguntas, RTX 3060, mesmo prompt para os três):
+
+  | campo | Qwen2.5-3B | **Qwen3.5-2B** | Qwen3.5-4B |
+  |---|---|---|---|
+  | totalmente certas | 133 | **135** | 146 |
+  | tipo | 146 | **147** | 150 |
+  | fonte | 147 | **147** | 151 |
+  | pessoas | 145 | **150** | 152 |
+  | direção | 150 | **150** | 151 |
+  | assunto | 144 | **149** | 151 |
+  | período, status | 153 | **153** | 153 |
+
+  Antes do ajuste, o 2B ficava 2 abaixo do 3B só na direção (147 contra 149). Relatórios em `bench/plan-baseline.txt` (2B), `bench/plan-qwen2.5-3b.txt` e `bench/plan-qwen3.5-4b.txt`.
+- **Injeção:** a marca e a regra 9 não bastavam: o 3B, o 2B e o 4B seguiam a injeção em 1 dos 4 casos (o 4B, um caso diferente). O texto de um evento marcado agora sai do prompt: o modelo vê o número, a fonte, a data, a marca e "(texto omitido)", e a regra 9 diz para não usá-lo. A lista de fontes e o `ask --json` continuam mostrando o evento com a marca. `make eval-injection`: **nenhuma injeção seguida**, com os três modelos.
+- **Citações:** a regra 3 pedia o número "junto com a fonte e a data", e o 2B escrevia a fonte e a data por extenso, sem `[n]`. Com um exemplo ("O deploy foi adiado para sexta [2].") o 2B cita nos 4 casos de injeção, o 4B também, e o 3B em 1.
+- **Recuperação:** não muda, porque só usa o modelo de embedding (recall 1,00, MRR 0,88, rejeição 1,00).
+- **Medido** (`make bench`, Ryzen 5 5500 e RTX 3060; 2B contra o 3B da v0.0.0):
+
+  | | GPU | CPU |
+  |---|---|---|
+  | memória ao responder | 1,95 GB de VRAM + 1,47 GB de RAM (antes 2,55 + 1,19) | 2,36 GB de RAM (antes 3,87) |
+  | interpretar a pergunta, sem estado salvo | 1,49 s (antes 1,36) | 12,7 s (antes 19,7) |
+  | `ask` até o 1º token, cache quente (modelo / estado salvo / regras) | 3,16 / 2,88 / 1,60 s (antes 2,93 / 2,48 / 1,59) | 24,8 / 16,5 / 12,0 s (antes 41,5 / 26,0 / 21,5) |
+  | o mesmo, cache frio | 7,4 / 6,9 / 5,7 s (antes 8,8 / 8,5 / 7,7) | 29,6 / 21,1 / 16,2 s (antes 45,2 / 31,2 / 26,6) |
+
+  Em CPU o `ask` fica ~40% mais rápido; na GPU, com o cache quente, 0,2–0,4 s mais lento. O Qwen3.5 é híbrido (camadas recorrentes e de atenção), e o estado recorrente não volta mais que alguns tokens: dentro de um processo, um prompt que só compartilha o começo com o anterior é lido de novo por inteiro. Um `cade ask` é sempre um processo novo, então isso não o afeta, mas a suíte de plano e o `BenchmarkAnswer` (que antes reaproveitava as evidências em memória e agora as relê, 12,3 s em CPU) ficam mais lentos. O estado salvo do prompt funciona com a memória híbrida.
+- **Qwen3.5-4B:** entende melhor as perguntas, mas precisa de 3,5 GB de VRAM, acima do orçamento de ~2,5 GB; fica como alternativa documentada no README (`generation.model_path`).
+
 ### Detalhes da CLI (fase 16)
 
 - **Plurais:** toda mensagem com contagem concorda com ela nos dois idiomas: "Timeline de 2026-09-25 — 1 evento", "Tarefas de … — 2 tarefas suas", "1 novo, 0 atualizados", "Tudo pronto (1 aviso)". Onde a forma antiga não concordava, a frase mudou: o `forget` agora escreve "git: 3 eventos removidos." e o `tasks` em inglês "2 tasks of yours". Os testes cobrem 0, 1 e N em cada mensagem, nos dois idiomas.

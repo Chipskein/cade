@@ -8,15 +8,24 @@ NVCC_CCBIN ?=
 MODELS_DIR ?= $(HOME)/.local/share/cade/models
 
 EMBEDDING_MODEL_URL  := https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf
-GENERATION_MODEL_URL := https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf
+# Qwen publishes no GGUF of Qwen3.5; unsloth's conversion is pinned to a
+# commit because the repository is re-uploaded when templates are fixed.
+QWEN35_URL           := https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae
+GENERATION_MODEL_URL := $(QWEN35_URL)/Qwen3.5-2B-Q4_K_M.gguf
+# The vision projector (phase 19); every size's file is named mmproj-F16.gguf,
+# so the local copy carries the model's name.
+VISION_PROJECTOR_URL := $(QWEN35_URL)/mmproj-F16.gguf
 EMBEDDING_MODEL      := $(MODELS_DIR)/$(notdir $(EMBEDDING_MODEL_URL))
 GENERATION_MODEL     := $(MODELS_DIR)/$(notdir $(GENERATION_MODEL_URL))
+VISION_PROJECTOR     := $(MODELS_DIR)/mmproj-Qwen3.5-2B-F16.gguf
 
-# Only the llama library is built: no tools, server or downloader (LLAMA_CURL
-# off), so nothing in the binary can reach the network (RNF1).
+# Only the llama and mtmd (vision) libraries are built: no tools, server or
+# downloader (LLAMA_CURL off), so nothing in the binary can reach the network
+# (RNF1). Without subprocesses mtmd has no video, which would run ffmpeg.
 LLAMA_CMAKE_FLAGS := -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF \
 	-DCMAKE_POSITION_INDEPENDENT_CODE=ON -DGGML_OPENMP=OFF -DLLAMA_CURL=OFF \
-	-DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF -DLLAMA_BUILD_SERVER=OFF
+	-DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF -DLLAMA_BUILD_SERVER=OFF \
+	-DLLAMA_BUILD_COMMON=OFF -DLLAMA_BUILD_MTMD=ON -DLLAMA_SUBPROCESS=OFF -DMTMD_VIDEO=OFF
 
 PREFIX ?= $(HOME)/.local
 
@@ -102,7 +111,8 @@ fuzz:
 
 # Also runs the llama.cpp binding against the real models.
 test-models: llama models
-	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags sqlite_fts5 ./...
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) \
+		CADE_TEST_VISION_PROJECTOR=$(VISION_PROJECTOR) go test -tags sqlite_fts5 ./...
 
 # Scores the question planner against testdata/queries/plan.json with the
 # real model, on the GPU when the CUDA Toolkit is installed (GO_TAGS= forces
@@ -165,29 +175,40 @@ check: fmt-check vet lint test
 print-%:
 	@echo '$($*)'
 
-llama: $(LLAMA_DIR)/build/src/libllama.a
+# libmtmd.a is the last library built, so a build directory from before
+# mtmd was added is reconfigured and completed.
+llama: $(LLAMA_DIR)/build/tools/mtmd/libmtmd.a
 
-llama-cuda: $(LLAMA_DIR)/build-cuda/src/libllama.a
+llama-cuda: $(LLAMA_DIR)/build-cuda/tools/mtmd/libmtmd.a
 
-$(LLAMA_DIR)/build/src/libllama.a: | $(LLAMA_DIR)
+$(LLAMA_DIR)/build/tools/mtmd/libmtmd.a: | $(LLAMA_DIR)
 	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=$(LLAMA_NATIVE)
-	cmake --build $(LLAMA_DIR)/build --target llama
+	cmake --build $(LLAMA_DIR)/build --target llama mtmd
 
-$(LLAMA_DIR)/build-cuda/src/libllama.a: | $(LLAMA_DIR)
+$(LLAMA_DIR)/build-cuda/tools/mtmd/libmtmd.a: | $(LLAMA_DIR)
 	test -x $(CUDA_HOME)/bin/nvcc || { echo "nvcc não encontrado em $(CUDA_HOME); instale o CUDA Toolkit (pacman -S cuda)"; exit 1; }
 	cmake -S $(LLAMA_DIR) -B $(LLAMA_DIR)/build-cuda $(LLAMA_CMAKE_FLAGS) -DGGML_NATIVE=$(LLAMA_NATIVE) \
 		-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=$(CUDA_ARCH) -DCMAKE_CUDA_COMPILER=$(CUDA_HOME)/bin/nvcc \
 		$(if $(NVCC_CCBIN),-DCMAKE_CUDA_HOST_COMPILER=$(NVCC_CCBIN))
-	cmake --build $(LLAMA_DIR)/build-cuda --target llama
+	cmake --build $(LLAMA_DIR)/build-cuda --target llama mtmd
 
 $(LLAMA_DIR):
 	git clone --depth 1 --branch $(LLAMA_TAG) https://github.com/ggml-org/llama.cpp $(LLAMA_DIR)
 
-models: $(EMBEDDING_MODEL) $(GENERATION_MODEL)
+models: $(EMBEDDING_MODEL) $(GENERATION_MODEL) $(VISION_PROJECTOR)
 
-$(EMBEDDING_MODEL) $(GENERATION_MODEL):
-	mkdir -p $(MODELS_DIR)
-	curl -fL -o $@ $(if $(filter $@,$(EMBEDDING_MODEL)),$(EMBEDDING_MODEL_URL),$(GENERATION_MODEL_URL))
+# Downloads to a .part file first, so an interrupted download is not taken
+# for a model on the next run.
+download = mkdir -p $(dir $@) && curl -fL -o $@.part $(1) && mv $@.part $@
+
+$(EMBEDDING_MODEL):
+	$(call download,$(EMBEDDING_MODEL_URL))
+
+$(GENERATION_MODEL):
+	$(call download,$(GENERATION_MODEL_URL))
+
+$(VISION_PROJECTOR):
+	$(call download,$(VISION_PROJECTOR_URL))
 
 clean:
 	rm -rf bin dist coverage.out $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda

@@ -53,15 +53,25 @@ Cinza: baseline. Azul: depois da fase 2 (pedaços). Verde: depois da fase 3 (bus
 
 ## Interpretação das perguntas
 
-Acerto por campo na suíte de 153 perguntas (`make eval-plan`). Os pisos da suíte são comparados com o limite inferior do intervalo de Wilson de 95%, que fica 3 a 6 pontos abaixo destes valores.
+Acerto por campo na suíte de 153 perguntas (`make eval-plan`), com o prompt da fase 18 para os três modelos (`bench/plan-baseline.txt`, `plan-qwen2.5-3b.txt`, `plan-qwen3.5-4b.txt`). Os pisos da suíte são comparados com o limite inferior do intervalo de Wilson de 95%, que fica 3 a 6 pontos abaixo destes valores.
 
 ```mermaid
+---
+config:
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
+---
 xychart-beta
   title "Acerto do planejador por campo (%)"
   x-axis ["tipo", "período", "fonte", "pessoas", "direção", "assunto", "status"]
-  y-axis "acerto (%)" 80 --> 100
-  bar [95, 100, 95, 95, 97, 93, 100]
+  y-axis "acerto (%)" 90 --> 100
+  bar [95, 100, 96, 95, 98, 94, 100]
+  bar [96, 100, 96, 98, 98, 97, 100]
+  bar [98, 100, 99, 99, 99, 99, 100]
 ```
+
+Cinza: Qwen2.5-3B (padrão até a v0.0.0). Azul: Qwen3.5-2B (padrão). Verde: Qwen3.5-4B, fora do orçamento de VRAM. Totalmente certas: 133, 135 e 146.
 
 ## Latência do `ask` por etapa
 
@@ -71,13 +81,13 @@ Cada modelo aquece antes da medição. A interpretação roda pelo modelo, com o
 xychart-beta
   title "Latência por etapa (ms, GPU)"
   x-axis ["embedding de um evento", "interpretar a pergunta", "gerar a resposta"]
-  y-axis "ms" 0 --> 1400
-  bar [3.4, 1361, 399]
+  y-axis "ms" 0 --> 1600
+  bar [3.5, 1494, 584]
 ```
 
-Em CPU (Ryzen 5 5500, 6 threads) as mesmas etapas levam 36 ms, 19,7 s e 2,9 s. A interpretação custa mais que a resposta: o prompt do planejador tem ~2 mil tokens de instruções e exemplos, e o sampler com gramática do llama.cpp é lento por token.
+Em CPU (Ryzen 5 5500, 6 threads) as mesmas etapas levam 33 ms, 12,7 s e 12,3 s. O prompt do planejador tem ~2 mil tokens de instruções e exemplos, e o sampler com gramática do llama.cpp é lento por token. Desde a fase 18, "gerar a resposta" inclui ler as 8 evidências: com o Qwen2.5-3B (399 ms na GPU, 2,9 s na CPU) o benchmark reaproveitava da rodada anterior o prompt em memória, e o estado recorrente do Qwen3.5 não volta atrás. Num `cade ask`, que é sempre um processo novo, as evidências são lidas nos dois casos.
 
-## Um `ask` inteiro (fase 5)
+## Um `ask` inteiro (fases 5 e 18)
 
 Do início até o primeiro token da resposta, com o carregamento dos dois modelos (`BenchmarkColdAsk`). A pergunta é lida pelo modelo decodificando o prompt inteiro (como antes da fase 5), pelo modelo com o estado do prompt salvo, ou pelas regras, sem modelo. Cache de página quente: os modelos foram lidos há pouco. Frio: foram tirados da memória antes de cada rodada, como depois de reiniciar.
 
@@ -91,10 +101,10 @@ config:
 xychart-beta
   title "ask até o primeiro token, CPU (s)"
   x-axis ["cache quente", "cache frio"]
-  y-axis "s" 0 --> 50
-  bar [41.5, 45.2]
-  bar [26.0, 31.2]
-  bar [21.5, 26.6]
+  y-axis "s" 0 --> 35
+  bar [24.8, 29.6]
+  bar [16.5, 21.1]
+  bar [12.0, 16.2]
 ```
 
 ```mermaid
@@ -108,16 +118,17 @@ xychart-beta
   title "ask até o primeiro token, GPU (s)"
   x-axis ["cache quente", "cache frio"]
   y-axis "s" 0 --> 10
-  bar [2.93, 8.78]
-  bar [2.48, 8.52]
-  bar [1.59, 7.72]
+  bar [3.16, 7.40]
+  bar [2.88, 6.89]
+  bar [1.60, 5.68]
 ```
 
 Cinza: modelo, prompt decodificado inteiro. Azul: modelo com o estado salvo. Verde: regras.
 
-- **CPU:** o estado salvo corta 37% do `ask` com o cache quente (41,5 → 26,0 s), e as regras, 48%. O que sobra é quase todo a leitura das 8 evidências pelo modelo antes da resposta.
-- **GPU:** o ganho é menor em segundos (2,93 → 2,48 → 1,59 s), e o cache frio domina: ler ~2,4 GB de modelos do disco leva ~6 s.
-- **Estado salvo:** um arquivo de ~55 MB em `~/.cache/cade/prompt-state/`, gravado na primeira pergunta que vai ao modelo.
+- **Modelo (fase 18):** com o Qwen3.5-2B, a CPU foi de 41,5 / 26,0 / 21,5 s para 24,8 / 16,5 / 12,0 s com o cache quente. Na GPU, o cache quente ficou 0,2–0,4 s mais lento (2,93 / 2,48 / 1,59 s com o Qwen2.5-3B), e o frio, ~1,5 s mais rápido, porque o modelo é menor.
+- **CPU:** o estado salvo corta 34% do `ask` com o cache quente (24,8 → 16,5 s), e as regras, 52%. O que sobra é quase todo a leitura das 8 evidências pelo modelo antes da resposta.
+- **GPU:** o ganho é menor em segundos (3,16 → 2,88 → 1,60 s), e o cache frio domina: ler ~1,6 GB de modelos do disco leva ~4 s.
+- **Estado salvo:** um arquivo de ~40 MB em `~/.cache/cade/prompt-state/` (~55 MB com o Qwen2.5-3B), gravado na primeira pergunta que vai ao modelo.
 - **Regras:** leem 67 das 153 perguntas da suíte de plano, sem nenhum erro. Uma listagem ou relatório de tarefas lido por elas nem carrega modelo.
 
 ## Busca vetorial no banco
@@ -183,8 +194,8 @@ xychart-beta
   title "Memória com os modelos carregados (MB)"
   x-axis ["só embedding", "embedding + geração"]
   y-axis "MB" 0 --> 2800
-  bar [979, 1174]
-  bar [390, 2554]
+  bar [979, 1473]
+  bar [390, 1948]
 ```
 
 Azul: RAM do processo. Laranja: memória da GPU. Numa build só de CPU, os pesos ficam na RAM.
@@ -203,9 +214,9 @@ Azul: RAM do processo. Laranja: memória da GPU. Numa build só de CPU, os pesos
 
 | Modelo | Latência GPU | Latência CPU | RAM | GPU |
 |---|---|---|---|---|
-| embedding de um evento | 3,4 ms | 36 ms | 964 MB | 328 MB |
-| interpretar a pergunta (modelo, sem estado salvo) | 1.361 ms | 19,7 s | 1.135 MB | 2.554 MB |
-| gerar a resposta (~40 tokens) | 399 ms | 2,9 s | 1.187 MB | 2.554 MB |
-| `ask` até o primeiro token, cache quente (modelo / estado salvo / regras) | 2,93 / 2,48 / 1,59 s | 41,5 / 26,0 / 21,5 s | | |
+| embedding de um evento | 3,5 ms | 33 ms | 966 MB | 328 MB |
+| interpretar a pergunta (modelo, sem estado salvo) | 1.494 ms | 12,7 s | 1.473 MB | 1.948 MB |
+| ler as evidências e gerar a resposta (~30 tokens) | 584 ms | 12,3 s | 1.473 MB | 1.948 MB |
+| `ask` até o primeiro token, cache quente (modelo / estado salvo / regras) | 3,16 / 2,88 / 1,60 s | 24,8 / 16,5 / 12,0 s | | |
 
-RAM e GPU são do build CUDA. No build só de CPU os pesos ficam na RAM, e o processo com os dois modelos chega a ~3,9 GB.
+RAM e GPU são do build CUDA. No build só de CPU os pesos ficam na RAM, e o processo com os dois modelos chega a ~2,4 GB (~3,9 GB com o Qwen2.5-3B).

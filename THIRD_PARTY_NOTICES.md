@@ -5,7 +5,7 @@ cade is licensed under the GNU General Public License v2 ([LICENSE](LICENSE)). T
 | Component | Version | License | In the binary as |
 |---|---|---|---|
 | [Go](https://go.dev) standard library and runtime | the Go toolchain's | BSD-3-Clause | every Go program |
-| [llama.cpp](https://github.com/ggml-org/llama.cpp) and ggml | `b11195` (`LLAMA_TAG`) | MIT | the `llama` and `ggml` static libraries (no tools, server or downloader) |
+| [llama.cpp](https://github.com/ggml-org/llama.cpp) and ggml | `b11195` (`LLAMA_TAG`) | MIT | the `llama`, `mtmd` (vision) and `ggml` static libraries (no tools, server, downloader or subprocesses) |
 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | v1.14.52 | MIT | SQLite driver (cgo) |
 | [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
@@ -20,8 +20,9 @@ The models are not part of the binary or of this repository: `make models` downl
 | Model | License | Notes |
 |---|---|---|
 | [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF) (embeddings) | Apache-2.0 | |
-| [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) (generation, default) | [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE) | non-commercial only, which the license defines as "research or evaluation purposes only"; commercial use needs a license from Alibaba Cloud. Redistributing it requires the notice "Qwen is licensed under the Qwen RESEARCH LICENSE AGREEMENT, Copyright (c) Alibaba Cloud. All Rights Reserved." |
-| [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) (generation, alternative) | Apache-2.0 | see the README's Models section |
+| [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) (generation, default), as the [unsloth GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF) Q4_K_M | [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-2B/blob/main/LICENSE) | commercial use allowed; checked on the model card and in the GGUF's `general.license` |
+| `mmproj-F16.gguf` from the same repository (vision projector of Qwen3.5-2B) | Apache-2.0 | downloaded next to the model; not loaded by `ask` |
+| [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) (generation default up to v0.0.0) | [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE) | non-commercial only, which the license defines as "research or evaluation purposes only". No longer downloaded; a config that still points at it keeps working under that license |
 
 ## Go standard library and runtime
 
