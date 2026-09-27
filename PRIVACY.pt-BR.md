@@ -8,6 +8,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 
 - **Nada sai da máquina durante o uso.** O binário não tem código de rede: `net` e `net/http` do Go não entram no build, e o llama.cpp é compilado sem o downloader. Não há telemetria.
 - **A rede só é usada no build:** `make llama` clona o llama.cpp do GitHub e `make models` baixa os dois modelos do Hugging Face.
+- **`cade init` e `cade doctor` olham nomes, não conteúdo:** o init lista as pastas de perfil e confere quais têm `History`, `places.sqlite` ou IndexedDB do Teams, e procura `.git` sob o diretório que você indicar; o doctor lê os primeiros bytes dos modelos e dos históricos (as assinaturas `GGUF` e `SQLite format 3`) e abre o banco só para leitura.
 - **Tudo fica num arquivo SQLite**, legível só pelo seu usuário (permissão `600`, pasta `700`).
 - **O banco não é criptografado.** Quem estiver logado como você, ou tiver o seu disco, consegue lê-lo. Use criptografia de disco.
 

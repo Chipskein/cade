@@ -27,7 +27,7 @@ func runReindex(ctx context.Context, env commandEnv, args []string) error {
 		}
 		defer embedder.Close()
 		pipeline := ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger)
-		return env.reindexWith(ctx, pipeline, index, embeddingModelName(cfg))
+		return env.reindexWith(ctx, pipeline, index, cfg.Embedding.ModelName())
 	})
 }
 

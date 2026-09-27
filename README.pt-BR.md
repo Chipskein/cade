@@ -15,7 +15,7 @@ Perguntas podem ser feitas em português ou inglês; a resposta vem no idioma da
 
 - [Como funciona](#como-funciona)
 - [Modelos](#modelos)
-- [Build](#build)
+- [Instalação](#instalação)
 - [Uso](#uso)
   - [Perguntas (`ask`)](#perguntas-ask)
 - [Exemplo de saída](#exemplo-de-saída)
@@ -64,9 +64,22 @@ flowchart LR
 
 Qualquer modelo GGUF compatível com llama.cpp pode ser usado via `embedding.model_path` e `generation.model_path` na configuração.
 
-## Build
+## Instalação
 
-Requisitos: Go, gcc, cmake, ninja, curl.
+De um clone limpo até a primeira pergunta (Linux):
+
+1. **Ferramentas de build:** Go 1.27 ou mais novo, gcc, cmake, ninja e curl.
+   - Arch: `sudo pacman -S go gcc cmake ninja curl`
+   - Debian/Ubuntu: `sudo apt install gcc cmake ninja-build curl`, e o Go de [go.dev/dl](https://go.dev/dl/) se o do pacote for mais antigo.
+2. **Build:** `make build` compila o llama.cpp (alguns minutos, só na primeira vez) e gera `bin/cade`. Com GPU NVIDIA, use `make cuda` (requer o CUDA Toolkit).
+3. **Modelos:** `make models` baixa os dois modelos (~2,4 GB) para `~/.local/share/cade/models`.
+4. **Instalar:** `make install` copia o binário para `~/.local/bin`, que precisa estar no `PATH` (`PREFIX=...` para mudar).
+5. **Configurar:** `cade init` acha os históricos de navegador (Chrome, Chromium, Brave, Edge, Vivaldi, Firefox), os caches do Teams e, sob um diretório que você indicar, os repositórios git; pergunta o que incluir e quais pastas de notas indexar, e grava `~/.config/cade/config.json` (permissão `600`). Ele só olha nomes, nunca conteúdo. O Teams fica de fora a menos que você o escolha, porque o cache guarda mensagens de outras pessoas: confira antes a política de dados da sua organização.
+6. **Conferir:** `cade doctor` verifica os modelos, o FTS5 do SQLite, o banco e cada caminho configurado, e diz como corrigir cada problema. Ele não altera o banco.
+7. **Ingerir:** `cade ingest all`.
+8. **Perguntar:** `cade ask "o que eu fiz ontem?"`.
+
+Binários prontos estão previstos para a primeira versão ([roadmap](docs/ROADMAP.md), fase 9).
 
 ```sh
 make build    # compila llama.cpp e gera bin/cade
@@ -78,12 +91,13 @@ make uninstall
 
 `uninstall` remove só o binário. Modelos, configuração e banco ficam em `~/.local/share/cade` e `~/.config/cade`.
 
-Compile pelo `make`: a busca por palavra usa o FTS5 do SQLite, que o driver Go só compila com `-tags sqlite_fts5` (um `go build` puro gera um binário que se recusa a abrir o banco e diz por quê). Para `go test` no editor, use a mesma tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
+Compile pelo `make`: a busca por palavra usa o FTS5 do SQLite, que o driver Go só compila com `-tags sqlite_fts5` (um `go build` puro gera um binário que se recusa a abrir o banco e diz por quê; o `cade doctor` também aponta). Para `go test` no editor, use a mesma tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
 
 ## Uso
 
 ```sh
-cade init                                   # cria ~/.config/cade/config.json
+cade init                                   # acha as fontes, pergunta e cria ~/.config/cade/config.json
+cade doctor                                 # confere modelos, banco e caminhos; diz o que corrigir
 cade ingest git ~/src/projeto
 cade ingest all                             # alvos da configuração
 cade timeline ontem
@@ -222,32 +236,32 @@ O que já saiu da fonte (ex.: cache do Teams expirado) não volta.
 
 ## Configuração
 
-`~/.config/cade/config.json`:
-
-```json
-{
-  "sources": {
-    "git_repositories": ["~/src/projeto"],
-    "browser_histories": ["~/.config/google-chrome/Default/History"],
-    "directories": ["~/notas"],
-    "teams_indexeddb_dirs": ["~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb"]
-  }
-}
-```
-
-Outros campos (criados pelo `cade init`):
+O `cade init` grava `~/.config/cade/config.json`; o [`config.example.json`](config.example.json) traz todos os campos, com os padrões e fontes de exemplo. Um campo que falta no arquivo fica com o padrão, e os caminhos podem começar com `~`. Depois de editar, o `cade doctor` confere o resultado.
 
 | Campo | Padrão | Para quê |
 |---|---|---|
-| `generation.gpu_layers`, `embedding.gpu_layers` | `-1` | camadas na GPU (build CUDA); `-1` = todas |
+| `database_path` | `~/.local/share/cade/cade.db` | o banco do histórico |
+| `embedding.model_path`, `generation.model_path` | os arquivos do `make models` | modelos GGUF da busca e das respostas; qualquer modelo compatível com o llama.cpp serve (trocar o de embedding exige `cade reindex`) |
+| `embedding.context_tokens` | `0` | tokens que o modelo de embedding lê; `0` = o comprimento de treino do modelo (512), que também é o teto |
+| `generation.context_tokens` | `8192` | contexto do modelo de resposta: pergunta, evidências e resposta |
 | `generation.threads`, `embedding.threads` | `0` | threads de CPU; `0` = núcleos físicos |
+| `generation.gpu_layers`, `embedding.gpu_layers` | `-1` | camadas na GPU (build CUDA); `-1` = todas |
+| `embedding.query_prefix`, `embedding.document_prefix` | `search_query: `, `search_document: ` | prefixos de tarefa com que o modelo de embedding foi treinado (nomic-embed); vazios para modelos sem eles |
 | `retrieval.top_k` | `8` | eventos enviados ao modelo por pergunta |
 | `retrieval.max_distance` | `0.72` | corte de relevância em perguntas sem filtros |
-| `retrieval.mode` | `hybrid` | `hybrid` junta busca por significado e por palavra (FTS5); `vector` ou `lexical` usam uma só |
 | `retrieval.max_best_distance` | `0.61` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
+| `retrieval.max_answer_tokens` | `512` | tamanho máximo da resposta, em tokens |
+| `retrieval.mode` | `hybrid` | `hybrid` junta busca por significado e por palavra (FTS5); `vector` ou `lexical` usam uma só |
 | `retrieval.max_filtered_events` | `1000` | pergunta com pessoa ou direção ordena um a um até essa quantidade de eventos que casam; acima disso, busca no índice vetorial e fica com os resultados que casam. `0` = sem limite |
+| `sources.git_repositories` | `[]` | repositórios do `ingest git` |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 | `sources.git_identities` | `["auto"]` | seus e-mails ou nomes de commit; `auto` lê `git config user.email`/`user.name` de cada repositório. Commits de outras pessoas ficam no banco, mas saem da `timeline` (veja `--all-authors`), das perguntas em primeira pessoa ("o que eu fiz?") e do relatório de tarefas |
+| `sources.browser_histories` | `[]` | arquivos `History` (Chromium) ou `places.sqlite` (Firefox) do `ingest browser` |
+| `sources.teams_indexeddb_dirs` | `[]` | diretórios `*.indexeddb.leveldb` do Teams para o `ingest teams` (veja [Teams](#teams)) |
+| `sources.directories` | `[]` | pastas do `ingest file` |
+| `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | nomes de pasta que o `ingest file` pula |
+| `sources.max_file_bytes` | `262144` (256 KB) | arquivos maiores entram sem o texto |
+| `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes que reconhecem links de tarefa (veja [Tarefas](#tarefas)) |
 
 Notas, mensagens e commits longos são divididos em pedaços de até ~1.200 caracteres (o modelo de embedding lê 512 tokens), e a resposta mostra o pedaço que casou ("arquitetura.md, trecho 7 de 20"). Ao atualizar de uma versão sem pedaços, rode `cade reindex` uma vez: ele embute os eventos longos (1.568 de 108 mil num histórico real, cerca de um minuto).
 

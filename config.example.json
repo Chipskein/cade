@@ -1,0 +1,63 @@
+{
+  "database_path": "~/.local/share/cade/cade.db",
+  "embedding": {
+    "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
+    "context_tokens": 0,
+    "threads": 0,
+    "gpu_layers": -1,
+    "query_prefix": "search_query: ",
+    "document_prefix": "search_document: "
+  },
+  "generation": {
+    "model_path": "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+    "context_tokens": 8192,
+    "threads": 0,
+    "gpu_layers": -1
+  },
+  "retrieval": {
+    "top_k": 8,
+    "max_distance": 0.72,
+    "max_best_distance": 0.61,
+    "max_answer_tokens": 512,
+    "mode": "hybrid",
+    "max_filtered_events": 1000
+  },
+  "sources": {
+    "git_repositories": [
+      "~/src/project"
+    ],
+    "git_authors": [],
+    "git_identities": [
+      "auto"
+    ],
+    "browser_histories": [
+      "~/.config/google-chrome/Default/History",
+      "~/.mozilla/firefox/abcd1234.default-release/places.sqlite"
+    ],
+    "teams_indexeddb_dirs": [
+      "~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb",
+      "~/.config/google-chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"
+    ],
+    "directories": [
+      "~/notes"
+    ],
+    "ignored_dir_names": [
+      ".git",
+      "node_modules",
+      "vendor",
+      "__pycache__",
+      ".venv",
+      "target"
+    ],
+    "max_file_bytes": 262144
+  },
+  "tasks": {
+    "task_url_patterns": [
+      "proj4\\.me/projects/(\\d+)/tasks/(\\d+)",
+      "atlassian\\.net/browse/([A-Z][A-Z0-9]+-\\d+)",
+      "linear\\.app/[\\w-]+/issue/([A-Z][A-Z0-9]+-\\d+)",
+      "github\\.com/([\\w.-]+/[\\w.-]+)/issues/(\\d+)",
+      "dev\\.azure\\.com/[\\w.-]+/[\\w.%-]+/_workitems/edit/(\\d+)"
+    ]
+  }
+}

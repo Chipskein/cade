@@ -161,3 +161,21 @@ type EventEmbedding struct {
 	Event  event.Event
 	Chunks []Chunk
 }
+
+// DatabaseState is what `cade doctor` reads from the database without
+// changing it: opening a store would apply migrations and may copy it.
+type DatabaseState struct {
+	// Exists is false before the first command creates the database.
+	Exists bool
+	// FTS5 tells whether this binary's SQLite can build the keyword index.
+	FTS5 bool
+	// SchemaVersion is the database's; LatestSchemaVersion this binary's.
+	SchemaVersion       int
+	LatestSchemaVersion int
+	// MigrationBackup: a pending migration copies the database (SizeBytes
+	// more on disk) before rewriting it.
+	MigrationBackup bool
+	SizeBytes       int64
+	EmbeddingModel  string
+	ReindexPending  bool
+}

@@ -8,6 +8,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 - **Nothing leaves the machine at run time.** The binary has no network code: Go's `net` and `net/http` are not linked, and llama.cpp is built without its downloader. There is no telemetry.
 - **Network is used only at build time:** `make llama` clones llama.cpp from GitHub and `make models` downloads the two models from Hugging Face.
+- **`cade init` and `cade doctor` look at names, not content:** init lists profile directories and checks which of them hold a `History`, `places.sqlite` or Teams IndexedDB, and looks for `.git` under the directory you name; doctor reads the first bytes of the models and histories (the `GGUF` and `SQLite format 3` signatures) and opens the database read-only.
 - **Everything is in one SQLite file**, readable only by your user account (mode `600`, directory `700`).
 - **The database is not encrypted.** Anyone logged in as you, or with your disk, can read it. Use disk encryption.
 

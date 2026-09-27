@@ -32,8 +32,12 @@ func productionToolkit() cli.Toolkit {
 	return cli.Toolkit{
 		DefaultConfigPath: config.DefaultPath,
 		LoadConfig:        config.Load,
-		WriteConfig:       config.WriteDefault,
+		WriteConfig:       config.Write,
 		OpenStore:         openStore,
+		InspectDatabase:   sqlitestore.Inspect,
+		RootFS:            os.DirFS("/"),
+		HomeDir:           os.UserHomeDir,
+		Stdin:             os.Stdin,
 		LoadEmbedder:      loadEmbedder,
 		LoadGenerator:     loadGenerator,
 		Sources:           sourceSpecs,

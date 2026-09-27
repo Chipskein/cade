@@ -3,17 +3,10 @@ package cli
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/storage"
 )
-
-// embeddingModelName identifies the configured model by its file name
-// (which carries the quantization: Q4 and Q8 vectors differ too).
-func embeddingModelName(cfg config.Config) string {
-	return filepath.Base(cfg.Embedding.ModelPath)
-}
 
 // checkEmbeddingModel refuses to mix vectors of two models: same-dimension
 // models (nomic v1.5 and v2-moe are both 768) would otherwise be compared
@@ -24,7 +17,7 @@ func (env commandEnv) checkEmbeddingModel(ctx context.Context, cfg config.Config
 	if !supported {
 		return nil
 	}
-	configured := embeddingModelName(cfg)
+	configured := cfg.Embedding.ModelName()
 	stored, err := index.EmbeddingModel(ctx)
 	if err != nil {
 		return err

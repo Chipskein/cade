@@ -23,7 +23,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | concluída | alto | baixo |
 | 6 | Filtros de pessoa no SQL | concluída | médio | baixo |
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | concluída; 1 caso de injeção ainda falha | baixo | baixo |
-| 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | pendente | alto | médio |
+| 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | concluída; binários prontos passam para a fase 9 | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | pendente | médio | médio |
 | 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | pendente | baixo | baixo |
 | 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | pendente | pré-requisito do lançamento | baixo |
@@ -32,7 +32,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 A tabela está na ordem sugerida:
 - **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue.
 - **Depois as mudanças de código:** 6 e 7 (entregues). A 5 foi feita antes da 10, a pedido.
-- **Em seguida, a experiência de quem instala:** 11 e 12.
+- **Em seguida, a experiência de quem instala:** 11 (entregue) e 12.
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
 
 ---
@@ -57,28 +57,7 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)), com uma diferença do plano
 
 ## Fase 11 — Instalação e configuração
 
-### Problema
-
-- **Muitos pré-requisitos:** o build exige gcc, cmake, ninja, curl e, opcionalmente, o CUDA Toolkit. Depois é preciso baixar os modelos (`make models`) e escrever o `config.json` à mão, com os caminhos de repositórios, históricos e perfis do Teams.
-- **Configuração pouco explicada:** o README mostra só um fragmento do `config.json`.
-- Para quem não conhece Go nem o llama.cpp, a barreira de entrada é alta.
-
-### Mudanças
-
-1. **Configuração de exemplo.**
-   - `config.example.json` completo.
-   - Uma tabela no README com cada campo, o padrão e um exemplo. JSON não tem comentários, então a explicação fica na tabela.
-2. **`cade init` interativo.**
-   - Detecta os históricos do Chrome e do Firefox, os perfis do Teams e os repositórios git sob um diretório informado.
-   - Pergunta o que incluir e grava o `config.json` com permissão `600`.
-   - Não lê conteúdo, só caminhos.
-3. **`cade doctor`.** Verifica os modelos, o FTS5, os caminhos configurados, a versão do esquema e a reindexação pendente, e diz o que corrigir.
-4. **Binários prontos** (junto com a Fase 9): builds CPU para Linux anexados à tag, para quem não quer compilar. CUDA continua por build local.
-
-### Critério de aceite
-
-- Documentado e testado: de um clone limpo (ou de um binário baixado) até o primeiro `cade ask`, com a lista de passos no README.
-- `cade init` tem testes com um sistema de arquivos falso (históricos e repositórios fictícios).
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `config.example.json` e a tabela completa no README, `cade init` interativo, `cade doctor` e o passo a passo do clone ao primeiro `cade ask`. Os binários prontos foram para a [fase 9](#fase-9--empacotamento-da-versão), porque dependem do número de versão e da tag.
 
 ---
 
@@ -132,7 +111,8 @@ As perguntas funcionam em inglês e português, e `cade help` segue o idioma do 
    - **Embedding:** o nomic-embed-text-v2-moe é Apache-2.0 (está no GGUF).
    - **Geração:** o GGUF do Qwen2.5-3B-Instruct não traz licença. A conferir no model card: o 3B parece estar sob a Qwen Research License, de uso não comercial, diferente dos outros tamanhos. O resultado vai para o README.
    - **Alternativa:** se a licença restringir o uso, avaliar um modelo de geração com licença aberta na suíte de plano (por exemplo, o Qwen2.5-1.5B, se for Apache-2.0) e documentar as opções menores para máquinas com pouca memória ou disco. O binário não inclui os modelos: `make models` baixa.
-4. **Notas de versão.** Avisar de dois pontos:
+4. **Binários prontos** (vindo da fase 11): builds CPU para Linux anexados à tag, para quem não quer compilar, compilados com `LLAMA_NATIVE=OFF` como na CI. CUDA continua por build local. O README ganha o caminho "binário baixado → `make models` ou download manual → `cade init`".
+5. **Notas de versão.** Avisar de dois pontos:
    - a migração com cópia leva ~1 minuto e grava uma cópia do tamanho do banco;
    - o `cade reindex` é obrigatório depois da migração 5, porque os textos longos ficam sem vetor até ele rodar.
 

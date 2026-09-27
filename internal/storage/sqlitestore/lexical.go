@@ -142,12 +142,21 @@ func chunksToIndex(rows *sql.Rows) ([]chunkToIndex, error) {
 // the sqlite_fts5 tag (a bare `go build`), instead of an obscure "no such
 // module" in the middle of a migration.
 func requireFTS5(ctx context.Context, db *sql.DB) error {
-	var enabled bool
-	if err := db.QueryRowContext(ctx, `SELECT sqlite_compileoption_used('ENABLE_FTS5')`).Scan(&enabled); err != nil {
-		return fmt.Errorf("check SQLite FTS5 support: %w", err)
+	enabled, err := fts5Enabled(ctx, db)
+	if err != nil {
+		return err
 	}
 	if !enabled {
 		return fmt.Errorf("SQLite was compiled without FTS5; build with `make` or `go build -tags sqlite_fts5`")
 	}
 	return nil
+}
+
+// fts5Enabled reports whether this binary's SQLite has FTS5 compiled in.
+func fts5Enabled(ctx context.Context, db *sql.DB) (bool, error) {
+	var enabled bool
+	if err := db.QueryRowContext(ctx, `SELECT sqlite_compileoption_used('ENABLE_FTS5')`).Scan(&enabled); err != nil {
+		return false, fmt.Errorf("check SQLite FTS5 support: %w", err)
+	}
+	return enabled, nil
 }

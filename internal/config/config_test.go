@@ -34,30 +34,54 @@ func TestLoadRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
-func TestWriteDefaultThenLoad(t *testing.T) {
+func TestWriteThenLoadOwnerOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "config.json")
-	if err := WriteDefault(path); err != nil {
-		t.Fatalf("write default: %v", err)
+	cfg := Defaults()
+	cfg.Sources.Directories = []string{"/notes"}
+	if err := Write(path, cfg); err != nil {
+		t.Fatalf("write: %v", err)
 	}
-	cfg, err := Load(path)
-	if err != nil || cfg.Retrieval.TopK != Defaults().Retrieval.TopK {
-		t.Fatalf("expected defaults to round-trip, got %+v (err %v)", cfg, err)
+	loaded, err := Load(path)
+	if err != nil || loaded.Retrieval.TopK != Defaults().Retrieval.TopK || loaded.Sources.Directories[0] != "/notes" {
+		t.Fatalf("expected the config to round-trip, got %+v (err %v)", loaded, err)
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("expected mode 600, got %v (err %v)", info.Mode(), err)
 	}
 }
 
-func TestWriteDefaultRefusesOverwrite(t *testing.T) {
+func TestWriteRefusesOverwrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{}`), 0o600))
-	if err := WriteDefault(path); err == nil {
+	if err := Write(path, Defaults()); err == nil {
 		t.Fatal("expected refusal to overwrite an existing config")
+	}
+	if raw, _ := os.ReadFile(path); string(raw) != `{}` {
+		t.Fatalf("the existing config changed: %q", raw)
 	}
 }
 
-func TestExpandHome(t *testing.T) {
+func TestContractHome(t *testing.T) {
+	cases := map[string]string{"/h": "~", "/h/src/app": "~/src/app", "/hx/app": "/hx/app", "/etc/x": "/etc/x"}
+	for input, expected := range cases {
+		if got := ContractHome(input, "/h"); got != expected {
+			t.Errorf("ContractHome(%q) = %q, expected %q", input, got, expected)
+		}
+	}
+}
+
+func TestContractHomeWithoutHome(t *testing.T) {
+	if got := ContractHome("/src/app", ""); got != "/src/app" {
+		t.Fatalf("expected the path unchanged, got %q", got)
+	}
+}
+
+func TestExpandHomeIn(t *testing.T) {
 	cases := map[string]string{"~": "/h", "~/x/y": "/h/x/y", "/abs": "/abs", "rel/~": "rel/~"}
 	for input, expected := range cases {
-		if got := expandHome(input, "/h"); got != expected {
-			t.Errorf("expandHome(%q) = %q, expected %q", input, got, expected)
+		if got := ExpandHomeIn(input, "/h"); got != expected {
+			t.Errorf("ExpandHomeIn(%q) = %q, expected %q", input, got, expected)
 		}
 	}
 }

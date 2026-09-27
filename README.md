@@ -13,7 +13,7 @@ Everything runs locally: SQLite + sqlite-vec for storage and vector search, llam
 
 - [How it works](#how-it-works)
 - [Models](#models)
-- [Build](#build)
+- [Install](#install)
 - [Usage](#usage)
   - [Questions (`ask`)](#questions-ask)
 - [Sample output](#sample-output)
@@ -64,9 +64,22 @@ flowchart LR
 
 Any llama.cpp-compatible GGUF model can be used via `embedding.model_path` and `generation.model_path` in the config.
 
-## Build
+## Install
 
-Requirements: Go, gcc, cmake, ninja, curl.
+From a clean clone to the first question (Linux):
+
+1. **Build tools:** Go 1.27 or newer, gcc, cmake, ninja and curl.
+   - Arch: `sudo pacman -S go gcc cmake ninja curl`
+   - Debian/Ubuntu: `sudo apt install gcc cmake ninja-build curl`, plus Go from [go.dev/dl](https://go.dev/dl/) if the packaged one is older.
+2. **Build:** `make build` compiles llama.cpp (a few minutes, only the first time) and writes `bin/cade`. For an NVIDIA GPU, `make cuda` instead (needs the CUDA Toolkit).
+3. **Models:** `make models` downloads the two models (~2.4 GB) to `~/.local/share/cade/models`.
+4. **Install:** `make install` copies the binary to `~/.local/bin`, which must be on your `PATH` (`PREFIX=...` to change).
+5. **Configure:** `cade init` finds the browser histories (Chrome, Chromium, Brave, Edge, Vivaldi, Firefox), the Teams caches and, under a directory you name, the git repositories; it asks what to include and which note folders to index, and writes `~/.config/cade/config.json` (mode `600`). It only looks at names, never at content. Teams is off unless you choose it, since its cache holds other people's messages: check your organization's data policy first.
+6. **Check:** `cade doctor` verifies the models, SQLite's FTS5, the database and every configured path, and says how to fix each problem. It does not change the database.
+7. **Ingest:** `cade ingest all`.
+8. **Ask:** `cade ask "what did I do yesterday?"`.
+
+Prebuilt binaries are planned with the first release ([roadmap](docs/ROADMAP.md), phase 9).
 
 ```sh
 make build    # builds llama.cpp and produces bin/cade
@@ -78,12 +91,13 @@ make uninstall
 
 `uninstall` only removes the binary. Models, config and database live in `~/.local/share/cade` and `~/.config/cade`.
 
-Build through `make`: keyword search needs SQLite's FTS5, which the Go driver only compiles with `-tags sqlite_fts5` (a bare `go build` produces a binary that refuses to open the database, saying so). For `go test` in an editor, set the same tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
+Build through `make`: keyword search needs SQLite's FTS5, which the Go driver only compiles with `-tags sqlite_fts5` (a bare `go build` produces a binary that refuses to open the database, saying so; `cade doctor` reports it too). For `go test` in an editor, set the same tag (VS Code: `"go.buildTags": "sqlite_fts5"`).
 
 ## Usage
 
 ```sh
-cade init                                   # creates ~/.config/cade/config.json
+cade init                                   # finds sources, asks, writes ~/.config/cade/config.json
+cade doctor                                 # checks models, database and paths; says what to fix
 cade ingest git ~/src/project
 cade ingest all                             # every target in the config
 cade timeline ontem                         # yesterday
@@ -222,32 +236,32 @@ Anything no longer in the source (e.g. an expired Teams cache) does not come bac
 
 ## Configuration
 
-`~/.config/cade/config.json`:
-
-```json
-{
-  "sources": {
-    "git_repositories": ["~/src/project"],
-    "browser_histories": ["~/.config/google-chrome/Default/History"],
-    "directories": ["~/notes"],
-    "teams_indexeddb_dirs": ["~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb"]
-  }
-}
-```
-
-Other fields (written by `cade init`):
+`cade init` writes `~/.config/cade/config.json`; [`config.example.json`](config.example.json) has every field with its default and sample sources. A field left out of the file keeps its default, and paths may start with `~`. After editing, `cade doctor` checks the result.
 
 | Field | Default | Purpose |
 |---|---|---|
-| `generation.gpu_layers`, `embedding.gpu_layers` | `-1` | layers on the GPU (CUDA build); `-1` = all |
+| `database_path` | `~/.local/share/cade/cade.db` | the history database |
+| `embedding.model_path`, `generation.model_path` | the `make models` files | GGUF models for search and for answers; any llama.cpp-compatible model works (changing the embedding one needs `cade reindex`) |
+| `embedding.context_tokens` | `0` | tokens the embedder reads; `0` = the model's training length (512), which is also the cap |
+| `generation.context_tokens` | `8192` | the answer model's context: question, evidence and answer |
 | `generation.threads`, `embedding.threads` | `0` | CPU threads; `0` = physical cores |
+| `generation.gpu_layers`, `embedding.gpu_layers` | `-1` | layers on the GPU (CUDA build); `-1` = all |
+| `embedding.query_prefix`, `embedding.document_prefix` | `search_query: `, `search_document: ` | task prefixes the embedding model was trained with (nomic-embed); empty for models without them |
 | `retrieval.top_k` | `8` | events sent to the model per question |
 | `retrieval.max_distance` | `0.72` | relevance cutoff for unfiltered questions |
-| `retrieval.mode` | `hybrid` | `hybrid` fuses vector and keyword (FTS5) search; `vector` or `lexical` use one |
 | `retrieval.max_best_distance` | `0.61` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
+| `retrieval.max_answer_tokens` | `512` | longest answer, in tokens |
+| `retrieval.mode` | `hybrid` | `hybrid` fuses vector and keyword (FTS5) search; `vector` or `lexical` use one |
 | `retrieval.max_filtered_events` | `1000` | a question with a person or direction ranks up to this many matching events one by one; above it, it searches the vector index and keeps the matching hits. `0` = no limit |
+| `sources.git_repositories` | `[]` | repositories for `ingest git` |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 | `sources.git_identities` | `["auto"]` | your commit emails or names; `auto` reads `git config user.email`/`user.name` of each repository. Other people's commits are kept but hidden from `timeline` (see `--all-authors`), from first-person questions ("o que eu fiz?") and from task reports |
+| `sources.browser_histories` | `[]` | Chromium `History` or Firefox `places.sqlite` files for `ingest browser` |
+| `sources.teams_indexeddb_dirs` | `[]` | Teams `*.indexeddb.leveldb` directories for `ingest teams` (see [Teams](#teams)) |
+| `sources.directories` | `[]` | folders for `ingest file` |
+| `sources.ignored_dir_names` | `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target` | folder names `ingest file` skips |
+| `sources.max_file_bytes` | `262144` (256 KB) | larger files are recorded without their text |
+| `tasks.task_url_patterns` | proj4me, Jira, Linear, GitHub Issues, Azure Boards | regexes that recognize task links (see [Tasks](#tasks)) |
 
 Long notes, messages and commits are split into chunks of up to ~1,200 characters (the embedding model reads 512 tokens), and an answer shows the chunk that matched ("arquitetura.md, trecho 7 de 20"). After upgrading from a version without chunks, run `cade reindex` once: it embeds the long events (1,568 of 108k in a real history, about a minute).
 

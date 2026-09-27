@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"time"
 
@@ -37,12 +38,20 @@ type ClosableGenerator interface {
 type Toolkit struct {
 	DefaultConfigPath func() (string, error)
 	LoadConfig        func(path string) (config.Config, error)
-	WriteConfig       func(path string) error
+	WriteConfig       func(path string, cfg config.Config) error
 	OpenStore         func(ctx context.Context, path string) (storage.EventStore, error)
-	LoadEmbedder      func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
-	LoadGenerator     func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
-	Sources           func(cfg config.Config) []ingest.SourceSpec
-	ReadIndexedDB     func(dir string) ([]indexeddb.Record, error)
+	// InspectDatabase reads the database without migrating it (doctor).
+	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
+	// RootFS is the filesystem at "/" (see rootfs), where init looks for
+	// sources and doctor checks the configured paths.
+	RootFS  fs.FS
+	HomeDir func() (string, error)
+	// Stdin answers init's questions.
+	Stdin         io.Reader
+	LoadEmbedder  func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
+	LoadGenerator func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
+	Sources       func(cfg config.Config) []ingest.SourceSpec
+	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
 	// Language of the help text and flag descriptions (from the locale).
@@ -103,6 +112,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 func subcommands() map[string]subcommand {
 	return map[string]subcommand{
 		"init":         runInit,
+		"doctor":       runDoctor,
 		"ingest":       runIngest,
 		"timeline":     runTimeline,
 		"ask":          runAsk,
@@ -177,12 +187,4 @@ func exitCode(err error, stderr io.Writer) int {
 
 func (env commandEnv) loadConfig() (config.Config, error) {
 	return env.toolkit.LoadConfig(env.configPath)
-}
-
-func runInit(_ context.Context, env commandEnv, _ []string) error {
-	if err := env.toolkit.WriteConfig(env.configPath); err != nil {
-		return err
-	}
-	fmt.Fprintf(env.stdout, "Configuração criada em %s\nEdite as fontes (sources) e os caminhos dos modelos antes de ingerir.\n", env.configPath)
-	return nil
 }

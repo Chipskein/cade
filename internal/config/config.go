@@ -48,6 +48,13 @@ type EmbeddingConfig struct {
 	DocumentPrefix string `json:"document_prefix"`
 }
 
+// ModelName identifies the embedding model by its file name, which
+// carries the quantization (Q4 and Q8 vectors differ too); the database
+// records it to refuse mixing vectors of two models.
+func (e EmbeddingConfig) ModelName() string {
+	return filepath.Base(e.ModelPath)
+}
+
 // RetrievalConfig tunes semantic search and answer generation.
 type RetrievalConfig struct {
 	TopK int `json:"top_k"`
@@ -111,20 +118,31 @@ func Load(path string) (Config, error) {
 	return cfg.expandPaths()
 }
 
-// WriteDefault creates a config file with the defaults, refusing to
-// overwrite an existing one.
-func WriteDefault(path string) error {
-	if _, err := os.Stat(path); err == nil {
-		return fmt.Errorf("config %q already exists; edit it instead", path)
-	}
-	encoded, err := json.MarshalIndent(Defaults(), "", "  ")
+// Write creates the config file at path with cfg, owner-only since it
+// names the user's repositories and profiles. It refuses to overwrite an
+// existing file (O_EXCL, so a file created meanwhile is not clobbered).
+//
+//	err := config.Write("/home/me/.config/cade/config.json", config.Defaults())
+func Write(path string, cfg Config) error {
+	encoded, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
-		return fmt.Errorf("encode default config: %w", err)
+		return fmt.Errorf("encode config: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("create config directory for %q: %w", path, err)
 	}
-	return os.WriteFile(path, append(encoded, '\n'), 0o600)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, fs.ErrExist) {
+		return fmt.Errorf("config %q already exists; edit it instead", path)
+	}
+	if err != nil {
+		return fmt.Errorf("create config %q: %w", path, err)
+	}
+	if _, err := file.Write(append(encoded, '\n')); err != nil {
+		file.Close()
+		return fmt.Errorf("write config %q: %w", path, err)
+	}
+	return file.Close()
 }
 
 func (c Config) expandPaths() (Config, error) {
@@ -132,9 +150,9 @@ func (c Config) expandPaths() (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("locate home directory: %w", err)
 	}
-	c.DatabasePath = expandHome(c.DatabasePath, home)
-	c.Embedding.ModelPath = expandHome(c.Embedding.ModelPath, home)
-	c.Generation.ModelPath = expandHome(c.Generation.ModelPath, home)
+	c.DatabasePath = ExpandHomeIn(c.DatabasePath, home)
+	c.Embedding.ModelPath = ExpandHomeIn(c.Embedding.ModelPath, home)
+	c.Generation.ModelPath = ExpandHomeIn(c.Generation.ModelPath, home)
 	c.Sources.GitRepositories = expandHomeAll(c.Sources.GitRepositories, home)
 	c.Sources.BrowserHistories = expandHomeAll(c.Sources.BrowserHistories, home)
 	c.Sources.Directories = expandHomeAll(c.Sources.Directories, home)
@@ -149,10 +167,25 @@ func ExpandHome(path string) string {
 	if err != nil {
 		return path
 	}
-	return expandHome(path, home)
+	return ExpandHomeIn(path, home)
 }
 
-func expandHome(path, home string) string {
+// ContractHome writes a path under home as "~/...", like the defaults,
+// so the file stays valid if the home directory moves.
+//
+//	config.ContractHome("/home/me/src/app", "/home/me") // "~/src/app"
+func ContractHome(path, home string) string {
+	if path == home {
+		return "~"
+	}
+	if relative, found := strings.CutPrefix(path, strings.TrimSuffix(home, "/")+"/"); found && home != "" {
+		return "~/" + relative
+	}
+	return path
+}
+
+// ExpandHomeIn is ExpandHome with a given home directory.
+func ExpandHomeIn(path, home string) string {
 	if path == "~" {
 		return home
 	}
@@ -165,7 +198,7 @@ func expandHome(path, home string) string {
 func expandHomeAll(paths []string, home string) []string {
 	expanded := make([]string, len(paths))
 	for i, path := range paths {
-		expanded[i] = expandHome(path, home)
+		expanded[i] = ExpandHomeIn(path, home)
 	}
 	return expanded
 }

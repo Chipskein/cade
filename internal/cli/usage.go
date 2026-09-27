@@ -11,7 +11,10 @@ Uso:
   cade [--config ARQUIVO] [--verbose] <comando> [argumentos]
 
 Comandos:
-  init                                  cria o arquivo de configuração padrão
+  init                                  acha históricos, caches do Teams e repositórios,
+                                        pergunta o que incluir e cria a configuração
+  doctor                                confere modelos, FTS5, banco e caminhos, e diz
+                                        o que corrigir (não altera o banco)
   ingest <fonte|all> [ALVO...]          ingere uma fonte (git, browser, file, teams);
                                         sem ALVO usa os alvos configurados
   timeline [--source F] [--all-authors] DATA [DATA_FIM]
@@ -49,7 +52,10 @@ Usage:
   cade [--config FILE] [--verbose] <command> [arguments]
 
 Commands:
-  init                                  writes the default configuration file
+  init                                  finds histories, Teams caches and repositories,
+                                        asks what to include and writes the config
+  doctor                                checks models, FTS5, database and paths, and
+                                        says what to fix (does not change the database)
   ingest <source|all> [TARGET...]       ingests a source (git, browser, file, teams);
                                         without TARGET uses the configured targets
   timeline [--source S] [--all-authors] DATE [END_DATE]

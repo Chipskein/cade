@@ -76,7 +76,9 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF5.2** `cade timeline [--source F] DATA [DATA_FIM]`.
 - **RF5.3** `cade ask [--source F] [--from D] [--to D] PERGUNTA`.
 - **RF5.4** Saída legível no terminal, indicando fonte e timestamp de cada resultado.
-- **RF5.5** `cade forget <fonte>` remove os eventos de uma fonte para reingestão; `cade init` cria o arquivo de configuração padrão; `cade teams-schema DIR` imprime a estrutura (sem valores) de um IndexedDB, para diagnosticar mudanças de formato do Teams.
+- **RF5.5** `cade forget <fonte>` remove os eventos de uma fonte para reingestão; `cade teams-schema DIR` imprime a estrutura (sem valores) de um IndexedDB, para diagnosticar mudanças de formato do Teams.
+- **RF5.6** `cade init` acha os históricos de navegador (Chromium e Firefox), os caches do Teams e os repositórios git sob um diretório informado, pergunta o que incluir (o Teams fica de fora por padrão) e grava a configuração com permissão `600`. Olha só nomes, nunca conteúdo; sem entrada, fica com os padrões.
+- **RF5.7** `cade doctor` confere os modelos (arquivo GGUF), o FTS5 do SQLite, o banco (versão do esquema, migração com cópia pendente, modelo dos vetores, reindexação pendente) e cada caminho configurado, dizendo como corrigir cada problema. Lê o banco sem migrá-lo e sai com código 1 quando algum comando falharia.
 
 ---
 
@@ -119,6 +121,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 
 ### RNF6 — Configuração
 - **RNF6.1** Fontes (repositórios, históricos do browser, diretórios, diretórios do Teams), modelos e parâmetros de busca são configuráveis em `~/.config/cade/config.json`, sem hardcode.
+- **RNF6.2** `config.example.json` traz todos os campos, e o README descreve cada um numa tabela; testes falham se o exemplo ou as tabelas deixarem de cobrir um campo.
 
 ### RNF7 — Qualidade da interpretação
 - **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `make eval-plan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.

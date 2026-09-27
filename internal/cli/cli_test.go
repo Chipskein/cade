@@ -50,7 +50,12 @@ type fakeWorld struct {
 	generatorLoads     int
 	generatorLoadError error
 	writtenConfig      string
+	writtenCfg         config.Config
 	language           Language
+	// files, stdin and database back init and doctor.
+	files    testfakes.FakeFileSystem
+	stdin    string
+	database storage.DatabaseState
 }
 
 func newFakeWorld() *fakeWorld {
@@ -58,7 +63,7 @@ func newFakeWorld() *fakeWorld {
 	cfg.Sources.GitRepositories = []string{"/repo"}
 	return &fakeWorld{
 		store: testfakes.NewFakeEventStore(), embedder: &testfakes.FakeEmbedder{},
-		generator: &testfakes.FakeGenerator{}, cfg: cfg,
+		generator: &testfakes.FakeGenerator{}, cfg: cfg, files: testfakes.NewFakeFileSystem(),
 	}
 }
 
@@ -66,8 +71,12 @@ func (w *fakeWorld) toolkit() Toolkit {
 	return Toolkit{
 		DefaultConfigPath: func() (string, error) { return "/cfg/config.json", nil },
 		LoadConfig:        func(string) (config.Config, error) { return w.cfg, nil },
-		WriteConfig:       func(path string) error { w.writtenConfig = path; return nil },
+		WriteConfig:       w.writeConfig,
 		OpenStore:         func(context.Context, string) (storage.EventStore, error) { return w.store, nil },
+		InspectDatabase:   func(context.Context, string) (storage.DatabaseState, error) { return w.database, nil },
+		RootFS:            w.files,
+		HomeDir:           func() (string, error) { return "/home/ana", nil },
+		Stdin:             strings.NewReader(w.stdin),
 		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
 			return w.embedder, nil
@@ -78,6 +87,11 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
 	}
+}
+
+func (w *fakeWorld) writeConfig(path string, cfg config.Config) error {
+	w.writtenConfig, w.writtenCfg = path, cfg
+	return nil
 }
 
 func (w *fakeWorld) loadGenerator(config.ModelConfig, *slog.Logger) (ClosableGenerator, error) {
