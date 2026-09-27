@@ -57,7 +57,7 @@ func TestFormatOpenedAtShowsDateBeforePeriod(t *testing.T) {
 	days, _ := timeline.ParseDayRange("2026-09-25", "", cliNow)
 	before := formatOpenedAt(time.Date(2026, 9, 12, 16, 40, 0, 0, time.UTC), days)
 	within := formatOpenedAt(time.Date(2026, 9, 25, 16, 40, 0, 0, time.UTC), days)
-	if before != "12/09 16:40" || within != "16:40" {
+	if before != "2026-09-12 16:40" || within != "16:40" {
 		t.Fatalf("unexpected %q / %q", before, within)
 	}
 }
@@ -87,10 +87,10 @@ func TestTasksHidesTasksOnlyMentionedByOthers(t *testing.T) {
 		browserVisit(yesterday.Add(2*time.Hour), "https://app.proj4.me/projects/227/tasks/36", "Proj4me"),
 	}
 	_, stdout, _ := world.run("tasks", "ontem")
-	if !strings.Contains(stdout, "1 suas") || !strings.Contains(stdout, "14/162") || strings.Contains(stdout, "115/1420") {
+	if !strings.Contains(stdout, "1 tarefa sua") || !strings.Contains(stdout, "14/162") || strings.Contains(stdout, "115/1420") {
 		t.Fatalf("expected only the user's task listed, got:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "Consultadas") || !strings.Contains(stdout, "227/36") || !strings.Contains(stdout, "Citadas só por outras pessoas: 1 tarefas") {
+	if !strings.Contains(stdout, "Consultadas") || !strings.Contains(stdout, "227/36") || !strings.Contains(stdout, "Citadas só por outras pessoas: 1 tarefa — use --all") {
 		t.Fatalf("expected the consulted task and the others summary, got:\n%s", stdout)
 	}
 	_, all, _ := world.run("tasks", "--all", "ontem")

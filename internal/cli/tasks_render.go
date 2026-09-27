@@ -9,6 +9,11 @@ import (
 	"github.com/chipskein/cade/internal/timeline"
 )
 
+var (
+	ownTaskNoun    = nounForms{"tarefa sua", "tarefas suas", "task of yours", "tasks of yours"}
+	othersTaskNoun = nounForms{"tarefa — use --all para listar", "tarefas — use --all para listar", "task — use --all to list it", "tasks — use --all to list them"}
+)
+
 // statusLabel is a task's status in the report's first column.
 func statusLabel(status tasks.Status, language Language) string {
 	if status == tasks.Done {
@@ -27,14 +32,19 @@ func renderTaskReport(out io.Writer, days timeline.DayRange, report tasks.Report
 		renderOthersSummary(out, groups[tasks.MentionedByOthers], language)
 		return
 	}
-	fmt.Fprintf(out, language.pick("Tarefas de %s — %d suas\n\n", "Tasks of %s — %d yours\n\n"), days, len(groups[tasks.Mine]))
+	fmt.Fprint(out, tasksHeader(days, len(groups[tasks.Mine]), language))
 	renderTasks(out, groups[tasks.Mine], days, language)
 	renderSection(out, language.pick("Consultadas (você abriu a tarefa; sem PR ou mensagem sua)", "Consulted (you opened the task; no PR or message of yours)"),
 		groups[tasks.Consulted], days, language)
 	renderOthers(out, groups[tasks.MentionedByOthers], days, showAll, language)
 	if report.UnassignedEvents > 0 {
-		fmt.Fprintf(out, language.pick("Sem tarefa: %d eventos\n", "Without a task: %d events\n"), report.UnassignedEvents)
+		fmt.Fprintf(out, language.pick("Sem tarefa: %s\n", "Without a task: %s\n"), language.count(report.UnassignedEvents, eventNoun))
 	}
+}
+
+// tasksHeader is "Tarefas de 2026-09-25 — 2 tarefas suas".
+func tasksHeader(days timeline.DayRange, mine int, language Language) string {
+	return fmt.Sprintf(language.pick("Tarefas de %s — %s\n\n", "Tasks of %s — %s\n\n"), days, language.count(mine, ownTaskNoun))
 }
 
 func renderOthers(out io.Writer, others []tasks.Task, days timeline.DayRange, showAll bool, language Language) {
@@ -63,8 +73,7 @@ func renderSection(out io.Writer, title string, section []tasks.Task, days timel
 
 func renderOthersSummary(out io.Writer, others []tasks.Task, language Language) {
 	if len(others) > 0 {
-		fmt.Fprintf(out, language.pick("Citadas só por outras pessoas: %d tarefas — use --all para listar.\n",
-			"Mentioned only by other people: %d tasks — use --all to list them.\n"), len(others))
+		fmt.Fprintf(out, language.pick("Citadas só por outras pessoas: %s.\n", "Mentioned only by other people: %s.\n"), language.count(len(others), othersTaskNoun))
 	}
 }
 
@@ -75,7 +84,7 @@ func renderTasks(out io.Writer, list []tasks.Task, days timeline.DayRange, langu
 }
 
 func renderTask(out io.Writer, task tasks.Task, days timeline.DayRange, language Language) {
-	fmt.Fprintf(out, language.pick("%-13s %s  %s  (%d eventos)\n", "%-13s %s  %s  (%d events)\n"), statusLabel(task.Status, language), task.Key, taskTitle(task, language), len(task.Events))
+	fmt.Fprintf(out, "%-13s %s  %s  (%s)\n", statusLabel(task.Status, language), task.Key, taskTitle(task, language), language.count(len(task.Events), eventNoun))
 	for _, pr := range task.PRs {
 		fmt.Fprintf(out, language.pick("%14sPR %s aberto %s%s%s\n", "%14sPR %s opened %s%s%s\n"),
 			"", pr.Ref.Key(), formatOpenedAt(pr.OpenedAt, days), prTitleSuffix(pr.Title), linkNote(pr.Link, language))
@@ -94,7 +103,7 @@ func taskTitle(task tasks.Task, language Language) string {
 func formatOpenedAt(openedAt time.Time, days timeline.DayRange) string {
 	local := openedAt.In(days.First.Location())
 	if local.Before(days.Start()) {
-		return local.Format("02/01 15:04")
+		return local.Format(fullStampLayout)
 	}
 	return local.Format("15:04")
 }

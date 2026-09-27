@@ -163,6 +163,7 @@
     },
     {
       "question": "o que eu pesquisei na web sobre a migração do banco em 20/09?",
+      "date_order": "dmy",
       "expect": {
         "days": "2026-09-20",
         "source": "browser",
@@ -349,6 +350,7 @@
     },
     {
       "question": "o que fiz em 15/09?",
+      "date_order": "dmy",
       "expect": {
         "days": "2026-09-15"
       }
@@ -539,6 +541,7 @@
     },
     {
       "question": "mostre os commits de 20/09",
+      "date_order": "dmy",
       "expect": {
         "mode": "listar",
         "days": "2026-09-20",

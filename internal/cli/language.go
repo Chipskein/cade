@@ -19,17 +19,20 @@ var localeVariables = []string{"LC_ALL", "LC_MESSAGES", "LANG"}
 //
 //	language := cli.LanguageFromEnv(os.Getenv)
 func LanguageFromEnv(getenv func(string) string) Language {
-	for _, variable := range localeVariables {
-		value := getenv(variable)
-		if value == "" {
-			continue
-		}
-		if strings.HasPrefix(strings.ToLower(value), "pt") {
-			return Portuguese
-		}
-		return English
+	if strings.HasPrefix(strings.ToLower(firstLocale(getenv, localeVariables)), "pt") {
+		return Portuguese
 	}
 	return English
+}
+
+// firstLocale is the first non-empty variable of variables, or "".
+func firstLocale(getenv func(string) string, variables []string) string {
+	for _, variable := range variables {
+		if value := getenv(variable); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // pick returns the text written in l.

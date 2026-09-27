@@ -4,6 +4,16 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que falta para a release está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Não lançada (v0.1.0)
+
+### Detalhes da CLI (fase 16)
+
+- **Plurais:** toda mensagem com contagem concorda com ela nos dois idiomas: "Timeline de 2026-09-25 — 1 evento", "Tarefas de … — 2 tarefas suas", "1 novo, 0 atualizados", "Tudo pronto (1 aviso)". Onde a forma antiga não concordava, a frase mudou: o `forget` agora escreve "git: 3 eventos removidos." e o `tasks` em inglês "2 tasks of yours". Os testes cobrem 0, 1 e N em cada mensagem, nos dois idiomas.
+- **Flags em qualquer posição:** `cade timeline ontem --source git` e `cade ask "…" --json` funcionam. Os argumentos são reordenados em volta do pacote `flag` padrão, sem dependência nova; depois de `--`, tudo é argumento.
+- **`ui.date_order`** (`auto`, `dmy`, `mdy`): como o `ask` lê datas numéricas como `12/08`. `auto` lê mês primeiro com o sistema (`LC_ALL`, `LC_TIME`, `LANG`) em `en_US` e dia primeiro nos outros casos; uma instalação padrão nos EUA passa a ler `12/08` como 8 de dezembro. As datas da saída continuam ISO; a única exceção, a data de abertura de um PR antigo no `tasks` (`12/09 16:40`), agora é `2026-09-12 16:40`.
+- **Suíte de plano:** as perguntas com data numérica levam `date_order` explícito, e a suíte não carrega se faltar. `make eval-plan` (Qwen2.5-3B, RTX 3060): mesmo resultado do baseline da v0.0.0.
+- **README:** tabela das palavras de período aceitas em cada idioma.
+
 ## v0.0.0 — 2026-09-27 (primeira versão)
 
 ### Atualizar um banco existente

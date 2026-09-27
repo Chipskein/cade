@@ -131,3 +131,19 @@ func TestLoadAcceptsUILanguage(t *testing.T) {
 		t.Fatalf("expected en, got %+v %v", cfg.UI, err)
 	}
 }
+
+func TestLoadRejectsUnknownDateOrder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"date_order": "ymd"}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "ymd") {
+		t.Fatalf("expected ui.date_order \"ymd\" rejected, got %v", err)
+	}
+}
+
+func TestLoadDefaultsDateOrderToAuto(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"language": "en"}}`), 0o600))
+	if cfg, err := Load(path); err != nil || cfg.UI.DateOrder != "auto" {
+		t.Fatalf("expected ui.date_order \"auto\" by default, got %q (%v)", cfg.UI.DateOrder, err)
+	}
+}

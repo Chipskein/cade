@@ -109,11 +109,31 @@ func runIngestJobs(ctx context.Context, env commandEnv, pipeline *ingest.Pipelin
 	return nil
 }
 
+// Counted phrases of the ingestion report; the noun, "eventos", is implied.
+var (
+	insertedNoun      = nounForms{"novo", "novos", "new", "new"}
+	updatedNoun       = nounForms{"atualizado", "atualizados", "updated", "updated"}
+	alreadyStoredNoun = nounForms{"já existente", "já existentes", "already stored", "already stored"}
+	removedAtNoun     = nounForms{"removido da origem", "removidos da origem", "removed at the source", "removed at the source"}
+	collectedNoun     = nounForms{"lido", "lidos", "read", "read"}
+)
+
 func printIngestReport(env commandEnv, job ingestJob, report ingest.Report) {
+	fmt.Fprintf(env.stdout, "%-8s %s\n", job.spec.Name, ingestReportLine(job.target, report, env.language))
+}
+
+// ingestReportLine is "alvo: 1 novo, 0 atualizados, 2 já existentes (3 lidos)".
+func ingestReportLine(target string, report ingest.Report, language Language) string {
 	removed := ""
 	if report.Removed > 0 {
-		removed = fmt.Sprintf(env.language.pick(", %d removidos da origem", ", %d removed at the source"), report.Removed)
+		removed = ", " + language.count(report.Removed, removedAtNoun)
 	}
-	fmt.Fprintf(env.stdout, env.language.pick("%-8s %s: %d novos, %d atualizados, %d já existentes%s (%d lidos)\n", "%-8s %s: %d new, %d updated, %d already stored%s (%d read)\n"),
-		job.spec.Name, job.target, report.Inserted, report.Updated, report.AlreadyStored, removed, report.Collected)
+	return fmt.Sprintf("%s: %s%s (%s)", target, ingestTally(report, language), removed, language.count(report.Collected, collectedNoun))
+}
+
+// ingestTally is "1 novo, 0 atualizados, 2 já existentes", shared by the
+// report and the progress line.
+func ingestTally(report ingest.Report, language Language) string {
+	return language.count(report.Inserted, insertedNoun) + ", " + language.count(report.Updated, updatedNoun) + ", " +
+		language.count(report.AlreadyStored, alreadyStoredNoun)
 }

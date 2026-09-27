@@ -15,10 +15,11 @@ func runTimeline(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("timeline", env.stderr, env.language)
 	source := flags.String("source", "", env.language.pick("mostra só uma fonte (git, browser, file, teams)", "show one source only (git, browser, file, teams)"))
 	allAuthors := flags.Bool("all-authors", false, env.language.pick("inclui commits de outros autores", "include other authors' commits"))
-	if err := flags.Parse(args); err != nil {
-		return usageError(err)
+	positional, err := parseCommandFlags(flags, args)
+	if err != nil {
+		return err
 	}
-	days, err := parseTimelineDays(flags.Args(), env.toolkit.Now(), env.language)
+	days, err := parseTimelineDays(positional, env.toolkit.Now(), env.language)
 	if err != nil {
 		return err
 	}

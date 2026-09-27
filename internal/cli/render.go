@@ -21,12 +21,19 @@ const (
 	maxDescribedRunes = 110
 )
 
+// timelineHeader is the timeline's first line: "Timeline de 2026-09-25 — 1 evento".
+func timelineHeader(days timeline.DayRange, events int, language Language) string {
+	if events == 0 {
+		return fmt.Sprintf(language.pick("Nenhum evento em %s.\n", "No events on %s.\n"), days)
+	}
+	return fmt.Sprintf(language.pick("Timeline de %s — %s\n", "Timeline of %s — %s\n"), days, language.count(events, eventNoun))
+}
+
 func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event, language Language) {
+	fmt.Fprint(out, timelineHeader(days, len(events), language))
 	if len(events) == 0 {
-		fmt.Fprintf(out, language.pick("Nenhum evento em %s.\n", "No events on %s.\n"), days)
 		return
 	}
-	fmt.Fprintf(out, language.pick("Timeline de %s — %d eventos\n", "Timeline of %s — %d events\n"), days, len(events))
 	location := days.First.Location()
 	var currentDay string
 	for _, ev := range events {

@@ -50,13 +50,18 @@ func findingTarget(finding doctor.Finding, home string) string {
 	return config.ContractHome(finding.Path, home)
 }
 
+var (
+	problemNoun = nounForms{"problema a corrigir", "problemas a corrigir", "problem to fix", "problems to fix"}
+	warningNoun = nounForms{"aviso", "avisos", "warning", "warnings"}
+)
+
 func doctorVerdict(out io.Writer, findings []doctor.Finding, language Language) error {
 	failures := doctor.CountBySeverity(findings, doctor.SeverityFailure)
 	if failures > 0 {
-		return fmt.Errorf(language.pick("%d problema(s) a corrigir, acima", "%d problem(s) to fix, above"), failures)
+		return fmt.Errorf(language.pick("%s, acima", "%s, above"), language.count(failures, problemNoun))
 	}
 	warnings := doctor.CountBySeverity(findings, doctor.SeverityWarning)
-	fmt.Fprintf(out, language.pick("\nTudo pronto (%d aviso(s)).\n", "\nAll set (%d warning(s)).\n"), warnings)
+	fmt.Fprintf(out, language.pick("\nTudo pronto (%s).\n", "\nAll set (%s).\n"), language.count(warnings, warningNoun))
 	return nil
 }
 

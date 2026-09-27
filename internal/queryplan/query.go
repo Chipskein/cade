@@ -40,6 +40,8 @@ type Overrides struct {
 	Days   *timeline.DayRange
 	// IgnoreQuestion skips reading filters from the question entirely.
 	IgnoreQuestion bool
+	// DateOrder reads numeric dates in the question (ui.date_order).
+	DateOrder timeline.DateOrder
 }
 
 // Resolve combines the model's plan with overrides and resolves dates and
@@ -57,7 +59,7 @@ func Resolve(question string, plan Plan, overrides Overrides, now time.Time) Que
 		query.Source = plan.Source
 	}
 	if query.Days == nil && !overrides.IgnoreQuestion {
-		query.Days = ResolvePeriod(question, plan.Period, now)
+		query.Days = ResolvePeriod(question, plan.Period, now, overrides.DateOrder)
 	}
 	query.Mode = ResolveMode(plan.Mode, query.Days)
 	query.SemanticText = semanticText(query)

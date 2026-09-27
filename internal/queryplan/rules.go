@@ -68,7 +68,7 @@ func wordSet(words string) map[string]bool {
 //	plan, ok := queryplan.PlanByRules("liste os commits de ontem") // listar, git, "ontem"
 func PlanByRules(question string) (Plan, bool) {
 	text := textnorm.Fold(question)
-	period, _ := timeline.DayPhrase(question, ruleAnchor)
+	period := rulePeriod(question)
 	rest := text
 	if period != "" {
 		rest = strings.Replace(text, period, " ", 1)
@@ -78,6 +78,17 @@ func PlanByRules(question string) (Plan, bool) {
 		return Plan{}, false
 	}
 	return reading.plan(period, text)
+}
+
+// rulePeriod finds the period phrase in either date order: the rules only
+// cut it out of the question, and Resolve reads it in the configured one.
+func rulePeriod(question string) string {
+	for _, order := range []timeline.DateOrder{timeline.DayFirst, timeline.MonthFirst} {
+		if period, found := timeline.DayPhrase(question, ruleAnchor, order); found {
+			return period
+		}
+	}
+	return ""
 }
 
 // ruleReading is what the words of a question said.

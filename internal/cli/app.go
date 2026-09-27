@@ -18,6 +18,7 @@ import (
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 // ClosableEmbedder is an embedder holding a model that must be released.
@@ -61,7 +62,9 @@ type Toolkit struct {
 	StderrIsTerminal bool
 	// Language of the help text and flag descriptions (from the locale).
 	Language Language
-	Now      func() time.Time
+	// DateOrder reads numeric dates in questions (from the locale).
+	DateOrder timeline.DateOrder
+	Now       func() time.Time
 }
 
 // commandEnv is what every subcommand receives after global flags are
@@ -69,7 +72,9 @@ type Toolkit struct {
 type commandEnv struct {
 	toolkit Toolkit
 	// language is the locale's, or ui.language when the config sets it.
-	language   Language
+	language Language
+	// dateOrder is the locale's, or ui.date_order when the config sets it.
+	dateOrder  timeline.DateOrder
 	configPath string
 	stdout     io.Writer
 	stderr     io.Writer
@@ -99,7 +104,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	if err != nil {
 		return exitCode(err, stderr, toolkit.Language)
 	}
-	env.language = configuredLanguage(env, toolkit.Language)
+	env = withUISettings(env)
 	usage := usageFor(env.language)
 	if len(rest) == 0 {
 		fmt.Fprint(stderr, usage)
@@ -117,14 +122,17 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	return exitCode(command(ctx, env, rest[1:]), stderr, env.language)
 }
 
-// configuredLanguage applies ui.language over the locale's language. A
-// config that does not load keeps the locale: the command reports why.
-func configuredLanguage(env commandEnv, fromLocale Language) Language {
+// withUISettings applies ui.language and ui.date_order over the locale's.
+// A config that does not load keeps the locale: the command reports why.
+func withUISettings(env commandEnv) commandEnv {
+	env.language, env.dateOrder = env.toolkit.Language, env.toolkit.DateOrder
 	cfg, err := env.toolkit.LoadConfig(env.configPath)
 	if err != nil {
-		return fromLocale
+		return env
 	}
-	return languageFromSetting(cfg.UI.Language, fromLocale)
+	env.language = languageFromSetting(cfg.UI.Language, env.toolkit.Language)
+	env.dateOrder = dateOrderFromSetting(cfg.UI.DateOrder, env.toolkit.DateOrder)
+	return env
 }
 
 func subcommands() map[string]subcommand {
@@ -187,6 +195,30 @@ func newFlagSet(name string, stderr io.Writer, language Language) *flag.FlagSet 
 		flags.PrintDefaults()
 	}
 	return flags
+}
+
+// parseCommandFlags lets flags follow the arguments (`cade timeline ontem
+// --source git`): the flag package stops at the first argument, so parsing
+// resumes after each one. Everything after "--" is an argument. It returns
+// the arguments in order.
+func parseCommandFlags(flags *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for {
+		if err := flags.Parse(args); err != nil {
+			return nil, usageError(err)
+		}
+		rest := flags.Args()
+		if len(rest) == 0 || endedFlags(args, rest) {
+			return append(positional, rest...), nil
+		}
+		positional, args = append(positional, rest[0]), rest[1:]
+	}
+}
+
+// endedFlags reports whether Parse stopped at a "--", which it consumes.
+func endedFlags(args, rest []string) bool {
+	consumed := len(args) - len(rest)
+	return consumed > 0 && args[consumed-1] == "--"
 }
 
 func exitCode(err error, stderr io.Writer, language Language) int {

@@ -24,15 +24,23 @@ type Config struct {
 	UI           UIConfig        `json:"ui"`
 }
 
-// UIConfig sets the language of the CLI's labels and help.
+// UIConfig sets the language of the CLI's labels and help, and how
+// numeric dates in questions are read.
 type UIConfig struct {
 	// Language is "auto" (follow the locale), "pt" or "en". Answers to
 	// `ask` follow the question's language regardless.
 	Language string `json:"language"`
+	// DateOrder is "auto" (month first for en_US, day first otherwise),
+	// "dmy" or "mdy": whether "12/08" in a question is 12 August or
+	// December 8. Output dates are ISO either way.
+	DateOrder string `json:"date_order"`
 }
 
 // UILanguages are the accepted ui.language values.
 var UILanguages = []string{"auto", "pt", "en"}
+
+// UIDateOrders are the accepted ui.date_order values.
+var UIDateOrders = []string{"auto", "dmy", "mdy"}
 
 // TasksConfig tells `cade tasks` how to recognize task links.
 type TasksConfig struct {
@@ -127,10 +135,20 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %q, expected a JSON object like `cade init` writes: %w", path, err)
 	}
-	if !slices.Contains(UILanguages, cfg.UI.Language) {
-		return Config{}, fmt.Errorf("config %q: ui.language is %q, expected one of %v", path, cfg.UI.Language, UILanguages)
+	if err := cfg.UI.validate(); err != nil {
+		return Config{}, fmt.Errorf("config %q: %w", path, err)
 	}
 	return cfg.expandPaths()
+}
+
+func (ui UIConfig) validate() error {
+	if !slices.Contains(UILanguages, ui.Language) {
+		return fmt.Errorf("ui.language is %q, expected one of %v", ui.Language, UILanguages)
+	}
+	if !slices.Contains(UIDateOrders, ui.DateOrder) {
+		return fmt.Errorf("ui.date_order is %q, expected one of %v", ui.DateOrder, UIDateOrders)
+	}
+	return nil
 }
 
 // Write creates the config file at path with cfg, owner-only since it

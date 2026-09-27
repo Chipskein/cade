@@ -28,7 +28,7 @@ func doctorWorld() *fakeWorld {
 
 func TestDoctorHealthyInstall(t *testing.T) {
 	code, stdout, stderr := doctorWorld().run("doctor")
-	if code != 0 || !strings.Contains(stdout, "Tudo pronto (0 aviso(s))") || strings.Contains(stdout, "falha") {
+	if code != 0 || !strings.Contains(stdout, "Tudo pronto (0 avisos)") || strings.Contains(stdout, "falha") {
 		t.Fatalf("expected a clean report, got %d %q %q", code, stdout, stderr)
 	}
 	if !strings.Contains(stdout, "ok     modelo de geração      ~/models/qwen.gguf\n") || !strings.Contains(stdout, "busca por palavras     SQLite FTS5\n") {
@@ -40,7 +40,7 @@ func TestDoctorFailsOnMissingModel(t *testing.T) {
 	world := doctorWorld()
 	world.cfg.Generation.ModelPath = "/home/ana/models/absent.gguf"
 	code, stdout, stderr := world.run("doctor")
-	if code != 1 || !strings.Contains(stdout, "rode `make models` ou ajuste `generation.model_path`") || !strings.Contains(stderr, "1 problema(s)") {
+	if code != 1 || !strings.Contains(stdout, "rode `make models` ou ajuste `generation.model_path`") || !strings.Contains(stderr, "1 problema a corrigir") {
 		t.Fatalf("expected the missing model and exit 1, got %d %q %q", code, stdout, stderr)
 	}
 }
@@ -60,7 +60,7 @@ func TestDoctorInEnglish(t *testing.T) {
 	world.files.AddDir("/plain")
 	world.cfg.Sources.GitRepositories = []string{"/plain"}
 	code, stdout, stderr := world.run("doctor")
-	if code != 1 || !strings.Contains(stdout, "fail   source git") || !strings.Contains(stdout, "is not a git repository") || !strings.Contains(stderr, "1 problem(s) to fix") {
+	if code != 1 || !strings.Contains(stdout, "fail   source git") || !strings.Contains(stdout, "is not a git repository") || !strings.Contains(stderr, "1 problem to fix") {
 		t.Fatalf("expected an English report, got %d %q %q", code, stdout, stderr)
 	}
 }

@@ -29,7 +29,7 @@ func TestAskListSentToMisspelledPerson(t *testing.T) {
 	sentToSeveralPeople(world)
 	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": "teams", "pessoas": ["Sillva"], "direcao": "enviadas", "assunto": null, "status": null}`
 	_, stdout, _ := world.run("ask", "quais foram as mensagens que enviei pro sillva ontem")
-	if !strings.Contains(stdout, "1 eventos") || !strings.Contains(stdout, "voltou, pode ignorar") {
+	if !strings.Contains(stdout, "1 evento\n") || !strings.Contains(stdout, "voltou, pode ignorar") {
 		t.Fatalf("expected only the message to Silva, got:\n%s", stdout)
 	}
 }
@@ -39,7 +39,7 @@ func TestAskListUnknownNameFiltersAsText(t *testing.T) {
 	sentToSeveralPeople(world)
 	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": "teams", "pessoas": ["Zenite"], "direcao": "enviadas", "assunto": null, "status": null}`
 	_, stdout, stderr := world.run("ask", "mensagens que enviei sobre a Zenite ontem")
-	if !strings.Contains(stderr, "buscando como texto: Zenite") || !strings.Contains(stdout, "1 eventos") || !strings.Contains(stdout, "pedido da Zenite") {
+	if !strings.Contains(stderr, "buscando como texto: Zenite") || !strings.Contains(stdout, "1 evento\n") || !strings.Contains(stdout, "pedido da Zenite") {
 		t.Fatalf("expected only the message mentioning Zenite, got %q:\n%s", stderr, stdout)
 	}
 }

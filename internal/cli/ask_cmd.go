@@ -39,10 +39,11 @@ func registerAskFlags(flags *flag.FlagSet, language Language) askFlags {
 func runAsk(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("ask", env.stderr, env.language)
 	filters := registerAskFlags(flags, env.language)
-	if err := flags.Parse(args); err != nil {
-		return usageError(err)
+	positional, err := parseCommandFlags(flags, args)
+	if err != nil {
+		return err
 	}
-	text := strings.Join(flags.Args(), " ")
+	text := strings.Join(positional, " ")
 	if strings.TrimSpace(text) == "" {
 		return errors.New(env.language.pick("informe a pergunta: cade ask \"o que fiz ontem?\"", "type the question: cade ask \"what did I do yesterday?\""))
 	}

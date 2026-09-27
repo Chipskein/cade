@@ -4,6 +4,16 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is left for the release is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Unreleased (v0.1.0)
+
+### CLI details (phase 16)
+
+- **Plurals:** every message with a count agrees with it in both languages: "Timeline de 2026-09-25 — 1 evento", "Tarefas de … — 2 tarefas suas", "1 novo, 0 atualizados", "Tudo pronto (1 aviso)". Messages were reworded where the old form could not agree: `forget` now prints "git: 3 eventos removidos." and `tasks` "2 tasks of yours". Tests cover 0, 1 and N for each message in both languages.
+- **Flags anywhere:** `cade timeline ontem --source git` and `cade ask "…" --json` work. The arguments are reordered around the standard `flag` package, with no new dependency; after `--` everything is an argument.
+- **`ui.date_order`** (`auto`, `dmy`, `mdy`): how `ask` reads numeric dates such as `12/08`. `auto` reads month first when the locale (`LC_ALL`, `LC_TIME`, `LANG`) is `en_US` and day first otherwise, so a default install in the United States now reads `12/08` as December 8. Output dates stay ISO; the one exception, the opening date of an older PR in `tasks` (`12/09 16:40`), is now `2026-09-12 16:40`.
+- **Plan suite:** cases with a numeric date carry an explicit `date_order`, and loading the suite fails if one is missing. `make eval-plan` (Qwen2.5-3B, RTX 3060): same result as the v0.0.0 baseline.
+- **README:** a table of the period words accepted in each language.
+
 ## v0.0.0 — 2026-09-27 (first version)
 
 ### Upgrading an existing database

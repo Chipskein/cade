@@ -21,10 +21,11 @@ func runTasks(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("tasks", env.stderr, env.language)
 	showAll := flags.Bool("all", false, env.language.pick("também lista tarefas que só apareceram em mensagens de outras pessoas",
 		"also list tasks that only appeared in other people's messages"))
-	if err := flags.Parse(args); err != nil {
-		return usageError(err)
+	positional, err := parseCommandFlags(flags, args)
+	if err != nil {
+		return err
 	}
-	days, err := parseTasksDays(flags.Args(), env.toolkit.Now(), env.language)
+	days, err := parseTasksDays(positional, env.toolkit.Now(), env.language)
 	if err != nil {
 		return err
 	}

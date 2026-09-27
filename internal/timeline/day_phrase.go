@@ -25,24 +25,24 @@ func keywordPatterns(ranges []keywordRange) []*regexp.Regexp {
 // only counts when it names the same days on its own, which skips "may"
 // used as a verb.
 //
-//	phrase, ok := timeline.DayPhrase("commits da semana passada", time.Now()) // "semana passada", true
-func DayPhrase(question string, now time.Time) (string, bool) {
-	days, found := DetectDayRange(question, now)
+//	phrase, ok := timeline.DayPhrase("commits da semana passada", time.Now(), timeline.DayFirst) // "semana passada", true
+func DayPhrase(question string, now time.Time, order DateOrder) (string, bool) {
+	days, found := DetectDayRange(question, now, order)
 	if !found {
 		return "", false
 	}
 	text := textnorm.Fold(question)
 	for _, pattern := range dayPhrasePatterns {
-		if phrase, ok := phraseNaming(pattern.FindAllString(text, -1), days, now); ok {
+		if phrase, ok := phraseNaming(pattern.FindAllString(text, -1), days, now, order); ok {
 			return phrase, true
 		}
 	}
 	return "", false
 }
 
-func phraseNaming(phrases []string, days DayRange, now time.Time) (string, bool) {
+func phraseNaming(phrases []string, days DayRange, now time.Time, order DateOrder) (string, bool) {
 	for _, phrase := range phrases {
-		if phraseDays, ok := DetectDayRange(phrase, now); ok && phraseDays.String() == days.String() {
+		if phraseDays, ok := DetectDayRange(phrase, now, order); ok && phraseDays.String() == days.String() {
 			return phrase, true
 		}
 	}

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 // A Suite pins how representative questions must be interpreted, so a
@@ -21,8 +23,18 @@ type Suite struct {
 
 // SuiteCase is one question and the plan it should produce.
 type SuiteCase struct {
-	Question string       `json:"question"`
-	Expect   ExpectedPlan `json:"expect"`
+	Question string `json:"question"`
+	// DateOrder is "dmy" or "mdy", as ui.date_order; required when the
+	// question has a numeric date, so its expected day never depends on a
+	// default.
+	DateOrder string       `json:"date_order"`
+	Expect    ExpectedPlan `json:"expect"`
+}
+
+// dateOrder is the case's order; LoadSuite already rejected invalid ones.
+func (c SuiteCase) dateOrder() timeline.DateOrder {
+	order, _ := timeline.ParseDateOrder(c.DateOrder)
+	return order
 }
 
 // ExpectedPlan uses the planner's own vocabulary ("listar", "recebidas");
@@ -100,10 +112,23 @@ func validateCase(suiteCase SuiteCase) error {
 	if suiteCase.Question == "" {
 		return fmt.Errorf("empty question, expected the text to interpret")
 	}
+	if err := validateDateOrder(suiteCase); err != nil {
+		return err
+	}
 	for _, check := range expectationChecks(suiteCase.Expect) {
 		if !check.valid {
 			return fmt.Errorf("%q: %s %q is not a planner value", suiteCase.Question, check.name, check.value)
 		}
+	}
+	return nil
+}
+
+func validateDateOrder(suiteCase SuiteCase) error {
+	if suiteCase.DateOrder == "" && timeline.HasNumericDate(suiteCase.Question) {
+		return fmt.Errorf("%q has a numeric date but no date_order, expected \"dmy\" or \"mdy\"", suiteCase.Question)
+	}
+	if _, err := timeline.ParseDateOrder(suiteCase.DateOrder); suiteCase.DateOrder != "" && err != nil {
+		return fmt.Errorf("%q: %w", suiteCase.Question, err)
 	}
 	return nil
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 )
 
+var removedEventNoun = nounForms{"evento removido", "eventos removidos", "event removed", "events removed"}
+
 // runForget deletes one source's events so it can be re-ingested with an
 // improved collector; deduplication would otherwise keep the old events.
 func runForget(ctx context.Context, env commandEnv, args []string) error {
@@ -24,8 +26,13 @@ func runForget(ctx context.Context, env commandEnv, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(env.stdout, env.language.pick("%d eventos de %s removidos. Rode `cade ingest %s` para ingerir de novo.\n",
-			"%d %s events removed. Run `cade ingest %s` to ingest again.\n"), removed, args[0], args[0])
+		fmt.Fprint(env.stdout, forgottenLine(args[0], removed, env.language))
 		return nil
 	})
+}
+
+// forgottenLine is "git: 1 evento removido. Rode `cade ingest git` …".
+func forgottenLine(source string, removed int, language Language) string {
+	return fmt.Sprintf(language.pick("%s: %s. Rode `cade ingest %s` para ingerir de novo.\n", "%s: %s. Run `cade ingest %s` to ingest again.\n"),
+		source, language.count(removed, removedEventNoun), source)
 }

@@ -36,7 +36,7 @@ func TestTimelineInEnglish(t *testing.T) {
 	world := englishWorld()
 	_, ingested, _ := world.run("ingest", "git")
 	code, stdout, stderr := world.run("timeline", "hoje")
-	if code != 0 || !strings.Contains(stdout, "Timeline of 2026-09-26 — 1 events") || !strings.Contains(ingested, "1 new, 0 updated, 0 already stored") {
+	if code != 0 || !strings.Contains(stdout, "Timeline of 2026-09-26 — 1 event\n") || !strings.Contains(ingested, "1 new, 0 updated, 0 already stored (1 read)") {
 		t.Fatalf("expected an English timeline, got %d %q %q", code, stdout, ingested)
 	}
 	_, empty, _ := world.run("timeline", "2026-01-01")

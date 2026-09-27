@@ -44,7 +44,7 @@ Exemplos:
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "o que pesquisei sobre sqlite?"
 
-Flags de cada comando: cade <comando> -h
+Flags de cada comando (antes ou depois dos argumentos): cade <comando> -h
 `
 
 const usageEnglish = `cade — local personal history (git, browser, files, teams)
@@ -87,5 +87,6 @@ Examples:
   cade ask --source browser --from 2026-09-19 "what did I search about sqlite?"
 
 Labels follow the locale, or ui.language in the config; answers follow
-the question's language. Flags of each command: cade <command> -h
+the question's language. Flags of each command (before or after the
+arguments): cade <command> -h
 `

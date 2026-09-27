@@ -13,7 +13,7 @@ func TestDayPhrase(t *testing.T) {
 		"ontem ou 12/08? a data explícita vence":  "12/08",
 	}
 	for question, expected := range cases {
-		if phrase, ok := DayPhrase(question, phraseNow); !ok || phrase != expected {
+		if phrase, ok := DayPhrase(question, phraseNow, DayFirst); !ok || phrase != expected {
 			t.Errorf("DayPhrase(%q) = %q (%v), expected %q", question, phrase, ok, expected)
 		}
 	}
@@ -21,7 +21,7 @@ func TestDayPhrase(t *testing.T) {
 
 func TestDayPhraseWithoutDate(t *testing.T) {
 	for _, question := range []string{"o que a Ana me passou?", "you may 5 times retry"} {
-		if phrase, ok := DayPhrase(question, phraseNow); ok {
+		if phrase, ok := DayPhrase(question, phraseNow, DayFirst); ok {
 			t.Errorf("DayPhrase(%q) = %q, expected no phrase", question, phrase)
 		}
 	}
