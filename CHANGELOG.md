@@ -25,8 +25,26 @@ What changed in each version, the schema migrations, and what each migration rew
 | 4 | one event per file; earlier versions become dates and sizes in `file_modifications` | yes | file events (older versions are collapsed, UIDs rewritten) |
 | 5 | vectors per chunk (`chunks`, `chunk_embeddings`) instead of per event; the database is compacted afterwards | yes | vectors (long events wait for `cade reindex`) |
 | 6 | keyword index over chunks (`chunks_fts`, FTS5) | no | fills the index from existing chunks |
+| 7 | people index (`event_people`) and message direction (`events.direction`) | no | fills both from existing events |
 
 The binary must be built with the `sqlite_fts5` tag; `make` does this. Without it, opening the database fails with a clear message.
+
+### Person filters in SQL (phase 6)
+
+- **Problem:** a question with a person and no period ("o que a Ana me mandou?") loaded every event, with its content, and filtered in Go. Memory grew with the database.
+- **People index:** the `event_people` table keeps, per event, the sender (or the commit author), the conversation and the @mentioned first names, normalized the way names are compared (whole words, no accents, doubled letters and y/i merged). The `events.direction` column keeps whether a message was sent, received or posted to a channel. Both are written at ingestion, and migration 7 fills them for existing events, without re-ingesting. On a real copy (108k events) it took ~1.4 s and the database grew by 7 MB.
+- **Filter in SQL:** period, source, direction and people become one condition over the index. Each name is resolved (full name, then first name) with a count that stops at the first event, and only the matching events are read. The "received" rule (a group message that only mentions other known people does not count) runs in the same SQL.
+- **Limit:** above `retrieval.max_filtered_events` (1000) matching events, as in "mensagens que recebi" with no period, the search goes to the vector index for the period and source, with `k` growing up to 4096, and keeps the neighbours that match. Ranking an event reads its vectors (~0.19 ms), so 1000 stay under 0.2 s.
+- **Same results:** a test compares the SQL filter with the in-memory filter over 120 combinations (4 scopes × 3 directions × 10 sets of names, with mentions, channels, commits and spelling variants). The retrieval suite gives identical results case by case (recall 1.00, MRR 0.89, rejection 1.00).
+- **Measured** (`BenchmarkPersonFilter`, a person with no period, 100k synthetic events):
+
+  | | before | after |
+  |---|---|---|
+  | time | 471 ms | 8 ms |
+  | memory allocated | 187 MB | 0.7 MB |
+
+  At 1k and 10k events, before allocated 1.5 MB and 17 MB; after, 33 KB and 69 KB. After filtering, memory follows the person's events, not the database, and the limit caps it. "Mensagens que recebi" with no period (`BenchmarkDirectionFilter`) allocates ~190 KB at every size.
+- **Privacy:** `forget` deletes the `event_people` rows with the events (privacy test).
 
 ### Continuous integration (phase 10)
 

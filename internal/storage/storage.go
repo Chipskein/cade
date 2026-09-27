@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/listing"
 )
 
 // EventStore persists events and their embeddings.
@@ -36,6 +37,11 @@ type EventStore interface {
 	// satisfy its source and time filters, best match first; hits carry
 	// no distance.
 	SearchLexical(ctx context.Context, query LexicalQuery) ([]ScoredEvent, error)
+	// CountMatching counts the events satisfying filter, stopping at upTo;
+	// it reads no content, so it is cheap on the whole history.
+	CountMatching(ctx context.Context, filter EventFilter, upTo int) (int, error)
+	// EventsMatching returns the events satisfying filter, oldest first.
+	EventsMatching(ctx context.Context, filter EventFilter) ([]event.Event, error)
 	// ChunksFor returns the embedded chunks of the given event UIDs, with
 	// vectors; events without any are absent from the map. Used to rank an
 	// exactly filtered set of events by similarity.
@@ -66,6 +72,20 @@ type SimilarityQuery struct {
 	// From and To bound the timestamp as From <= t < To; zero means unbounded.
 	From time.Time
 	To   time.Time
+	// Among, when set, keeps only hits satisfying it. It applies after the
+	// k nearest are found: k counts every chunk of the source and period.
+	Among *EventFilter
+}
+
+// EventFilter selects events exactly, as listing.Select does in memory:
+// timestamp in [From, To), the source (empty means all), the message
+// direction, and any of People (everyone when empty).
+type EventFilter struct {
+	From      time.Time
+	To        time.Time
+	Source    event.Source
+	Direction listing.Direction
+	People    []listing.PersonMatcher
 }
 
 // LexicalQuery describes a filtered keyword search. Match is an FTS5

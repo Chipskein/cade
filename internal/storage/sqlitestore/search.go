@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"time"
 
 	sqlitevec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 
@@ -28,6 +29,7 @@ SELECT ` + eventColumns + `, nearest.distance, chunks.ordinal, chunks.char_start
 FROM nearest
 JOIN chunks ON chunks.id = nearest.chunk_id
 JOIN events ON events.id = chunks.event_id
+WHERE %s
 ORDER BY nearest.distance`
 
 // anySourceSentinel never matches a real source, so "source != sentinel"
@@ -46,9 +48,10 @@ func (s *Store) SearchSimilar(ctx context.Context, query storage.SimilarityQuery
 		return nil, fmt.Errorf("serialize query embedding: %w", err)
 	}
 	operator, source := sourceFilter(query.Source)
-	from, to := timeBounds(query)
-	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(similarityQuery, operator),
-		blob, query.Limit, from, to, source)
+	from, to := timeBounds(query.From, query.To)
+	among := amongCondition(query.Among)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(similarityQuery, operator, among),
+		append([]any{blob, query.Limit, from, to, source}, among.args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("similarity search (limit %d, source %q): %w", query.Limit, query.Source, err)
 	}
@@ -67,13 +70,23 @@ func sourceFilter(source event.Source) (string, string) {
 	return "=", string(source)
 }
 
-func timeBounds(query storage.SimilarityQuery) (int64, int64) {
-	from, to := int64(math.MinInt64), int64(math.MaxInt64)
-	if !query.From.IsZero() {
-		from = toUnixMillis(query.From)
+// amongCondition post-filters the nearest chunks' events; none keeps all.
+func amongCondition(among *storage.EventFilter) sqlCondition {
+	if among == nil {
+		return sqlCondition{}
 	}
-	if !query.To.IsZero() {
-		to = toUnixMillis(query.To)
+	return filterCondition(*among)
+}
+
+// timeBounds turns [start, end) into milliseconds; a zero time is
+// unbounded.
+func timeBounds(start, end time.Time) (int64, int64) {
+	from, to := int64(math.MinInt64), int64(math.MaxInt64)
+	if !start.IsZero() {
+		from = toUnixMillis(start)
+	}
+	if !end.IsZero() {
+		to = toUnixMillis(end)
 	}
 	return from, to
 }

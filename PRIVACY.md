@@ -67,6 +67,7 @@ Both models run in-process through llama.cpp.
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
+- The people index (`event_people`) holds the names in each message and commit (sender or author, conversation title, first names after "@"), so a question about a person is filtered in the database. It follows the events: an edit replaces an event's names, and `forget` deletes them with the events.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.

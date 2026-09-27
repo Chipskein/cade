@@ -80,6 +80,9 @@ func (s *Store) SaveEvent(ctx context.Context, ev event.Event, chunks []storage.
 	if err != nil || !inserted {
 		return false, err
 	}
+	if err := indexPeople(ctx, tx, eventID, ev); err != nil {
+		return false, err
+	}
 	if err := recordFileModification(ctx, tx, ev); err != nil {
 		return false, err
 	}

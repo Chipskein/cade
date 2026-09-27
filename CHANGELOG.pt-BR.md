@@ -25,8 +25,26 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 | 4 | um evento por arquivo; versões anteriores viram datas e tamanhos em `file_modifications` | sim | eventos de arquivo (versões antigas juntadas, UIDs reescritos) |
 | 5 | vetores por pedaço (`chunks`, `chunk_embeddings`) em vez de por evento; o banco é compactado no fim | sim | vetores (eventos longos esperam o `cade reindex`) |
 | 6 | índice de palavras sobre os pedaços (`chunks_fts`, FTS5) | não | preenche o índice com os pedaços existentes |
+| 7 | índice de pessoas (`event_people`) e direção das mensagens (`events.direction`) | não | preenche os dois a partir dos eventos existentes |
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
+
+### Filtros de pessoa no SQL (fase 6)
+
+- **Problema:** uma pergunta com pessoa e sem período ("o que a Ana me mandou?") carregava todos os eventos, com conteúdo, e filtrava em Go. A memória crescia com o banco.
+- **Índice de pessoas:** a tabela `event_people` guarda, por evento, o remetente (ou o autor do commit), a conversa e os primeiros nomes @mencionados, já normalizados como a comparação de nomes faz (palavras inteiras, sem acento, letras dobradas e y/i juntadas). A coluna `events.direction` guarda se a mensagem foi enviada, recebida ou publicada num canal. Os dois são gravados na ingestão, e a migração 7 os preenche nos eventos existentes, sem reimportar. Numa cópia real (108 mil eventos), ela levou ~1,4 s e o banco cresceu 7 MB.
+- **Filtro em SQL:** período, fonte, direção e pessoas viram uma condição sobre o índice. Cada nome é resolvido (nome inteiro, depois o primeiro nome) com uma contagem que para no primeiro evento, e só os eventos que casam são lidos. A regra de "recebida" (mensagem de grupo que só menciona outras pessoas conhecidas não conta) roda no mesmo SQL.
+- **Limite:** acima de `retrieval.max_filtered_events` (1000) eventos que casam, como em "mensagens que recebi" sem período, a busca vai ao índice vetorial do período e da fonte, com `k` crescendo até 4096, e fica com os vizinhos que casam. Ordenar um evento lê os vetores dele (~0,19 ms), então 1000 ficam abaixo de 0,2 s.
+- **Mesmo resultado:** um teste compara o filtro em SQL com o filtro em memória em 120 combinações (4 escopos × 3 direções × 10 conjuntos de nomes, com menções, canais, commits e variações de grafia). A suíte de recuperação dá resultado idêntico caso a caso (recall 1,00, MRR 0,89, rejeição 1,00).
+- **Medido** (`BenchmarkPersonFilter`, pessoa sem período, 100 mil eventos sintéticos):
+
+  | | antes | depois |
+  |---|---|---|
+  | tempo | 471 ms | 8 ms |
+  | memória alocada | 187 MB | 0,7 MB |
+
+  Com 1 mil e 10 mil eventos, antes alocava 1,5 MB e 17 MB; depois, 33 KB e 69 KB. Depois do filtro, a memória acompanha os eventos da pessoa, não o banco, e o limite a restringe. "Mensagens que recebi" sem período (`BenchmarkDirectionFilter`) aloca ~190 KB em qualquer tamanho.
+- **Privacidade:** o `forget` apaga as linhas de `event_people` junto com os eventos (teste de privacidade).
 
 ### Integração contínua (fase 10)
 

@@ -8,40 +8,42 @@ import (
 	"github.com/chipskein/cade/internal/textnorm"
 )
 
-// personMatcher is a resolved name and where to look for it.
-type personMatcher struct {
-	name string
-	// asSender matches the message author; inConversation matches the
-	// conversation name, which lists the participants of 1:1 chats.
-	asSender       bool
-	inConversation bool
+// PersonMatcher is a resolved name and where to look for it.
+type PersonMatcher struct {
+	// Name is folded ("ana prado"), as it matched.
+	Name string
+	// AsSender matches the message sender or commit author; InConversation
+	// matches the conversation name, which lists the participants of 1:1
+	// chats.
+	AsSender       bool
+	InConversation bool
 }
 
 // matcherFor derives where a person must appear from the direction:
 // messages received from X are sent by X; messages sent to X are the
 // user's own, in a conversation with X.
-func matcherFor(name string, direction Direction) personMatcher {
+func matcherFor(name string, direction Direction) PersonMatcher {
 	switch direction {
 	case Received:
-		return personMatcher{name: name, asSender: true}
+		return PersonMatcher{Name: name, AsSender: true}
 	case Sent:
-		return personMatcher{name: name, inConversation: true}
+		return PersonMatcher{Name: name, InConversation: true}
 	}
-	return personMatcher{name: name, asSender: true, inConversation: true}
+	return PersonMatcher{Name: name, AsSender: true, InConversation: true}
 }
 
 // resolvePerson tries the full name, then its first word ("Ana Prado"
-// may be written "Ana"), keeping the first that matches some event.
-func resolvePerson(name string, direction Direction, events []event.Event) (personMatcher, bool) {
+// may be written "Ana"), keeping the first that exists reports as
+// matching some event.
+func resolvePerson(name string, direction Direction, exists PersonProbe) (PersonMatcher, bool, error) {
 	for _, candidate := range nameCandidates(textnorm.Fold(name)) {
 		person := matcherFor(candidate, direction)
-		for _, ev := range events {
-			if person.matches(ev) {
-				return person, true
-			}
+		found, err := exists(person)
+		if err != nil || found {
+			return person, found, err
 		}
 	}
-	return personMatcher{}, false
+	return PersonMatcher{}, false, nil
 }
 
 func nameCandidates(name string) []string {
@@ -52,15 +54,34 @@ func nameCandidates(name string) []string {
 	return []string{strings.Join(words, " "), words[0]}
 }
 
-func (p personMatcher) matches(ev event.Event) bool {
+// Matches reports whether ev has the person where p looks.
+func (p PersonMatcher) Matches(ev event.Event) bool {
 	sender := firstNonEmpty(ev.Message().Sender, ev.Commit().Author)
-	return p.asSender && containsName(sender, p.name) ||
-		p.inConversation && containsName(ev.Message().Conversation, p.name)
+	return p.AsSender && containsName(sender, p.Name) ||
+		p.InConversation && containsName(ev.Message().Conversation, p.Name)
 }
 
-func matchesAnyPerson(ev event.Event, people []personMatcher) bool {
+// Key is the name as the people index stores it (see NameKey).
+func (p PersonMatcher) Key() string {
+	return spellingKeys(p.Name)
+}
+
+// Roles are the index roles where p looks: the index has one entry per
+// role, and a match on any of them is a match.
+func (p PersonMatcher) Roles() []Role {
+	var roles []Role
+	if p.AsSender {
+		roles = append(roles, RoleSender, RoleAuthor)
+	}
+	if p.InConversation {
+		roles = append(roles, RoleConversation)
+	}
+	return roles
+}
+
+func matchesAnyPerson(ev event.Event, people []PersonMatcher) bool {
 	for _, person := range people {
-		if person.matches(ev) {
+		if person.Matches(ev) {
 			return true
 		}
 	}

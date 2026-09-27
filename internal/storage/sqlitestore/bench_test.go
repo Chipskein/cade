@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testcheck"
 )
@@ -57,9 +58,17 @@ func benchEvent(random *rand.Rand, i int) (event.Event, []float32) {
 	when := benchNow.Add(-time.Duration(random.Int63n(int64(365 * 24 * time.Hour))))
 	ev := event.Event{UID: fmt.Sprintf("bench-%d", i), Source: benchSource(i), Timestamp: when, Content: strings.Join(words, " ")}
 	if ev.Source == event.SourceTeams {
-		ev.Metadata = event.Message{Sender: fmt.Sprintf("Pessoa %d", random.Intn(40)), Conversation: "chat"}.Metadata()
+		ev.Metadata = event.Message{Sender: benchPerson(random.Intn(40)), Conversation: "chat"}.Metadata()
 	}
 	return ev, benchVector(random)
+}
+
+// benchPerson is one of 40 fictional senders; digits are not part of a
+// name ("Pessoa 7" and "Pessoa 8" would be the same person).
+func benchPerson(i int) string {
+	first := []string{"Ana", "Bruno", "Carla", "Diego", "Elisa", "Fabio", "Gisele", "Heitor"}
+	last := []string{"Prado", "Lima", "Souza", "Rocha", "Alves"}
+	return first[i%len(first)] + " " + last[i/len(first)]
 }
 
 func benchVector(random *rand.Rand) []float32 {
@@ -130,6 +139,9 @@ func seedEvents(store *Store, n int) error {
 		ev, vector := benchEvent(random, i)
 		eventID, _, err := insertEventRow(ctx, tx, ev)
 		if err != nil {
+			return err
+		}
+		if err := indexPeople(ctx, tx, eventID, ev); err != nil {
 			return err
 		}
 		if err := insertChunks(ctx, tx, eventID, ev, []storage.Chunk{{End: len(ev.Content), Vector: vector}}); err != nil {
@@ -249,6 +261,52 @@ func BenchmarkSearchLexical(b *testing.B) {
 					}
 				}
 			})
+		}
+	})
+}
+
+// BenchmarkPersonFilter is "o que a Ana Prado me mandou?" with no period,
+// the question that used to load the whole history: before is that path
+// (every event, then Criteria.Apply in Go), after is the filter in SQL.
+// B/op is what each allocates, the memory that grew with the history.
+func BenchmarkPersonFilter(b *testing.B) {
+	criteria := listing.Criteria{People: []string{"Ana Prado"}}
+	scope := storage.EventFilter{From: time.Unix(0, 0), To: benchNow.AddDate(1, 0, 0)}
+	forEachSize(b, func(b *testing.B, bench benchStore) {
+		b.Run("before", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				events, err := bench.store.EventsBetween(context.Background(), scope.From, scope.To)
+				testcheck.NoError(b, err)
+				criteria.Apply(events)
+			}
+		})
+		b.Run("after", func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				filter, _, err := storage.ResolveCriteria(context.Background(), bench.store, scope, criteria)
+				testcheck.NoError(b, err)
+				_, err = bench.store.EventsMatching(context.Background(), filter)
+				testcheck.NoError(b, err)
+			}
+		})
+	})
+}
+
+// BenchmarkDirectionFilter is "mensagens que recebi" with no period: most
+// of the history matches, so retrieval only counts up to the limit and
+// searches the vector index with the filter applied to the neighbours.
+func BenchmarkDirectionFilter(b *testing.B) {
+	filter := storage.EventFilter{From: time.Unix(0, 0), To: benchNow.AddDate(1, 0, 0), Direction: listing.Received}
+	forEachSize(b, func(b *testing.B, bench benchStore) {
+		b.ReportAllocs()
+		random := rand.New(rand.NewSource(1))
+		for b.Loop() {
+			_, err := bench.store.CountMatching(context.Background(), filter, 2001)
+			testcheck.NoError(b, err)
+			query := storage.SimilarityQuery{Embedding: benchVector(random), Limit: 96, From: filter.From, To: filter.To, Among: &filter}
+			_, err = bench.store.SearchSimilar(context.Background(), query)
+			testcheck.NoError(b, err)
 		}
 	})
 }

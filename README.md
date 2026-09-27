@@ -245,6 +245,7 @@ Other fields (written by `cade init`):
 | `retrieval.max_distance` | `0.72` | relevance cutoff for unfiltered questions |
 | `retrieval.mode` | `hybrid` | `hybrid` fuses vector and keyword (FTS5) search; `vector` or `lexical` use one |
 | `retrieval.max_best_distance` | `0.61` | an unfiltered question is answered only if its closest event is this near; raise it if real questions get "not found" (`--verbose` logs the distance) |
+| `retrieval.max_filtered_events` | `1000` | a question with a person or direction ranks up to this many matching events one by one; above it, it searches the vector index and keeps the matching hits. `0` = no limit |
 | `sources.git_authors` | `[]` | only ingest commits by these authors |
 | `sources.git_identities` | `["auto"]` | your commit emails or names; `auto` reads `git config user.email`/`user.name` of each repository. Other people's commits are kept but hidden from `timeline` (see `--all-authors`), from first-person questions ("o que eu fiz?") and from task reports |
 

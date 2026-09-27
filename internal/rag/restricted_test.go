@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"math"
@@ -11,6 +12,7 @@ import (
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
+	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/timeline"
 )
@@ -82,9 +84,32 @@ func TestCosineDistance(t *testing.T) {
 	}
 }
 
-func TestKeepSource(t *testing.T) {
-	events := []event.Event{{Source: event.SourceGit}, {Source: event.SourceTeams}}
-	if len(keepSource(events, event.SourceGit)) != 1 || len(keepSource(events, "")) != 2 {
-		t.Fatal("unexpected source filtering")
+// Above max_filtered_events the matches are not ranked one by one: the
+// vector index is searched and its hits kept only if they match.
+func TestAnswerWithManyMatchesSearchesTheVectorIndex(t *testing.T) {
+	store := storeOfMessages()
+	for _, ev := range store.Events {
+		store.SearchResults = append(store.SearchResults, storage.ScoredEvent{Event: ev, Distance: 0.1})
+	}
+	answerer := restrictedAnswerer(store, &testfakes.FakeGenerator{Reply: "x"})
+	answerer.settings.MaxFilteredEvents = 1
+	question := queryplan.Query{Question: "q", Criteria: listing.Criteria{People: []string{"Marcos"}}}
+	hits, err := answerer.Retrieve(context.Background(), question, AnswerObserver{})
+	if err != nil || len(hits) != 3 || store.LastQuery.Among == nil {
+		t.Fatalf("expected Marcos's three messages through a filtered vector search, got %+v (err %v)", hits, err)
+	}
+	for _, hit := range hits {
+		if hit.Event.Message().Sender != "Marcos Lima" {
+			t.Fatalf("expected only Marcos's messages, got %q", hit.Event.Message().Sender)
+		}
+	}
+}
+
+func TestRetrieveAmongReportsStoreFailure(t *testing.T) {
+	store := storeOfMessages()
+	store.FailWith = errors.New("disk I/O error")
+	question := queryplan.Query{Question: "q", Criteria: listing.Criteria{People: []string{"Marcos"}}}
+	if _, err := restrictedAnswerer(store, &testfakes.FakeGenerator{}).Retrieve(context.Background(), question, AnswerObserver{}); err == nil {
+		t.Fatal("expected the store error")
 	}
 }

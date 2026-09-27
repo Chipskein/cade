@@ -5,6 +5,8 @@
 package listing
 
 import (
+	"slices"
+
 	"github.com/chipskein/cade/internal/event"
 )
 
@@ -28,54 +30,84 @@ func (c Criteria) IsEmpty() bool {
 	return c.Direction == AnyDirection && len(c.People) == 0
 }
 
-// Apply keeps events matching the direction and any of the people. People
-// that match nobody (a misread name, a company) are dropped rather than
-// emptying the result, and returned so the user can be told.
+// PersonProbe reports whether some event in scope matches person: a
+// search of events in memory, or a query to the store.
+type PersonProbe func(person PersonMatcher) (bool, error)
+
+// Resolution is the criteria's people as they appear in the events.
+type Resolution struct {
+	People []PersonMatcher
+	// Matched are the resolved names; Unknown the names that matched
+	// nobody (a misread name, a company), dropped rather than emptying
+	// the result, so the user can be told.
+	Matched []string
+	Unknown []string
+}
+
+// Resolve finds how each person appears, asking exists about the full
+// name and then the first word.
+//
+//	resolution, err := criteria.Resolve(func(p listing.PersonMatcher) (bool, error) { return store.Has(p) })
+func (c Criteria) Resolve(exists PersonProbe) (Resolution, error) {
+	var resolution Resolution
+	for _, name := range c.People {
+		person, found, err := resolvePerson(name, c.Direction, exists)
+		if err != nil {
+			return Resolution{}, err
+		}
+		if !found {
+			resolution.Unknown = append(resolution.Unknown, name)
+			continue
+		}
+		resolution.People, resolution.Matched = append(resolution.People, person), append(resolution.Matched, person.Name)
+	}
+	return resolution, nil
+}
+
+// Apply keeps events matching the direction and any of the people,
+// resolving the names among the events themselves.
 //
 //	kept, matched, unknown := listing.Criteria{People: []string{"Ana"}}.Apply(events)
 func (c Criteria) Apply(events []event.Event) ([]event.Event, []string, []string) {
-	directed := filterEvents(events, c.directionFilter(events))
-	var people []personMatcher
-	var matched, unknown []string
-	for _, name := range c.People {
-		person, found := resolvePerson(name, c.Direction, directed)
-		if !found {
-			unknown = append(unknown, name)
-			continue
-		}
-		people, matched = append(people, person), append(matched, person.name)
-	}
-	if len(people) == 0 {
-		return directed, nil, unknown
-	}
-	return filterEvents(directed, func(ev event.Event) bool { return matchesAnyPerson(ev, people) }), matched, unknown
+	directed := c.Direction.keep(events)
+	inDirected := func(person PersonMatcher) (bool, error) { return slices.ContainsFunc(directed, person.Matches), nil }
+	resolution, _ := c.Resolve(inDirected)
+	return keepPeople(directed, resolution.People), resolution.Matched, resolution.Unknown
 }
 
-// directionFilter adds, for received messages, that a group message
-// mentioning only other people was not addressed to the user.
-func (c Criteria) directionFilter(events []event.Event) func(event.Event) bool {
-	if c.Direction != Received {
-		return c.keepDirection
+// Select keeps the events matching direction and any of people (every
+// event when there are none). The store runs the same filter in SQL;
+// this is its in-memory reference.
+func Select(events []event.Event, direction Direction, people []PersonMatcher) []event.Event {
+	return keepPeople(direction.keep(events), people)
+}
+
+func keepPeople(events []event.Event, people []PersonMatcher) []event.Event {
+	if len(people) == 0 {
+		return events
+	}
+	return filterEvents(events, func(ev event.Event) bool { return matchesAnyPerson(ev, people) })
+}
+
+// keep applies the direction; for received messages, it also drops a
+// group message mentioning only other people, which was not addressed to
+// the user. Who is who is learned from events themselves.
+func (d Direction) keep(events []event.Event) []event.Event {
+	if d != Received {
+		return filterEvents(events, d.keepMessage)
 	}
 	known := addresseesOf(events)
-	return func(ev event.Event) bool {
+	return filterEvents(events, func(ev event.Event) bool {
 		sentToOthers := ev.Source == event.SourceTeams && known.addressedToOthers(ev)
-		return c.keepDirection(ev) && !sentToOthers
-	}
+		return d.keepMessage(ev) && !sentToOthers
+	})
 }
 
-// keepDirection applies the direction to Teams messages; other events
+// keepMessage applies the direction to Teams messages; other events
 // always pass. "Received" excludes channel posts, which are published to a
 // team rather than sent to the user.
-func (c Criteria) keepDirection(ev event.Event) bool {
-	if ev.Source != event.SourceTeams || c.Direction == AnyDirection {
-		return true
-	}
-	message := ev.Message()
-	if c.Direction == Sent {
-		return message.SentByMe
-	}
-	return !message.SentByMe && message.Kind != event.KindChannel
+func (d Direction) keepMessage(ev event.Event) bool {
+	return d == AnyDirection || ev.Source != event.SourceTeams || IndexedDirection(ev) == d.Indexed()
 }
 
 func filterEvents(events []event.Event, keep func(event.Event) bool) []event.Event {

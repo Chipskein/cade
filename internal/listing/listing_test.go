@@ -85,7 +85,7 @@ func TestNameCandidates(t *testing.T) {
 
 func TestMatcherUsesGitAuthor(t *testing.T) {
 	commit := event.Event{Source: event.SourceGit, Metadata: event.Metadata{"author": "Ana Prado"}}
-	if !matcherFor("ana", AnyDirection).matches(commit) {
+	if !matcherFor("ana", AnyDirection).Matches(commit) {
 		t.Fatal("expected git author to count as sender")
 	}
 }

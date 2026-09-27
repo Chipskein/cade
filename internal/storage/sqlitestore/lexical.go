@@ -77,7 +77,7 @@ func (s *Store) SearchLexical(ctx context.Context, query storage.LexicalQuery) (
 	if strings.TrimSpace(query.Match) == "" {
 		return nil, nil
 	}
-	from, to := timeBounds(storage.SimilarityQuery{From: query.From, To: query.To})
+	from, to := timeBounds(query.From, query.To)
 	rows, err := s.db.QueryContext(ctx, lexicalQuery, query.Match, from, to, string(query.Source), string(query.Source), query.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("keyword search %q: %w", query.Match, err)

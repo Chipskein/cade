@@ -111,11 +111,12 @@ func parseOptionalDays(from, to string, now time.Time) (*timeline.DayRange, erro
 func ragSettings(cfg config.Config) (rag.Settings, error) {
 	mode, err := rag.ParseMode(cfg.Retrieval.Mode)
 	return rag.Settings{
-		TopK:            cfg.Retrieval.TopK,
-		MaxDistance:     cfg.Retrieval.MaxDistance,
-		MaxBestDistance: cfg.Retrieval.MaxBestDistance,
-		QueryPrefix:     cfg.Embedding.QueryPrefix,
-		MaxAnswerTokens: cfg.Retrieval.MaxAnswerTokens,
-		Mode:            mode,
+		TopK:              cfg.Retrieval.TopK,
+		MaxDistance:       cfg.Retrieval.MaxDistance,
+		MaxBestDistance:   cfg.Retrieval.MaxBestDistance,
+		QueryPrefix:       cfg.Embedding.QueryPrefix,
+		MaxAnswerTokens:   cfg.Retrieval.MaxAnswerTokens,
+		Mode:              mode,
+		MaxFilteredEvents: cfg.Retrieval.MaxFilteredEvents,
 	}, err
 }

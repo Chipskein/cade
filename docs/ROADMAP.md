@@ -20,8 +20,8 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 3 | Busca híbrida (FTS5 + vetor) | concluída | alto | médio |
 | 4 | Autoria no git | concluída | alto | baixo |
 | 5 | Latência do `ask` | concluída | médio | médio |
-| 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | concluída; falta medir no GitHub | alto | baixo |
-| 6 | [Filtros de pessoa no SQL](#fase-6--filtros-de-pessoa-no-sql) | pendente | médio | baixo |
+| 10 | [Integração contínua e qualidade](#fase-10--integração-contínua-e-qualidade) | concluída | alto | baixo |
+| 6 | Filtros de pessoa no SQL | concluída | médio | baixo |
 | 7 | [Evidência não confiável no prompt](#fase-7--evidência-não-confiável-no-prompt) | pendente | baixo | baixo |
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | pendente | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | pendente | médio | médio |
@@ -30,8 +30,8 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | — | [A definir](#a-definir) | em aberto | — | — |
 
 A tabela está na ordem sugerida:
-- **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue; falta medir no GitHub.
-- **Depois as mudanças de código:** 6 e 7. A 5 foi feita antes da 10, a pedido.
+- **CI (10) primeiro:** é barata e protege todas as fases seguintes. Entregue.
+- **Depois as mudanças de código:** 6 (entregue) e 7. A 5 foi feita antes da 10, a pedido.
 - **Em seguida, a experiência de quem instala:** 11 e 12.
 - **Docs (8) e empacotamento (9) por último:** descrevem o estado final.
 
@@ -39,34 +39,11 @@ A tabela está na ordem sugerida:
 
 ## Fase 10 — Integração contínua e qualidade
 
-Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)). Falta o que só dá para verificar com os workflows rodando no GitHub:
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)). A primeira execução no GitHub, com o cache frio, passou em 4 min 04 s (o job de testes levou 3 min 41 s). Registrar quando houver:
 
-- registrar aqui o tempo do workflow de testes com o cache quente (a segunda execução em diante) e com o cache frio;
-- confirmar que um PR que quebra um teste ou o `gofmt` fica vermelho;
-- rodar o `eval.yml` uma vez à mão e registrar quanto leva em CPU.
-
----
-
-## Fase 6 — Filtros de pessoa no SQL
-
-### Problema
-
-Em `internal/rag/restricted.go` (`candidates`), uma pergunta com pessoa mas sem período carrega **todos** os eventos, com conteúdo, desde 1970, e filtra em Go. O comentário assume que "os eventos de uma pessoa num período são poucos", o que não vale sem período. Ler tudo leva 345 ms em 100 mil eventos, e a memória cresce com o banco.
-
-### Mudanças
-
-1. **Índice de pessoas.**
-   - Nova tabela `event_people(event_id, name_norm, role)`, com `role` entre sender, recipient, author e mentioned.
-   - Nova coluna `direction` em `events`.
-   - Ambas preenchidas na ingestão com a normalização de `internal/listing/people.go`, e por uma migração nos eventos existentes (sem reimportar).
-2. **Filtros em SQL.** Os filtros de pessoa e direção retornam **só IDs**. O ranking usa esses IDs com os vetores, e o conteúdo é carregado apenas para o top-k final.
-3. **Limite de segurança.** Se o filtro retornar mais de N candidatos (configurável), usar o KNN do vec0 com `k` maior e pós-filtrar pelos IDs.
-
-### Critério de aceite
-
-- Um benchmark com 100 mil eventos e uma pergunta por pessoa sem período mostra que a memória residente não cresce com o tamanho do banco.
-- Os resultados são idênticos aos da implementação atual na suíte de recuperação.
-- `forget` apaga as linhas de `event_people` (teste de privacidade).
+- o tempo com o cache quente (a partir do push seguinte);
+- um PR que quebra um teste ou o `gofmt` ficando vermelho;
+- quanto o `eval.yml` leva em CPU, rodado uma vez à mão.
 
 ---
 
@@ -145,8 +122,7 @@ As perguntas funcionam em inglês e português, e `cade help` segue o idioma do 
    - **Fuzz tests** (`go test -fuzz`) para `internal/leveldbraw`, `internal/v8value` e `internal/indexeddb`. São cerca de 2.200 linhas de parsers de um formato binário não documentado, onde fuzzing encontra problemas com pouco custo.
    - **Aviso de política:** no README e no PRIVACY.md, pedir que o usuário verifique a política de dados da organização antes de ingerir mensagens do Teams, que incluem mensagens de terceiros.
    - **Fragilidade:** a leitura depende do formato interno do IndexedDB do Chrome e do Teams. O `teams-schema` já diagnostica, e a ingestão falha quando não reconhece o formato. Falta guardar amostras anonimizadas de cada formato já visto, como testes de regressão.
-4. **Privacidade.** Atualizar PRIVACY.md com a tabela nova da fase 6 (`event_people`) e como ela é apagada. O estado do prompt salvo da fase 5 já está lá.
-5. **CHANGELOG.** Mantê-lo em dia a cada entrega, com as migrações novas e o que cada uma reescreve.
+4. **CHANGELOG.** Mantê-lo em dia a cada entrega, com as migrações novas e o que cada uma reescreve.
 
 ---
 

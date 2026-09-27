@@ -25,6 +25,10 @@ type Settings struct {
 	MaxAnswerTokens int
 	// Mode combines vector and keyword search; empty means hybrid.
 	Mode Mode
+	// MaxFilteredEvents is how many events a person or direction filter
+	// may match and still be ranked exactly; more are searched through the
+	// vector index. Zero means no limit.
+	MaxFilteredEvents int
 }
 
 // Answer is the generated reply and the events it was grounded on.

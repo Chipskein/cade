@@ -122,7 +122,8 @@ func dependencies(t *testing.T, embedder llm.Embedder) Dependencies {
 	t.Cleanup(func() { store.Close() })
 	defaults := config.Defaults()
 	settings := rag.Settings{TopK: defaults.Retrieval.TopK, MaxDistance: defaults.Retrieval.MaxDistance,
-		MaxBestDistance: defaults.Retrieval.MaxBestDistance, QueryPrefix: defaults.Embedding.QueryPrefix, Mode: evalMode(t)}
+		MaxBestDistance: defaults.Retrieval.MaxBestDistance, QueryPrefix: defaults.Embedding.QueryPrefix, Mode: evalMode(t),
+		MaxFilteredEvents: defaults.Retrieval.MaxFilteredEvents}
 	return Dependencies{Store: store, Embedder: embedder, Settings: settings, DocumentPrefix: defaults.Embedding.DocumentPrefix,
 		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))}
 }

@@ -61,6 +61,9 @@ type RetrievalConfig struct {
 	// Mode is "hybrid" (vector and keyword search fused), "vector" or
 	// "lexical".
 	Mode string `json:"mode"`
+	// MaxFilteredEvents is how many events a person or direction filter
+	// may match and still be ranked one by one; 0 means no limit.
+	MaxFilteredEvents int `json:"max_filtered_events"`
 }
 
 // SourcesConfig lists the default ingestion targets per source.

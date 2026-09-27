@@ -245,6 +245,7 @@ Outros campos (criados pelo `cade init`):
 | `retrieval.max_distance` | `0.72` | corte de relevância em perguntas sem filtros |
 | `retrieval.mode` | `hybrid` | `hybrid` junta busca por significado e por palavra (FTS5); `vector` ou `lexical` usam uma só |
 | `retrieval.max_best_distance` | `0.61` | pergunta sem filtro só é respondida se o evento mais próximo estiver a essa distância; aumente se perguntas reais derem "não encontrei" (`--verbose` registra a distância) |
+| `retrieval.max_filtered_events` | `1000` | pergunta com pessoa ou direção ordena um a um até essa quantidade de eventos que casam; acima disso, busca no índice vetorial e fica com os resultados que casam. `0` = sem limite |
 | `sources.git_authors` | `[]` | ingere só commits desses autores |
 | `sources.git_identities` | `["auto"]` | seus e-mails ou nomes de commit; `auto` lê `git config user.email`/`user.name` de cada repositório. Commits de outras pessoas ficam no banco, mas saem da `timeline` (veja `--all-authors`), das perguntas em primeira pessoa ("o que eu fiz?") e do relatório de tarefas |
 

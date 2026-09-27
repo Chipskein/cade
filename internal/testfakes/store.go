@@ -109,7 +109,7 @@ func (f *FakeEventStore) SearchSimilar(_ context.Context, query storage.Similari
 			hits = append(hits, hit)
 		}
 	}
-	return hits, f.FailWith
+	return f.keepAmong(hits, query.Among), f.FailWith
 }
 
 func (f *FakeEventStore) DeleteSource(_ context.Context, source event.Source) (int, error) {

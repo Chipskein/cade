@@ -35,6 +35,9 @@ func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, chunks []storag
 	if err != nil {
 		return err
 	}
+	if err := reindexPeople(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
 	if err := deleteChunks(ctx, tx, eventID); err != nil {
 		return err
 	}

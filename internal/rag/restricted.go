@@ -12,13 +12,30 @@ import (
 )
 
 // When a question names people or a direction, the vector index cannot
-// enforce them: the events are first narrowed exactly, then ranked by
-// similarity among themselves. Stored and query vectors are unit length,
-// so cosine distance is 1 - dot product, as in sqlite-vec.
+// enforce them: the store selects the matching events exactly (in SQL, no
+// content read), and they are ranked by similarity among themselves.
+// Stored and query vectors are unit length, so cosine distance is 1 - dot
+// product, as in sqlite-vec.
 
 // retrieveAmong returns the top-k events that satisfy all filters.
 func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, embedding []float32, observer AnswerObserver) ([]storage.ScoredEvent, error) {
-	candidates, err := a.candidates(ctx, query, observer)
+	filter, err := a.resolveFilter(ctx, query, observer)
+	if err != nil {
+		return nil, err
+	}
+	tooMany, err := a.tooManyToRank(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	if tooMany {
+		return a.searchAmong(ctx, embedding, query, filter)
+	}
+	return a.rankAmong(ctx, embedding, query, filter)
+}
+
+// rankAmong loads the matching events and ranks every one of them.
+func (a *Answerer) rankAmong(ctx context.Context, embedding []float32, query queryplan.Query, filter storage.EventFilter) ([]storage.ScoredEvent, error) {
+	candidates, err := a.store.EventsMatching(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -30,34 +47,54 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 
-// candidates loads the question's period (or all time) and applies the
-// source and criteria in memory; a person's events over a period are few.
-func (a *Answerer) candidates(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]event.Event, error) {
-	from, to := time.Unix(0, 0), a.now().AddDate(1, 0, 0)
+// resolveFilter is the question's period (or all time), source and
+// criteria, with each name resolved against the stored events.
+func (a *Answerer) resolveFilter(ctx context.Context, query queryplan.Query, observer AnswerObserver) (storage.EventFilter, error) {
+	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source}
 	if query.Days != nil {
-		from, to = query.Days.Start(), query.Days.End()
+		scope.From, scope.To = query.Days.Start(), query.Days.End()
 	}
-	events, err := a.store.EventsBetween(ctx, from, to)
+	filter, resolution, err := storage.ResolveCriteria(ctx, a.store, scope, query.Criteria)
 	if err != nil {
-		return nil, err
+		return storage.EventFilter{}, err
 	}
-	events = keepSource(events, query.Source)
-	kept, matched, unknown := query.Criteria.Apply(events)
-	observer.notifyPeople(matched, unknown)
-	return kept, nil
+	observer.notifyPeople(resolution.Matched, resolution.Unknown)
+	return filter, nil
 }
 
-func keepSource(events []event.Event, source event.Source) []event.Event {
-	if source == "" {
-		return events
+// tooManyToRank reports whether more events match than
+// max_filtered_events: ranking reads each one's vectors, and that is what
+// kept memory growing with the history ("mensagens que recebi", no
+// period). Zero means no limit.
+func (a *Answerer) tooManyToRank(ctx context.Context, filter storage.EventFilter) (bool, error) {
+	limit := a.settings.MaxFilteredEvents
+	if limit <= 0 {
+		return false, nil
 	}
-	var kept []event.Event
-	for _, ev := range events {
-		if ev.Source == source {
-			kept = append(kept, ev)
+	count, err := a.store.CountMatching(ctx, filter, limit+1)
+	return count > limit, err
+}
+
+// maxNeighbours is sqlite-vec's largest k.
+const maxNeighbours = 4096
+
+// searchAmong ranks a large filtered set through the vector index: the k
+// nearest of the period and source, keeping those that satisfy the
+// filter, widening k until top_k usable events remain. Neighbours beyond
+// maxNeighbours are not seen; a filter that rare has few enough events
+// to take the exact path.
+func (a *Answerer) searchAmong(ctx context.Context, embedding []float32, query queryplan.Query, filter storage.EventFilter) ([]storage.ScoredEvent, error) {
+	search := storage.SimilarityQuery{Embedding: embedding, Source: filter.Source, From: filter.From, To: filter.To, Among: &filter}
+	for search.Limit = min(a.settings.TopK*chatterHeadroom, maxNeighbours); ; search.Limit = min(search.Limit*4, maxNeighbours) {
+		hits, err := a.store.SearchSimilar(ctx, search)
+		if err != nil {
+			return nil, err
+		}
+		distinct := usableEvidence(bestChunkPerEvent(hits), query)
+		if len(distinct) >= a.settings.TopK || search.Limit >= maxNeighbours {
+			return distinct[:min(len(distinct), a.settings.TopK)], nil
 		}
 	}
-	return kept
 }
 
 // rank orders events by distance to embedding; events without a stored

@@ -67,6 +67,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
 - O índice de palavras acompanha o texto: uma edição, o `reindex` e o `forget` também tiram dele as palavras antigas.
+- O índice de pessoas (`event_people`) guarda os nomes de cada mensagem e commit (remetente ou autor, título da conversa, primeiros nomes depois de "@"), para que uma pergunta sobre uma pessoa seja filtrada no banco. Ele acompanha os eventos: uma edição troca os nomes do evento, e o `forget` os apaga junto com os eventos.
 - Texto substituído, como o de uma mensagem editada ou de uma versão antiga de um arquivo, também é zerado (`secure_delete` do SQLite). Só a versão atual de cada arquivo fica guardada; `file_modifications` guarda a data e o tamanho de cada versão anterior, sem o texto, e o `forget file` a apaga.
 - Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`.
 - O `forget` não mexe nas cópias de migração (`cade.db.before-v*`); apague-as você mesmo.
