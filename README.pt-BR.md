@@ -342,7 +342,7 @@ make fuzz          # fuzzing dos leitores do cache do Teams, FUZZTIME por alvo (
 
 **CI** (GitHub Actions, `.github/workflows/`):
 - `ci.yml`, a cada push e pull request: `make fmt-check`, `vet`, `lint` e `cover`. O build do llama.cpp fica em cache pela `LLAMA_TAG`, compilado com `LLAMA_NATIVE=OFF` (AVX2, sem ajuste à CPU do runner) para que a biblioteca em cache rode em qualquer runner. O total de cobertura vai para o resumo da execução e, no `dev`, para o badge acima (um `coverage.json` no branch `badges`, sem serviço externo).
-- `release.yml`, ao enviar uma tag `vX.Y.Z`: testes, `make dist` com `LLAMA_NATIVE=OFF`, conferência de que o `cade version` mostra a tag, e um release no GitHub com o arquivo, o SHA-256 e `docs/release-notes/vX.Y.Z.md` como notas (sem esse arquivo, a execução falha).
+- `release.yml`, ao enviar uma tag `vX.Y.Z` num commit do `master` (uma tag em outro lugar, como o `dev`, falha sem publicar): testes, `make dist` com `LLAMA_NATIVE=OFF`, conferência de que o `cade version` mostra a tag, e um release no GitHub com o arquivo, o SHA-256 e `docs/release-notes/vX.Y.Z.md` como notas (sem esse arquivo, a execução falha).
 - `eval.yml`, manual ou toda segunda-feira: `make eval` em CPU com os modelos em cache, e o relatório publicado como o artefato `eval-report`. Leva horas num runner, por isso fica fora do caminho de cada push.
 
 O `golangci-lint` roda `errcheck`, `staticcheck`, `unused` e `ineffassign` (`.golangci.yml`); instale a versão fixada no Makefile (`make -s print-GOLANGCI_LINT_VERSION`) com `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<versão>`.

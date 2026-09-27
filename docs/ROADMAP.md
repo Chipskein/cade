@@ -26,7 +26,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | concluída; binários prontos passam para a fase 9 | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | concluída | médio | médio |
 | 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | concluída | baixo | baixo |
-| 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | concluída; falta criar a tag | pré-requisito do lançamento | baixo |
+| 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | concluída; v0.0.0 publicada em 2026-09-27 | pré-requisito do lançamento | baixo |
 | — | [A definir](#a-definir) | em aberto | — | — |
 
 A tabela está na ordem sugerida:
@@ -75,11 +75,11 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): README com hardware, navega
 
 ## Fase 9 — Empacotamento da versão
 
-Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `cade version`, `THIRD_PARTY_NOTICES.md`, licenças dos modelos (o Qwen2.5-3B é só para uso não comercial; o 1.5B, Apache-2.0, ficou abaixo do piso da suíte de plano), `make dist`, workflow de release e notas da v0.0.0. Para lançar:
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `cade version`, `THIRD_PARTY_NOTICES.md`, licenças dos modelos (o Qwen2.5-3B é só para uso não comercial; o 1.5B, Apache-2.0, ficou abaixo do piso da suíte de plano), `make dist` e workflow de release. A [v0.0.0](https://github.com/Chipskein/cade/releases/tag/v0.0.0) saiu em 2026-09-27, do `master`. Para as próximas versões:
 
-1. A versão é a v0.0.0; o CHANGELOG (EN/PT) já traz o cabeçalho `v0.0.0 — 2026-09-27`. Se a data mudar, atualize-o.
+1. Trocar o cabeçalho do topo do CHANGELOG (EN/PT) pela versão e data, e escrever `docs/release-notes/vX.Y.Z.md`.
 2. Conferir os critérios de release abaixo.
-3. `git push`, depois `git tag v0.0.0 && git push origin v0.0.0`: o workflow testa, gera o binário e publica o release.
+3. Levar o `dev` para o `master` e criar a tag lá: `git tag vX.Y.Z origin/master && git push origin vX.Y.Z`. O workflow testa, gera o binário e publica o release; uma tag fora do `master` falha sem publicar. O `dev` recebe o trabalho do dia a dia e não gera releases.
 
 ---
 
