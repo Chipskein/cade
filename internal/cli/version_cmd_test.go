@@ -9,12 +9,12 @@ import (
 
 func versionWorld() *fakeWorld {
 	world := newFakeWorld()
-	world.build = buildinfo.Info{Version: "v0.1.0", Commit: "8727192", Date: "2026-09-27", Accelerator: "CPU", LlamaTag: "b11195"}
+	world.build = buildinfo.Info{Version: "v0.0.0", Commit: "8727192", Date: "2026-09-27", Accelerator: "CPU", LlamaTag: "b11195"}
 	return world
 }
 
 func TestVersionCommandAndFlag(t *testing.T) {
-	want := "cade v0.1.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)\n"
+	want := "cade v0.0.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)\n"
 	for _, args := range [][]string{{"version"}, {"--version"}, {"-version"}} {
 		code, stdout, stderr := versionWorld().run(args...)
 		if code != 0 || stdout != want {

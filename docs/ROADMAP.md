@@ -75,11 +75,11 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): README com hardware, navega
 
 ## Fase 9 — Empacotamento da versão
 
-Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `cade version`, `THIRD_PARTY_NOTICES.md`, licenças dos modelos (o Qwen2.5-3B é só para uso não comercial; o 1.5B, Apache-2.0, ficou abaixo do piso da suíte de plano), `make dist`, workflow de release e notas da v0.1.0. Para lançar:
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `cade version`, `THIRD_PARTY_NOTICES.md`, licenças dos modelos (o Qwen2.5-3B é só para uso não comercial; o 1.5B, Apache-2.0, ficou abaixo do piso da suíte de plano), `make dist`, workflow de release e notas da v0.0.0. Para lançar:
 
-1. Trocar "Não lançado (primeira versão)" no CHANGELOG (EN/PT) pela versão e data.
+1. A versão é a v0.0.0; o CHANGELOG (EN/PT) já traz o cabeçalho `v0.0.0 — 2026-09-27`. Se a data mudar, atualize-o.
 2. Conferir os critérios de release abaixo.
-3. `git tag v0.1.0 && git push origin v0.1.0`: o workflow testa, gera o binário e publica o release.
+3. `git push`, depois `git tag v0.0.0 && git push origin v0.0.0`: o workflow testa, gera o binário e publica o release.
 
 ---
 

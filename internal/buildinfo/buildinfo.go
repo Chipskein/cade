@@ -54,7 +54,7 @@ func withVCSStamp(info Info, settings []debug.BuildSetting) Info {
 	return info
 }
 
-// String is the `cade version` line, e.g. "cade v0.1.0 (commit 8727192,
+// String is the `cade version` line, e.g. "cade v0.0.0 (commit 8727192,
 // 2026-09-27, CPU build, llama.cpp b11195)".
 func (i Info) String() string {
 	var details []string

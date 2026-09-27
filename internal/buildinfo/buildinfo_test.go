@@ -6,8 +6,8 @@ import (
 )
 
 func TestStringNamesEveryDetail(t *testing.T) {
-	info := Info{Version: "v0.1.0", Commit: "8727192", Date: "2026-09-27", Accelerator: "CPU", LlamaTag: "b11195"}
-	if got, want := info.String(), "cade v0.1.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)"; got != want {
+	info := Info{Version: "v0.0.0", Commit: "8727192", Date: "2026-09-27", Accelerator: "CPU", LlamaTag: "b11195"}
+	if got, want := info.String(), "cade v0.0.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)"; got != want {
 		t.Fatalf("expected %q, got %q", want, got)
 	}
 }

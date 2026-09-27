@@ -4,7 +4,7 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is left for the release is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## Unreleased (first version)
+## v0.0.0 — 2026-09-27 (first version)
 
 ### Upgrading an existing database
 
@@ -31,11 +31,11 @@ The binary must be built with the `sqlite_fts5` tag; `make` does this. Without i
 
 ### Release packaging (phase 9)
 
-- **`cade version`** (and `--version`): version, commit, commit date, build type (CPU or CUDA) and llama.cpp tag, e.g. `cade v0.1.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)`. The Makefile injects them with `-ldflags -X` from `git describe`; a plain `go build` falls back to the VCS stamp Go embeds and reports version `dev`.
+- **`cade version`** (and `--version`): version, commit, commit date, build type (CPU or CUDA) and llama.cpp tag, e.g. `cade v0.0.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)`. The Makefile injects them with `-ldflags -X` from `git describe`; a plain `go build` falls back to the VCS stamp Go embeds and reports version `dev`.
 - **`THIRD_PARTY_NOTICES.md`:** the license texts of everything linked into the binary (Go, llama.cpp/ggml, go-sqlite3, SQLite, sqlite-vec, klauspost/compress), the sqlite-vec one taken upstream since its Go module has none. A test fails if `go.mod` or `LLAMA_TAG` gains something the file does not name.
 - **Model licenses**, checked on the model cards: nomic-embed-text-v2-moe is Apache-2.0; **Qwen2.5-3B-Instruct is under the Qwen Research License, non-commercial only** ("research or evaluation purposes only"). The Apache-2.0 alternative, Qwen2.5-1.5B-Instruct, was measured on the plan suite: 117 of 153 questions fully right against 131 for the 3B, source 87% against 95% (below the floor), people 99% against 95% ([bench/plan-qwen2.5-1.5b.txt](bench/plan-qwen2.5-1.5b.txt)). The 3B stays the default; the README explains the restriction and the switch.
 - **Prebuilt binaries** (from phase 11): `make dist` builds `dist/cade-<version>-linux-amd64-cpu.tar.gz` (binary, licenses, READMEs, PRIVACY, CHANGELOG, `config.example.json`) and its SHA-256. `.github/workflows/release.yml` runs on a `vX.Y.Z` tag: tests, `make dist` with `LLAMA_NATIVE=OFF`, a check that `cade version` reports the tag, and a GitHub release whose notes come from `docs/release-notes/vX.Y.Z.md` (the run fails without it). CUDA stays a local build.
-- **Release notes** for v0.1.0 in `docs/release-notes/v0.1.0.md`, with the migration copy and the mandatory `cade reindex`.
+- **Release notes** for v0.0.0 in `docs/release-notes/v0.0.0.md`, with the migration copy and the mandatory `cade reindex`.
 
 ### Documentation and maintenance (phase 8)
 

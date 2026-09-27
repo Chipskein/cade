@@ -105,7 +105,7 @@ De um clone limpo até a primeira pergunta (Linux):
 **Ou a partir de um binário de release** (Linux x86-64, só CPU; qualquer CPU com AVX2), sem as ferramentas de build:
 
 ```sh
-V=v0.1.0   # a versão desejada
+V=v0.0.0   # a versão desejada
 curl -LO https://github.com/Chipskein/cade/releases/download/$V/cade-$V-linux-amd64-cpu.tar.gz
 curl -LO https://github.com/Chipskein/cade/releases/download/$V/cade-$V-linux-amd64-cpu.tar.gz.sha256
 sha256sum -c cade-$V-linux-amd64-cpu.tar.gz.sha256
