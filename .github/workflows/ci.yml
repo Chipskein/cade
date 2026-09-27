@@ -31,7 +31,7 @@ jobs:
       - name: Read pinned versions
         id: versions
         run: |
-          echo "llama=$(make -s print-LLAMA_TAG)" >> "$GITHUB_OUTPUT"
+          echo "llama=$(make -s print-LLAMA_TAG)-$(make -s print-LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
           echo "golangci=$(make -s print-GOLANGCI_LINT_VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Cache the llama.cpp build

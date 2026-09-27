@@ -1,7 +1,7 @@
 package config
 
 // allGPULayers offloads every layer in CUDA builds; both default models
-// together need about 3 GB of VRAM.
+// together need about 2.3 GB of VRAM.
 const allGPULayers = -1
 
 // Defaults returns the configuration used when no file overrides it. Paths
@@ -10,10 +10,12 @@ func Defaults() Config {
 	return Config{
 		DatabasePath: "~/.local/share/cade/cade.db",
 		Embedding:    defaultEmbedding(),
-		// 3B rather than 1.5B: the smaller model answered SEM_INFORMACAO to
-		// scoped listing questions and rarely cited evidence.
+		// Qwen3.5-2B (Apache-2.0) replaced Qwen2.5-3B (non-commercial
+		// license): it matches or beats it on every plan-suite field and,
+		// with the citation example in the answer prompt, cites every
+		// injection case. The 4B does not fit the ~2.5 GB of VRAM budget.
 		Generation: ModelConfig{
-			ModelPath:     "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+			ModelPath:     "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf",
 			ContextTokens: 8192,
 			GPULayers:     allGPULayers,
 		},

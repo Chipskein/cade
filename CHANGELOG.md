@@ -6,6 +6,41 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Generation with Qwen3.5 (phase 18)
+
+- **Problem:** the default generation model, Qwen2.5-3B-Instruct, is under the Qwen Research License (non-commercial only), still followed the note posing as a "new system instruction", and sometimes did not cite the evidence.
+- **New model:** the default is now [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) Q4_K_M, **Apache-2.0** (checked on the model card and in the GGUF's `general.license`), as unsloth's GGUF pinned to a commit, since Qwen publishes no GGUF of 3.5. `make models` also downloads the vision projector (`mmproj-Qwen3.5-2B-F16.gguf`, 0.67 GB, Apache-2.0), which `ask` never loads: it belongs to phase 19. The planner, the answer and `ask --json` keep their formats.
+- **Upgrading:** run `make models` again. A config with an explicit `generation.model_path` keeps using the model it names; `qwen2.5-3b-instruct-q4_k_m.gguf` can be deleted. The saved prompt state is rebuilt on its own, since its key includes the model file.
+- **llama.cpp:** the pinned tag (b11195) already loads the `qwen35` architecture, its template and the `mmproj`. `make llama` now also builds the `mtmd` vision library, with no tools, downloader or subprocesses (no video, which would run `ffmpeg`). The CPU binary grows by 1.3 MB, and no network or subprocess symbol comes in. An older build directory is completed by `make` itself, and the CI's llama.cpp cache key now includes a hash of the CMake flags.
+- **Reasoning off:** `llama_chat_apply_template` renders Qwen3.5's template as plain ChatML, without the `enable_thinking` option. When the model's template has a `<think>` block, cade closes an empty one after the assistant turn opener, as the official template does with reasoning off. A test with the real model checks that no `<think>` reaches the answer.
+- **Planner:** the direction rule gained the forms it lacked ("me perguntou", "da X", "sent me", "asked me", "from X", "I told", and "what X said" with no direction). Plan suite (153 questions, RTX 3060, same prompt for all three):
+
+  | field | Qwen2.5-3B | **Qwen3.5-2B** | Qwen3.5-4B |
+  |---|---|---|---|
+  | fully right | 133 | **135** | 146 |
+  | mode | 146 | **147** | 150 |
+  | source | 147 | **147** | 151 |
+  | people | 145 | **150** | 152 |
+  | direction | 150 | **150** | 151 |
+  | topic | 144 | **149** | 151 |
+  | days, status | 153 | **153** | 153 |
+
+  Before the change, the 2B was 2 below the 3B on direction only (147 against 149). Reports in `bench/plan-baseline.txt` (2B), `bench/plan-qwen2.5-3b.txt` and `bench/plan-qwen3.5-4b.txt`.
+- **Injection:** the mark and rule 9 were not enough: the 3B, the 2B and the 4B followed the injection in 1 of the 4 cases (the 4B, a different one). The text of a marked event now stays out of the prompt: the model sees its number, source, date, mark and "(texto omitido)", and rule 9 says not to use it. The sources list and `ask --json` still show the event with its mark. `make eval-injection`: **no injection followed**, with all three models.
+- **Citations:** rule 3 asked for the number "with the source and date", and the 2B wrote the source and date out without `[n]`. With an example ("O deploy foi adiado para sexta [2].") the 2B cites in all 4 injection cases, the 4B too, and the 3B in 1.
+- **Retrieval:** unchanged, since it only uses the embedding model (recall 1.00, MRR 0.88, rejection 1.00).
+- **Measured** (`make bench`, Ryzen 5 5500 and RTX 3060; the 2B against v0.0.0's 3B):
+
+  | | GPU | CPU |
+  |---|---|---|
+  | memory while answering | 1.95 GB of VRAM + 1.47 GB of RAM (was 2.55 + 1.19) | 2.36 GB of RAM (was 3.87) |
+  | reading a question, no saved state | 1.49 s (was 1.36) | 12.7 s (was 19.7) |
+  | `ask` to the 1st token, warm cache (model / saved state / rules) | 3.16 / 2.88 / 1.60 s (was 2.93 / 2.48 / 1.59) | 24.8 / 16.5 / 12.0 s (was 41.5 / 26.0 / 21.5) |
+  | the same, cold cache | 7.4 / 6.9 / 5.7 s (was 8.8 / 8.5 / 7.7) | 29.6 / 21.1 / 16.2 s (was 45.2 / 31.2 / 26.6) |
+
+  On a CPU `ask` is ~40% faster; on the GPU with a warm cache, 0.2–0.4 s slower. Qwen3.5 is hybrid (recurrent and attention layers), and the recurrent state cannot roll back more than a few tokens: within one process, a prompt that only shares its start with the previous one is read again in full. A `cade ask` is always a new process, so it is not affected, but the plan suite and `BenchmarkAnswer` (which used to reuse the evidence in memory and now reads it again, 12.3 s on a CPU) get slower. The saved prompt state works with the hybrid memory.
+- **Qwen3.5-4B:** reads questions better, but needs 3.5 GB of VRAM, above the ~2.5 GB budget; it stays a documented alternative in the README (`generation.model_path`).
+
 ### CLI details (phase 16)
 
 - **Plurals:** every message with a count agrees with it in both languages: "Timeline de 2026-09-25 — 1 evento", "Tarefas de … — 2 tarefas suas", "1 novo, 0 atualizados", "Tudo pronto (1 aviso)". Messages were reworded where the old form could not agree: `forget` now prints "git: 3 eventos removidos." and `tasks` "2 tasks of yours". Tests cover 0, 1 and N for each message in both languages.

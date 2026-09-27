@@ -28,8 +28,8 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 | 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | a fazer | médio | baixo |
 | 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | feita | médio | baixo |
 | 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | a fazer | alto | médio |
-| 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | a fazer | alto | médio |
-| 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | a fazer; depende da 18 | alto | alto |
+| 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | feita | alto | médio |
+| 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | a fazer | alto | alto |
 | 20 | [Documentação de uso contínuo](#fase-20--documentação-de-uso-contínuo) | a fazer | médio | baixo |
 | 21 | [Empacotamento da v0.1.0](#fase-21--empacotamento-da-v010) | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências da v0.0.0](#pendências-da-v000) | em aberto | — | — |
@@ -38,7 +38,7 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 A tabela está na ordem sugerida:
 - **Privacidade primeiro (13, 14):** cada ingestão sem a 13 grava mais segredos, que depois precisam de migração para sair.
 - **Depois as correções baratas (15, 16):** mudam a saída que o usuário lê e os códigos do `ask --json`, então entram antes de medir.
-- **Medições (17, 18):** a 17 fixa `top_k` e limiares com o modelo atual; a 18 compara o Qwen3.5 com o 2.5-3B já com esses valores. O que a 18 decide é o tamanho do Qwen3.5, não se ele entra.
+- **Medições (17, 18):** a 18 foi feita antes da 17, com o `top_k` herdado (8): o Qwen3.5-2B já é o padrão, então a 17 fixa `top_k` e limiares com ele.
 - **Imagens (19) depois da 18:** usam o mesmo modelo e o mesmo llama.cpp da 18, então o tamanho escolhido lá precisa servir para descrever imagens também.
 - **Docs (20) e empacotamento (21) por último:** descrevem o estado final.
 
@@ -176,23 +176,7 @@ Feita: plurais, flags em qualquer posição, `ui.date_order` e a tabela de perí
 
 ## Fase 18 — Migrar a geração para o Qwen3.5
 
-Era "Migrar a geração para o Qwen3.5" em "A definir". Entra na v0.1.0 porque resolve duas pendências da v0.0.0 e abre a fase 19.
-
-- **Por quê:**
-  - o Qwen2.5-3B está sob a Qwen Research License (só uso não comercial), e o 1.5B Apache-2.0 fica abaixo do piso da suíte de plano (fonte 87%, ver o CHANGELOG da fase 9);
-  - o 3B ainda segue a nota que finge ser "nova instrução do sistema" (`make eval-injection` vermelho nesse caso), e às vezes não cita a evidência;
-  - o Qwen3.5 é multimodal: o mesmo modelo que interpreta a pergunta e responde pode descrever imagens (fase 19), sem um segundo modelo nem outra biblioteca de inferência.
-- **Mudança:** trocar o modelo de geração padrão pelo tamanho do Qwen3.5 que passar nos critérios abaixo, com o projetor de visão (`mmproj`) baixado pelo `make models` ao lado dele. O planejador, a resposta e o `ask --json` não mudam de formato.
-- **A verificar, por tamanho (começar pelos de 2B e 4B):**
-  - **Suporte no llama.cpp:** a tag fixada (`LLAMA_TAG` b11195) carrega a arquitetura, o template de chat e o `mmproj`? Se não, subir a tag, rodando `make test-models` e `make bench`. A visão passa pela biblioteca `mtmd` do llama.cpp, que precisa entrar no build (cgo) sem o downloader e sem rede.
-  - **Tamanho e memória:** cabe no orçamento atual (~2,5 GB de GPU, ~3,9 GB de RAM em CPU) só com o texto; o `mmproj` só é carregado no `ingest` de imagens (fase 19), não no `ask`.
-  - **Latência:** `BenchmarkColdAsk` em CPU e GPU, com o cache de página quente e frio, e com o estado do prompt salvo.
-  - **Raciocínio:** o modo de raciocínio fica desligado no template (e a gramática GBNF do planejador impede que ele apareça no plano); nenhum `<think>` na resposta do `ask`.
-  - **Licença:** conferida no model card do tamanho escolhido e do `mmproj`, registrada no README, no `THIRD_PARTY_NOTICES.md` e nas notas de versão.
-  - **Qualidade:** `make eval` completo contra o 2.5-3B (plano com gramática GBNF, recuperação, injeção, citações), já com o `top_k` da fase 17.
-  - **Prompt salvo:** o estado salvo é invalidado sozinho, porque a chave inclui o arquivo do modelo.
-- **Critério de aceite:** plano igual ou melhor por campo que o 2.5-3B, nenhuma injeção seguida em `make eval-injection`, latência e memória dentro do orçamento, licença que permita uso comercial.
-- **Se o tamanho que cabe no orçamento não bater o 2.5-3B no plano:** ajustar o prompt e os exemplos do planejador, medindo na suíte, antes de aceitar um orçamento maior. Um orçamento maior (por exemplo, o 4B só em GPU) é decisão explícita, registrada no README (hardware) e nas notas de versão.
+Feita: o padrão é o Qwen3.5-2B (Apache-2.0), com o `mmproj` baixado pelo `make models` e a biblioteca `mtmd` no build. O 2B entende as perguntas igual ou melhor que o 2.5-3B em todos os campos da suíte de plano, e nenhuma injeção é seguida, porque o texto do evento marcado sai do prompt. O 4B, melhor ainda, ficou como alternativa documentada, fora do orçamento de VRAM. Detalhes e medições no [CHANGELOG](../CHANGELOG.pt-BR.md#geração-com-o-qwen35-fase-18).
 
 ---
 
@@ -281,7 +265,6 @@ O processo da v0.0.0 continua:
 ## Pendências da v0.0.0
 
 - **CI (fase 10):** registrar o tempo com o cache quente, um PR com teste ou `gofmt` quebrado ficando vermelho, e quanto o `eval.yml` leva em CPU.
-- **Injeção (fase 7):** o caso da "nova instrução do sistema" ainda falha com o 3B; a migração para o Qwen3.5 (fase 18) é a saída prevista.
 
 ---
 

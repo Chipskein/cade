@@ -68,9 +68,12 @@ What ingestion and search do with the history:
 | Use | Model | Size | License |
 |---|---|---|---|
 | Embeddings | [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF) Q4_K_M | 344 MB | Apache-2.0 |
-| Generation | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) Q4_K_M | 2.1 GB | [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE): non-commercial only |
+| Generation | [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) Q4_K_M ([unsloth GGUF](https://huggingface.co/unsloth/Qwen3.5-2B-GGUF)) | 1.3 GB | [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-2B/blob/main/LICENSE) |
+| Image description (from phase 19; `ask` never loads it) | the vision projector of Qwen3.5-2B (`mmproj-F16.gguf`, same repository) | 0.67 GB | Apache-2.0 |
 
-> **License of the generation model:** the Qwen Research License allows only non-commercial use, which it defines as "research or evaluation purposes only"; commercial use needs a license from Alibaba Cloud. Using cade for your work may count as commercial use. The open alternative is [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) (Apache-2.0, 1.1 GB, also lighter on memory): download `qwen2.5-1.5b-instruct-q4_k_m.gguf` and set `generation.model_path`. It reads questions worse: 117 of 153 plan-suite questions fully right against 131, and the source 87% right against 95%, below the suite's floor ([bench/plan-qwen2.5-1.5b.txt](bench/plan-qwen2.5-1.5b.txt)); it also cites evidence less often. Licenses of everything in the binary: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+All three allow commercial use. Up to v0.0.0 the default was Qwen2.5-3B-Instruct, under the non-commercial Qwen Research License. Qwen3.5-2B reads questions as well or better on every field of the plan suite (135 of 153 fully right against 133 with the same prompt: [bench/plan-baseline.txt](bench/plan-baseline.txt), [bench/plan-qwen2.5-3b.txt](bench/plan-qwen2.5-3b.txt)), cites evidence more often and follows none of the prompt injections of `make eval-injection`. Its reasoning mode is off: no `<think>` block reaches an answer.
+
+**Qwen3.5-4B** reads questions better still (146 of 153, [bench/plan-qwen3.5-4b.txt](bench/plan-qwen3.5-4b.txt)) but needs ~3.5 GB of VRAM, above the budget below; on a GPU with room for it, download `Qwen3.5-4B-Q4_K_M.gguf` from [unsloth/Qwen3.5-4B-GGUF](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF) and set `generation.model_path`. Licenses of everything in the binary: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Any llama.cpp-compatible GGUF model can be used via `embedding.model_path` and `generation.model_path` in the config.
 
@@ -80,12 +83,12 @@ Measured on a Ryzen 5 5500 (6 cores), with and without an RTX 3060 ([bench/basel
 
 | | GPU (`make cuda`) | CPU only (`make build`) |
 |---|---|---|
-| Memory while answering | ~2.5 GB of VRAM + ~1.2 GB of RAM | ~3.9 GB of RAM |
-| Embedding one event (ingest) | 3.4 ms | 36 ms |
-| A whole `ask`, up to the first answer token | 1.6–2.9 s (7.7–8.8 s right after a reboot, reading the models from disk) | 22–41 s (27–45 s after a reboot) |
-| Reading a question with the model | 1.4 s | 19.7 s |
+| Memory while answering | ~2.0 GB of VRAM + ~1.5 GB of RAM | ~2.4 GB of RAM |
+| Embedding one event (ingest) | 3.5 ms | 33 ms |
+| A whole `ask`, up to the first answer token | 1.6–3.2 s (5.7–7.4 s right after a reboot, reading the models from disk) | 12–25 s (16–30 s after a reboot) |
+| Reading a question with the model | 1.5 s | 12.7 s |
 
-The range of `ask` goes from a question read by rules to one read by the model. Disk: 2.4 GB of models, the database (~450 MB for a real history of 108 thousand events) and ~55 MB of saved prompt state in `~/.cache/cade`.
+The range of `ask` goes from a question read by rules to one read by the model. Disk: 2.3 GB of models, the database (~450 MB for a real history of 108 thousand events) and ~40 MB of saved prompt state in `~/.cache/cade`.
 
 ## Install
 
@@ -95,7 +98,7 @@ From a clean clone to the first question (Linux):
    - Arch: `sudo pacman -S go gcc cmake ninja curl`
    - Debian/Ubuntu: `sudo apt install gcc cmake ninja-build curl`, plus Go from [go.dev/dl](https://go.dev/dl/) if the packaged one is older.
 2. **Build:** `make build` compiles llama.cpp (a few minutes, only the first time) and writes `bin/cade`. For an NVIDIA GPU, `make cuda` instead (needs the CUDA Toolkit).
-3. **Models:** `make models` downloads the two models (~2.4 GB) to `~/.local/share/cade/models`.
+3. **Models:** `make models` downloads the two models and the vision projector (~2.3 GB) to `~/.local/share/cade/models`.
 4. **Install:** `make install` copies the binary to `~/.local/bin`, which must be on your `PATH` (`PREFIX=...` to change).
 5. **Configure:** `cade init` finds the browser histories (Chrome, Chromium, Brave, Edge, Vivaldi, Firefox), the Teams caches and, under a directory you name, the git repositories; it asks what to include and which note folders to index, and writes `~/.config/cade/config.json` (mode `600`). It only looks at names, never at content. Teams is off unless you choose it, since its cache holds other people's messages: check your organization's data policy first.
 6. **Check:** `cade doctor` verifies the models, SQLite's FTS5, the database and every configured path, and says how to fix each problem. It does not change the database.
@@ -112,7 +115,9 @@ sha256sum -c cade-$V-linux-amd64-cpu.tar.gz.sha256
 tar xzf cade-$V-linux-amd64-cpu.tar.gz && install -Dm755 cade-$V-linux-amd64-cpu/cade ~/.local/bin/cade
 M=~/.local/share/cade/models && mkdir -p $M
 curl -L -o $M/nomic-embed-text-v2-moe.Q4_K_M.gguf https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf
-curl -L -o $M/qwen2.5-3b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf
+Q=https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae
+curl -L -o $M/Qwen3.5-2B-Q4_K_M.gguf $Q/Qwen3.5-2B-Q4_K_M.gguf
+curl -L -o $M/mmproj-Qwen3.5-2B-F16.gguf $Q/mmproj-F16.gguf
 ```
 
 Then steps 5–8. `cade version` shows the version, commit, date and build type (CPU or CUDA).

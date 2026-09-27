@@ -62,7 +62,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF4.11** Nas respostas, repetições da mesma coisa (mesma URL, mesmo caminho de arquivo, mesmo commit ou mensagem, pelo localizador da proveniência) viram uma evidência só, com a contagem e a data mais recente ("12 visitas, última em …"); a busca pede mais vizinhos até ter `top_k` itens distintos. Arquivos removidos da pasta não entram como evidência. Listagens continuam mostrando cada ocorrência.
 - **RF4.12** Texto idêntico é embutido uma vez: a ingestão e o `reindex` reaproveitam o vetor de um evento com o mesmo `content_hash`.
 - **RF4.13** Busca híbrida (`retrieval.mode = hybrid`, padrão): a busca vetorial e a por palavras (FTS5/BM25 sobre os pedaços, com hash de commit e caminho de arquivo no primeiro pedaço) usam os mesmos filtros e são combinadas por fusão de posições (RRF, k = 60). Uma pergunta com identificador explícito (código `[A-Z]+-\d+`, hash hexadecimal de 7 a 40 caracteres, número de PR) é respondida só com os eventos que o contêm, sem as portas de distância. `vector` e `lexical` usam uma busca só. Perguntas com pessoa continuam só vetoriais.
-- **RF4.14** Texto que dá ordens ao assistente (um vocativo como "assistente", "instrução do sistema" ou "assistant" a até 80 caracteres de um pedido como "ignore", "responda que", "cite apenas", "regras") é marcado na evidência como `NÃO CONFIÁVEL: contém ordens ao assistente`, e uma regra do prompt manda não seguir, não usar e não citar o evento marcado. O evento continua na evidência e aparece com a marca na lista de fontes e como `untrusted` no `--json`. Num histórico real de 108 mil eventos, nenhum foi marcado. Delimitar cada evidência com tags (`<evento>…</evento>`) foi medido e piorou: o modelo de 3B seguiu mais injeções e citou menos.
+- **RF4.14** Texto que dá ordens ao assistente (um vocativo como "assistente", "instrução do sistema" ou "assistant" a até 80 caracteres de um pedido como "ignore", "responda que", "cite apenas", "regras") é marcado na evidência como `NÃO CONFIÁVEL: contém ordens ao assistente`, e vai ao prompt sem o texto (fase 18: com o texto, os três modelos medidos ainda seguiam 1 de 4 injeções), com uma regra que manda não usá-lo nem citá-lo. O evento continua numerado na evidência e aparece com a marca na lista de fontes e como `untrusted` no `--json`. Num histórico real de 108 mil eventos, nenhum foi marcado. Delimitar cada evidência com tags (`<evento>…</evento>`) foi medido e piorou: o modelo de 3B seguiu mais injeções e citou menos.
 
 ### RF6 — Relatório de tarefas
 - **RF6.1** `cade tasks [DATA [FIM]]` lista as tarefas trabalhadas no período, reconhecidas por links de rastreadores (regex configuráveis em `tasks.task_url_patterns`) em visitas e mensagens.
@@ -159,7 +159,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 | CA11 | Um novo ingestor torna seus eventos consultáveis sem alterar as consultas. | Atendido (Teams foi adicionado assim) |
 
 Notas:
-- **CA8** — A qualidade da resposta depende do modelo de geração. O Qwen2.5-3B nem sempre cita os eventos com `[n]`; nesse caso a CLI lista todos os eventos consultados.
+- **CA8** — A qualidade da resposta depende do modelo de geração. Com o Qwen3.5-2B e a regra de citação com exemplo (fase 18), as respostas dos casos de injeção citam todas com `[n]`; quando uma resposta não cita, a CLI lista todos os eventos consultados.
 - **CA9.1** — O filtro é aplicado dentro da busca KNN do sqlite-vec (colunas de metadata do `vec0`), não após o corte top-k; há teste de regressão para isso. O período vem das flags ou de uma data citada na pergunta ("o que pesquisei semana passada" filtra a semana anterior). Dias da semana ("na segunda") ainda não são reconhecidos.
 - **CA10** — O código não usa cliente de rede e o llama.cpp é compilado sem suporte a download. Verificado em 2026-09-27 num namespace sem rede (`unshare -rn`, só o loopback, desligado): `cade ingest all` e um `cade ask` que carrega os dois modelos funcionaram, com a resposta e a fonte certas.
 
@@ -182,15 +182,16 @@ Notas:
 |---|---|
 | Linguagem | Go |
 | Persistência | SQLite (`mattn/go-sqlite3`) + sqlite-vec |
-| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo; CUDA opcional (`make cuda`) |
+| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo, com a biblioteca de visão `mtmd`; CUDA opcional (`make cuda`) |
 | Embeddings | nomic-embed-text-v2-moe Q4_K_M (multilíngue) |
-| Geração | Qwen2.5-3B-Instruct Q4_K_M |
+| Geração | Qwen3.5-2B Q4_K_M (Apache-2.0), com o projetor de visão (`mmproj`) ao lado |
 | Teams | leitor próprio de LevelDB, IndexedDB do Chromium e serialização V8 |
 
 **Decisões de design:**
 - llama.cpp embutido em vez de Ollama ou `llama-server`, para não depender de um processo servidor.
 - O nomic-embed-text-v1.5 foi substituído pelo v2-moe por ser centrado em inglês e ordenar mal perguntas em português.
 - O Qwen2.5-1.5B foi substituído pelo 3B, que respondia "não encontrei" indevidamente em perguntas com filtro.
+- O Qwen2.5-3B (licença só não comercial) foi substituído pelo Qwen3.5-2B (Apache-2.0), que entende as perguntas igual ou melhor em todos os campos da suíte de plano, cabe em menos VRAM e também lê imagens (fase 19). O 4B entende melhor ainda, mas passa do orçamento de VRAM.
 - Teams lido do IndexedDB local em vez da Graph API: dispensa login, consentimento do tenant e acesso à rede, ao custo de cobrir apenas o que o cliente armazenou.
 - O LevelDB é lido por implementação própria (sem `goleveldb`, que está sem manutenção), mantendo a versão de maior sequência de cada chave, o que é correto independentemente do comparador `idb_cmp1` do Chromium.
 

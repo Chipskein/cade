@@ -16,6 +16,7 @@ import (
 const (
 	embeddingModelEnv  = "CADE_TEST_EMBEDDING_MODEL"
 	generationModelEnv = "CADE_TEST_GENERATION_MODEL"
+	visionProjectorEnv = "CADE_TEST_VISION_PROJECTOR"
 )
 
 func modelPathOrSkip(t *testing.T, variable string) string {
@@ -94,6 +95,41 @@ func TestGeneratorFollowsInstruction(t *testing.T) {
 	reply, err := loadTestGenerator(t, 2048).Generate(context.Background(), capitalQuestion, 16, llm.GenerationProgress{})
 	if err != nil || !strings.Contains(strings.ToLower(reply), "paris") {
 		t.Fatalf("expected a reply mentioning Paris, got %q (err %v)", reply, err)
+	}
+}
+
+func TestHasReasoningMode(t *testing.T) {
+	qwen3 := "{%- if enable_thinking is false %}{{- '<think>\\n\\n</think>\\n\\n' }}{%- endif %}"
+	qwen25 := "{{- '<|im_start|>assistant\\n' }}"
+	if !hasReasoningMode(qwen3) || hasReasoningMode(qwen25) {
+		t.Fatal("expected only the template with a <think> block to have a reasoning mode")
+	}
+}
+
+// Qwen3.5 opens a reasoning block unless the prompt closes one; the `ask`
+// answer must never show it.
+func TestGeneratorReplyHasNoReasoningBlock(t *testing.T) {
+	reply, err := loadTestGenerator(t, 2048).Generate(context.Background(), capitalQuestion, 64, llm.GenerationProgress{})
+	if err != nil || strings.Contains(reply, "<think>") || strings.Contains(reply, "</think>") {
+		t.Fatalf("expected a reply without a reasoning block, got %q (err %v)", reply, err)
+	}
+}
+
+func TestVisionProjectorLoadsForGenerator(t *testing.T) {
+	path := modelPathOrSkip(t, visionProjectorEnv)
+	projector, err := LoadVisionProjector(loadTestGenerator(t, 1024), path, true)
+	if err != nil {
+		t.Fatalf("load vision projector: %v", err)
+	}
+	defer projector.Close()
+	if !projector.SupportsImages() {
+		t.Fatalf("expected %q to encode images", path)
+	}
+}
+
+func TestVisionProjectorRejectsMissingFile(t *testing.T) {
+	if _, err := LoadVisionProjector(loadTestGenerator(t, 1024), "/nonexistent/mmproj.gguf", false); err == nil {
+		t.Fatal("expected an error for a missing projector file")
 	}
 }
 
