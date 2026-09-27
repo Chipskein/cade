@@ -37,10 +37,19 @@ EVAL_TIMEOUT ?= 1h
 comma := ,
 TAGS = sqlite_fts5$(if $(GO_TAGS),$(comma)$(GO_TAGS))
 
-.PHONY: build cuda install uninstall test cover fuzz test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
+# `cade version`: the tag (or commit) and the commit's date, so two builds
+# of one commit report the same thing.
+VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+COMMIT     ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null)
+BUILD_DATE ?= $(shell git log -1 --format=%cd --date=format:%Y-%m-%d 2>/dev/null)
+BUILDINFO  := github.com/chipskein/cade/internal/buildinfo
+LDFLAGS    := -X $(BUILDINFO).version=$(VERSION) -X $(BUILDINFO).commit=$(COMMIT) \
+	-X $(BUILDINFO).date=$(BUILD_DATE) -X $(BUILDINFO).llamaTag=$(LLAMA_TAG)
+
+.PHONY: build cuda install uninstall dist test cover fuzz test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
 
 build: llama
-	go build -tags sqlite_fts5 -o bin/cade ./cmd/cade
+	go build -tags sqlite_fts5 -ldflags "$(LDFLAGS)" -o bin/cade ./cmd/cade
 
 # Installs whichever binary is in bin/ (CPU or CUDA); builds the CPU one if
 # none exists, so `make cuda install` keeps the GPU build.
@@ -51,8 +60,22 @@ install:
 uninstall:
 	rm -f $(DESTDIR)$(PREFIX)/bin/cade
 
+# The release archive: the CPU binary with the licenses and docs a user
+# needs, plus its SHA-256. The release workflow builds it with
+# LLAMA_NATIVE=OFF so it runs on any x86-64 CPU with AVX2; CUDA stays a
+# local build (it ties the binary to a driver and GPU architecture).
+DIST_NAME  = cade-$(VERSION)-linux-$(shell go env GOARCH)-cpu
+DIST_FILES := LICENSE THIRD_PARTY_NOTICES.md README.md README.pt-BR.md PRIVACY.md PRIVACY.pt-BR.md \
+	CHANGELOG.md CHANGELOG.pt-BR.md config.example.json
+
+dist: build
+	rm -rf dist/$(DIST_NAME) && mkdir -p dist/$(DIST_NAME)
+	cp bin/cade $(DIST_FILES) dist/$(DIST_NAME)/
+	tar -C dist -czf dist/$(DIST_NAME).tar.gz $(DIST_NAME)
+	cd dist && sha256sum $(DIST_NAME).tar.gz > $(DIST_NAME).tar.gz.sha256
+
 cuda: llama-cuda
-	go build -tags sqlite_fts5,cuda -o bin/cade ./cmd/cade
+	go build -tags sqlite_fts5,cuda -ldflags "$(LDFLAGS)" -o bin/cade ./cmd/cade
 
 test: llama
 	go test -tags sqlite_fts5 ./...
@@ -167,4 +190,4 @@ $(EMBEDDING_MODEL) $(GENERATION_MODEL):
 	curl -fL -o $@ $(if $(filter $@,$(EMBEDDING_MODEL)),$(EMBEDDING_MODEL_URL),$(GENERATION_MODEL_URL))
 
 clean:
-	rm -rf bin coverage.out $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda
+	rm -rf bin dist coverage.out $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda

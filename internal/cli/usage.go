@@ -8,7 +8,7 @@ func usageFor(language Language) string {
 const usagePortuguese = `cade — histórico pessoal local (git, browser, arquivos, teams)
 
 Uso:
-  cade [--config ARQUIVO] [--verbose] <comando> [argumentos]
+  cade [--config ARQUIVO] [--verbose] [--version] <comando> [argumentos]
 
 Comandos:
   init                                  acha históricos, caches do Teams e repositórios,
@@ -33,6 +33,7 @@ Comandos:
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
+  version                               versão, commit, data e tipo de build (CPU/CUDA)
   help                                  mostra esta ajuda
 
 Exemplos:
@@ -49,7 +50,7 @@ Flags de cada comando: cade <comando> -h
 const usageEnglish = `cade — local personal history (git, browser, files, teams)
 
 Usage:
-  cade [--config FILE] [--verbose] <command> [arguments]
+  cade [--config FILE] [--verbose] [--version] <command> [arguments]
 
 Commands:
   init                                  finds histories, Teams caches and repositories,
@@ -74,6 +75,7 @@ Commands:
                                         cache) does not come back
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
                                         to design the Teams ingestor
+  version                               version, commit, date and build type (CPU/CUDA)
   help                                  shows this help
 
 Examples:

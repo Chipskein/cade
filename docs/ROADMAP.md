@@ -26,7 +26,7 @@ O que falta para a primeira versão, e em que ordem. O que já foi entregue, com
 | 11 | [Instalação e configuração](#fase-11--instalação-e-configuração) | concluída; binários prontos passam para a fase 9 | alto | médio |
 | 12 | [Idioma da interface](#fase-12--idioma-da-interface) | concluída | médio | médio |
 | 8 | [Documentação e manutenção](#fase-8--documentação-e-manutenção) | concluída | baixo | baixo |
-| 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | pendente | pré-requisito do lançamento | baixo |
+| 9 | [Empacotamento da versão](#fase-9--empacotamento-da-versão) | concluída; falta criar a tag | pré-requisito do lançamento | baixo |
 | — | [A definir](#a-definir) | em aberto | — | — |
 
 A tabela está na ordem sugerida:
@@ -75,24 +75,11 @@ Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): README com hardware, navega
 
 ## Fase 9 — Empacotamento da versão
 
-1. **Número de versão.**
-   - `cade version` (e `--version`) mostra a versão, o commit, a data e o tipo de build (CPU/CUDA), injetados com `-ldflags -X` pelo Makefile a partir de `git describe`.
-   - Tag git `vX.Y.Z` no commit do lançamento.
-2. **Avisos de terceiros.**
-   - O projeto é GPLv2, e as dependências embutidas no binário são compatíveis:
-     - llama.cpp (MIT);
-     - mattn/go-sqlite3 (MIT, com o SQLite em domínio público);
-     - sqlite-vec (MIT/Apache-2.0; o módulo Go não traz o arquivo de licença);
-     - klauspost/compress (BSD-3).
-   - Os avisos dessas licenças precisam ir junto, em `THIRD_PARTY_NOTICES.md`.
-3. **Modelos: licença e alternativas.**
-   - **Embedding:** o nomic-embed-text-v2-moe é Apache-2.0 (está no GGUF).
-   - **Geração:** o GGUF do Qwen2.5-3B-Instruct não traz licença. A conferir no model card: o 3B parece estar sob a Qwen Research License, de uso não comercial, diferente dos outros tamanhos. O resultado vai para o README.
-   - **Alternativa:** se a licença restringir o uso, avaliar um modelo de geração com licença aberta na suíte de plano (por exemplo, o Qwen2.5-1.5B, se for Apache-2.0) e documentar as opções menores para máquinas com pouca memória ou disco. O binário não inclui os modelos: `make models` baixa.
-4. **Binários prontos** (vindo da fase 11): builds CPU para Linux anexados à tag, para quem não quer compilar, compilados com `LLAMA_NATIVE=OFF` como na CI. CUDA continua por build local. O README ganha o caminho "binário baixado → `make models` ou download manual → `cade init`".
-5. **Notas de versão.** Avisar de dois pontos:
-   - a migração com cópia leva ~1 minuto e grava uma cópia do tamanho do banco;
-   - o `cade reindex` é obrigatório depois da migração 5, porque os textos longos ficam sem vetor até ele rodar.
+Entregue (ver o [CHANGELOG](../CHANGELOG.pt-BR.md)): `cade version`, `THIRD_PARTY_NOTICES.md`, licenças dos modelos (o Qwen2.5-3B é só para uso não comercial; o 1.5B, Apache-2.0, ficou abaixo do piso da suíte de plano), `make dist`, workflow de release e notas da v0.1.0. Para lançar:
+
+1. Trocar "Não lançado (primeira versão)" no CHANGELOG (EN/PT) pela versão e data.
+2. Conferir os critérios de release abaixo.
+3. `git tag v0.1.0 && git push origin v0.1.0`: o workflow testa, gera o binário e publica o release.
 
 ---
 

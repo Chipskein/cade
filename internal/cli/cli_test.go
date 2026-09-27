@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/ingest"
@@ -56,6 +57,7 @@ type fakeWorld struct {
 	files    testfakes.FakeFileSystem
 	stdin    string
 	database storage.DatabaseState
+	build    buildinfo.Info
 }
 
 func newFakeWorld() *fakeWorld {
@@ -77,6 +79,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		RootFS:            w.files,
 		HomeDir:           func() (string, error) { return "/home/ana", nil },
 		Stdin:             strings.NewReader(w.stdin),
+		Build:             w.build,
 		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
 			return w.embedder, nil

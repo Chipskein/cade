@@ -65,10 +65,12 @@ O que a ingestão e a busca fazem com o histórico:
 
 ## Modelos
 
-| Uso | Modelo | Tamanho |
-|---|---|---|
-| Embeddings | [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF) Q4_K_M | 344 MB |
-| Geração | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) Q4_K_M | 2,1 GB |
+| Uso | Modelo | Tamanho | Licença |
+|---|---|---|---|
+| Embeddings | [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF) Q4_K_M | 344 MB | Apache-2.0 |
+| Geração | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) Q4_K_M | 2,1 GB | [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE): só uso não comercial |
+
+> **Licença do modelo de geração:** a Qwen Research License só permite uso não comercial, que ela define como "apenas para pesquisa ou avaliação"; uso comercial exige licença da Alibaba Cloud. Usar o cade no trabalho pode contar como uso comercial. A alternativa aberta é o [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) (Apache-2.0, 1,1 GB, e mais leve em memória): baixe `qwen2.5-1.5b-instruct-q4_k_m.gguf` e ajuste `generation.model_path`. Ele entende pior as perguntas: 117 de 153 perguntas da suíte de plano totalmente certas, contra 131, e a fonte 87% certa, contra 95%, abaixo do piso da suíte ([bench/plan-qwen2.5-1.5b.txt](bench/plan-qwen2.5-1.5b.txt)); também cita menos as evidências. Licenças de tudo o que está no binário: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Qualquer modelo GGUF compatível com llama.cpp pode ser usado via `embedding.model_path` e `generation.model_path` na configuração.
 
@@ -100,13 +102,27 @@ De um clone limpo até a primeira pergunta (Linux):
 7. **Ingerir:** `cade ingest all`.
 8. **Perguntar:** `cade ask "o que eu fiz ontem?"`.
 
-Binários prontos estão previstos para a primeira versão ([roadmap](docs/ROADMAP.md), fase 9).
+**Ou a partir de um binário de release** (Linux x86-64, só CPU; qualquer CPU com AVX2), sem as ferramentas de build:
+
+```sh
+V=v0.1.0   # a versão desejada
+curl -LO https://github.com/Chipskein/cade/releases/download/$V/cade-$V-linux-amd64-cpu.tar.gz
+curl -LO https://github.com/Chipskein/cade/releases/download/$V/cade-$V-linux-amd64-cpu.tar.gz.sha256
+sha256sum -c cade-$V-linux-amd64-cpu.tar.gz.sha256
+tar xzf cade-$V-linux-amd64-cpu.tar.gz && install -Dm755 cade-$V-linux-amd64-cpu/cade ~/.local/bin/cade
+M=~/.local/share/cade/models && mkdir -p $M
+curl -L -o $M/nomic-embed-text-v2-moe.Q4_K_M.gguf https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-GGUF/resolve/main/nomic-embed-text-v2-moe.Q4_K_M.gguf
+curl -L -o $M/qwen2.5-3b-instruct-q4_k_m.gguf https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf
+```
+
+Depois, os passos 5 a 8. `cade version` mostra a versão, o commit, a data e o tipo de build (CPU ou CUDA).
 
 ```sh
 make build    # compila llama.cpp e gera bin/cade
 make models   # baixa os modelos para ~/.local/share/cade/models
 make cuda     # opcional: build com GPU NVIDIA (requer CUDA Toolkit; gpu_layers -1 na configuração)
 make install  # copia bin/cade para ~/.local/bin (PREFIX=... para mudar)
+make dist     # arquivo de release em dist/: binário CPU, licenças, docs, SHA-256
 make uninstall
 ```
 
@@ -326,6 +342,7 @@ make fuzz          # fuzzing dos leitores do cache do Teams, FUZZTIME por alvo (
 
 **CI** (GitHub Actions, `.github/workflows/`):
 - `ci.yml`, a cada push e pull request: `make fmt-check`, `vet`, `lint` e `cover`. O build do llama.cpp fica em cache pela `LLAMA_TAG`, compilado com `LLAMA_NATIVE=OFF` (AVX2, sem ajuste à CPU do runner) para que a biblioteca em cache rode em qualquer runner. O total de cobertura vai para o resumo da execução e, no `dev`, para o badge acima (um `coverage.json` no branch `badges`, sem serviço externo).
+- `release.yml`, ao enviar uma tag `vX.Y.Z`: testes, `make dist` com `LLAMA_NATIVE=OFF`, conferência de que o `cade version` mostra a tag, e um release no GitHub com o arquivo, o SHA-256 e `docs/release-notes/vX.Y.Z.md` como notas (sem esse arquivo, a execução falha).
 - `eval.yml`, manual ou toda segunda-feira: `make eval` em CPU com os modelos em cache, e o relatório publicado como o artefato `eval-report`. Leva horas num runner, por isso fica fora do caminho de cada push.
 
 O `golangci-lint` roda `errcheck`, `staticcheck`, `unused` e `ineffassign` (`.golangci.yml`); instale a versão fixada no Makefile (`make -s print-GOLANGCI_LINT_VERSION`) com `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<versão>`.

@@ -80,6 +80,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF5.6** `cade init` acha os históricos de navegador (Chromium e Firefox), os caches do Teams e os repositórios git sob um diretório informado, pergunta o que incluir (o Teams fica de fora por padrão) e grava a configuração com permissão `600`. Olha só nomes, nunca conteúdo; sem entrada, fica com os padrões.
 - **RF5.7** `cade doctor` confere os modelos (arquivo GGUF), o FTS5 do SQLite, o banco (versão do esquema, migração com cópia pendente, modelo dos vetores, reindexação pendente) e cada caminho configurado, dizendo como corrigir cada problema. Lê o banco sem migrá-lo e sai com código 1 quando algum comando falharia.
 - **RF5.8** A interface (ajuda, rótulos, progresso e erros da CLI) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos) ou `ui.language` (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta, e os códigos do `ask --json` não mudam com o idioma.
+- **RF5.9** `cade version` (ou `--version`) mostra a versão, o commit, a data, o tipo de build (CPU/CUDA) e a tag do llama.cpp.
 
 ---
 

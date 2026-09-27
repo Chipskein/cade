@@ -29,6 +29,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 O binário precisa ser compilado com a tag `sqlite_fts5`, e o `make` já faz isso. Sem ela, abrir o banco falha com uma mensagem clara.
 
+### Empacotamento da versão (fase 9)
+
+- **`cade version`** (e `--version`): versão, commit, data do commit, tipo de build (CPU ou CUDA) e tag do llama.cpp, por exemplo `cade v0.1.0 (commit 8727192, 2026-09-27, CPU build, llama.cpp b11195)`. O Makefile os injeta com `-ldflags -X` a partir do `git describe`; um `go build` puro usa o carimbo de VCS que o Go embute e mostra a versão `dev`.
+- **`THIRD_PARTY_NOTICES.md`:** os textos das licenças de tudo o que é linkado no binário (Go, llama.cpp/ggml, go-sqlite3, SQLite, sqlite-vec, klauspost/compress); o do sqlite-vec veio do repositório original, porque o módulo Go não traz o arquivo. Um teste falha se o `go.mod` ou o `LLAMA_TAG` ganharem algo que o arquivo não cita.
+- **Licenças dos modelos**, conferidas nos model cards: o nomic-embed-text-v2-moe é Apache-2.0; **o Qwen2.5-3B-Instruct está sob a Qwen Research License, só uso não comercial** ("apenas para pesquisa ou avaliação"). A alternativa Apache-2.0, o Qwen2.5-1.5B-Instruct, foi medida na suíte de plano: 117 de 153 perguntas totalmente certas, contra 131 do 3B; fonte 87% contra 95% (abaixo do piso); pessoas 99% contra 95% ([bench/plan-qwen2.5-1.5b.txt](bench/plan-qwen2.5-1.5b.txt)). O 3B continua o padrão; o README explica a restrição e a troca.
+- **Binários prontos** (vindo da fase 11): o `make dist` gera `dist/cade-<versão>-linux-amd64-cpu.tar.gz` (binário, licenças, READMEs, PRIVACY, CHANGELOG, `config.example.json`) e o SHA-256. O `.github/workflows/release.yml` roda numa tag `vX.Y.Z`: testes, `make dist` com `LLAMA_NATIVE=OFF`, conferência de que o `cade version` mostra a tag, e um release no GitHub com as notas de `docs/release-notes/vX.Y.Z.md` (sem o arquivo, falha). CUDA continua por build local.
+- **Notas de versão** da v0.1.0 em `docs/release-notes/v0.1.0.md`, com a cópia da migração e o `cade reindex` obrigatório.
+
 ### Documentação e manutenção (fase 8)
 
 - **Corrigido:** o `ingest teams` entrava em pânico (ponteiro nulo) com uma reply chain sem `messageMap`. Achado pelo novo teste de amostra de formato; ganhou teste de regressão.

@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/indexeddb"
@@ -38,6 +39,7 @@ func productionToolkit() cli.Toolkit {
 		RootFS:            os.DirFS("/"),
 		HomeDir:           os.UserHomeDir,
 		Stdin:             os.Stdin,
+		Build:             buildinfo.Read(),
 		LoadEmbedder:      loadEmbedder,
 		LoadGenerator:     loadGenerator,
 		Sources:           sourceSpecs,

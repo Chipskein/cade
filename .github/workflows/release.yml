@@ -1,0 +1,51 @@
+name: Release
+
+# Pushing a tag vX.Y.Z builds the CPU binary and publishes a GitHub release
+# with the archive, its SHA-256 and docs/release-notes/vX.Y.Z.md as notes.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  # Portable llama.cpp build (AVX2, FMA, F16C): the binary runs on any
+  # x86-64 CPU from the last decade, not only the runner's.
+  LLAMA_NATIVE: "OFF"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Require release notes
+        run: test -s "docs/release-notes/${GITHUB_REF_NAME}.md" || { echo "missing docs/release-notes/${GITHUB_REF_NAME}.md"; exit 1; }
+
+      - name: Install the llama.cpp build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Test
+        run: make test
+
+      - name: Build the archive
+        run: make dist VERSION="${GITHUB_REF_NAME}"
+
+      - name: Check the binary reports the tag
+        run: ./bin/cade version | tee /dev/stderr | grep -q "cade ${GITHUB_REF_NAME} ("
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${GITHUB_REF_NAME}"
+          --title "cade ${GITHUB_REF_NAME}"
+          --notes-file "docs/release-notes/${GITHUB_REF_NAME}.md"
+          dist/*.tar.gz dist/*.tar.gz.sha256

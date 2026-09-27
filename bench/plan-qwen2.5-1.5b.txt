@@ -1,0 +1,90 @@
+# cade plan suite with Qwen2.5-1.5B-Instruct Q4_K_M (Apache-2.0) — 2026-09-27, commit 8727192, RTX 3060; compare with plan-baseline.txt (Qwen2.5-3B)
+153 perguntas, 117 totalmente corretas
+  lidas só por regras: 67, com 0 erradas
+  mode       145/153   95%  [ 90%– 97%]
+  days       153/153  100%  [ 98%–100%]
+  source     133/153   87%  [ 81%– 91%]
+  people     151/153   99%  [ 95%–100%]
+  direction  146/153   95%  [ 91%– 98%]
+  topic      147/153   96%  [ 92%– 98%]
+  status     153/153  100%  [ 98%–100%]
+✗ conversas com a Beatriz e o Tiago na última semana
+    mode: esperado "listar", veio "responder"
+✗ what did Lucas ask me today?
+    source: esperado "", veio "teams"
+✗ o que eu pesquisei na web sobre a migração do banco em 20/09?
+    mode: esperado "responder", veio "listar"
+✗ como configurei o nginx como proxy reverso?
+    source: esperado "", veio "browser"
+✗ why did the deploy fail?
+    source: esperado "", veio "git"
+✗ tarefas que a Carla me passou ontem
+    direction: esperado "recebidas", veio ""
+✗ Quais foram as tarefas da Acme que me passaram ontem
+    people: esperado "", veio "acme"
+    direction: esperado "recebidas", veio ""
+    topic: esperado "Acme", veio ""
+✗ liste as mensagens que a carla me mandou ontem
+    direction: esperado "recebidas", veio ""
+✗ qual foi a causa do erro 502 no gateway?
+    source: esperado "", veio "browser"
+✗ onde está documentada a política de backup?
+    source: esperado "", veio "file"
+    topic: esperado "política de backup", veio "documentação backup"
+✗ o que eu sei sobre o projeto Hermes?
+    source: esperado "", veio "file"
+✗ como configurei o pre-commit no repositório?
+    source: esperado "", veio "git"
+✗ qual o motivo da lentidão no relatório de vendas?
+    source: esperado "", veio "browser"
+✗ já estudei algo sobre gRPC?
+    source: esperado "", veio "file"
+✗ why was the release delayed?
+    source: esperado "", veio "teams"
+✗ how does the retry policy work in the sync job?
+    source: esperado "", veio "git"
+✗ mensagens que recebi do Pedro ontem
+    mode: esperado "listar", veio "responder"
+✗ conversas com a Juliana essa semana
+    mode: esperado "listar", veio "responder"
+✗ o que o Tiago me pediu sobre o relatório?
+    source: esperado "", veio "teams"
+✗ resumo das conversas com o Pedro e a Beatriz
+    topic: esperado "", veio "conversas"
+✗ o que o Marcos respondeu sobre o deploy?
+    source: esperado "", veio "teams"
+✗ mensagens que o Leandro me enviou este mês
+    direction: esperado "recebidas", veio ""
+✗ o que a Carla falou sobre o CEP?
+    source: esperado "", veio "teams"
+✗ messages from Beatriz this week
+    direction: esperado "recebidas", veio ""
+✗ what did I tell Rui about the contract?
+    source: esperado "", veio "teams"
+    direction: esperado "enviadas", veio ""
+✗ conversations with Carla last week
+    mode: esperado "listar", veio "responder"
+✗ what did Marcos say about the migration?
+    source: esperado "", veio "teams"
+✗ show me what Juliana sent me today
+    mode: esperado "listar", veio "responder"
+✗ o que a Zenite pediu no último contrato?
+    topic: esperado "Zenite", veio "last contract"
+✗ o que eu sei sobre a Vale?
+    source: esperado "", veio "browser"
+✗ quais problemas tivemos com o ERP da Totvs?
+    topic: esperado "ERP da Totvs", veio "problems with ERP Totvs"
+✗ falei com o suporte da AWS sobre o limite?
+    source: esperado "", veio "teams"
+✗ what did Globex ask for in the renewal?
+    source: esperado "", veio "teams"
+    people: esperado "", veio "globex"
+    topic: esperado "Globex", veio "renewal"
+✗ quais cards o Pedro me passou hoje?
+    mode: esperado "tarefas", veio "responder"
+    source: esperado "", veio "teams"
+✗ tarefas da Zenite que me mandaram essa semana
+    direction: esperado "recebidas", veio ""
+✗ tasks Carla sent me yesterday
+    mode: esperado "tarefas", veio "responder"
+

@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
@@ -49,7 +50,9 @@ type Toolkit struct {
 	RootFS  fs.FS
 	HomeDir func() (string, error)
 	// Stdin answers init's questions.
-	Stdin         io.Reader
+	Stdin io.Reader
+	// Build is what this binary was built from (`cade version`).
+	Build         buildinfo.Info
 	LoadEmbedder  func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
 	LoadGenerator func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
 	Sources       func(cfg config.Config) []ingest.SourceSpec
@@ -135,6 +138,7 @@ func subcommands() map[string]subcommand {
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,
+		"version":      runVersion,
 	}
 }
 
@@ -144,6 +148,7 @@ func parseGlobalFlags(args []string, stdout, stderr io.Writer, toolkit Toolkit) 
 	flags.Usage = func() { fmt.Fprint(stdout, usageFor(language)) }
 	configPath := flags.String("config", "", language.pick("arquivo de configuração (padrão: ~/.config/cade/config.json)", "configuration file (default: ~/.config/cade/config.json)"))
 	verbose := flags.Bool("verbose", false, language.pick("logs de depuração em JSON no stderr", "JSON debug logs on stderr"))
+	showVersion := flags.Bool("version", false, language.pick("mostra a versão (como `cade version`)", "shows the version (like `cade version`)"))
 	if err := flags.Parse(args); err != nil {
 		return commandEnv{}, nil, usageError(err)
 	}
@@ -152,6 +157,9 @@ func parseGlobalFlags(args []string, stdout, stderr io.Writer, toolkit Toolkit) 
 		return commandEnv{}, nil, err
 	}
 	env := commandEnv{toolkit: toolkit, language: language, configPath: path, stdout: stdout, stderr: stderr, logger: newLogger(stderr, *verbose)}
+	if *showVersion {
+		return env, []string{"version"}, nil
+	}
 	return env, flags.Args(), nil
 }
 
