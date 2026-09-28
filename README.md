@@ -56,6 +56,21 @@ Cited sources:
   <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-example.jpg" alt="HRrl-KYbIAAINeq.jpg: a game screenshot with the caption 'help me pay for divorce papers'" width="320">
 </p>
 
+Example: finding an image by what it shows ("album cover with a blonde woman"):
+
+```console
+$ cade ask "Imagem Albúm com mulher loira na capa"
+Understood: answer · topic: Imagem Albúm com mulher loira na capa
+A imagem de capa de álbum com uma mulher loira foi encontrada em um arquivo acessado em 15 de setembro de 2026 [1].
+
+Cited sources:
+  [1] [file]    2026-09-15 10:49  /home/chipskein/Downloads/maxresdefault.jpg
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-album-example.jpg" alt="maxresdefault.jpg: a parody album cover showing a blonde woman" width="320">
+</p>
+
 ## Development
 
 ```sh
