@@ -55,6 +55,21 @@ type Generator interface {
 	Generate(ctx context.Context, messages []ChatMessage, maxTokens int, progress GenerationProgress) (string, error)
 }
 
+// RGBImage is decoded pixels, three bytes (red, green, blue) per pixel,
+// row by row from the top left.
+type RGBImage struct {
+	Width  int
+	Height int
+	Pixels []byte
+}
+
+// ImageDescriber answers instructions about one image (phase 19). Sampling
+// is greedy: the same image and instructions always yield the same text,
+// so a stored description can be reused by the image's hash.
+type ImageDescriber interface {
+	DescribeImage(ctx context.Context, image RGBImage, instructions string, maxTokens int) (string, error)
+}
+
 // StructuredGenerator produces output constrained by a GBNF grammar, so a
 // small model can be trusted to emit parseable JSON. Sampling is greedy:
 // the same question always yields the same structure.

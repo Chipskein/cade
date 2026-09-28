@@ -11,6 +11,7 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
 | [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy` package) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache |
+| [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
 
 The sqlite-vec Go module ships without a license file; its texts below come from the upstream repository (`LICENSE-MIT`, `LICENSE-APACHE`). A test (`internal/buildinfo`) fails when `go.mod` gains a module this file does not name.
 
@@ -26,6 +27,8 @@ The models are not part of the binary or of this repository: `go tool mage model
 | [Qwen2.5-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF) (generation default up to v0.0.0) | [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE) | non-commercial only, which the license defines as "research or evaluation purposes only". No longer downloaded; a config that still points at it keeps working under that license |
 
 ## Go standard library and runtime
+
+Also the license of golang.org/x/image.
 
 ```
 Copyright 2009 The Go Authors.

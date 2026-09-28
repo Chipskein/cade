@@ -31,6 +31,7 @@ Levantado com `go version -m bin/cade`, pelo `go.mod` e pelos `LDFLAGS` do cgo e
 | SQLite (embutido no go-sqlite3) | domínio público | sim | sim |
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT ou Apache-2.0, usado sob MIT | sim, só sob MIT | sim, sob qualquer uma |
 | klauspost/compress v1.20.1 (`snappy`) | BSD-3-Clause | sim | sim |
+| golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | sim | sim |
 
 As bibliotecas embutidas no llama.cpp não estavam no `THIRD_PARTY_NOTICES.md` antes desta revisão; agora estão, com os textos que exigem aviso.
 

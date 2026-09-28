@@ -31,6 +31,7 @@ Taken from `go version -m bin/cade`, from `go.mod` and from the cgo `LDFLAGS` of
 | SQLite (bundled with go-sqlite3) | public domain | yes | yes |
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT or Apache-2.0, used under MIT | yes, under MIT only | yes, under either |
 | klauspost/compress v1.20.1 (`snappy`) | BSD-3-Clause | yes | yes |
+| golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | yes | yes |
 
 The vendored llama.cpp libraries were not listed in `THIRD_PARTY_NOTICES.md` before this review; they are now, with the texts that require a notice.
 
