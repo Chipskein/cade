@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/evalimages"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/rag"
@@ -36,8 +37,9 @@ var retrievalSweepMaxBestDistance = []float64{0.60, 0.61, 0.63}
 // TestRetrievalSweepWithModel crosses top_k with both distance gates on
 // the calibration and test sets (phase 17, docs/BENCHMARKS.md).
 func TestRetrievalSweepWithModel(t *testing.T) {
+	warmFixtureCaptions(t)
 	cached := cachedEmbedder(t)
-	calibration, testSuite := loadShippedSuite(t, "calibration"), loadShippedSuite(t, "test")
+	calibration, testSuite := loadCaptionedSuite(t, "calibration"), loadCaptionedSuite(t, "test")
 	deps := dependencies(t, cached)
 	for _, topK := range retrievalSweepTopK {
 		deps.Settings.TopK = topK
@@ -63,10 +65,11 @@ func TestRetrievalSweepWithModel(t *testing.T) {
 // distance gates off and reports where they should be. No floors: this
 // set is for tuning, and the test set checks the result.
 func TestRetrievalCalibrationWithModel(t *testing.T) {
+	warmFixtureCaptions(t)
 	embedder := loadEmbedder(t)
 	deps := dependencies(t, embedder)
 	deps.Settings.MaxDistance, deps.Settings.MaxBestDistance = 2, 0
-	board, err := Run(context.Background(), deps, loadShippedSuite(t, "calibration"), logCase(t))
+	board, err := Run(context.Background(), deps, loadCaptionedSuite(t, "calibration"), logCase(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +81,8 @@ func TestRetrievalCalibrationWithModel(t *testing.T) {
 // TestRetrievalSuiteWithModel checks the test set, never used for tuning,
 // against its floors.
 func TestRetrievalSuiteWithModel(t *testing.T) {
-	suite := loadShippedSuite(t, "test")
+	warmFixtureCaptions(t)
+	suite := loadCaptionedSuite(t, "test")
 	board, err := Run(context.Background(), dependencies(t, loadEmbedder(t)), suite, logCase(t))
 	if err != nil {
 		t.Fatal(err)
@@ -98,11 +102,12 @@ func TestRetrievalScaleWithModel(t *testing.T) {
 	if len(sizes) == 0 {
 		t.Skipf("%s not set; skipping the scale curve", scaleEnv)
 	}
+	warmFixtureCaptions(t)
 	cached := cachedEmbedder(t)
 	for _, total := range sizes {
 		deps := dependencies(t, cached)
 		deps.Settings.TopK = evaluationTopK(t)
-		board, err := Run(context.Background(), deps, loadShippedSuite(t, "test").WithDistractors(total), nil)
+		board, err := Run(context.Background(), deps, loadCaptionedSuite(t, "test").WithDistractors(total), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -124,11 +129,12 @@ const (
 // rerankCandidates hits down to the default top_k, with the time the
 // reranker takes per question.
 func TestRetrievalRerankWithModel(t *testing.T) {
+	warmFixtureCaptions(t)
 	reranker := loadReranker(t)
 	cached := cachedEmbedder(t)
 	sizes := append([]int{0}, scaleSizes(t)...)
 	for _, size := range sizes {
-		suite := loadShippedSuite(t, "test").WithDistractors(size)
+		suite := loadCaptionedSuite(t, "test").WithDistractors(size)
 		for _, rerank := range []*Reranking{nil, {Scorer: reranker, Keep: config.Defaults().Retrieval.TopK}} {
 			deps := dependencies(t, cached)
 			if rerank != nil {
@@ -295,10 +301,12 @@ const generationModelEnv = "CADE_TEST_GENERATION_MODEL"
 // each reply must come from the real evidence, not from the event that
 // tells the model what to say.
 func TestInjectionWithModel(t *testing.T) {
+	warmFixtureCaptions(t)
 	embedder, generator := loadEmbedder(t), loadGenerator(t)
 	deps := dependencies(t, embedder)
 	deps.Settings.MaxAnswerTokens = config.Defaults().Retrieval.MaxAnswerTokens
 	corpus, set := loadShippedInjection(t)
+	captionCorpus(t, &corpus)
 	results, err := RunInjection(context.Background(), deps, generator, corpus, set)
 	if err != nil {
 		t.Fatal(err)
@@ -327,4 +335,44 @@ func loadGenerator(t *testing.T) *llamacpp.Generator {
 	}
 	t.Cleanup(func() { generator.Close() })
 	return generator
+}
+
+// imageFixtureDirectory holds the images the corpus names (phase 19).
+const imageFixtureDirectory = "../../testdata/images"
+
+// warmFixtureCaptions describes the corpus images not yet cached, before
+// any embedder loads, so the vision model and the embedder never share
+// memory; the suite then reads the descriptions from the cache.
+func warmFixtureCaptions(t *testing.T) {
+	t.Helper()
+	if os.Getenv(embeddingModelEnv) == "" {
+		t.Skipf("%s not set; skipping model-backed suite", embeddingModelEnv)
+	}
+	corpus, _ := loadShippedInjection(t)
+	captionCorpus(t, &corpus)
+}
+
+// captionCorpus fills the image events with their cached (or new)
+// descriptions.
+func captionCorpus(t *testing.T, corpus *Corpus) {
+	t.Helper()
+	captions, err := evalimages.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer captions.Close()
+	if err := corpus.CaptionImages(context.Background(), imageFixtureDirectory, captions); err != nil {
+		t.Fatal(err)
+	}
+	if err := captions.Save(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// loadCaptionedSuite is loadShippedSuite with the image events described.
+func loadCaptionedSuite(t *testing.T, set string) Suite {
+	t.Helper()
+	suite := loadShippedSuite(t, set)
+	captionCorpus(t, &suite.Corpus)
+	return suite
 }

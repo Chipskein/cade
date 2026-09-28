@@ -80,3 +80,28 @@ func TestEvalRerankInjectionBenchAndTestModelsUseTheirModels(t *testing.T) {
 		}
 	}
 }
+
+func TestEvalCaptionsDescribesWithTheGeneratorAndProjector(t *testing.T) {
+	world, tasks := newEvalWorld(t)
+	if err := tasks.EvalCaptions(); err != nil {
+		t.Fatal(err)
+	}
+	line := world.runner.Lines()[0]
+	for _, fragment := range []string{"CADE_TEST_GENERATION_MODEL=", "CADE_TEST_VISION_PROJECTOR=", "-run TestCaptionSuiteWithModel ./internal/imagecaption"} {
+		if !strings.Contains(line, fragment) {
+			t.Errorf("command = %q, want %q in it", line, fragment)
+		}
+	}
+}
+
+// The corpus has images: without a cached description, the suites
+// describe them, so they get the image models too.
+func TestSuitesOverTheCorpusGetTheImageModels(t *testing.T) {
+	world, tasks := newEvalWorld(t)
+	if err := tasks.EvalInjection(); err != nil {
+		t.Fatal(err)
+	}
+	if line := world.runner.Lines()[0]; !strings.Contains(line, "CADE_TEST_VISION_PROJECTOR=") || !strings.Contains(line, "CADE_TEST_EMBEDDING_MODEL=") {
+		t.Errorf("command = %q, want the embedder and the image models", line)
+	}
+}
