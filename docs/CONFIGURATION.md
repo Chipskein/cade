@@ -49,3 +49,15 @@
 | `ui.language` | Interface language (`auto`, `pt`, `en`). |
 | `ui.date_order` | Date parsing order for numeric dates. |
 | `tasks.task_url_patterns` | Regexes used to detect task links. |
+
+## Task links
+
+`cade tasks` reports **PR opened** when local history shows a visit to the PR creation page; offline, it cannot tell whether the PR was approved or merged. To recognize a project-specific tracker such as Proj4me, add a pattern:
+
+```json
+"task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
+```
+
+## Image description cost
+
+With `sources.images` on, each image costs about 1.7 s on an RTX 3060 and 22 s on a 6-core CPU: a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU, spread over runs by `ingest.max_images_per_run`. Measurements in [BENCHMARKS.md](BENCHMARKS.md).
