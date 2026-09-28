@@ -66,6 +66,12 @@ cade tasks today
 "task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
 ```
 
+### Images (optional)
+
+With `sources.images` on (`cade init` asks), `ingest` describes the png, jpeg and webp files of your folders with the local vision model (the `mmproj` that `go tool mage models` downloads): screenshots, whiteboard photos and diagrams are then found by what they show and by the text in them. Only the description is stored, never the pixels ([PRIVACY.md](PRIVACY.md)).
+
+It costs about 1.7 s per screenshot on an RTX 3060 and 22 s on a 6-core CPU, so a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU. Each `ingest` describes up to `ingest.max_images_per_run` (default 50) and leaves the rest for the next runs. `cade reindex --captions` describes them again after the model or the prompt changes.
+
 ## Documentation
 
 For implementation details and in-depth guides, see:
@@ -99,7 +105,8 @@ go tool mage check  # what CI runs: fmtCheck, vet, lint and test
 | `test` / `cover` | unit tests / with the per-function coverage table |
 | `fuzz` | the parser fuzz targets, `$FUZZTIME` each (default `30s`) |
 | `testModels` | every test, including the llama.cpp binding against the real models |
-| `eval` | `evalPlan`, `evalRetrieval` and `evalInjection` with the real models |
+| `eval` | `evalPlan`, `evalCaptions`, `evalRetrieval` and `evalInjection` with the real models |
+| `evalCaptions` | describes the image fixtures (`testdata/images`) and checks the words each description must contain |
 | `evalScale` / `evalRerank` | scale curve (`$SCALE`, report in `$SCALE_REPORT`) / reranking experiment (phase 17) |
 | `bench` | latency and memory benchmarks |
 | `fmt` / `fmtCheck` / `vet` / `lint` | gofmt, go vet, golangci-lint (`go tool mage print GOLANGCI_LINT_VERSION` is the pinned version) |

@@ -33,6 +33,8 @@ flowchart LR
         teams[Teams · IndexedDB]
     end
 
+    arq -->|imagens, opcional| visao[Descrição local<br/>Qwen3.5 + mmproj]
+    visao --> ingest
     Fontes --> ingest[cade ingest<br/>normaliza + embedding]
     ingest --> db[(SQLite + sqlite-vec)]
 
@@ -80,11 +82,13 @@ flowchart TD
         sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource"]
         chunking["chunking"]
         indexeddb["indexeddb<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy"]
+        imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
+        imagefile["imagefile<br/>png, jpeg, webp → RGB"]
     end
 
     subgraph portas["Interfaces do núcleo"]
-        llm["llm<br/>Embedder, Generator,<br/>StructuredGenerator"]
-        storage["storage<br/>EventStore, EmbeddingIndex"]
+        llm["llm<br/>Embedder, Generator,<br/>StructuredGenerator, ImageDescriber"]
+        storage["storage<br/>EventStore, EmbeddingIndex,<br/>ImageCaptionIndex"]
         event["event<br/>Event"]
     end
 
@@ -106,6 +110,7 @@ flowchart TD
     cli --> timeline
     cli --> tasks
     cli --> ingest
+    cli --> imagecaption
     cli --> provenance
 
     queryplan --> llm
@@ -123,6 +128,10 @@ flowchart TD
     ingest --> chunking
     ingest --> llm
     ingest --> storage
+    imagecaption --> sources
+    imagecaption --> imagefile
+    imagecaption --> llm
+    imagecaption --> storage
 
     storage --> listing
     storage --> event
@@ -132,7 +141,7 @@ flowchart TD
     sqlitestore -. implementa .-> storage
 ```
 
-Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (`cade teams-schema`), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`).
+Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (`cade teams-schema`), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`, `syntheticimage`, que desenha as imagens de teste, e `evalimages`, que abre o cache das descrições delas).
 
 ---
 
@@ -149,7 +158,8 @@ flowchart LR
         openStore["OpenStore → sqlitestore.OpenWithHooks<br/>(migrações, cópia antes)"]
         loadEmbedder["LoadEmbedder → llamacpp embedder"]
         loadGenerator["LoadGenerator → llamacpp generator<br/>(estado do prompt salvo)"]
-        sourcesFn["Sources → sourceSpecs(cfg)<br/>git, browser, file, teams"]
+        loadDescriber["LoadImageDescriber → llamacpp gerador + mmproj<br/>(só o ingest com imagens)"]
+        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams"]
         loadConfig["LoadConfig / WriteConfig"]
         readIDB["ReadIndexedDB → indexeddb.ReadDirectory"]
     end
@@ -163,6 +173,37 @@ flowchart LR
 ## `cade ingest`
 
 Um `ingest` abre o banco, carrega só o modelo de embedding e passa cada coletor pelo mesmo `ingest.Pipeline`. Os coletores não sabem de banco nem de vetores: só emitem `event.Event`.
+
+Com `sources.images` ligado e alvos da fonte `file`, uma primeira etapa (fase 19) descreve as imagens antes de o embedder carregar. O `imagecaption.Planner` percorre as pastas com o mesmo `filesource.Walk` do coletor, e o resultado (`ingest.ImageCaptions`, caminho → `event.Image`) vai para o coletor de arquivos, que usa a descrição como texto do evento. Daí em diante é o pipeline de sempre: máscara de segredos, pedaços, vetores, `chunks_fts`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLI as cli.describeImages
+    participant PL as imagecaption.Planner
+    participant S as storage.EventStore<br/>(ImageCaptionIndex)
+    participant IF as imagefile
+    participant V as llamacpp.ImageDescriber<br/>(gerador + mmproj)
+
+    loop cada imagem das pastas (filesource.Walk)
+        PL->>S: IsForgotten / StoredEvent(uid)
+        alt mesma versão, já descrita ou ilegível
+            PL-->>PL: pula sem ler o arquivo
+        else nova, mudou ou pendente
+            PL->>S: DescribedImage(sha256)
+            alt mesmos bytes já descritos (movida, renomeada)
+                S-->>PL: descrição reaproveitada
+            else ainda cabe em max_images_per_run
+                PL->>IF: Decode (limite de pixels, lado ≤ 1024)
+                PL->>V: DescribeImage (carrega na 1ª vez)
+                V-->>PL: descrição + texto visível
+            else passou do limite
+                PL-->>PL: pendente (próxima execução)
+            end
+        end
+    end
+    CLI->>V: Close (antes do LoadEmbedder)
+```
 
 ```mermaid
 sequenceDiagram
@@ -350,7 +391,7 @@ flowchart LR
 
 ## `cade reindex`
 
-Reaproveita o `ingest.Pipeline` sem coletor: só refaz os vetores.
+Reaproveita o `ingest.Pipeline` sem coletor: só refaz os vetores. Com `--captions`, descreve de novo as imagens cuja descrição veio de outro modelo ou versão do prompt, em lotes de `ingest.max_images_per_run`: em cada lote, o `imagecaption.Recaptioner` descreve com o modelo de visão, que é liberado antes de o embedder carregar para `Pipeline.ReplaceStored` gravar o texto novo (com a máscara).
 
 ```mermaid
 sequenceDiagram
@@ -380,7 +421,7 @@ Um arquivo SQLite (`~/.local/share/cade/cade.db`), com as extensões sqlite-vec 
 
 ```mermaid
 flowchart LR
-    events["events<br/>uid, fonte, data, título,<br/>texto, metadado, content_hash,<br/>direction"]
+    events["events<br/>uid, fonte, data, título,<br/>texto, metadado, content_hash,<br/>direction; índice do image_sha256"]
     chunks["chunks<br/>posições no texto"]
     vec["chunk_embeddings<br/>(sqlite-vec)"]
     fts["chunks_fts<br/>(FTS5)"]

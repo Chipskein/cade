@@ -10,6 +10,16 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Busca por descrição de imagens (fase 19, #7)
+
+- **Problema:** capturas de tela, fotos de quadro, diagramas e prints de erro nas pastas configuradas ficavam só com o nome, embora muitas vezes sejam o registro de uma decisão ou de um erro.
+- **Descrições:** com `sources.images` ligado (desligado por padrão; o `cade init` pergunta, mostrando o custo), o `ingest file` descreve cada png, jpeg e webp com o Qwen3.5-2B e o `mmproj`, que o `go tool mage models` já baixa: uma descrição curta, em português, e a transcrição do texto visível, sem precisar de OCR. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto: máscara de segredos, pedaços, busca híbrida, filtros, `timeline`, `forget` e citação (o caminho da imagem).
+- **Uma vez por imagem:** uma imagem que não mudou é pulada sem ser lida; uma movida, renomeada ou copiada reaproveita a descrição pelo SHA-256 dos bytes. `cade reindex --captions` descreve de novo as imagens cuja descrição veio de outro modelo ou versão do prompt, em lotes, e retoma se for interrompido.
+- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
+- **Guardado:** a descrição e a transcrição (separadas, com o modelo e a versão do prompt, para a #22), o hash da imagem e o tamanho em pixels; nunca os pixels. Texto dentro de uma imagem é tratado como uma mensagem: o prompt manda copiar, não obedecer, e ordens nele ganham a marca de não confiável no `ask`. O [PRIVACY](PRIVACY.pt-BR.md) tem os detalhes.
+- **Migração 10:** um índice pelo hash da imagem no metadado. Sem cópia e sem reescrever dados.
+- **Avaliação:** `go tool mage evalCaptions` descreve 8 imagens de teste (`testdata/images`: capturas sintéticas, um diagrama e uma foto da NASA em domínio público) e confere o `testdata/queries/captions.json`: cobertura 1,00 contra o mínimo de 0,90, nenhum segredo depois da máscara. Sete casos de imagem entraram no conjunto de teste da recuperação (32/32; os 25 casos anteriores iguais, MRR 0,89) e um caso de injeção com ordens escritas numa imagem (não seguidas). As suítes de recuperação e de injeção leem as descrições reais do cache que o `evalCaptions` grava.
+
 ### Licença: GPLv3 ou posterior (#10)
 
 - **O cade agora está sob a GPLv3 ou posterior** (`GPL-3.0-or-later`); a v0.0.0 continua sob a GPLv2. Todos os componentes do binário são permissivos e funcionam com as duas versões; a GPLv3 também aceita bibliotecas Apache-2.0 e (A)GPLv3, de que a busca em PDFs do roteiro pode precisar. A revisão, as exceções (builds CUDA não são distribuídos) e a lista para conferir dependências novas estão em [docs/LICENSING.pt-BR.md](docs/LICENSING.pt-BR.md).
