@@ -6,6 +6,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Licença: GPLv3 ou posterior (#10)
+
+- **O cade agora está sob a GPLv3 ou posterior** (`GPL-3.0-or-later`); a v0.0.0 continua sob a GPLv2. Todos os componentes do binário são permissivos e funcionam com as duas versões; a GPLv3 também aceita bibliotecas Apache-2.0 e (A)GPLv3, de que a busca em PDFs do roteiro pode precisar. A revisão, as exceções (builds CUDA não são distribuídos) e a lista para conferir dependências novas estão em [docs/LICENSING.pt-BR.md](docs/LICENSING.pt-BR.md).
+- **Os avisos de terceiros** agora listam as bibliotecas que o llama.cpp compila em `mtmd` e `vendor-hash` (stb_image, miniaudio, xxHash, rotate-bits, sha1, sha256, sheredom/subprocess), com os textos que exigem aviso.
+
 ### Build com o Mage (#16)
 
 - **O Makefile saiu:** todos os alvos agora são alvos do [Mage](https://magefile.org/) escritos em Go (`magefiles/magefile.go`, lógica e testes em `internal/devtasks/`). O Mage é uma dependência `tool` no `go.mod`: `go tool mage <alvo>` não exige instalar nada, e o Mage nunca entra no binário do `cade`. `go tool mage -l` lista os alvos; o README tem a tabela.

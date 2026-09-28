@@ -1,11 +1,12 @@
 # Third-party notices
 
-cade is licensed under the GNU General Public License v2 ([LICENSE](LICENSE)). The `cade` binary also contains the software below, under the licenses reproduced here. Every one is compatible with the GPLv2.
+cade is licensed under the GNU General Public License, version 3 or (at your option) any later version (SPDX `GPL-3.0-or-later`, [LICENSE](LICENSE)); v0.0.0 was released under the GPLv2. The `cade` binary also contains the software below, under the licenses reproduced here. Every one is compatible with the GPLv3, and the review is in [docs/LICENSING.md](docs/LICENSING.md).
 
 | Component | Version | License | In the binary as |
 |---|---|---|---|
 | [Go](https://go.dev) standard library and runtime | the Go toolchain's | BSD-3-Clause | every Go program |
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) and ggml | `b11195` (`LLAMA_TAG`) | MIT | the `llama`, `mtmd` (vision) and `ggml` static libraries (no tools, server, downloader or subprocesses) |
+| Libraries vendored by llama.cpp and compiled into `mtmd` and `vendor-hash` (the linker drops what cade does not call) | same tag | stb_image: MIT or public domain; miniaudio: MIT-0 or public domain; xxHash: BSD-2-Clause; rotate-bits: MIT; sha1 and sha256: public domain; sheredom/subprocess: Unlicense | image decoding and hashing inside `mtmd` |
 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | v1.14.52 | MIT | SQLite driver (cgo) |
 | [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
@@ -62,6 +63,88 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 MIT License
 
 Copyright (c) 2023-2026 The ggml authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Libraries vendored by llama.cpp
+
+The public-domain, MIT-0 and Unlicense parts need no notice. The others:
+
+### stb_image (MIT alternative)
+
+```
+Copyright (c) 2017 Sean Barrett
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+### xxHash
+
+```
+xxHash Library
+Copyright (c) 2012-2021 Yann Collet
+All rights reserved.
+
+BSD 2-Clause License (https://www.opensource.org/licenses/bsd-license.php)
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice, this
+  list of conditions and the following disclaimer in the documentation and/or
+  other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+### rotate-bits
+
+```
+MIT License
+
+Copyright (c) 2021 William Casarin <jb55@jb55.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
