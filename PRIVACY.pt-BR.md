@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Privacidade
