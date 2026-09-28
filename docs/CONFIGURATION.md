@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Configuration reference
 
 `cade init` writes `~/.config/cade/config.json`. You can use

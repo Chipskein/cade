@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Especificação — CLI de Histórico Pessoal
 
 > Ferramenta CLI local que agrega a atividade pessoal de múltiplas fontes e responde consultas por timeline e por busca semântica. 100% local por requisito de privacidade.

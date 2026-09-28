@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Benchmarks
 
 Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:

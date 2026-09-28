@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # cade — roadmap
 
 O que falta para a v0.1.0, e em que ordem. A [v0.0.0](https://github.com/Chipskein/cade/releases/tag/v0.0.0) saiu em 2026-09-27; o que ela entregou, fase a fase e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.md](BENCHMARKS.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).

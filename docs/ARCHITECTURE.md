@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # cade — arquitetura
 
 Como o código está organizado e qual componente chama qual, no estado da v0.0.0. Os diagramas são em Mermaid e seguem os nomes reais de pacotes, tipos e funções, para servirem de mapa ao ler o código. O que muda na v0.1.0 está no [ROADMAP](ROADMAP.md).
