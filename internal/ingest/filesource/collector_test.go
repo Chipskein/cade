@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/ingest"
 )
 
 var modified = time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
@@ -102,4 +103,25 @@ func keys(events map[string]event.Event) []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+func TestCollectUsesTheCaptionOfADescribedImage(t *testing.T) {
+	image := event.Image{SHA256: "ab12", Status: event.CaptionDescribed, Description: "um terminal", VisibleText: "panic: nil map"}
+	opts := Options{MaxFileBytes: 50, Captions: ingest.ImageCaptions{"/root/image.png": image}}
+	var got event.Event
+	err := NewCollector(fstest.MapFS{"image.png": {Data: []byte{0x89, 'P'}, ModTime: modified}}, "/root", opts).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if err != nil || got.Content != "image.png\n"+image.SearchableText() || got.Image() != image || got.File().Path != "/root/image.png" {
+		t.Fatalf("expected the caption as text and in metadata, got %+v (err %v)", got, err)
+	}
+}
+
+func TestCollectKeepsAPendingImageAsItsName(t *testing.T) {
+	opts := Options{MaxFileBytes: 50, Captions: ingest.ImageCaptions{"/root/image.png": {Status: event.CaptionPending}}}
+	var got event.Event
+	_ = NewCollector(fstest.MapFS{"image.png": {Data: []byte{0x89, 'P'}, ModTime: modified}}, "/root", opts).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if got.Content != "image.png" || got.Image().Status != event.CaptionPending {
+		t.Fatalf("expected the name only, marked pending, got %+v", got)
+	}
 }

@@ -97,11 +97,12 @@ type EmbeddingConfig struct {
 	DocumentPrefix string `json:"document_prefix"`
 }
 
-// ModelName identifies the embedding model by its file name, which
-// carries the quantization (Q4 and Q8 vectors differ too); the database
-// records it to refuse mixing vectors of two models.
-func (e EmbeddingConfig) ModelName() string {
-	return filepath.Base(e.ModelPath)
+// ModelName identifies a model by its file name, which carries the
+// quantization (Q4 and Q8 vectors differ too); the database records the
+// embedding model's to refuse mixing vectors of two models, and each image
+// description the generation model's.
+func (m ModelConfig) ModelName() string {
+	return filepath.Base(m.ModelPath)
 }
 
 // RetrievalConfig tunes semantic search and answer generation.

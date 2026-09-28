@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/llm"
@@ -56,7 +57,12 @@ type Toolkit struct {
 	Build         buildinfo.Info
 	LoadEmbedder  func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
 	LoadGenerator func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
-	Sources       func(cfg config.Config) []ingest.SourceSpec
+	// LoadImageDescriber loads the generation model with its vision
+	// projector; only `ingest` with images on calls it.
+	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
+	// Sources builds the collectors; the file source reads captions, which
+	// the first stage of `ingest` fills.
+	Sources       func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
 	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool

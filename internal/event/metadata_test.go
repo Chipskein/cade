@@ -71,3 +71,16 @@ func TestFileWithoutImageMetadataHasNoCaption(t *testing.T) {
 		t.Fatalf("expected no image metadata on a text file, got %+v", got)
 	}
 }
+
+func TestSearchableTextOnlyForDescribedImages(t *testing.T) {
+	described := Image{Status: CaptionDescribed, Description: "um terminal", VisibleText: "panic: nil map"}
+	if got := described.SearchableText(); got != "Imagem: um terminal\nTexto na imagem:\npanic: nil map" {
+		t.Fatalf("unexpected text %q", got)
+	}
+	if got := (Image{Status: CaptionDescribed, Description: "uma praia"}).SearchableText(); got != "Imagem: uma praia" {
+		t.Fatalf("expected no visible-text label without text, got %q", got)
+	}
+	if got := (Image{Status: CaptionPending, Description: "x"}).SearchableText(); got != "" {
+		t.Fatalf("expected nothing for a pending image, got %q", got)
+	}
+}

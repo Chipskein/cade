@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"strings"
 	"testing"
@@ -12,9 +13,12 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/ingest/filesource"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
+	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/timeline"
@@ -60,6 +64,13 @@ type fakeWorld struct {
 	stdin    string
 	database storage.DatabaseState
 	build    buildinfo.Info
+	// realFiles makes the file source walk files with the real collector;
+	// describer backs the vision model, and describerOpenAtEmbedderLoad
+	// records whether it was still loaded when the embedder loaded.
+	realFiles                   bool
+	describer                   *testfakes.FakeImageDescriber
+	describerLoads              int
+	describerOpenAtEmbedderLoad bool
 }
 
 func newFakeWorld() *fakeWorld {
@@ -84,7 +95,12 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Build:             w.build,
 		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
+			w.describerOpenAtEmbedderLoad = w.describerLoads > 0 && !w.describer.Closed
 			return w.embedder, nil
+		},
+		LoadImageDescriber: func(config.ModelConfig, config.VisionConfig, *slog.Logger) (imagecaption.ClosableDescriber, error) {
+			w.describerLoads++
+			return w.describer, nil
 		},
 		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
@@ -108,12 +124,19 @@ func (w *fakeWorld) loadGenerator(config.ModelConfig, *slog.Logger) (ClosableGen
 	return w.generator, nil
 }
 
-func (w *fakeWorld) sources(cfg config.Config) []ingest.SourceSpec {
+func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec {
 	collector := FakeCollector{Events: []event.Event{sampleCommit}}
 	newCollector := func(string) (ingest.EventCollector, error) { return collector, nil }
+	newFileCollector := newCollector
+	if w.realFiles {
+		newFileCollector = func(root string) (ingest.EventCollector, error) {
+			files, err := fs.Sub(w.files, rootfs.Name(root))
+			return filesource.NewCollector(files, root, filesource.OptionsFor(cfg.Sources, captions)), err
+		}
+	}
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: newCollector},
-		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newCollector},
+		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newFileCollector},
 	}
 }
 

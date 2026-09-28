@@ -27,11 +27,17 @@ func runIngest(ctx context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return err
 	}
-	jobs, err := planIngestJobs(env.toolkit.Sources(cfg), args[0], args[1:], env.language)
+	// The file collectors read captions when created, after
+	// describeImages has filled it.
+	captions := ingest.ImageCaptions{}
+	jobs, err := planIngestJobs(env.toolkit.Sources(cfg, captions), args[0], args[1:], env.language)
 	if err != nil {
 		return err
 	}
-	return env.withIngestPipeline(ctx, func(pipeline *ingest.Pipeline) error {
+	describe := func(cfg config.Config, store storage.EventStore) error {
+		return env.describeImages(ctx, cfg, store, jobs, captions)
+	}
+	return env.withIngestPipeline(ctx, describe, func(pipeline *ingest.Pipeline) error {
 		return runIngestJobs(ctx, env, pipeline, jobs)
 	})
 }
@@ -77,14 +83,17 @@ func jobsFor(spec ingest.SourceSpec, targets []string) []ingestJob {
 }
 
 // withIngestPipeline opens the store and loads the embedding model once for
-// all jobs of this run (RNF5.2).
-func (env commandEnv) withIngestPipeline(ctx context.Context, use func(*ingest.Pipeline) error) error {
+// all jobs of this run (RNF5.2). prepare runs before the embedder loads.
+func (env commandEnv) withIngestPipeline(ctx context.Context, prepare func(config.Config, storage.EventStore) error, use func(*ingest.Pipeline) error) error {
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
 		if err := env.checkEmbeddingModel(ctx, cfg, store); err != nil {
 			return err
 		}
 		// Keeps the record current; `reindex` and `doctor` warn about it.
 		if _, err := settleThresholdCalibration(ctx, cfg, store); err != nil {
+			return err
+		}
+		if err := prepare(cfg, store); err != nil {
 			return err
 		}
 		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)

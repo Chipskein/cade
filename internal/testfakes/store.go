@@ -339,3 +339,16 @@ func (f *FakeEventStore) MarkCommitAuthorship(_ context.Context, repository stri
 	}
 	return changed, f.FailWith
 }
+
+var _ storage.ImageCaptionIndex = (*FakeEventStore)(nil)
+
+// DescribedImage returns the image of the first described event with this
+// hash.
+func (f *FakeEventStore) DescribedImage(_ context.Context, sha256 string) (event.Image, bool, error) {
+	for _, ev := range f.Events {
+		if image := ev.Image(); image.SHA256 == sha256 && image.Status == event.CaptionDescribed {
+			return image, true, f.FailWith
+		}
+	}
+	return event.Image{}, false, f.FailWith
+}

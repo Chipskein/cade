@@ -209,6 +209,37 @@ func TestReplaces(t *testing.T) {
 	}
 }
 
+// imageVersion is the same file (revision 1) at a given caption status.
+func imageVersion(status event.CaptionStatus) event.Event {
+	metadata := event.Metadata{event.RevisionKey: "1"}
+	for key, value := range (event.Image{Status: status}).Metadata() {
+		metadata[key] = value
+	}
+	return event.Event{UID: "img", Source: event.SourceFile, Content: "erro.png", Metadata: metadata}
+}
+
+// An unchanged image keeps its revision, so without this rule one that
+// waited for the per-run limit would never get its description.
+func TestReplacesAnUnchangedImageOnlyWhenItsCaptionAdvances(t *testing.T) {
+	cases := []struct {
+		incoming, stored event.CaptionStatus
+		expected         bool
+	}{
+		{event.CaptionDescribed, event.CaptionPending, true},
+		{event.CaptionDescribed, event.CaptionNone, true},
+		{event.CaptionUnreadable, event.CaptionPending, true},
+		{event.CaptionPending, event.CaptionNone, false},
+		{event.CaptionDescribed, event.CaptionDescribed, false},
+		{event.CaptionPending, event.CaptionDescribed, false},
+		{event.CaptionNone, event.CaptionDescribed, false},
+	}
+	for _, c := range cases {
+		if got := replaces(imageVersion(c.incoming), imageVersion(c.stored)); got != c.expected {
+			t.Errorf("%q over stored %q: expected %v, got %v", c.incoming, c.stored, c.expected, got)
+		}
+	}
+}
+
 func visitAt(uid string, second int64) event.Event {
 	return event.Event{UID: uid, Source: event.SourceBrowser, Timestamp: time.Unix(second, 0), Content: "Kubernetes probes\nhttps://k8s.io/probes"}
 }

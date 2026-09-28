@@ -216,3 +216,12 @@ func (c ThresholdCalibration) OutdatedFor(current ThresholdCalibration) bool {
 	sameGates := c.MaxDistance == current.MaxDistance && c.MaxBestDistance == current.MaxBestDistance
 	return c.Model != "" && c.Model != current.Model && sameGates
 }
+
+// ImageCaptionIndex finds a description by the image's content (phase 19):
+// a moved, renamed or copied image is not described again.
+type ImageCaptionIndex interface {
+	// DescribedImage returns the image metadata of a described file event
+	// whose image has this SHA-256, if any; a file gone from its folder
+	// still counts, since the image may have moved.
+	DescribedImage(ctx context.Context, sha256 string) (event.Image, bool, error)
+}

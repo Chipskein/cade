@@ -16,6 +16,7 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/storage"
@@ -31,23 +32,24 @@ func main() {
 
 func productionToolkit() cli.Toolkit {
 	return cli.Toolkit{
-		DefaultConfigPath: config.DefaultPath,
-		LoadConfig:        config.Load,
-		WriteConfig:       config.Write,
-		OpenStore:         openStore,
-		InspectDatabase:   sqlitestore.Inspect,
-		RootFS:            os.DirFS("/"),
-		HomeDir:           os.UserHomeDir,
-		Stdin:             os.Stdin,
-		Build:             buildinfo.Read(),
-		LoadEmbedder:      loadEmbedder,
-		LoadGenerator:     loadGenerator,
-		Sources:           sourceSpecs,
-		ReadIndexedDB:     indexeddb.ReadDirectory,
-		StderrIsTerminal:  isTerminal(os.Stderr),
-		Language:          cli.LanguageFromEnv(os.Getenv),
-		DateOrder:         cli.DateOrderFromEnv(os.Getenv),
-		Now:               time.Now,
+		DefaultConfigPath:  config.DefaultPath,
+		LoadConfig:         config.Load,
+		WriteConfig:        config.Write,
+		OpenStore:          openStore,
+		InspectDatabase:    sqlitestore.Inspect,
+		RootFS:             os.DirFS("/"),
+		HomeDir:            os.UserHomeDir,
+		Stdin:              os.Stdin,
+		Build:              buildinfo.Read(),
+		LoadEmbedder:       loadEmbedder,
+		LoadGenerator:      loadGenerator,
+		LoadImageDescriber: loadImageDescriber,
+		Sources:            sourceSpecs,
+		ReadIndexedDB:      indexeddb.ReadDirectory,
+		StderrIsTerminal:   isTerminal(os.Stderr),
+		Language:           cli.LanguageFromEnv(os.Getenv),
+		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
+		Now:                time.Now,
 	}
 }
 
@@ -74,6 +76,14 @@ func loadGenerator(settings config.ModelConfig, logger *slog.Logger) (cli.Closab
 	opts := modelOptions(settings)
 	opts.Logger, opts.PromptStateDir = logger, promptStateDir()
 	return llamacpp.LoadGenerator(opts)
+}
+
+// loadImageDescriber runs the generation model with the smaller context
+// of vision.context_tokens, and no saved prompt state: each image differs.
+func loadImageDescriber(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error) {
+	opts := modelOptions(generation)
+	opts.ContextTokens, opts.Logger = vision.ContextTokens, logger
+	return llamacpp.LoadImageDescriber(opts, vision.ProjectorPath)
 }
 
 // promptStateDir holds the question planner's saved prompt state (~70 MB,

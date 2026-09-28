@@ -64,3 +64,25 @@ func (e Event) Image() Image {
 	return Image{SHA256: m[ImageSHA256Key], Width: width, Height: height, Status: CaptionStatus(m[keyCaptionStatus]),
 		Model: m[keyCaptionModel], PromptVersion: promptVersion, Description: m[keyCaptionDescription], VisibleText: m[keyCaptionVisibleText]}
 }
+
+// Labels of a described image in its event's text, in Portuguese like the
+// other labels events carry ("Conversa:", "Arquivos alterados:").
+const (
+	imageTextLabel   = "Imagem: "
+	visibleTextLabel = "Texto na imagem:\n"
+)
+
+// SearchableText is what a described image adds to its event's text; ""
+// for one that is not described.
+//
+//	content := "erro.png\n" + image.SearchableText()
+func (i Image) SearchableText() string {
+	if i.Status != CaptionDescribed {
+		return ""
+	}
+	text := imageTextLabel + i.Description
+	if i.VisibleText != "" {
+		text += "\n" + visibleTextLabel + i.VisibleText
+	}
+	return text
+}
