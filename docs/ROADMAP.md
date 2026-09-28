@@ -27,9 +27,9 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 
 | Fase | Tema | Situação | Impacto | Esforço |
 | ---- | ---- | -------- | ------- | ------- |
-| 13 | [Segredos fora do banco](#fase-13--segredos-fora-do-banco) | a fazer | alto | médio |
-| 14 | [Apagar eventos e retenção](#fase-14--apagar-eventos-e-retenção) | a fazer | alto | médio |
-| 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | a fazer | médio | baixo |
+| 13 | [Segredos fora do banco](#fase-13--segredos-fora-do-banco) | feita | alto | médio |
+| 14 | [Apagar eventos e retenção](#fase-14--apagar-eventos-e-retenção) | feita | alto | médio |
+| 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | feita | médio | baixo |
 | 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | feita | médio | baixo |
 | 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | feita | alto | médio |
 | 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | feita | alto | médio |
@@ -115,45 +115,19 @@ flowchart LR
 
 ## Fase 13 — Segredos fora do banco
 
-- **Problema:** o PRIVACY admite que um `.env` dentro de `directories` fica guardado como texto, e que a query string das URLs do navegador às vezes carrega tokens (links de redefinição de senha, URLs assinadas, `?code=` de OAuth). Hoje o risco fica todo com o usuário.
-- **Mudança:**
-  - **Arquivos ignorados por padrão:** `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials`. Configurável em `sources.ignored_file_globs` (a lista padrão continua valendo a menos que o usuário a substitua de propósito).
-  - **Parâmetros de URL removidos:** `token`, `access_token`, `id_token`, `refresh_token`, `code`, `state`, `sig`, `signature`, `key`, `apikey`, `api_key`, `password`, `X-Amz-*`, `X-Goog-*`. O resto da URL fica, para a deduplicação por página continuar funcionando.
-  - **Padrões conhecidos mascarados no texto** (arquivos, mensagens, títulos, mensagens de commit): `ghp_`/`github_pat_`, `glpat-`, `AKIA…`, `xox[bp]-`, JWT (`eyJ….eyJ….…`), blocos `-----BEGIN … PRIVATE KEY-----`. Vira `[redacted:github-token]`, para a resposta ainda poder dizer que havia um token ali.
-  - `ingest.redact` (padrão `true`) desliga a máscara; os globs e os parâmetros valem sempre.
-  - **Dados já ingeridos:** uma migração com cópia aplica a mesma limpeza aos eventos existentes, apaga os arquivos que agora seriam ignorados e zera o texto substituído (`secure_delete`, `VACUUM`). Os pedaços alterados perdem o vetor e o `ask` avisa até o `cade reindex`, como na migração 5.
-- **A verificar:** quantos eventos reais a migração toca (medir numa cópia real) e se a máscara piora a suíte de recuperação (não deveria: os segredos não estão nas perguntas).
-- **Critério de aceite:**
-  - fixtures com segredos falsos de cada tipo, em cada fonte; depois do `ingest`, nenhum aparece no banco (texto, `chunks_fts`, metadado);
-  - teste da migração em `migrations_test.go`, com backup;
-  - `go tool mage evalRetrieval` igual ou melhor;
-  - PRIVACY (EN/PT) atualizado: o que é removido, o que ainda pode passar (segredo sem formato conhecido) e como desligar.
+Feita: arquivos de credenciais ignorados por padrão (`sources.ignored_file_globs`), parâmetros de credenciais removidos das URLs e tokens de formato conhecido mascarados no texto e no metadado (`ingest.redact`), com a migração 8 limpando o que já estava guardado. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#segredos-fora-do-banco-fase-13).
 
 ---
 
 ## Fase 14 — Apagar eventos e retenção
 
-- **Problema:** o PRIVACY diz que "não há comando para apagar um evento isolado". Para tirar uma mensagem ou uma nota com senha, hoje é preciso apagar a fonte inteira, o que perde dados que não voltam.
-- **Mudança:**
-  - `cade forget --uid UID` (o uid já aparece no `ask --json`) e `cade forget --match TEXTO [--source S] [--from D --to D]`, que lista os eventos que casam e pede confirmação (`--yes` para scripts). Mesmo cuidado do `forget` de fonte: embeddings, pedaços, `chunks_fts`, `event_people`, `file_modifications`, depois `VACUUM` e WAL esvaziado.
-  - Um evento apagado assim não volta no próximo `ingest`: o uid entra numa lista de esquecidos (só o uid e a data, sem texto). A lista é apagada pelo `forget` da fonte.
-  - `retention.max_age_days` por fonte, aplicado no fim do `ingest`, **desligado por padrão**: o cade existe justamente para guardar o que o Chrome e o Teams descartam.
-- **Critério de aceite:** teste de privacidade conferindo que nenhuma tabela guarda o evento depois do `forget --uid`; teste de que o `ingest` seguinte não o traz de volta; o `forget --match` sem `--yes` não apaga nada fora de um terminal; PRIVACY atualizado (a última linha da seção "Apagar dados" muda).
+Feita: `cade forget --uid` e `--match` apagam eventos isolados (texto, pedaços, vetores e índices), com o UID guardado para o `ingest` não trazê-lo de volta, e `ingest.retention.max_age_days` limita a idade por fonte (desligado por padrão). Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#exclusão-de-eventos-e-retenção-fase-14).
 
 ---
 
 ## Fase 15 — Semântica das tarefas
 
-- **Problema:**
-  - "concluída" quer dizer "PR aberto". O PR pode ser rejeitado ou nunca mergeado, e sem rede o cade não tem como saber.
-  - "Aberto por você" inclui qualquer mensagem sua com o link de um PR, então repassar o PR de outra pessoa conta como seu.
-  - `proj4me` aparece entre os rastreadores padrão ao lado de Jira e Linear, mas é de um ambiente específico.
-- **Mudança:**
-  - Renomear o estado para "PR aberto" (EN "PR opened") na timeline, no `tasks`, no `ask` e no README. As perguntas "quais tarefas finalizei?" continuam mapeando para ele, e a saída explica a definição numa linha.
-  - No `ask --json`, o código `"concluida"` vira `"pr_aberto"`. A fase 12 manteve os códigos para não quebrar scripts; aqui a quebra é intencional e vai nas notas de versão.
-  - PR "seu" só com a visita à página de criação logo antes. Uma mensagem sua com o link, sem essa visita, marca o PR como "(provável)", como já acontece com a ligação por proximidade.
-  - `proj4me` sai dos padrões e vira o exemplo de `tasks.task_url_patterns` no README.
-- **Critério de aceite:** nenhum lugar da CLI ou do README chama PR aberto de "concluída"; casos novos em `plan.json` e nos testes de `tasks` para o PR de terceiro repassado; `cade init` gera config sem `proj4me`.
+Feita: o estado "concluída" virou **PR aberto** (visita à página de criação do PR; aprovação e merge são desconhecidos sem rede), o `ask --json` passou a usar `pr_aberto`, um PR de outra pessoa repassado numa mensagem conta como provável, e o `proj4me` saiu dos padrões. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#estado-de-tarefas-e-atribuição-de-pr-fase-15).
 
 ---
 

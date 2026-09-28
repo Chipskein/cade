@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Changelog
@@ -44,6 +44,13 @@ What changed in each version, the schema migrations, and what each migration rew
 - In `cade ask --json`, task status changes from `concluida` to `pr_aberto`. This is an intentional breaking change for scripts.
 - A PR link in a sent message without a preceding creation-page visit is now marked probable, so forwarding someone else's PR does not prove that the user opened it.
 - `proj4me` was removed from the default task tracker patterns; the README shows how to add it as a project-specific pattern.
+
+### Secrets kept out of the database (phase 13)
+
+- **Credential files skipped:** `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc` and `.git-credentials` are not read. The list is `sources.ignored_file_globs`; setting the field replaces the default list.
+- **URLs without credentials:** browser URLs drop the `token`, `access_token`, `id_token`, `refresh_token`, `code`, `state`, `sig`, `signature`, `key`, `apikey`, `api_key`, `password`, `X-Amz-*` and `X-Goog-*` parameters; the rest of the URL stays, so deduplication by page still works.
+- **Masking in text:** with `ingest.redact` (default `true`), GitHub, GitLab, AWS and Slack tokens, JWTs and PEM private-key blocks become labels such as `[redacted:github-token]` in event text and metadata, from every source. The globs and URL parameters apply even with masking off. It recognizes formats, not every secret: see [PRIVACY](PRIVACY.md).
+- **Migration 8:** applies the same cleanup to stored events, deletes the files that would now be skipped (with their version history) and compacts the database, after writing a `cade.db.before-v8-*` copy. An event whose text changed loses its vectors until `cade reindex`.
 
 ### Event deletion and retention (phase 14)
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Changelog
@@ -44,6 +44,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - No `cade ask --json`, o status muda de `concluida` para `pr_aberto`. A quebra para scripts é intencional.
 - Um link de PR em mensagem enviada sem visita anterior à página de criação passa a ser marcado como provável; repassar o PR de outra pessoa não prova que o usuário o abriu.
 - `proj4me` saiu dos padrões de rastreadores e o README mostra como adicioná-lo como padrão específico do projeto.
+
+### Segredos fora do banco (fase 13)
+
+- **Arquivos de credenciais ignorados:** `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc` e `.git-credentials` não são lidos. A lista fica em `sources.ignored_file_globs`; definir o campo substitui a lista padrão.
+- **URLs sem credenciais:** o navegador perde os parâmetros `token`, `access_token`, `id_token`, `refresh_token`, `code`, `state`, `sig`, `signature`, `key`, `apikey`, `api_key`, `password`, `X-Amz-*` e `X-Goog-*`; o resto da URL fica, e a deduplicação por página continua funcionando.
+- **Máscara no texto:** com `ingest.redact` (padrão `true`), tokens do GitHub, GitLab, AWS e Slack, JWTs e blocos de chave privada PEM viram rótulos como `[redacted:github-token]` no texto e no metadado dos eventos, de qualquer fonte. Os globs e os parâmetros de URL valem mesmo com a máscara desligada. Ela reconhece formatos, não todo segredo: veja o [PRIVACY](PRIVACY.pt-BR.md).
+- **Migração 8:** aplica a mesma limpeza aos eventos já guardados, apaga os arquivos que agora seriam ignorados (com o histórico de versões) e compacta o banco, depois de gravar uma cópia `cade.db.before-v8-*`. Um evento cujo texto mudou perde os vetores até o `cade reindex`.
 
 ### Exclusão de eventos e retenção (fase 14)
 
