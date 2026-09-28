@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
@@ -57,5 +58,29 @@ func TestForgetFileLeavesNoImageDescription(t *testing.T) {
 		if bytes.Contains(raw, []byte("senha-do-print-5931")) {
 			t.Fatalf("forgotten image text still in %s", path+suffix)
 		}
+	}
+}
+
+func TestOutdatedImagesListsOnlyPresentDescriptionsByAnotherModelOrPrompt(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	current := imageFileEvent("/prints/atual.png", "h1", event.CaptionDescribed, "")
+	otherModel := imageFileEvent("/prints/outro-modelo.png", "h2", event.CaptionDescribed, "")
+	otherModel.Metadata[event.CaptionModelKey] = "Qwen3.5-4B-Q4_K_M.gguf"
+	otherPrompt := imageFileEvent("/prints/outro-prompt.png", "h3", event.CaptionDescribed, "")
+	otherPrompt.Metadata[event.CaptionPromptVersionKey] = "0"
+	removed := imageFileEvent("/prints/apagado.png", "h4", event.CaptionDescribed, "")
+	removed.Metadata[event.CaptionModelKey], removed.Metadata[event.RemovedAtKey] = "old.gguf", "1"
+	pending := imageFileEvent("/prints/pendente.png", "h5", event.CaptionPending, "")
+	for _, ev := range []event.Event{current, otherModel, otherPrompt, removed, pending} {
+		mustSave(t, store, ev, nil)
+	}
+	outdated, err := store.OutdatedImages(ctx, "Qwen3.5-2B-Q4_K_M.gguf", 1)
+	if err != nil || len(outdated) != 2 {
+		t.Fatalf("expected the other model and the other prompt, got %d (err %v)", len(outdated), err)
+	}
+	paths := []string{outdated[0].File().Path, outdated[1].File().Path}
+	if !slices.Contains(paths, "/prints/outro-modelo.png") || !slices.Contains(paths, "/prints/outro-prompt.png") {
+		t.Fatalf("unexpected outdated images %v", paths)
 	}
 }

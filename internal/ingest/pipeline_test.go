@@ -345,3 +345,17 @@ func TestAuthoredCollectorMarksStoredCommits(t *testing.T) {
 		t.Fatalf("expected the repository marked, got %v", store.AuthorshipMarks)
 	}
 }
+
+func TestReplaceStoredMasksAndReembeds(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	pipeline := newTestPipeline(store, embedder)
+	stored := event.Event{UID: "img", Source: event.SourceFile, Content: "erro.png\nantigo", Metadata: event.Metadata{}}
+	store.Events = []event.Event{stored}
+	stored.Content = "erro.png\nexport TOKEN=ghp_0123456789abcdefghijABCDEFGHIJ"
+	if err := pipeline.ReplaceStored(context.Background(), stored); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Events[0].Content; !strings.Contains(got, "[redacted:github-token]") || len(embedder.Inputs) != 1 || store.Updated[0] != "img" {
+		t.Fatalf("expected the masked text stored and embedded, got %q with %d embeds", got, len(embedder.Inputs))
+	}
+}

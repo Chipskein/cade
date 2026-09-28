@@ -34,15 +34,16 @@ type Image struct {
 	VisibleText   string
 }
 
-// Image metadata keys, as stored; ImageSHA256Key is indexed (schema
-// version 10) to find a description by the image's content.
+// Image metadata keys, as stored. ImageSHA256Key is indexed (schema
+// version 10) to find a description by the image's content; the caption
+// keys are exported for the store to find outdated descriptions.
 const (
 	ImageSHA256Key          = "image_sha256"
 	keyImageWidth           = "image_width"
 	keyImageHeight          = "image_height"
-	keyCaptionStatus        = "caption_status"
-	keyCaptionModel         = "caption_model"
-	keyCaptionPromptVersion = "caption_prompt_version"
+	CaptionStatusKey        = "caption_status"
+	CaptionModelKey         = "caption_model"
+	CaptionPromptVersionKey = "caption_prompt_version"
 	keyCaptionDescription   = "caption_description"
 	keyCaptionVisibleText   = "caption_visible_text"
 )
@@ -50,7 +51,7 @@ const (
 // Metadata is the stored form of i, merged into a file's metadata.
 func (i Image) Metadata() Metadata {
 	return Metadata{ImageSHA256Key: i.SHA256, keyImageWidth: strconv.Itoa(i.Width), keyImageHeight: strconv.Itoa(i.Height),
-		keyCaptionStatus: string(i.Status), keyCaptionModel: i.Model, keyCaptionPromptVersion: strconv.Itoa(i.PromptVersion),
+		CaptionStatusKey: string(i.Status), CaptionModelKey: i.Model, CaptionPromptVersionKey: strconv.Itoa(i.PromptVersion),
 		keyCaptionDescription: i.Description, keyCaptionVisibleText: i.VisibleText}
 }
 
@@ -60,9 +61,9 @@ func (e Event) Image() Image {
 	m := e.Metadata
 	width, _ := strconv.Atoi(m[keyImageWidth])
 	height, _ := strconv.Atoi(m[keyImageHeight])
-	promptVersion, _ := strconv.Atoi(m[keyCaptionPromptVersion])
-	return Image{SHA256: m[ImageSHA256Key], Width: width, Height: height, Status: CaptionStatus(m[keyCaptionStatus]),
-		Model: m[keyCaptionModel], PromptVersion: promptVersion, Description: m[keyCaptionDescription], VisibleText: m[keyCaptionVisibleText]}
+	promptVersion, _ := strconv.Atoi(m[CaptionPromptVersionKey])
+	return Image{SHA256: m[ImageSHA256Key], Width: width, Height: height, Status: CaptionStatus(m[CaptionStatusKey]),
+		Model: m[CaptionModelKey], PromptVersion: promptVersion, Description: m[keyCaptionDescription], VisibleText: m[keyCaptionVisibleText]}
 }
 
 // Labels of a described image in its event's text, in Portuguese like the

@@ -145,20 +145,26 @@ func looksLikeText(raw []byte) bool {
 	return utf8.Valid(raw) && !bytes.Contains(raw, []byte{0})
 }
 
+// EventContent is a file event's text: the file name, then text if any.
+//
+//	filesource.EventContent("/prints/erro.png", "Imagem: um terminal")
+func EventContent(absolutePath, text string) string {
+	if text == "" {
+		return filepath.Base(absolutePath)
+	}
+	return filepath.Base(absolutePath) + "\n" + text
+}
+
 // fileEvent uses the file name, not the full path, as the first content
 // line: long directory prefixes dominated the embedding and made every file
 // look alike. The full path stays in metadata.
 func fileEvent(absolutePath string, info fs.FileInfo, text string) event.Event {
 	modifiedAt := info.ModTime()
-	content := filepath.Base(absolutePath)
-	if text != "" {
-		content += "\n" + text
-	}
 	return event.Event{
 		UID:       event.StableID(event.SourceFile, absolutePath),
 		Timestamp: modifiedAt,
 		Source:    event.SourceFile,
-		Content:   content,
+		Content:   EventContent(absolutePath, text),
 		Metadata:  event.File{Path: absolutePath, Size: info.Size(), ModifiedAt: modifiedAt}.Metadata(),
 	}
 }

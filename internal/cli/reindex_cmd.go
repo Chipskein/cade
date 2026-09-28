@@ -11,11 +11,21 @@ import (
 )
 
 // runReindex recomputes every vector with the configured embedding model:
-// `cade reindex`. Changing the model no longer needs a new database, and
+// `cade reindex`; with --captions, it describes images again instead. Changing the model no longer needs a new database, and
 // an interrupted run resumes.
 func runReindex(ctx context.Context, env commandEnv, args []string) error {
-	if len(args) != 0 {
-		return fmt.Errorf(env.language.pick("cade reindex não recebe argumentos, recebido %q", "cade reindex takes no arguments, got %q"), args)
+	flags := newFlagSet("reindex", env.stderr, env.language)
+	captions := flags.Bool("captions", false, env.language.pick("descreve de novo as imagens cuja descrição veio de outro modelo ou prompt",
+		"describes again the images whose description another model or prompt wrote"))
+	positional, err := parseCommandFlags(flags, args)
+	if err != nil {
+		return err
+	}
+	if len(positional) != 0 {
+		return fmt.Errorf(env.language.pick("cade reindex não recebe argumentos, recebido %q", "cade reindex takes no arguments, got %q"), positional)
+	}
+	if *captions {
+		return env.recaptionImages(ctx)
 	}
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
 		index, supported := store.(storage.EmbeddingIndex)

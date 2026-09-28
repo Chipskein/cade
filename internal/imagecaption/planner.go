@@ -80,10 +80,9 @@ func (t *Tally) add(result outcome) {
 // the embedder loads, and Close frees the model before it does.
 type Planner struct {
 	store     Store
-	load      DescriberLoader
 	settings  Settings
 	logger    *slog.Logger
-	describer ClosableDescriber
+	describer *lazyDescriber
 	attempts  int
 	captions  ingest.ImageCaptions
 	tally     Tally
@@ -95,7 +94,8 @@ type Planner struct {
 //	planner := imagecaption.NewPlanner(store, loadDescriber, settings, logger)
 //	defer planner.Close()
 func NewPlanner(store Store, load DescriberLoader, settings Settings, logger *slog.Logger) *Planner {
-	return &Planner{store: store, load: load, settings: settings, logger: logger, captions: ingest.ImageCaptions{}, progress: func(Tally) {}}
+	return &Planner{store: store, settings: settings, logger: logger, describer: newLazyDescriber(load, settings.Model, logger),
+		captions: ingest.ImageCaptions{}, progress: func(Tally) {}}
 }
 
 // WithProgress reports the running tally after each image planned.
@@ -116,12 +116,7 @@ func (p *Planner) Tally() Tally {
 
 // Close frees the model, if it was loaded.
 func (p *Planner) Close() error {
-	if p.describer == nil {
-		return nil
-	}
-	err := p.describer.Close()
-	p.describer = nil
-	return err
+	return p.describer.Close()
 }
 
 // PlanDirectory plans the images under root (files is root opened), seen
@@ -190,38 +185,7 @@ func (p *Planner) imageFor(ctx context.Context, files fs.FS, path string, info f
 		return event.Image{SHA256: hash, Status: event.CaptionPending}, outcomePending, nil
 	}
 	p.attempts++
-	return p.describeFile(ctx, path, raw, hash)
-}
-
-// describeFile marks an image that does not decode as unreadable, so one
-// damaged file never stops the ingestion; a model failure does stop it.
-func (p *Planner) describeFile(ctx context.Context, path string, raw []byte, hash string) (event.Image, outcome, error) {
-	decoded, err := imagefile.Decode(raw, decodeLimits)
-	if err != nil {
-		p.logger.Debug("image not decoded", "path", path, "error", err.Error())
-		return event.Image{SHA256: hash, Status: event.CaptionUnreadable}, outcomeUnreadable, nil
-	}
-	caption, err := p.describe(ctx, decoded.Image)
-	if err != nil {
-		return event.Image{}, outcomeUnreadable, err
-	}
-	return event.Image{SHA256: hash, Width: decoded.Original.Width, Height: decoded.Original.Height, Status: event.CaptionDescribed,
-		Model: p.settings.Model, PromptVersion: PromptVersion, Description: caption.Description, VisibleText: caption.VisibleText}, outcomeDescribed, nil
-}
-
-func (p *Planner) describe(ctx context.Context, image llm.RGBImage) (Caption, error) {
-	if p.describer == nil {
-		describer, err := p.load()
-		if err != nil {
-			return Caption{}, err
-		}
-		p.describer = describer
-	}
-	reply, err := p.describer.DescribeImage(ctx, image, Instructions, MaxTokens)
-	if err != nil {
-		return Caption{}, err
-	}
-	return ParseCaption(reply), nil
+	return p.describer.imageFor(ctx, path, raw, hash)
 }
 
 func sha256Hex(raw []byte) string {

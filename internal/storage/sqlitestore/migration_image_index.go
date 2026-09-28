@@ -10,7 +10,7 @@ import (
 
 // imageSHA256Expression reads an image's hash from an event's metadata.
 // Queries must use this exact expression for SQLite to use the index.
-const imageSHA256Expression = `json_extract(metadata, '$.` + event.ImageSHA256Key + `')`
+var imageSHA256Expression = metadataField(event.ImageSHA256Key)
 
 // indexImageHashes (schema version 10) lets ingestion find a description
 // by the image's content, so a moved or renamed image is not described

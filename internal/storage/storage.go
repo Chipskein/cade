@@ -224,4 +224,8 @@ type ImageCaptionIndex interface {
 	// whose image has this SHA-256, if any; a file gone from its folder
 	// still counts, since the image may have moved.
 	DescribedImage(ctx context.Context, sha256 string) (event.Image, bool, error)
+	// OutdatedImages returns the described image events still in their
+	// folder whose description another model or prompt version wrote, for
+	// `cade reindex --captions`.
+	OutdatedImages(ctx context.Context, model string, promptVersion int) ([]event.Event, error)
 }

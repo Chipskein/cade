@@ -199,6 +199,18 @@ func captionAdvances(incoming, stored event.Event) bool {
 	return waiting && settled
 }
 
+// ReplaceStored overwrites a stored event with ev, masked and embedded
+// like any collected one: for text rewritten in place, such as an image
+// described again (`cade reindex --captions`).
+func (p *Pipeline) ReplaceStored(ctx context.Context, ev event.Event) error {
+	ev = privacy.Event(ev, p.redact)
+	chunks, err := p.chunksFor(ctx, ev)
+	if err != nil {
+		return err
+	}
+	return p.update(ctx, ev, chunks, &Report{})
+}
+
 func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {
 	inserted, err := p.store.SaveEvent(ctx, ev, chunks)
 	if err != nil {

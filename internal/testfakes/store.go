@@ -352,3 +352,17 @@ func (f *FakeEventStore) DescribedImage(_ context.Context, sha256 string) (event
 	}
 	return event.Image{}, false, f.FailWith
 }
+
+// OutdatedImages lists the described, present image events whose model or
+// prompt version differs.
+func (f *FakeEventStore) OutdatedImages(_ context.Context, model string, promptVersion int) ([]event.Event, error) {
+	var outdated []event.Event
+	for _, ev := range f.Events {
+		image := ev.Image()
+		present := ev.File().RemovedAt.IsZero()
+		if image.Status == event.CaptionDescribed && present && (image.Model != model || image.PromptVersion != promptVersion) {
+			outdated = append(outdated, ev)
+		}
+	}
+	return outdated, f.FailWith
+}
