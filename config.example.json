@@ -1,5 +1,6 @@
 {
   "database_path": "~/.local/share/cade/cade.db",
+  "ingest": { "redact": true },
   "embedding": {
     "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
     "context_tokens": 0,
@@ -49,6 +50,7 @@
       ".venv",
       "target"
     ],
+    "ignored_file_globs": [".env*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx", "credentials*", ".netrc", ".npmrc", ".pypirc", ".git-credentials"],
     "max_file_bytes": 262144
   },
   "tasks": {

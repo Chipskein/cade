@@ -22,6 +22,11 @@ type Config struct {
 	Sources      SourcesConfig   `json:"sources"`
 	Tasks        TasksConfig     `json:"tasks"`
 	UI           UIConfig        `json:"ui"`
+	Ingest       IngestConfig    `json:"ingest"`
+}
+
+type IngestConfig struct {
+	Redact bool `json:"redact"`
 }
 
 // UIConfig sets the language of the CLI's labels and help, and how
@@ -107,6 +112,7 @@ type SourcesConfig struct {
 	TeamsIndexedDBDirs []string `json:"teams_indexeddb_dirs"`
 	Directories        []string `json:"directories"`
 	IgnoredDirNames    []string `json:"ignored_dir_names"`
+	IgnoredFileGlobs   []string `json:"ignored_file_globs"`
 	MaxFileBytes       int64    `json:"max_file_bytes"`
 }
 

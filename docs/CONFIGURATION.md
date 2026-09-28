@@ -6,6 +6,7 @@
 | Field | Purpose |
 |---|---|
 | `database_path` | Path to the SQLite database. |
+| `ingest.redact` | Mask recognized secrets in event text (default `true`). File globs and URL parameter removal always apply. |
 | `embedding.model_path` | GGUF model path for embeddings. |
 | `embedding.context_tokens` | Embedding context/token limit. |
 | `embedding.threads` | CPU threads for embeddings (`0` = physical cores). |
@@ -29,6 +30,7 @@
 | `sources.teams_indexeddb_dirs` | Teams IndexedDB directories used by `ingest teams`. |
 | `sources.directories` | Folders used by `ingest file`. |
 | `sources.ignored_dir_names` | Folder names ignored by file ingestion. |
+| `sources.ignored_file_globs` | File name patterns skipped by file ingestion; overrides the full default list when set. |
 | `sources.max_file_bytes` | Max file size to ingest text from. |
 | `ui.language` | Interface language (`auto`, `pt`, `en`). |
 | `ui.date_order` | Date parsing order for numeric dates. |

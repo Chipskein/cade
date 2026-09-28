@@ -29,11 +29,13 @@ Backups da sua pasta pessoal incluem o `cade.db`.
 | Fonte | Guarda | Não guarda |
 |---|---|---|
 | **git** | mensagem do commit, nomes dos arquivos alterados, caminho do repositório, hash, nome e e-mail do autor, data | diffs, conteúdo dos arquivos |
-| **navegador** | toda visita do arquivo de histórico: URL (com a query string, que às vezes carrega tokens), título da página, data | conteúdo das páginas, cookies, senhas, formulários; janelas anônimas não entram no histórico |
-| **arquivos** | para cada arquivo nas pastas configuradas: caminho, tamanho, data de modificação e, para arquivos de texto UTF-8 de até `max_file_bytes` (256 KB), o **texto inteiro** | conteúdo de binários; pastas em `ignored_dir_names` (`.git`, `node_modules`…) |
+| **navegador** | toda visita: URL sem parâmetros de credencial, título da página, data | conteúdo das páginas, cookies, senhas, formulários; janelas anônimas não entram no histórico |
+| **arquivos** | caminho, tamanho, data de modificação e (para texto UTF-8 até `max_file_bytes`) o texto, exceto nomes de arquivos de credenciais ignorados | conteúdo de binários; pastas ignoradas e globs de arquivos de credenciais |
 | **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição | agenda, histórico de chamadas, notificações, arquivos; mensagens apagadas antes da ingestão |
 
-Escolha as `directories` com cuidado: um `.env` ou uma nota com senhas dentro delas fica guardado como texto.
+Arquivos ignorados incluem `.env*`, chaves e certificados e arquivos comuns de credenciais, conforme `sources.ignored_file_globs`. URLs do navegador perdem parâmetros `token`, OAuth, assinatura, senha e assinaturas de nuvem; os demais parâmetros ficam. Com `ingest.redact` ativo (padrão), tokens conhecidos do GitHub, GitLab, AWS e Slack, JWTs e blocos de chave privada PEM são substituídos por rótulos como `[redacted:github-token]` no texto e nos metadados dos eventos. A migração de esquema 8 também limpa eventos existentes e cria a cópia `cade.db.before-v8-*`; textos alterados ficam sem vetores até `cade reindex`.
+
+A detecção reconhece formatos, não todos os segredos: senhas arbitrárias, tokens próprios e formatos desconhecidos ainda podem ser guardados. Defina `ingest.redact` como `false` para desligar a máscara de texto; globs de arquivos e remoção de parâmetros de URL continuam ativos. Definir `sources.ignored_file_globs` substitui a lista padrão inteira; inclua os padrões padrão para ampliá-la.
 
 ## Teams
 

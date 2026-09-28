@@ -11,6 +11,7 @@ import (
 	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/privacy"
 	"github.com/chipskein/cade/internal/storage"
 )
 
@@ -56,6 +57,7 @@ type Pipeline struct {
 	embedder       llm.Embedder
 	documentPrefix string
 	logger         *slog.Logger
+	redact         bool
 	now            func() time.Time
 }
 
@@ -64,8 +66,10 @@ type Pipeline struct {
 //
 //	pipeline := ingest.NewPipeline(store, embedder, "search_document: ", logger)
 func NewPipeline(store storage.EventStore, embedder llm.Embedder, documentPrefix string, logger *slog.Logger) *Pipeline {
-	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now}
+	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now, redact: true}
 }
+
+func (p *Pipeline) WithRedaction(enabled bool) *Pipeline { p.redact = enabled; return p }
 
 // WithClock replaces the clock that dates removed files.
 func (p *Pipeline) WithClock(now func() time.Time) *Pipeline {
@@ -84,6 +88,7 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	var report Report
 	present := map[string]bool{}
 	err := collector.CollectEvents(ctx, func(ev event.Event) error {
+		ev = privacy.Event(ev, p.redact)
 		report.Collected++
 		if ev.Source == event.SourceFile {
 			present[ev.File().Path] = true

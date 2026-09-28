@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
@@ -211,5 +212,54 @@ func TestSplitIntoChunksKeepsShortVectors(t *testing.T) {
 	testcheck.NoError(t, store.db.QueryRow(`PRAGMA freelist_count`).Scan(&freePages))
 	if oldTables != 0 || freePages != 0 {
 		t.Fatalf("expected the per-event vector table dropped and its space reclaimed, got %d tables and %d free pages", oldTables, freePages)
+	}
+}
+
+func TestRedactionMigrationBacksUpAndRemovesCredentialData(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	seed, err := Open(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := "ghp_abcdefghijklmnopqrstuvwxyz123456"
+	if _, err := seed.SaveEvent(context.Background(), event.Event{UID: "secret", Source: event.SourceGit, Content: "token " + secret, Metadata: event.Metadata{"message": secret}}, []storage.Chunk{{Ordinal: 0, Start: 0, End: len("token " + secret), Vector: []float32{0, 1}}}); err != nil {
+		t.Fatal(err)
+	}
+	ignoredFile := event.Event{UID: "env", Source: event.SourceFile, Content: ".env\nPRIVATE=example", Metadata: event.File{Path: "/notes/.env", Size: 15}.Metadata()}
+	if _, err := seed.SaveEvent(context.Background(), ignoredFile, []storage.Chunk{{Ordinal: 0, Start: 0, End: len(ignoredFile.Content), Vector: []float32{1, 0}}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := seed.db.Exec(`PRAGMA user_version = 7`); err != nil {
+		t.Fatal(err)
+	}
+	seed.Close()
+	var backup string
+	store, err := OpenWithHooks(context.Background(), path, Hooks{BackupCreated: func(path string) { backup = path }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	stored, found, err := store.StoredEvent(context.Background(), "secret")
+	if err != nil || !found || strings.Contains(stored.Content, secret) || strings.Contains(stored.Metadata["message"], secret) || !strings.Contains(stored.Content, "[redacted:github-token]") {
+		t.Fatalf("event was not redacted: %+v (found=%v err=%v)", stored, found, err)
+	}
+	if backup == "" {
+		t.Fatal("expected migration backup")
+	}
+	if _, found, err := store.StoredEvent(context.Background(), "env"); err != nil || found {
+		t.Fatalf("ignored credential file remained: found=%v err=%v", found, err)
+	}
+	var ftsRows int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM chunks_fts WHERE chunks_fts MATCH 'ghp'`).Scan(&ftsRows); err != nil || ftsRows != 0 {
+		t.Fatalf("secret remained in keyword index: count=%d err=%v", ftsRows, err)
+	}
+	copy := openRaw(t, backup)
+	var original string
+	if err := copy.QueryRow(`SELECT content FROM events WHERE uid = 'secret'`).Scan(&original); err != nil || !strings.Contains(original, secret) {
+		t.Fatalf("backup did not preserve original: %q (%v)", original, err)
+	}
+	pending, err := store.ReindexPending(context.Background())
+	if err != nil || !pending {
+		t.Fatalf("expected reindex pending after vectors removed, got %v (%v)", pending, err)
 	}
 }

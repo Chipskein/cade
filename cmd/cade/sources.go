@@ -48,7 +48,7 @@ func fileCollectorFactory(sources config.SourcesConfig) func(string) (ingest.Eve
 		if info, err := os.Stat(root); err != nil || !info.IsDir() {
 			return nil, fmt.Errorf("directory %q does not exist or is not a directory", root)
 		}
-		opts := filesource.Options{IgnoredDirNames: sources.IgnoredDirNames, MaxFileBytes: sources.MaxFileBytes}
+		opts := filesource.Options{IgnoredDirNames: sources.IgnoredDirNames, IgnoredFileGlobs: sources.IgnoredFileGlobs, MaxFileBytes: sources.MaxFileBytes}
 		return filesource.NewCollector(os.DirFS(root), root, opts), nil
 	}
 }

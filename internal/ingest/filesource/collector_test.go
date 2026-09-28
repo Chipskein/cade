@@ -43,6 +43,16 @@ func TestCollectSkipsIgnoredDirectories(t *testing.T) {
 	}
 }
 
+func TestCollectSkipsCredentialFileGlobs(t *testing.T) {
+	tree := fstest.MapFS{".env": {Data: []byte("secret")}, "id_rsa": {Data: []byte("key")}, "notes.md": {Data: []byte("safe")}}
+	opts := Options{MaxFileBytes: 100, IgnoredFileGlobs: []string{".env*", "id_rsa*"}}
+	var paths []string
+	err := NewCollector(tree, "/root", opts).CollectEvents(context.Background(), func(ev event.Event) error { paths = append(paths, ev.File().Path); return nil })
+	if err != nil || len(paths) != 1 || paths[0] != "/root/notes.md" {
+		t.Fatalf("ignored files were emitted: paths=%v err=%v", paths, err)
+	}
+}
+
 func TestCollectReadsTextContent(t *testing.T) {
 	ev := collectTree(t, sampleTree())["/root/notes/todo.md"]
 	if ev.Content != "todo.md\n# TODO\nrevisar PR" || !ev.Timestamp.Equal(modified) || ev.Source != event.SourceFile {

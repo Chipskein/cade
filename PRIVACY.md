@@ -29,11 +29,13 @@ Backups of your home directory include `cade.db`.
 | Source | Stored | Not stored |
 |---|---|---|
 | **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time | diffs, file contents |
-| **browser** | every visit in the history file: URL (with its query string, which sometimes carries tokens), page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
-| **files** | for each file under the configured directories: path, size, modification time and, for UTF-8 text files up to `max_file_bytes` (256 KB), the **whole text** | binary files' contents; directories in `ignored_dir_names` (`.git`, `node_modules`…) |
+| **browser** | every visit: URL with credential parameters removed, page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
+| **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names | binary contents; configured ignored directories and credential file globs |
 | **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
 
-Choose `directories` with care: a `.env` or a notes file with passwords under them is stored as text.
+File ingestion skips `.env*`, key and certificate files, common credential files and the patterns listed in `sources.ignored_file_globs`. Browser URLs drop `token`, OAuth, signature, password and cloud signing query parameters while preserving other parameters. With `ingest.redact` enabled (default), known GitHub, GitLab, AWS and Slack tokens, JWTs and PEM private-key blocks are replaced with labels such as `[redacted:github-token]` in event text and metadata. This also applies to existing events in schema migration 8; it creates a `cade.db.before-v8-*` backup. Changed text loses its vectors until `cade reindex`.
+
+This detects formats, not every secret: arbitrary passwords, custom tokens and secrets in unrecognized formats can still be stored. Set `ingest.redact` to `false` to disable text masking; file globs and URL parameter removal remain active. Setting `sources.ignored_file_globs` replaces the default list, so include the defaults if you want to extend it.
 
 ## Teams
 
