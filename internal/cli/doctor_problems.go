@@ -19,15 +19,15 @@ var problemWordings = map[doctor.Problem]problemWording{
 	doctor.ProblemNotAFile:               withSetting("é um diretório; `%s` espera um arquivo", "is a directory; `%s` expects a file"),
 	doctor.ProblemNotADirectory: withSetting("não é um diretório; `%s` espera um diretório",
 		"is not a directory; `%s` expects a directory"),
-	doctor.ProblemNotGGUF: fixed("não é um modelo GGUF (download incompleto?); rode `make models` de novo",
-		"is not a GGUF model (incomplete download?); run `make models` again"),
+	doctor.ProblemNotGGUF: fixed("não é um modelo GGUF (download incompleto?); rode `go tool mage models` de novo",
+		"is not a GGUF model (incomplete download?); run `go tool mage models` again"),
 	doctor.ProblemNotSQLite: fixed("não é um histórico do Chrome (History) nem do Firefox (places.sqlite)",
 		"is not a Chrome (History) or Firefox (places.sqlite) history"),
 	doctor.ProblemNotGitRepository: fixed("não é um repositório git (não tem .git)", "is not a git repository (no .git)"),
 	doctor.ProblemNotLevelDB: fixed("não é um IndexedDB do Chrome (não tem CURRENT)",
 		"is not a Chrome IndexedDB (no CURRENT)"),
-	doctor.ProblemNoFTS5: fixed("SQLite sem FTS5: este binário não foi compilado com `make`; compile de novo",
-		"SQLite without FTS5: this binary was not built with `make`; rebuild it"),
+	doctor.ProblemNoFTS5: fixed("SQLite sem FTS5: este binário não foi compilado com `go tool mage build`; compile de novo",
+		"SQLite without FTS5: this binary was not built with `go tool mage build`; rebuild it"),
 	doctor.ProblemSchemaTooNew:      schemaTooNewWording,
 	doctor.ProblemEmbeddingMismatch: embeddingMismatchWording,
 	doctor.ProblemReindexPending: fixed("reindexação incompleta: parte dos eventos está sem vetor; rode `cade reindex`",
@@ -60,7 +60,7 @@ func withSetting(portuguese, english string) problemWording {
 
 func missingWording(finding doctor.Finding, language Language) string {
 	if finding.Subject == doctor.SubjectEmbeddingModel || finding.Subject == doctor.SubjectGenerationModel {
-		return fmt.Sprintf(language.pick("não existe; rode `make models` ou ajuste `%s`", "does not exist; run `make models` or set `%s`"), finding.Setting)
+		return fmt.Sprintf(language.pick("não existe; rode `go tool mage models` ou ajuste `%s`", "does not exist; run `go tool mage models` or set `%s`"), finding.Setting)
 	}
 	return fmt.Sprintf(language.pick("não existe; corrija ou remova de `%s`", "does not exist; fix it or remove it from `%s`"), finding.Setting)
 }

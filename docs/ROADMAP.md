@@ -5,7 +5,7 @@ O que falta para a v0.1.0, e em que ordem. A [v0.0.0](https://github.com/Chipske
 ## Como cada entrega é feita
 
 - Uma fase (ou parte dela) por vez, cada uma num commit próprio.
-- Cada entrega vem com testes (`make test`), a suíte (`make eval`) quando afeta busca ou plano, `make bench` quando afeta desempenho, e docs (README EN/PT, `docs/USECASES.md`, PRIVACY quando toca dados, CHANGELOG, e os diagramas de `docs/ARCHITECTURE.md` quando muda quem chama quem).
+- Cada entrega vem com testes (`go tool mage test`), a suíte (`go tool mage eval`) quando afeta busca ou plano, `go tool mage bench` quando afeta desempenho, e docs (README EN/PT, `docs/USECASES.md`, PRIVACY quando toca dados, CHANGELOG, e os diagramas de `docs/ARCHITECTURE.md` quando muda quem chama quem).
 - Mudança de esquema é migração (`PRAGMA user_version`, com cópia quando reescreve dados), nunca `forget` + `ingest`: reimportar perde dados, porque o cache do Teams expira e o histórico do Chrome guarda só ~90 dias.
 - Tudo continua local, sem rede em tempo de execução. Propostas que dependem de rede (por exemplo, consultar a API do GitHub para saber se um PR foi mergeado) ficam fora.
 
@@ -122,7 +122,7 @@ flowchart LR
 - **Critério de aceite:**
   - fixtures com segredos falsos de cada tipo, em cada fonte; depois do `ingest`, nenhum aparece no banco (texto, `chunks_fts`, metadado);
   - teste da migração em `migrations_test.go`, com backup;
-  - `make eval-retrieval` igual ou melhor;
+  - `go tool mage evalRetrieval` igual ou melhor;
   - PRIVACY (EN/PT) atualizado: o que é removido, o que ainda pode passar (segredo sem formato conhecido) e como desligar.
 
 ---
@@ -167,7 +167,7 @@ Feita: `top_k` 6, com recall igual e o `ask` em CPU 1,8 s mais rápido. Os limia
 
 ## Fase 18 — Migrar a geração para o Qwen3.5
 
-Feita: o padrão é o Qwen3.5-2B (Apache-2.0), com o `mmproj` baixado pelo `make models` e a biblioteca `mtmd` no build. O 2B entende as perguntas igual ou melhor que o 2.5-3B em todos os campos da suíte de plano, e nenhuma injeção é seguida, porque o texto do evento marcado sai do prompt. O 4B, melhor ainda, ficou como alternativa documentada, fora do orçamento de VRAM. Detalhes e medições no [CHANGELOG](../CHANGELOG.pt-BR.md#geração-com-o-qwen35-fase-18).
+Feita: o padrão é o Qwen3.5-2B (Apache-2.0), com o `mmproj` baixado pelo `go tool mage models` e a biblioteca `mtmd` no build. O 2B entende as perguntas igual ou melhor que o 2.5-3B em todos os campos da suíte de plano, e nenhuma injeção é seguida, porque o texto do evento marcado sai do prompt. O 4B, melhor ainda, ficou como alternativa documentada, fora do orçamento de VRAM. Detalhes e medições no [CHANGELOG](../CHANGELOG.pt-BR.md#geração-com-o-qwen35-fase-18).
 
 ---
 
@@ -222,9 +222,9 @@ sequenceDiagram
   - **Custo por imagem** em CPU e GPU (codificação da imagem + geração da descrição), e o tamanho de imagem a partir do qual reduzir antes de enviar. Registrar no BENCHMARKS e no README (hardware); estimar quanto leva uma pasta de 1 mil capturas.
   - **Qualidade:** se o tamanho escolhido na fase 18 descreve bem o suficiente em português e inglês; se não, se vale um tamanho maior só para o `ingest`.
 - **Avaliação:**
-  - `testdata/images/` com imagens sintéticas e sem nomes reais (capturas de terminal e de páginas geradas por script, um diagrama, uma foto de licença livre), cada uma com as palavras que a descrição precisa conter; `make eval-captions` mede essa cobertura.
+  - `testdata/images/` com imagens sintéticas e sem nomes reais (capturas de terminal e de páginas geradas por script, um diagrama, uma foto de licença livre), cada uma com as palavras que a descrição precisa conter; `go tool mage evalCaptions` mede essa cobertura.
   - Casos novos na suíte de recuperação (perguntas cuja resposta está numa imagem, como "qual era o erro no print de ontem?"), no conjunto de teste.
-  - Um caso de injeção com instruções escritas dentro de uma imagem em `make eval-injection`.
+  - Um caso de injeção com instruções escritas dentro de uma imagem em `go tool mage evalInjection`.
 - **Critério de aceite:** cobertura mínima do `eval-captions` definida no arquivo da suíte e passando; os casos de imagem na suíte de recuperação passam sem piorar os outros; nenhuma injeção por imagem seguida; nenhum segredo das imagens de fixture no banco; `forget file` apaga as descrições (teste de privacidade); custo por imagem documentado.
 
 ---
@@ -247,7 +247,7 @@ sequenceDiagram
 
 O processo da v0.0.0 continua:
 
-1. Trocar o cabeçalho do topo do CHANGELOG (EN/PT) pela versão e data, e escrever `docs/release-notes/v0.1.0.md`, avisando: a migração da fase 13 (com cópia e `cade reindex`), o código `"pr_aberto"` no `ask --json`, a troca do modelo de geração pelo Qwen3.5 com o `mmproj` (`make models` de novo; o 2.5-3B pode ser apagado) e que as imagens só são descritas com `sources.images` ligado.
+1. Trocar o cabeçalho do topo do CHANGELOG (EN/PT) pela versão e data, e escrever `docs/release-notes/v0.1.0.md`, avisando: a migração da fase 13 (com cópia e `cade reindex`), o código `"pr_aberto"` no `ask --json`, a troca do modelo de geração pelo Qwen3.5 com o `mmproj` (`go tool mage models` de novo; o 2.5-3B pode ser apagado) e que as imagens só são descritas com `sources.images` ligado.
 2. Conferir os [critérios de release](#critérios-de-release).
 3. Levar o `dev` para o `master` e criar a tag lá: `git tag v0.1.0 origin/master && git push origin v0.1.0`. O workflow testa, gera o binário e publica o release; uma tag fora do `master` falha sem publicar.
 
@@ -266,7 +266,7 @@ Pontos das revisões em `docs/TOCHECK/` que já estão resolvidos ou que não se
 | Ponto | Por que fica fora |
 | ----- | ----------------- |
 | LICENSE, licença dos modelos, CI, binário pronto, versionamento | entregues na v0.0.0 (GPLv2, fases 9 e 10) |
-| Avaliação de recuperação com recall e MRR | existe (`make eval-retrieval`, conjunto de teste, curva de escala); a fase 17 a usa |
+| Avaliação de recuperação com recall e MRR | existe (`go tool mage evalRetrieval`, conjunto de teste, curva de escala); a fase 17 a usa |
 | Busca híbrida com filtros de fonte, período e pessoa | entregue (fases 3 e 6); o reranking foi medido na fase 17 e voltou para "A definir" |
 | Validação determinística do plano, regras para perguntas simples | existe (`queryplan/guard.go`, `rules.go`, gramática GBNF); casos novos entram na suíte de plano a cada fase |
 | Modelo e dimensão do embedding no banco | existe (`embedding_model`, `embedding_dimensions`), e os limiares com o modelo para o qual valem (fase 17) |
@@ -311,7 +311,7 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Reranking dos candidatos
 
-- **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.md#top_k-limiares-e-reranking-fase-17), `make eval-rerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
+- **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.md#top_k-limiares-e-reranking-fase-17), `go tool mage evalRerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
 - **A verificar:** um reranker menor ou só em GPU; reordenar sem descartar (o reranker só troca a ordem dos `top_k` já escolhidos, o que não pode perder recall); casos novos na suíte em que a ordem mude a resposta.
 
 ### Índice vetorial aproximado
@@ -320,7 +320,7 @@ Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca pas
 
 ### Binário para arm64
 
-`make dist` em `linux-arm64`, se houver quem use. Exige runner arm64 no workflow e conferir o llama.cpp com `LLAMA_NATIVE=OFF` lá.
+`go tool mage dist` em `linux-arm64`, se houver quem use. Exige runner arm64 no workflow e conferir o llama.cpp com `LLAMA_NATIVE=OFF` lá.
 
 ### Busca em PDFs
 
@@ -337,13 +337,13 @@ As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO
 A versão sai quando:
 
 - [ ] a CI está verde no commit da tag;
-- [ ] `make test` e `make eval` passam, com as métricas reportadas no conjunto de **teste**;
+- [ ] `go tool mage test` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
 - [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.0.0, em todos os tamanhos da curva de escala;
 - [ ] todas as migrações que reescrevem dados fazem backup antes e têm teste em `migrations_test.go`;
 - [ ] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas (teste de privacidade);
 - [ ] nenhum segredo das fixtures da fase 13 chega ao banco, nem pelo texto nem pela descrição de uma imagem;
-- [ ] o modelo de geração padrão é o Qwen3.5, com a licença do modelo e do `mmproj` registrada, e `make eval-injection` sem nenhuma injeção seguida;
-- [ ] `make eval-captions` passa, e as perguntas sobre imagens estão no conjunto de teste da suíte de recuperação;
+- [ ] o modelo de geração padrão é o Qwen3.5, com a licença do modelo e do `mmproj` registrada, e `go tool mage evalInjection` sem nenhuma injeção seguida;
+- [ ] `go tool mage evalCaptions` passa, e as perguntas sobre imagens estão no conjunto de teste da suíte de recuperação;
 - [ ] o baseline de benchmark é atualizado com GPU, CPU e cold start;
 - [ ] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
 - [ ] um usuário novo chega ao primeiro `cade ask` seguindo só o README;

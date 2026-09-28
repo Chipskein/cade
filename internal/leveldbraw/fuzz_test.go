@@ -4,7 +4,7 @@ import "testing"
 
 // The Teams cache is a LevelDB written by Chrome in a format nobody
 // documents for this use; these fuzzers check that no byte sequence makes
-// the reader panic or loop, only fail. Run longer with `make fuzz`.
+// the reader panic or loop, only fail. Run longer with `go tool mage fuzz`.
 
 func FuzzJournalBatches(f *testing.F) {
 	batch := encodeBatch(7, putRecord("k", "v"), deleteRecord("old"))

@@ -8,7 +8,7 @@ import (
 
 // IndexedDB keys and values come straight from Chrome's LevelDB; whatever
 // they hold, decoding reports undecodable records instead of panicking.
-// Run longer with `make fuzz`.
+// Run longer with `go tool mage fuzz`.
 
 func FuzzDecodeKeyPrefix(f *testing.F) {
 	f.Add([]byte{0x00, 3, 7, 1, 0xAA})

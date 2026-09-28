@@ -30,7 +30,7 @@ func TestReindexWarnsThatGatesBelongToThePreviousModel(t *testing.T) {
 	world.store.EmbeddingModelName = previousModel
 	code, _, stderr := world.run("reindex")
 	if code != 0 || !strings.Contains(stderr, "calibrados para "+previousModel+" e não valem para "+configuredModel) ||
-		!strings.Contains(stderr, "make eval-retrieval") || world.store.Calibration.Model != previousModel {
+		!strings.Contains(stderr, "go tool mage evalRetrieval") || world.store.Calibration.Model != previousModel {
 		t.Fatalf("expected a warning and the calibration kept for %s, got %d %q %+v", previousModel, code, stderr, world.store.Calibration)
 	}
 }

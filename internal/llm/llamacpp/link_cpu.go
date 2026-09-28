@@ -2,7 +2,7 @@
 
 package llamacpp
 
-// Static CPU build produced by `make llama` (third_party/llama.cpp/build).
+// Static CPU build produced by `go tool mage llama` (third_party/llama.cpp/build).
 
 // #cgo LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/src -L${SRCDIR}/../../../third_party/llama.cpp/build/ggml/src
 // #cgo LDFLAGS: -L${SRCDIR}/../../../third_party/llama.cpp/build/tools/mtmd -L${SRCDIR}/../../../third_party/llama.cpp/build/vendor/hash

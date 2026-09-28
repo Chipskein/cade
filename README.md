@@ -22,13 +22,13 @@ It ingests git commits, browser history, files, and Microsoft Teams messages, th
 
 Requirements:
 - Go 1.27+
-- `gcc`, `cmake`, `ninja`, `curl`
+- `gcc`, `cmake`, `ninja`, `git`
 
 ```sh
-make build      # CPU build
-make cuda       # optional NVIDIA build (CUDA Toolkit required)
-make models     # downloads models to ~/.local/share/cade/models
-make install    # installs cade to ~/.local/bin (override with PREFIX=...)
+go tool mage build      # CPU build
+go tool mage cuda       # optional NVIDIA build (CUDA Toolkit required)
+go tool mage models     # downloads models to ~/.local/share/cade/models
+go tool mage install    # installs cade to ~/.local/bin (override with PREFIX=...)
 ```
 
 ### From release binary (Linux x86-64, CPU)
@@ -46,7 +46,7 @@ install -Dm755 cade-$V-linux-amd64-cpu/cade ~/.local/bin/cade
 Then run:
 
 ```sh
-make models
+go tool mage models   # in a clone of this repository
 cade init
 cade doctor
 cade ingest all
@@ -79,6 +79,30 @@ For implementation details and in-depth guides, see:
 
 ## Development
 
+The development tasks are [Mage](https://magefile.org/) targets written in Go (`magefiles/`, logic in `internal/devtasks/`). Mage is a Go tool dependency of this module, so there is nothing to install: `go tool mage` runs it, and it is never linked into `cade`.
+
 ```sh
-make test
+go tool mage -l     # lists the targets
+go tool mage test   # unit tests
+go tool mage check  # what CI runs: fmtCheck, vet, lint and test
 ```
+
+| Target | What it does |
+| --- | --- |
+| `build` (default) | CPU binary in `bin/cade` |
+| `cuda` | NVIDIA binary in `bin/cade` (CUDA Toolkit required) |
+| `install` / `uninstall` | copies `bin/cade` to `$DESTDIR$PREFIX/bin` (default `~/.local/bin`) / removes it |
+| `dist` | release archive and SHA-256 in `dist/` |
+| `llama` / `llamaCuda` | clones the pinned llama.cpp and builds its libraries (the other targets do it when needed) |
+| `models` | downloads the models to `$MODELS_DIR` (default `~/.local/share/cade/models`) |
+| `test` / `cover` | unit tests / with the per-function coverage table |
+| `fuzz` | the parser fuzz targets, `$FUZZTIME` each (default `30s`) |
+| `testModels` | every test, including the llama.cpp binding against the real models |
+| `eval` | `evalPlan`, `evalRetrieval` and `evalInjection` with the real models |
+| `evalScale` / `evalRerank` | scale curve (`$SCALE`, report in `$SCALE_REPORT`) / reranking experiment (phase 17) |
+| `bench` | latency and memory benchmarks |
+| `fmt` / `fmtCheck` / `vet` / `lint` | gofmt, go vet, golangci-lint (`go tool mage print GOLANGCI_LINT_VERSION` is the pinned version) |
+| `clean` | removes `bin/`, `dist/`, `coverage.out` and the llama.cpp builds |
+| `print NAME` | prints a pinned value for CI cache keys (`LLAMA_TAG`, `LLAMA_CMAKE_FLAGS`, …) |
+
+Settings are environment variables: `PREFIX`, `DESTDIR`, `MODELS_DIR`, `EMBEDDING_MODEL`, `GENERATION_MODEL`, `LLAMA_NATIVE` (`OFF` for a portable build), `CUDA_HOME`, `CUDA_ARCH`, `NVCC_CCBIN`, `EVAL_TIMEOUT` (default `1h`), `MODE`, `VERSION`. The evaluations and `bench` use the GPU when the CUDA Toolkit is installed; an empty `GO_TAGS` forces the CPU, e.g. `GO_TAGS= go tool mage bench`.

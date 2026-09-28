@@ -6,6 +6,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Build with Mage (#16)
+
+- **The Makefile is gone:** every target is now a [Mage](https://magefile.org/) target written in Go (`magefiles/magefile.go`, logic and tests in `internal/devtasks/`). Mage is a `tool` dependency in `go.mod`: `go tool mage <target>` needs nothing installed, and Mage is never linked into `cade`. `go tool mage -l` lists the targets; the README has the table.
+- **Names:** `make X` becomes `go tool mage X`; hyphenated targets are camelCase (`fmtCheck`, `testModels`, `llamaCuda`, `evalPlan`, `evalRetrieval`, `evalInjection`, `evalScale`, `evalRerank`). Mage ignores case, so `go tool mage evalplan` works too.
+- **Settings are environment variables** with the same names and defaults as before (`PREFIX`, `DESTDIR`, `MODELS_DIR`, `GO_TAGS`, `LLAMA_NATIVE`, `EVAL_TIMEOUT`, `FUZZTIME`, `SCALE`, `MODE`, `VERSION`…): `make bench GO_TAGS=` is now `GO_TAGS= go tool mage bench`.
+- **Fewer external tools:** the models are downloaded and the release archive and its SHA-256 are written in Go, so `curl`, `tar` and `sha256sum` are no longer needed to build; `git`, `cmake`, `ninja` and `gcc` still are, for llama.cpp.
+- **CI** runs the same targets. `go tool mage print NAME` replaces `make -s print-NAME`; the flags are now printed on one line, so the llama.cpp cache key changes once and the first run rebuilds it.
 ### Measured `top_k` and thresholds (phase 17)
 
 - **`top_k` 8 → 6:** the sweep (`make eval-retrieval`, `top_k` 4, 6, 8 and 12 crossed with both thresholds) showed 6 is the smallest value with no recall loss on the test set: recall 1.00, MRR 0.89 (0.88 with 8), rejection 1.00. On the scale curve, at 1k and 10k events, it scores 0.94, 0.83 and 1.00, against 0.93, 0.82 and 1.00 in v0.0.0. `ask` to the first token drops from 12.4 s to 10.6 s on CPU and from 1.77 s to 1.62 s on GPU. A config with an explicit `retrieval.top_k` keeps its value.

@@ -40,7 +40,7 @@ func TestDoctorFailsOnMissingModel(t *testing.T) {
 	world := doctorWorld()
 	world.cfg.Generation.ModelPath = "/home/ana/models/absent.gguf"
 	code, stdout, stderr := world.run("doctor")
-	if code != 1 || !strings.Contains(stdout, "rode `make models` ou ajuste `generation.model_path`") || !strings.Contains(stderr, "1 problema a corrigir") {
+	if code != 1 || !strings.Contains(stdout, "rode `go tool mage models` ou ajuste `generation.model_path`") || !strings.Contains(stderr, "1 problema a corrigir") {
 		t.Fatalf("expected the missing model and exit 1, got %d %q %q", code, stdout, stderr)
 	}
 }

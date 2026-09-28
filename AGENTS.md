@@ -20,7 +20,7 @@
 
 ## Tests
 
-- Tests run with a single command: `make test`.
+- Tests run with a single command: `go tool mage test`.
 - Every new function gets a test. Bug fixes get a regression test.
 - Mock external I/O (API, DB, filesystem) with named fake classes,
   not inline stubs.

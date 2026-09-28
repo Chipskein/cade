@@ -12,7 +12,7 @@ import (
 )
 
 // Model-backed tests need real GGUF files, so they run only when these
-// variables point at them (see Makefile target test-models).
+// variables point at them (see the mage target testModels).
 const (
 	embeddingModelEnv  = "CADE_TEST_EMBEDDING_MODEL"
 	generationModelEnv = "CADE_TEST_GENERATION_MODEL"

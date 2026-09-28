@@ -31,8 +31,8 @@ jobs:
       - name: Read pinned versions
         id: versions
         run: |
-          echo "llama=$(make -s print-LLAMA_TAG)-$(make -s print-LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
-          echo "golangci=$(make -s print-GOLANGCI_LINT_VERSION)" >> "$GITHUB_OUTPUT"
+          echo "llama=$(go tool mage print LLAMA_TAG)-$(go tool mage print LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "golangci=$(go tool mage print GOLANGCI_LINT_VERSION)" >> "$GITHUB_OUTPUT"
 
       - name: Cache the llama.cpp build
         id: llama-cache
@@ -46,25 +46,25 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Build llama.cpp
-        run: make llama
+        run: go tool mage llama
 
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ steps.versions.outputs.golangci }}
 
       - name: gofmt
-        run: make fmt-check
+        run: go tool mage fmtCheck
 
       - name: go vet
-        run: make vet
+        run: go tool mage vet
 
       - name: golangci-lint
-        run: make lint
+        run: go tool mage lint
 
       - name: Tests with coverage
         id: cover
         shell: bash
         run: |
-          make cover | tee cover.txt
+          go tool mage cover | tee cover.txt
           total=$(awk '/^total:/ {print $NF}' cover.txt)
           echo "total=$total" >> "$GITHUB_OUTPUT"
           {

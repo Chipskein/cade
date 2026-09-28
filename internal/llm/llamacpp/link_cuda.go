@@ -2,7 +2,7 @@
 
 package llamacpp
 
-// CUDA build produced by `make llama-cuda` (third_party/llama.cpp/build-cuda).
+// CUDA build produced by `go tool mage llamaCuda` (third_party/llama.cpp/build-cuda).
 // ggml-cuda is static, but the CUDA runtime libraries are linked dynamically;
 // the rpath lets the binary find them without LD_LIBRARY_PATH.
 
