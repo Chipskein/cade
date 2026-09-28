@@ -18,13 +18,14 @@ import (
 const visionProjectorEnv = "CADE_TEST_VISION_PROJECTOR"
 
 // A full-HD screenshot, the common case, scaled to each longer side the
-// benchmark compares; 0 sends it unscaled (the model still resizes).
+// benchmark compares. Unscaled, its ~2000 image tokens no longer fit
+// vision.context_tokens; ingestion always scales down first.
 const (
 	screenshotWidth  = 1920
 	screenshotHeight = 1080
 )
 
-var captionSides = []int{512, 768, 1024, 1536, 0}
+var captionSides = []int{512, 768, 1024, 1536}
 
 // denseTerminal fills a screenshot the way a failing test run does.
 var denseTerminal = []string{
@@ -42,7 +43,7 @@ var denseTerminal = []string{
 
 func loadImageDescriber(b *testing.B) *llamacpp.ImageDescriber {
 	b.Helper()
-	opts := llamacpp.ModelOptions{Path: modelPath(b, generationModelEnv), ContextTokens: config.Defaults().Generation.ContextTokens, GPULayers: -1}
+	opts := llamacpp.ModelOptions{Path: modelPath(b, generationModelEnv), ContextTokens: config.Defaults().Vision.ContextTokens, GPULayers: -1}
 	describer, err := llamacpp.LoadImageDescriber(opts, modelPath(b, visionProjectorEnv))
 	if err != nil {
 		b.Fatal(err)

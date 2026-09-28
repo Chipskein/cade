@@ -1,6 +1,11 @@
 {
   "database_path": "~/.local/share/cade/cade.db",
-  "ingest": { "redact": true, "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } } },
+  "ingest": {
+    "redact": true,
+    "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } },
+    "max_image_bytes": 20971520,
+    "max_images_per_run": 50
+  },
   "embedding": {
     "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
     "context_tokens": 0,
@@ -14,6 +19,10 @@
     "context_tokens": 8192,
     "threads": 0,
     "gpu_layers": -1
+  },
+  "vision": {
+    "projector_path": "~/.local/share/cade/models/mmproj-Qwen3.5-2B-F16.gguf",
+    "context_tokens": 2048
   },
   "retrieval": {
     "top_k": 6,
@@ -51,7 +60,8 @@
       "target"
     ],
     "ignored_file_globs": [".env*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx", "credentials*", ".netrc", ".npmrc", ".pypirc", ".git-credentials"],
-    "max_file_bytes": 262144
+    "max_file_bytes": 262144,
+    "images": false
   },
   "tasks": {
     "task_url_patterns": [

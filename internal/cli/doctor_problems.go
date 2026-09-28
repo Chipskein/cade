@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/chipskein/cade/internal/doctor"
 )
@@ -58,8 +59,11 @@ func withSetting(portuguese, english string) problemWording {
 	}
 }
 
+// downloadedModels are the files `go tool mage models` fetches.
+var downloadedModels = []doctor.Subject{doctor.SubjectEmbeddingModel, doctor.SubjectGenerationModel, doctor.SubjectVisionProjector}
+
 func missingWording(finding doctor.Finding, language Language) string {
-	if finding.Subject == doctor.SubjectEmbeddingModel || finding.Subject == doctor.SubjectGenerationModel {
+	if slices.Contains(downloadedModels, finding.Subject) {
 		return fmt.Sprintf(language.pick("não existe; rode `go tool mage models` ou ajuste `%s`", "does not exist; run `go tool mage models` or set `%s`"), finding.Setting)
 	}
 	return fmt.Sprintf(language.pick("não existe; corrija ou remova de `%s`", "does not exist; fix it or remove it from `%s`"), finding.Setting)

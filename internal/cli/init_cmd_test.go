@@ -62,6 +62,25 @@ func TestInitRecordsEveryAnswer(t *testing.T) {
 	}
 }
 
+func TestInitAsksAboutImagesOnlyWithFolders(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\ns\n")
+	_, stdout, _ := world.run("init")
+	if !world.writtenCfg.Sources.Images || !strings.Contains(stdout, "~20 s em CPU") {
+		t.Fatalf("expected images on after the cost was shown, got %v %q", world.writtenCfg.Sources.Images, stdout)
+	}
+	world = initWorld("n\n\n\n\n")
+	if _, stdout, _ := world.run("init"); world.writtenCfg.Sources.Images || strings.Contains(stdout, "Descrever as imagens") {
+		t.Fatalf("expected no image question without folders, got %q", stdout)
+	}
+}
+
+func TestInitLeavesImagesOffByDefault(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\n")
+	if _, _, stderr := world.run("init"); world.writtenCfg.Sources.Images {
+		t.Fatalf("expected images off when the question is not answered, got on (%q)", stderr)
+	}
+}
+
 func TestInitWarnsBeforeOfferingTeams(t *testing.T) {
 	_, stdout, _ := initWorld("").run("init")
 	warning, offer := strings.Index(stdout, "política de dados"), strings.Index(stdout, "Caches do Teams")

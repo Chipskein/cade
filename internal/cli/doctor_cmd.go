@@ -80,6 +80,7 @@ func subjectLabel(finding doctor.Finding, language Language) string {
 		doctor.SubjectConfigFile:      language.pick("configuração", "config file"),
 		doctor.SubjectEmbeddingModel:  language.pick("modelo de embedding", "embedding model"),
 		doctor.SubjectGenerationModel: language.pick("modelo de geração", "generation model"),
+		doctor.SubjectVisionProjector: language.pick("projetor de visão", "vision projector"),
 		doctor.SubjectKeywordSearch:   language.pick("busca por palavras", "keyword search"),
 		doctor.SubjectDatabase:        language.pick("banco", "database"),
 	}

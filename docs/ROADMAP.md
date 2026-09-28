@@ -259,8 +259,9 @@ sequenceDiagram
   | 1536 | 2,10 s | — |
   | sem redução | 2,56 s | — |
 
-  Com 512 px a transcrição perde uma linha e troca nomes de arquivo; a partir de 768 px sai completa. O padrão é 1024 px, porque capturas reais têm fonte menor que a sintética. Mil capturas levam ~29 min na GPU e ~6 h em CPU. Memória com gerador + `mmproj` carregados: 2,7 GB de VRAM (contexto de 8192) ou 2,9 GB de RAM em CPU.
-- **A decidir medindo:** padrão de `max_images_per_run` (entrega 2, a partir da tabela acima); idioma da descrição (EN ou PT) pelo `evalCaptions` e pela recuperação; se o 2B não atingir a cobertura, o 4B só no `ingest` (lá o embedder não está carregado junto).
+  Com 512 px a transcrição perde uma linha e troca nomes de arquivo; a partir de 768 px sai completa. O padrão é 1024 px, porque capturas reais têm fonte menor que a sintética. Mil capturas levam ~29 min na GPU e ~6 h em CPU. Memória com gerador + `mmproj` carregados: 2,7 GB de VRAM com o contexto de 8192 da geração e 2,6 GB com o `vision.context_tokens` de 2048 (quase tudo é o modelo e o `mmproj` F16), ou 2,9 GB de RAM em CPU. Passa um pouco dos ~2,5 GB do `ask`, mas o embedder não está carregado junto.
+- **Padrões da entrega 2:** `max_images_per_run` 50 (~20 min em CPU, ~1,5 min na GPU), `max_image_bytes` 20 MiB, `vision.context_tokens` 2048.
+- **A decidir medindo:** idioma da descrição (EN ou PT) pelo `evalCaptions` e pela recuperação; se o 2B não atingir a cobertura, o 4B só no `ingest` (lá o embedder não está carregado junto).
 
 ---
 
