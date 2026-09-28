@@ -49,3 +49,15 @@
 | `ui.language` | Idioma da interface (`auto`, `pt`, `en`). |
 | `ui.date_order` | Ordem de leitura de datas numéricas. |
 | `tasks.task_url_patterns` | Regexes usadas para detectar links de tarefas. |
+
+## Links de tarefas
+
+O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visita à página de criação do PR; sem rede, não dá para saber se ele foi aprovado ou mergeado. Para reconhecer um rastreador específico do projeto, como o Proj4me, adicione um padrão:
+
+```json
+"task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
+```
+
+## Custo da descrição de imagens
+
+Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.md](BENCHMARKS.md).
