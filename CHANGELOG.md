@@ -12,6 +12,12 @@ What changed in each version, the schema migrations, and what each migration rew
 - **Thresholds:** `max_distance` 0.72 and `max_best_distance` 0.61 stay. No value in the grid did better, and 0.61 falls inside the range the calibration reports on both CPU and GPU.
 - **Thresholds tied to the model:** the database records both thresholds in `store_settings`, together with the embedding model they were set for. If `cade reindex` switches the model and the thresholds stay the same, it and `cade doctor` warn that they belong to the previous model and point to the calibration (`make eval-retrieval EMBEDDING_MODEL=…`). Changing either threshold counts as recalibrating, and the warning goes away. Older databases treat the configured thresholds as set for their vectors' model. There is no migration: it is one new row in `store_settings`.
 - **Reranking, measured and left out:** reordering 30 candidates with `bge-reranker-v2-m3` before the cut raises MRR (0.83 → 0.91 at 1k and 10k events), but drops test-set recall from 1.00 to 0.94 and costs 0.57 s per question on CPU, plus a 418 MB model. No command uses the reranker. `make eval-rerank` repeats the measurement, and the idea went back to "A definir" in the ROADMAP.
+### Task status and PR attribution (phase 15)
+
+- Task reports label the state **PR opened** and explain that it means local history saw the PR creation page; offline approval and merge status are unknown. Questions such as “which tasks did I finish?” still select this state.
+- In `cade ask --json`, task status changes from `concluida` to `pr_aberto`. This is an intentional breaking change for scripts.
+- A PR link in a sent message without a preceding creation-page visit is now marked probable, so forwarding someone else's PR does not prove that the user opened it.
+- `proj4me` was removed from the default task tracker patterns; the README shows how to add it as a project-specific pattern.
 
 ### Event deletion and retention (phase 14)
 

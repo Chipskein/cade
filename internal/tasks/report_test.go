@@ -70,8 +70,18 @@ func TestBuildLinksPRAnnouncedWithTaskInMessage(t *testing.T) {
 		message(at(10, 0), "PR da tarefa "+taskURL+" : "+prURL, true),
 	})
 	task := taskByKey(report, "14/162")
-	if task == nil || task.Status != Done || task.PRs[0].Link != LinkExact {
-		t.Fatalf("expected the message to link and finish the task, got %+v", task)
+	if task == nil || task.Status != Done || task.PRs[0].Link != LinkProbable {
+		t.Fatalf("expected the message to link the task to a probable PR, got %+v", task)
+	}
+}
+
+func TestBuildTreatsForwardedThirdPartyPRAsProbable(t *testing.T) {
+	report := build([]event.Event{
+		message(at(10, 0), "@Ana abriu este PR para "+taskURL+": "+prURL, true),
+	})
+	task := taskByKey(report, "14/162")
+	if task == nil || len(task.PRs) != 1 || task.PRs[0].Link != LinkProbable || task.PRs[0].OpenedByMe {
+		t.Fatalf("a forwarded PR without a creation-page visit must be probable, got %+v", task)
 	}
 }
 

@@ -50,7 +50,6 @@ func Defaults() Config {
 // defaultTaskURLPatterns cover common trackers; each only matches its own
 // URLs, so unused ones cost nothing.
 var defaultTaskURLPatterns = []string{
-	`proj4\.me/projects/(\d+)/tasks/(\d+)`,
 	`atlassian\.net/browse/([A-Z][A-Z0-9]+-\d+)`,
 	`linear\.app/[\w-]+/issue/([A-Z][A-Z0-9]+-\d+)`,
 	`github\.com/([\w.-]+/[\w.-]+)/issues/(\d+)`,

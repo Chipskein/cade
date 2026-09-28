@@ -12,6 +12,12 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - **Limiares:** `max_distance` 0,72 e `max_best_distance` 0,61 continuam. Nenhum valor da grade foi melhor, e 0,61 fica dentro do intervalo que a calibração aponta tanto em CPU quanto em GPU.
 - **Limiares junto do modelo:** o banco registra em `store_settings` os dois limiares e o modelo de embedding para o qual foram definidos. Se o `cade reindex` troca o modelo e os limiares continuam os mesmos, ele e o `cade doctor` avisam que valem para o modelo anterior e apontam a calibração (`make eval-retrieval EMBEDDING_MODEL=…`). Mudar qualquer um dos dois limiares conta como recalibrar, e o aviso some. Bancos anteriores assumem os limiares configurados para o modelo dos seus vetores. Não há migração: é uma linha nova em `store_settings`.
 - **Reranking, medido e deixado de fora:** reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte sobe o MRR (0,83 → 0,91 com 1 mil e 10 mil eventos), mas derruba o recall do conjunto de teste de 1,00 para 0,94 e custa 0,57 s por pergunta em CPU, mais 418 MB de modelo. Nenhum comando usa o reranker. `make eval-rerank` refaz a medição, e a ideia voltou para "A definir" no ROADMAP.
+### Estado de tarefas e atribuição de PR (fase 15)
+
+- Os relatórios mostram o estado **PR aberto** e explicam que ele significa que o histórico local registrou a página de criação do PR; sem rede, aprovação e merge são desconhecidos. Perguntas como “quais tarefas finalizei?” continuam selecionando esse estado.
+- No `cade ask --json`, o status muda de `concluida` para `pr_aberto`. A quebra para scripts é intencional.
+- Um link de PR em mensagem enviada sem visita anterior à página de criação passa a ser marcado como provável; repassar o PR de outra pessoa não prova que o usuário o abriu.
+- `proj4me` saiu dos padrões de rastreadores e o README mostra como adicioná-lo como padrão específico do projeto.
 
 ### Exclusão de eventos e retenção (fase 14)
 
