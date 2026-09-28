@@ -6,6 +6,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Exclusão de eventos e retenção (fase 14)
+
+- `cade forget --uid UID` remove um evento. `--match TEXTO` lista eventos correspondentes e exige `--yes` fora de uso interativo. UIDs esquecidos ficam sem o texto do evento para impedir a reingestão; o forget da fonte limpa essa lista.
+- `ingest.retention.max_age_days` configura idade máxima por fonte; todas vêm desligadas por padrão. O PRIVACY documenta a exclusão pontual e o UID/data armazenados.
+
 ### Geração com o Qwen3.5 (fase 18)
 
 - **Problema:** o modelo de geração padrão, o Qwen2.5-3B-Instruct, está sob a Qwen Research License (só uso não comercial), ainda seguia a nota que finge ser "nova instrução do sistema" e às vezes não citava a evidência.

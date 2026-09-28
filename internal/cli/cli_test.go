@@ -323,6 +323,15 @@ func TestForgetRequiresOneSource(t *testing.T) {
 	}
 }
 
+func TestForgetMatchNeedsYesOutsideTerminal(t *testing.T) {
+	world := newFakeWorld()
+	world.store.Events = []event.Event{{UID: "match-me", Source: event.SourceTeams, Content: "private phrase", Timestamp: time.Now()}}
+	code, stdout, _ := world.run("forget", "--match", "private")
+	if code != 1 || len(world.store.Events) != 1 || !strings.Contains(stdout, "match-me") {
+		t.Fatalf("expected review with no deletion, got %d %q and %d events", code, stdout, len(world.store.Events))
+	}
+}
+
 func teamsEvent(uid string, sentByMe string, kind string) event.Event {
 	return event.Event{UID: uid, Source: event.SourceTeams, Timestamp: time.Date(2026, 9, 25, 10, 0, 0, 0, time.UTC),
 		Content: uid + ": oi", Metadata: event.Metadata{"sent_by_me": sentByMe, "conversation_kind": kind}}

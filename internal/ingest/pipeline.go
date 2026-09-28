@@ -58,6 +58,7 @@ type Pipeline struct {
 	documentPrefix string
 	logger         *slog.Logger
 	redact         bool
+	retention      map[event.Source]int
 	now            func() time.Time
 }
 
@@ -74,6 +75,11 @@ func (p *Pipeline) WithRedaction(enabled bool) *Pipeline { p.redact = enabled; r
 // WithClock replaces the clock that dates removed files.
 func (p *Pipeline) WithClock(now func() time.Time) *Pipeline {
 	p.now = now
+	return p
+}
+
+func (p *Pipeline) WithRetention(retention map[event.Source]int) *Pipeline {
+	p.retention = retention
 	return p
 }
 
@@ -103,7 +109,18 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	if report.Removed, err = p.markRemoved(ctx, collector, present); err != nil {
 		return report, err
 	}
-	return report, p.markAuthorship(ctx, collector)
+	if err := p.markAuthorship(ctx, collector); err != nil {
+		return report, err
+	}
+	for source, days := range p.retention {
+		if days <= 0 {
+			continue
+		}
+		if _, err := p.store.DeleteBefore(ctx, source, p.now().AddDate(0, 0, -days)); err != nil {
+			return report, err
+		}
+	}
+	return report, nil
 }
 
 func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector) error {
@@ -131,6 +148,14 @@ func (p *Pipeline) markRemoved(ctx context.Context, collector EventCollector, pr
 type ProgressFunc func(Report)
 
 func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Report) error {
+	forgotten, err := p.store.IsForgotten(ctx, ev.UID)
+	if err != nil {
+		return err
+	}
+	if forgotten {
+		report.AlreadyStored++
+		return nil
+	}
 	stored, known, err := p.store.StoredEvent(ctx, ev.UID)
 	if err != nil {
 		return err

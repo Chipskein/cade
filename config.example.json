@@ -1,6 +1,6 @@
 {
   "database_path": "~/.local/share/cade/cade.db",
-  "ingest": { "redact": true },
+  "ingest": { "redact": true, "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } } },
   "embedding": {
     "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
     "context_tokens": 0,

@@ -7,6 +7,11 @@
 |---|---|
 | `database_path` | Path to the SQLite database. |
 | `ingest.redact` | Mask recognized secrets in event text (default `true`). File globs and URL parameter removal always apply. |
+| `ingest.retention.max_age_days` | Optional per-source age limit in days; empty by default. Example: `{ "teams": 365 }`. Applied after each source ingestion. |
+| `ingest.retention.max_age_days.git` | Set a positive age in days for git; `0` disables retention. |
+| `ingest.retention.max_age_days.browser` | Set a positive age in days for browser; `0` disables retention. |
+| `ingest.retention.max_age_days.file` | Set a positive age in days for file; `0` disables retention. |
+| `ingest.retention.max_age_days.teams` | Set a positive age in days for Teams; `0` disables retention. |
 | `embedding.model_path` | GGUF model path for embeddings. |
 | `embedding.context_tokens` | Embedding context/token limit. |
 | `embedding.threads` | CPU threads for embeddings (`0` = physical cores). |

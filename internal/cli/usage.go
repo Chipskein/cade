@@ -28,7 +28,9 @@ Comandos:
                                         = concluída (padrão: hoje)
   reindex                               recalcula os vetores com o modelo de embedding
                                         configurado (após trocar de modelo); retomável
-  forget <fonte>                        apaga os eventos de uma fonte, para reingerir;
+  forget <fonte> | --uid UID            apaga eventos de uma fonte ou um evento;
+  forget --match TEXTO [--source F]     localiza eventos; --yes confirma em scripts
+                                        (também aceita --from D --to D);
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
@@ -70,7 +72,9 @@ Commands:
                                         = finished (default: today)
   reindex                               recomputes vectors with the configured
                                         embedding model (after changing it); resumable
-  forget <source>                       deletes a source's events, to re-ingest;
+  forget <source> | --uid UID           deletes a source's events or one event;
+  forget --match TEXT [--source S]      finds events; --yes confirms in scripts
+                                        (also accepts --from D --to D);
                                         what left the source (e.g. an expired Teams
                                         cache) does not come back
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,

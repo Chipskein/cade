@@ -7,6 +7,11 @@
 |---|---|
 | `database_path` | Caminho do banco SQLite. |
 | `ingest.redact` | Mascara segredos reconhecidos no texto (padrão `true`). Globs de arquivos e remoção de parâmetros de URL sempre valem. |
+| `ingest.retention.max_age_days` | Limite opcional de idade, em dias, por fonte; vazio por padrão. Exemplo: `{ "teams": 365 }`. Aplicado depois de cada ingestão da fonte. |
+| `ingest.retention.max_age_days.git` | Defina uma idade positiva em dias para git; `0` desativa a retenção. |
+| `ingest.retention.max_age_days.browser` | Defina uma idade positiva em dias para browser; `0` desativa a retenção. |
+| `ingest.retention.max_age_days.file` | Defina uma idade positiva em dias para arquivos; `0` desativa a retenção. |
+| `ingest.retention.max_age_days.teams` | Defina uma idade positiva em dias para Teams; `0` desativa a retenção. |
 | `embedding.model_path` | Caminho do modelo GGUF de embeddings. |
 | `embedding.context_tokens` | Limite de contexto/tokens do embedding. |
 | `embedding.threads` | Threads de CPU para embedding (`0` = núcleos físicos). |

@@ -26,7 +26,12 @@ type Config struct {
 }
 
 type IngestConfig struct {
-	Redact bool `json:"redact"`
+	Redact    bool            `json:"redact"`
+	Retention RetentionConfig `json:"retention"`
+}
+
+type RetentionConfig struct {
+	MaxAgeDays map[string]int `json:"max_age_days"`
 }
 
 // UIConfig sets the language of the CLI's labels and help, and how
