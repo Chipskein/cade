@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="220">
+</p>
+
 # cade
 
 [![CI](https://github.com/Chipskein/cade/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/Chipskein/cade/actions/workflows/ci.yml)
