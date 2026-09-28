@@ -13,7 +13,7 @@ import (
 )
 
 // prHistorySpan is how far back to look for when a task's PR was opened: a
-// task finished last month still counts as finished today.
+// a task with an opened PR last month still counts as PR opened today.
 const prHistorySpan = 90 * 24 * time.Hour
 
 // runTasks reports the tasks worked on in a period: `cade tasks [--all] [DATA [FIM]]`.

@@ -6,6 +6,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Estado de tarefas e atribuição de PR (fase 15)
+
+- Os relatórios mostram o estado **PR aberto** e explicam que ele significa que o histórico local registrou a página de criação do PR; sem rede, aprovação e merge são desconhecidos. Perguntas como “quais tarefas finalizei?” continuam selecionando esse estado.
+- No `cade ask --json`, o status muda de `concluida` para `pr_aberto`. A quebra para scripts é intencional.
+- Um link de PR em mensagem enviada sem visita anterior à página de criação passa a ser marcado como provável; repassar o PR de outra pessoa não prova que o usuário o abriu.
+- `proj4me` saiu dos padrões de rastreadores e o README mostra como adicioná-lo como padrão específico do projeto.
+
 ### Exclusão de eventos e retenção (fase 14)
 
 - `cade forget --uid UID` remove um evento. `--match TEXTO` lista eventos correspondentes e exige `--yes` fora de uso interativo. UIDs esquecidos ficam sem o texto do evento para impedir a reingestão; o forget da fonte limpa essa lista.

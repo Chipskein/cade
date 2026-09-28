@@ -84,14 +84,14 @@ var planCodes = portugueseQueryLabels
 var portugueseQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"},
 	directions: map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"},
-	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"},
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR aberto", queryplan.OnlyInProgress: "em andamento"},
 	people:     "pessoas: ", topic: "assunto: ", noFilters: "sem filtros",
 }
 
 var englishQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "answer", queryplan.ModeList: "list", queryplan.ModeTasks: "tasks"},
 	directions: map[listing.Direction]string{listing.Received: "received", listing.Sent: "sent"},
-	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "finished", queryplan.OnlyInProgress: "in progress"},
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR opened", queryplan.OnlyInProgress: "in progress"},
 	people:     "people: ", topic: "topic: ", noFilters: "no filters",
 }
 

@@ -60,6 +60,12 @@ cade ask "o que eu fiz ontem?"
 cade tasks hoje
 ```
 
+`tasks` mostra **PR aberto** quando o histórico local registra uma visita à página de criação do PR. Sem rede, não dá para saber se ele foi aprovado ou mergeado. Para usar um rastreador específico do projeto, como o Proj4me, adicione um padrão em `tasks.task_url_patterns` na configuração:
+
+```json
+"task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
+```
+
 ## Documentação
 
 Para detalhes de implementação e guias aprofundados, veja:

@@ -21,7 +21,7 @@ Preencha SOMENTE o que a pergunta afirma explicitamente; o resto é null ou []. 
 - pessoas: nomes de pessoas citados, como escritos. Empresas, clientes, siglas e projetos NÃO são pessoas: vão em assunto.
 - direcao (só para mensagens): "recebidas" quando alguém escreveu para o usuário: "me passou", "me pediu", "me perguntou", "me mandou", "recebi", "de X", "da X", "sent me", "asked me", "from X"; "enviadas" quando o usuário escreveu: "mandei", "enviei", "falei para", "pedi para", "para X", "I sent", "I told", "I asked"; null para "com X", "conversa com X", "o que X disse", "what X said" ou quando não se aplica.
 - assunto: o tema buscado ("redis", "o deploy da 2.0"), sem pessoas nem datas; null se a pergunta não tem tema.
-- status (só para tipo "tarefas"): "concluidas" para "finalizei", "concluí", "terminei", "finished"; "em_andamento" para "em andamento", "pendentes", "não terminei", "in progress"; senão null.`
+- status (só para tipo "tarefas"): "concluidas" para "finalizei", "concluí", "terminei", "finished" ou "PR aberto"; "em_andamento" para "em andamento", "pendentes", "não terminei", "in progress"; senão null.`
 
 // planExamples teach what a small model gets wrong: no filters for plain
 // questions, direction of "me passou", "com X" has no direction, companies

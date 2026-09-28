@@ -37,6 +37,11 @@ func TestInitWithoutAnswersTakesDefaults(t *testing.T) {
 	if len(sources.TeamsIndexedDBDirs) != 0 || len(sources.GitRepositories) != 0 || len(sources.Directories) != 0 {
 		t.Fatalf("expected no Teams, repositories or folders by default, got %+v", sources)
 	}
+	for _, pattern := range world.writtenCfg.Tasks.TaskURLPatterns {
+		if strings.Contains(pattern, "proj4.me") {
+			t.Fatalf("project-specific tracker leaked into init defaults: %q", pattern)
+		}
+	}
 	if !strings.Contains(stdout, "Configuração criada em /cfg/config.json") || !strings.Contains(stdout, "cade doctor") {
 		t.Fatalf("expected the summary and next steps, got %q", stdout)
 	}

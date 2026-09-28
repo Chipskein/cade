@@ -6,6 +6,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Task status and PR attribution (phase 15)
+
+- Task reports label the state **PR opened** and explain that it means local history saw the PR creation page; offline approval and merge status are unknown. Questions such as “which tasks did I finish?” still select this state.
+- In `cade ask --json`, task status changes from `concluida` to `pr_aberto`. This is an intentional breaking change for scripts.
+- A PR link in a sent message without a preceding creation-page visit is now marked probable, so forwarding someone else's PR does not prove that the user opened it.
+- `proj4me` was removed from the default task tracker patterns; the README shows how to add it as a project-specific pattern.
+
 ### Event deletion and retention (phase 14)
 
 - `cade forget --uid UID` removes one event. `--match TEXT` reviews matching events and requires `--yes` for non-interactive use. Forgotten UIDs are kept without event text to prevent re-ingestion; source forget clears that list.

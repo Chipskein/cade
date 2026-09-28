@@ -16,10 +16,12 @@ const createWindow = 15 * time.Minute
 type PullRequest struct {
 	Ref   PRRef
 	Title string
-	// OpenedAt is the earliest evidence the user opened it (zero if the
-	// user only visited someone else's PR).
+	// OpenedAt is the earliest opening evidence, zero for a PR only visited.
 	OpenedAt   time.Time
 	OpenedByMe bool
+	// MentionedByMe means a sent message named this PR, without proof that
+	// the user created it. It is weaker evidence than a creation-page visit.
+	MentionedByMe bool
 	// TaskKeys are tasks linked exactly: a message carrying both links.
 	TaskKeys  []string
 	firstSeen time.Time
@@ -73,7 +75,7 @@ func recordPRSighting(pr *PullRequest, ev event.Event, taskPatterns []*regexp.Re
 		pr.TaskKeys = appendUnique(pr.TaskKeys, task)
 	}
 	if ev.Message().SentByMe {
-		pr.markOpened(ev.Timestamp)
+		pr.markMentioned(ev.Timestamp)
 	}
 }
 
@@ -107,6 +109,16 @@ func (pr *PullRequest) markOpened(at time.Time) {
 		pr.OpenedAt = at
 	}
 	pr.OpenedByMe = true
+}
+
+func (pr *PullRequest) markMentioned(at time.Time) {
+	if pr.OpenedByMe {
+		return
+	}
+	if pr.OpenedAt.IsZero() || at.Before(pr.OpenedAt) {
+		pr.OpenedAt = at
+	}
+	pr.MentionedByMe = true
 }
 
 func appendUnique(values []string, value string) []string {
