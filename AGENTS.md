@@ -9,6 +9,7 @@
 - No code duplication. Extract shared logic into a function/module.
 - Early returns over nested ifs. Max 2 levels of indentation.
 - Exception messages must include the offending value and expected shape.
+- Avoid MAGIC NUMBERS or HARDCODED Strings always use ENUMS or any data structure that makes sense in the context
 
 ## Comments
 
