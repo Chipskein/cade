@@ -15,7 +15,7 @@ The sqlite-vec Go module ships without a license file; its texts below come from
 
 ## Models
 
-The models are not part of the binary or of this repository: `make models` downloads them from Hugging Face, each under its own license.
+The models are not part of the binary or of this repository: `go tool mage models` downloads them from Hugging Face, each under its own license.
 
 | Model | License | Notes |
 |---|---|---|

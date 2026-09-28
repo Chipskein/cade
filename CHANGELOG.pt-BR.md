@@ -6,6 +6,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Build com o Mage (#16)
+
+- **O Makefile saiu:** todos os alvos agora são alvos do [Mage](https://magefile.org/) escritos em Go (`magefiles/magefile.go`, lógica e testes em `internal/devtasks/`). O Mage é uma dependência `tool` no `go.mod`: `go tool mage <alvo>` não exige instalar nada, e o Mage nunca entra no binário do `cade`. `go tool mage -l` lista os alvos; o README tem a tabela.
+- **Nomes:** `make X` vira `go tool mage X`; alvos com hífen viram camelCase (`fmtCheck`, `testModels`, `llamaCuda`, `evalPlan`, `evalRetrieval`, `evalInjection`, `evalScale`, `evalRerank`). O Mage ignora maiúsculas, então `go tool mage evalplan` também funciona.
+- **Configurações são variáveis de ambiente** com os mesmos nomes e padrões de antes (`PREFIX`, `DESTDIR`, `MODELS_DIR`, `GO_TAGS`, `LLAMA_NATIVE`, `EVAL_TIMEOUT`, `FUZZTIME`, `SCALE`, `MODE`, `VERSION`…): `make bench GO_TAGS=` agora é `GO_TAGS= go tool mage bench`.
+- **Menos ferramentas externas:** os modelos são baixados e o arquivo de release e o SHA-256 são gerados em Go, então `curl`, `tar` e `sha256sum` não são mais necessários para o build; `git`, `cmake`, `ninja` e `gcc` continuam, para o llama.cpp.
+- **CI** roda os mesmos alvos. `go tool mage print NOME` substitui `make -s print-NOME`; as flags agora saem numa linha só, então a chave de cache do llama.cpp muda uma vez e a primeira execução o recompila.
 ### `top_k` e limiares medidos (fase 17)
 
 - **`top_k` 8 → 6:** a varredura (`make eval-retrieval`, `top_k` 4, 6, 8 e 12 cruzados com os dois limiares) mostrou que 6 é o menor valor sem perda de recall no conjunto de teste: recall 1,00, MRR 0,89 (0,88 com 8), rejeição 1,00. Na curva de escala, com 1 mil e 10 mil eventos, dá 0,94, 0,83 e 1,00, contra 0,93, 0,82 e 1,00 na v0.0.0. O `ask` até o primeiro token cai de 12,4 s para 10,6 s em CPU e de 1,77 s para 1,62 s em GPU. Uma configuração com `retrieval.top_k` explícito continua usando o valor dela.

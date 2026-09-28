@@ -4,10 +4,10 @@
 
 | Path | What it is |
 |---|---|
-| `queries/plan.json` | Questions and the plan the interpreter must produce (`make eval-plan`). |
+| `queries/plan.json` | Questions and the plan the interpreter must produce (`go tool mage evalPlan`). |
 | `queries/retrieval/corpus.json` | Synthetic history searched by the retrieval suite. |
 | `queries/retrieval/calibration.json` | Retrieval questions used to tune thresholds. Report only, no floors. |
-| `queries/retrieval/test.json` | Retrieval questions never used for tuning, with floors (`make eval-retrieval`). |
+| `queries/retrieval/test.json` | Retrieval questions never used for tuning, with floors (`go tool mage evalRetrieval`). |
 | `chrome-indexeddb.leveldb`, `chrome-indexeddb-pages/` | Synthetic Chrome IndexedDB for the IndexedDB and LevelDB readers, written by a real Chrome from the pages. |
 | `teams-formats/` | One Teams cache per format seen, synthetic, written the same way; the Teams reader must keep recognizing each. |
 
@@ -27,8 +27,8 @@ Real questions are the best cases: they show what actually goes wrong. But this 
    - Retrieval cases go in `test.json` when they should hold as a regression, or in `calibration.json` when they will guide a threshold.
    - Do not move a case from the test set to calibration after seeing it fail: that turns the test into tuning data.
 6. **Check before committing:**
-   - `make test` validates the files, including that plan dates match the date parser.
-   - `make eval` shows the new case failing before the fix and passing after it.
+   - `go tool mage test` validates the files, including that plan dates match the date parser.
+   - `go tool mage eval` shows the new case failing before the fix and passing after it.
    - Search the diff for real names (`git diff | grep -i <name>`).
 
 ---
@@ -58,8 +58,8 @@ Perguntas reais são os melhores casos, porque mostram o que dá errado de verda
    - Casos de busca vão para `test.json` quando devem valer como regressão, ou para `calibration.json` quando vão orientar um limite.
    - Não mova um caso do teste para a calibração depois de vê-lo falhar: isso transforma o teste em dado de ajuste.
 6. **Confira antes do commit:**
-   - `make test` valida os arquivos, inclusive se as datas do `plan.json` batem com o parser de datas.
-   - `make eval` mostra o caso novo falhando antes da correção e passando depois.
+   - `go tool mage test` valida os arquivos, inclusive se as datas do `plan.json` batem com o parser de datas.
+   - `go tool mage eval` mostra o caso novo falhando antes da correção e passando depois.
    - Procure nomes reais no diff (`git diff | grep -i <nome>`).
 
 ## Um novo formato do cache do Teams

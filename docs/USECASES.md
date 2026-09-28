@@ -121,7 +121,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 ### RNF5 — Desempenho
 - **RNF5.1** A busca retorna em tempo interativo para o volume de uso pessoal.
 - **RNF5.2** Cada modelo é carregado uma única vez por execução.
-- **RNF5.3** `make bench` mede latência e memória; `bench/baseline.txt` guarda a referência (RTX 3060, 2026-09-27) e `bench/baseline-cpu.txt`, a mesma máquina sem a GPU (Ryzen 5 5500). Na GPU: busca vetorial em 100 mil eventos, ~103 ms; ler o histórico inteiro (pergunta com pessoa e sem período), ~342 ms; embedding de um evento, ~3,4 ms (36 ms em CPU); interpretar a pergunta pelo modelo sem estado salvo, 1,4 s (19,7 s em CPU); gerar a resposta com 8 evidências, ~0,4 s (2,9 s em CPU); ~3,8 KB por evento no banco; modelos ocupam ~2,5 GB de GPU e ~1,2 GB de RAM (~3,9 GB de RAM em CPU).
+- **RNF5.3** `go tool mage bench` mede latência e memória; `bench/baseline.txt` guarda a referência (RTX 3060, 2026-09-27) e `bench/baseline-cpu.txt`, a mesma máquina sem a GPU (Ryzen 5 5500). Na GPU: busca vetorial em 100 mil eventos, ~103 ms; ler o histórico inteiro (pergunta com pessoa e sem período), ~342 ms; embedding de um evento, ~3,4 ms (36 ms em CPU); interpretar a pergunta pelo modelo sem estado salvo, 1,4 s (19,7 s em CPU); gerar a resposta com 8 evidências, ~0,4 s (2,9 s em CPU); ~3,8 KB por evento no banco; modelos ocupam ~2,5 GB de GPU e ~1,2 GB de RAM (~3,9 GB de RAM em CPU).
 - **RNF5.4** Um `cade ask` não refaz trabalho fixo: perguntas feitas só de período, fonte e palavras genéricas são lidas por regras, sem modelo, e uma listagem ou relatório lido assim nem carrega modelo; o estado do modelo depois das instruções e exemplos fixos do planejador fica salvo em `~/.cache/cade/prompt-state/`, com chave na versão do llama.cpp, no build, no arquivo do modelo, no contexto e nos tokens do prompt. Até o primeiro token da resposta, com o cache de página quente, em CPU: 41,5 s → 26,0 s com o estado salvo, 21,5 s pelas regras; na GPU: 2,9 s → 2,5 s → 1,6 s.
 
 ### RNF6 — Configuração
@@ -129,14 +129,14 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RNF6.2** `config.example.json` traz todos os campos, e o README descreve cada um numa tabela; testes falham se o exemplo ou as tabelas deixarem de cobrir um campo.
 
 ### RNF7 — Qualidade da interpretação
-- **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `make eval-plan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.
+- **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `go tool mage evalPlan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.
 - **RNF7.2** Cada campo tem um piso (`minimum_accuracy`) comparado com o limite inferior do intervalo: mudanças de prompt ou modelo que o derrubem falham o teste, em vez de regredirem em silêncio, e um erro isolado não reprova.
-- **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `make eval-retrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `make eval-scale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
-- **RNF7.4** Casos de injeção (`testdata/queries/injection.json`, `make eval-injection`): perguntas cuja evidência inclui um evento do corpus escrito para manipular o modelo (mensagem, título de página, nota que tenta fechar o delimitador, texto em inglês), respondidas com os dois modelos reais. Reprova quando a resposta segue a injeção, não traz o fato real, cita evidência inexistente ou responde `SEM_INFORMACAO`; falta de citação é relatada sem reprovar, porque o modelo de 3B às vezes não cita mesmo sem injeção.
+- **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `go tool mage evalRetrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `go tool mage evalScale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
+- **RNF7.4** Casos de injeção (`testdata/queries/injection.json`, `go tool mage evalInjection`): perguntas cuja evidência inclui um evento do corpus escrito para manipular o modelo (mensagem, título de página, nota que tenta fechar o delimitador, texto em inglês), respondidas com os dois modelos reais. Reprova quando a resposta segue a injeção, não traz o fato real, cita evidência inexistente ou responde `SEM_INFORMACAO`; falta de citação é relatada sem reprovar, porque o modelo de 3B às vezes não cita mesmo sem injeção.
 
 ### RNF8 — Qualidade do código
-- **RNF8.1** Cada push e pull request passa por `gofmt`, `go vet`, `golangci-lint` (`errcheck`, `staticcheck`, `unused`, `ineffassign`) e `make test` na CI (`.github/workflows/ci.yml`); qualquer falha deixa a execução vermelha. `make check` roda o mesmo localmente.
-- **RNF8.2** As suítes com modelo (`make eval`) rodam em workflow manual ou semanal (`.github/workflows/eval.yml`), em CPU, com o relatório publicado como artefato.
+- **RNF8.1** Cada push e pull request passa por `gofmt`, `go vet`, `golangci-lint` (`errcheck`, `staticcheck`, `unused`, `ineffassign`) e `go tool mage test` na CI (`.github/workflows/ci.yml`); qualquer falha deixa a execução vermelha. `go tool mage check` roda o mesmo localmente.
+- **RNF8.2** As suítes com modelo (`go tool mage eval`) rodam em workflow manual ou semanal (`.github/workflows/eval.yml`), em CPU, com o relatório publicado como artefato.
 - **RNF8.3** A cobertura dos testes aparece no resumo de cada execução e num badge do README.
 
 ---
@@ -182,7 +182,7 @@ Notas:
 |---|---|
 | Linguagem | Go |
 | Persistência | SQLite (`mattn/go-sqlite3`) + sqlite-vec |
-| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo, com a biblioteca de visão `mtmd`; CUDA opcional (`make cuda`) |
+| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo, com a biblioteca de visão `mtmd`; CUDA opcional (`go tool mage cuda`) |
 | Embeddings | nomic-embed-text-v2-moe Q4_K_M (multilíngue) |
 | Geração | Qwen3.5-2B Q4_K_M (Apache-2.0), com o projetor de visão (`mmproj`) ao lado |
 | Teams | leitor próprio de LevelDB, IndexedDB do Chromium e serialização V8 |

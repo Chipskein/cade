@@ -44,10 +44,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Test
-        run: make test
+        run: go tool mage test
 
       - name: Build the archive
-        run: make dist VERSION="${GITHUB_REF_NAME}"
+        run: VERSION="${GITHUB_REF_NAME}" go tool mage dist
 
       - name: Check the binary reports the tag
         run: ./bin/cade version | tee /dev/stderr | grep -q "cade ${GITHUB_REF_NAME} ("

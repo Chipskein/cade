@@ -22,13 +22,13 @@ Ela ingere commits git, histórico de navegador, arquivos e mensagens do Microso
 
 Requisitos:
 - Go 1.27+
-- `gcc`, `cmake`, `ninja`, `curl`
+- `gcc`, `cmake`, `ninja`, `git`
 
 ```sh
-make build      # build CPU
-make cuda       # opcional: build NVIDIA (requer CUDA Toolkit)
-make models     # baixa os modelos em ~/.local/share/cade/models
-make install    # instala o cade em ~/.local/bin (altere com PREFIX=...)
+go tool mage build      # build CPU
+go tool mage cuda       # opcional: build NVIDIA (requer CUDA Toolkit)
+go tool mage models     # baixa os modelos em ~/.local/share/cade/models
+go tool mage install    # instala o cade em ~/.local/bin (altere com PREFIX=...)
 ```
 
 ### A partir do binário de release (Linux x86-64, CPU)
@@ -46,7 +46,7 @@ install -Dm755 cade-$V-linux-amd64-cpu/cade ~/.local/bin/cade
 Depois execute:
 
 ```sh
-make models
+go tool mage models   # num clone deste repositório
 cade init
 cade doctor
 cade ingest all
@@ -79,6 +79,30 @@ Para detalhes de implementação e guias aprofundados, veja:
 
 ## Desenvolvimento
 
+As tarefas de desenvolvimento são alvos do [Mage](https://magefile.org/) escritos em Go (`magefiles/`, lógica em `internal/devtasks/`). O Mage é uma dependência de ferramenta (`tool`) deste módulo, então não há o que instalar: `go tool mage` o executa, e ele nunca entra no binário do `cade`.
+
 ```sh
-make test
+go tool mage -l     # lista os alvos
+go tool mage test   # testes unitários
+go tool mage check  # o que a CI roda: fmtCheck, vet, lint e test
 ```
+
+| Alvo | O que faz |
+| --- | --- |
+| `build` (padrão) | binário CPU em `bin/cade` |
+| `cuda` | binário NVIDIA em `bin/cade` (requer CUDA Toolkit) |
+| `install` / `uninstall` | copia `bin/cade` para `$DESTDIR$PREFIX/bin` (padrão `~/.local/bin`) / remove |
+| `dist` | arquivo de release e SHA-256 em `dist/` |
+| `llama` / `llamaCuda` | clona o llama.cpp fixado e compila as bibliotecas (os outros alvos fazem isso quando preciso) |
+| `models` | baixa os modelos em `$MODELS_DIR` (padrão `~/.local/share/cade/models`) |
+| `test` / `cover` | testes unitários / com a tabela de cobertura por função |
+| `fuzz` | os alvos de fuzz dos leitores, `$FUZZTIME` cada (padrão `30s`) |
+| `testModels` | todos os testes, inclusive o binding do llama.cpp com os modelos reais |
+| `eval` | `evalPlan`, `evalRetrieval` e `evalInjection` com os modelos reais |
+| `evalScale` / `evalRerank` | curva de escala (`$SCALE`, relatório em `$SCALE_REPORT`) / experimento de reranking (fase 17) |
+| `bench` | benchmarks de latência e memória |
+| `fmt` / `fmtCheck` / `vet` / `lint` | gofmt, go vet, golangci-lint (`go tool mage print GOLANGCI_LINT_VERSION` é a versão fixada) |
+| `clean` | remove `bin/`, `dist/`, `coverage.out` e os builds do llama.cpp |
+| `print NOME` | imprime um valor fixado para chaves de cache da CI (`LLAMA_TAG`, `LLAMA_CMAKE_FLAGS`, …) |
+
+As configurações são variáveis de ambiente: `PREFIX`, `DESTDIR`, `MODELS_DIR`, `EMBEDDING_MODEL`, `GENERATION_MODEL`, `LLAMA_NATIVE` (`OFF` para um build portátil), `CUDA_HOME`, `CUDA_ARCH`, `NVCC_CCBIN`, `EVAL_TIMEOUT` (padrão `1h`), `MODE`, `VERSION`. As avaliações e o `bench` usam a GPU quando o CUDA Toolkit está instalado; `GO_TAGS` vazio força a CPU, por exemplo `GO_TAGS= go tool mage bench`.

@@ -1,8 +1,8 @@
-# golangci-lint v2. `make lint` runs it; CI runs the same version.
+# golangci-lint v2. `go tool mage lint` runs it; CI runs the same version.
 version: "2"
 
 run:
-  # FTS5 is compiled only with this tag (see Makefile); without it the
+  # FTS5 is compiled only with this tag (see internal/devtasks); without it the
   # SQLite store fails to type-check the same way it fails to build.
   build-tags:
     - sqlite_fts5

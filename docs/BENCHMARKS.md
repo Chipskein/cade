@@ -1,8 +1,8 @@
 # Benchmarks
 
 Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:
-- `bench/baseline.txt` (`make bench`) e `bench/baseline-cpu.txt` (`make bench GO_TAGS=`, a mesma máquina sem a GPU);
-- `bench/retrieval-baseline.txt`, `bench/retrieval-scale.txt` e `bench/plan-baseline.txt` (`make eval`, `make eval-scale`);
+- `bench/baseline.txt` (`go tool mage bench`) e `bench/baseline-cpu.txt` (`GO_TAGS= go tool mage bench`, a mesma máquina sem a GPU);
+- `bench/retrieval-baseline.txt`, `bench/retrieval-scale.txt` e `bench/plan-baseline.txt` (`go tool mage eval`, `go tool mage evalScale`);
 - das medições por fase registradas no `CHANGELOG.pt-BR.md`.
 
 Os gráficos são Mermaid e precisam ser atualizados à mão depois de uma nova medição. O Mermaid não desenha legenda, então ela vem escrita abaixo de cada gráfico.
@@ -31,7 +31,7 @@ Azul: recall. Verde: MRR. Vermelho: redundância (resultados que repetem a mesma
 
 ## `top_k`, limiares e reranking (fase 17)
 
-`make eval-retrieval` cruza `top_k` (4, 6, 8, 12) com `max_distance` (0,68, 0,72, 0,76) e `max_best_distance` (0,60, 0,61, 0,63) nos conjuntos de calibração e de teste (25 perguntas), com o `nomic-embed-text-v2-moe` Q4_K_M, e mede o `ask` até o primeiro token para cada `top_k` (`BenchmarkColdAskTopK`, cache de páginas quente, uma execução por valor). CPU e GPU dão a mesma qualidade.
+`go tool mage evalRetrieval` cruza `top_k` (4, 6, 8, 12) com `max_distance` (0,68, 0,72, 0,76) e `max_best_distance` (0,60, 0,61, 0,63) nos conjuntos de calibração e de teste (25 perguntas), com o `nomic-embed-text-v2-moe` Q4_K_M, e mede o `ask` até o primeiro token para cada `top_k` (`BenchmarkColdAskTopK`, cache de páginas quente, uma execução por valor). CPU e GPU dão a mesma qualidade.
 
 | `top_k` | recall | MRR | rejeição | `ask` CPU | `ask` GPU |
 | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -42,9 +42,9 @@ Azul: recall. Verde: MRR. Vermelho: redundância (resultados que repetem a mesma
 
 - **`top_k` = 6:** o menor valor que não perde recall. O MRR sobe um pouco porque um evento fraco sai do fim da lista. O `ask` em CPU fica 1,8 s mais rápido.
 - **Limiares:** `max_distance` não muda nada entre 0,68 e 0,76. Com `max_best_distance` 0,63, a rejeição na calibração cai para 0,89 (uma pergunta sem resposta passa). A calibração põe o corte entre o pior evento de pergunta com resposta e o melhor de pergunta sem resposta: 0,596–0,624 em GPU e 0,606–0,621 em CPU (os vetores diferem na terceira casa). Os 0,61 atuais ficam dentro dos dois intervalos e continuam valendo.
-- **Curva de escala** (`make eval-scale`, `bench/retrieval-scale.txt`): com 1 mil e com 10 mil eventos, `top_k` 6 dá recall 0,94, MRR 0,83 e rejeição 1,00. A v0.0.0 (`top_k` 8) dava 0,93, 0,82 e 1,00, e a mesma medição hoje com 8 dá 0,94, 0,82 e 1,00 (`bench/retrieval-scale-top8.txt`).
+- **Curva de escala** (`go tool mage evalScale`, `bench/retrieval-scale.txt`): com 1 mil e com 10 mil eventos, `top_k` 6 dá recall 0,94, MRR 0,83 e rejeição 1,00. A v0.0.0 (`top_k` 8) dava 0,93, 0,82 e 1,00, e a mesma medição hoje com 8 dá 0,94, 0,82 e 1,00 (`bench/retrieval-scale-top8.txt`).
 
-**Reranking, reprovado no portão** (`make eval-rerank`). Os 30 primeiros da busca híbrida, depois dos cortes de distância, são reordenados pelo `bge-reranker-v2-m3` Q4_K_M (418 MB, Apache-2.0) pelo llama.cpp, que lê o mesmo texto que o modelo de resposta, e são cortados em 6:
+**Reranking, reprovado no portão** (`go tool mage evalRerank`). Os 30 primeiros da busca híbrida, depois dos cortes de distância, são reordenados pelo `bge-reranker-v2-m3` Q4_K_M (418 MB, Apache-2.0) pelo llama.cpp, que lê o mesmo texto que o modelo de resposta, e são cortados em 6:
 
 | eventos | sem reranker (recall / MRR) | com reranker (recall / MRR) | custo por pergunta |
 | ---: | ---: | ---: | ---: |
@@ -56,7 +56,7 @@ O MRR sobe em todos os tamanhos, mas o recall no conjunto de teste cai de 1,00 p
 
 ## Busca à medida que o histórico cresce
 
-Recall no conjunto de teste com o corpus aumentado por distratores (`make eval-scale`).
+Recall no conjunto de teste com o corpus aumentado por distratores (`go tool mage evalScale`).
 
 ```mermaid
 ---
@@ -78,7 +78,7 @@ Cinza: baseline. Azul: depois da fase 2 (pedaços). Verde: depois da fase 3 (bus
 
 ## Interpretação das perguntas
 
-Acerto por campo na suíte de 153 perguntas (`make eval-plan`), com o prompt da fase 18 para os três modelos (`bench/plan-baseline.txt`, `plan-qwen2.5-3b.txt`, `plan-qwen3.5-4b.txt`). Os pisos da suíte são comparados com o limite inferior do intervalo de Wilson de 95%, que fica 3 a 6 pontos abaixo destes valores.
+Acerto por campo na suíte de 153 perguntas (`go tool mage evalPlan`), com o prompt da fase 18 para os três modelos (`bench/plan-baseline.txt`, `plan-qwen2.5-3b.txt`, `plan-qwen3.5-4b.txt`). Os pisos da suíte são comparados com o limite inferior do intervalo de Wilson de 95%, que fica 3 a 6 pontos abaixo destes valores.
 
 ```mermaid
 ---
@@ -158,7 +158,7 @@ Cinza: modelo, prompt decodificado inteiro. Azul: modelo com o estado salvo. Ver
 
 ## Busca vetorial no banco
 
-Busca dos vizinhos mais próximos em históricos sintéticos (`make bench`), antes da fase 2. Com pedaços, a busca em 100 mil eventos passou de 103 para 112 ms.
+Busca dos vizinhos mais próximos em históricos sintéticos (`go tool mage bench`), antes da fase 2. Com pedaços, a busca em 100 mil eventos passou de 103 para 112 ms.
 
 ```mermaid
 ---

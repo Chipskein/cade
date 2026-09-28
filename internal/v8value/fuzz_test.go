@@ -4,7 +4,7 @@ import "testing"
 
 // Teams message values are V8-serialized objects written by Chrome; a
 // corrupt or unexpected one must fail to decode, never panic or blow the
-// stack. Run longer with `make fuzz`.
+// stack. Run longer with `go tool mage fuzz`.
 func FuzzDecode(f *testing.F) {
 	f.Add(v8('_'))
 	f.Add(v8(append([]byte{'o'}, append(latin1("id"), append(latin1("19:abc"), '{', 1)...)...)...))

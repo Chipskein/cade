@@ -20,8 +20,8 @@ import (
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
-// embeddingModelEnv points at the real GGUF model (Makefile targets
-// test-models and eval-retrieval); without it these are skipped.
+// embeddingModelEnv points at the real GGUF model (mage targets
+// testModels and evalRetrieval); without it these are skipped.
 // scaleEnv lists corpus sizes for the scale curve ("1000,10000").
 const (
 	embeddingModelEnv = "CADE_TEST_EMBEDDING_MODEL"
@@ -276,7 +276,7 @@ func logCase(t *testing.T) CaseDone {
 	}
 }
 
-// evalMode lets `make eval-retrieval MODE=vector` compare modes on the same
+// evalMode lets `MODE=vector go tool mage evalRetrieval` compare modes on the same
 // sets; unset means the default.
 func evalMode(t *testing.T) rag.Mode {
 	t.Helper()

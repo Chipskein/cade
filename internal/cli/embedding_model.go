@@ -63,8 +63,8 @@ func settleThresholdCalibration(ctx context.Context, cfg config.Config, store st
 // when searching with current; `reindex` and `doctor` share it.
 func thresholdAdvice(calibrated, current string, language Language) string {
 	return fmt.Sprintf(language.pick(
-		"`retrieval.max_distance` e `retrieval.max_best_distance` foram calibrados para %s e não valem para %s; rode a calibração (`make eval-retrieval EMBEDDING_MODEL=<caminho de %s>`, no repositório) e ajuste os dois",
-		"`retrieval.max_distance` and `retrieval.max_best_distance` were calibrated for %s and do not hold for %s; run the calibration (`make eval-retrieval EMBEDDING_MODEL=<path to %s>`, in the repository) and adjust both"),
+		"`retrieval.max_distance` e `retrieval.max_best_distance` foram calibrados para %s e não valem para %s; rode a calibração (`EMBEDDING_MODEL=<caminho de %s> go tool mage evalRetrieval`, no repositório) e ajuste os dois",
+		"`retrieval.max_distance` and `retrieval.max_best_distance` were calibrated for %s and do not hold for %s; run the calibration (`EMBEDDING_MODEL=<path to %s> go tool mage evalRetrieval`, in the repository) and adjust both"),
 		calibrated, current, current)
 }
 

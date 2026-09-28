@@ -56,7 +56,7 @@ func openStore(ctx context.Context, path string, backupCreated func(backupPath s
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory for %q: %w", path, err)
 	}
-	// MkdirAll keeps the mode of an existing directory (`make models`
+	// MkdirAll keeps the mode of an existing directory (`go tool mage models`
 	// creates it first, world-readable); the history must be owner-only.
 	if err := os.Chmod(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
