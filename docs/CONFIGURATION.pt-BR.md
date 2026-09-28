@@ -1,0 +1,35 @@
+# Referência de configuração
+
+`cade init` grava `~/.config/cade/config.json`. Você pode usar o
+[`config.example.json`](../config.example.json) como referência completa.
+
+| Campo | Finalidade |
+|---|---|
+| `database_path` | Caminho do banco SQLite. |
+| `embedding.model_path` | Caminho do modelo GGUF de embeddings. |
+| `embedding.context_tokens` | Limite de contexto/tokens do embedding. |
+| `embedding.threads` | Threads de CPU para embedding (`0` = núcleos físicos). |
+| `embedding.gpu_layers` | Camadas na GPU para embedding (`-1` = todas). |
+| `embedding.query_prefix` | Prefixo usado nos embeddings de consulta. |
+| `embedding.document_prefix` | Prefixo usado nos embeddings de documento. |
+| `generation.model_path` | Caminho do modelo GGUF de geração. |
+| `generation.context_tokens` | Limite de contexto/tokens da geração. |
+| `generation.threads` | Threads de CPU para geração (`0` = núcleos físicos). |
+| `generation.gpu_layers` | Camadas na GPU para geração (`-1` = todas). |
+| `retrieval.top_k` | Quantidade de eventos considerados como evidência. |
+| `retrieval.max_distance` | Corte de relevância para perguntas sem filtros. |
+| `retrieval.max_best_distance` | Qualidade mínima do melhor resultado para responder. |
+| `retrieval.max_answer_tokens` | Tamanho máximo da resposta em tokens. |
+| `retrieval.mode` | Modo de busca (`hybrid`, `vector` ou `lexical`). |
+| `retrieval.max_filtered_events` | Limite para ranqueamento por evento em consultas filtradas. |
+| `sources.git_repositories` | Repositórios usados no `ingest git`. |
+| `sources.git_authors` | Restringe ingestão a autores selecionados. |
+| `sources.git_identities` | Identidades tratadas como "você". |
+| `sources.browser_histories` | Arquivos de histórico usados no `ingest browser`. |
+| `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
+| `sources.directories` | Pastas usadas no `ingest file`. |
+| `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
+| `sources.max_file_bytes` | Tamanho máximo de arquivo para ingerir texto. |
+| `ui.language` | Idioma da interface (`auto`, `pt`, `en`). |
+| `ui.date_order` | Ordem de leitura de datas numéricas. |
+| `tasks.task_url_patterns` | Regexes usadas para detectar links de tarefas. |
