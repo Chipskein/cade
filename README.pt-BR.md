@@ -72,6 +72,23 @@ Com `sources.images` ligado (o `cade init` pergunta), o `ingest` descreve os arq
 
 Custa cerca de 1,7 s por captura numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU. Cada `ingest` descreve até `ingest.max_images_per_run` (padrão 50) e deixa o resto para as próximas execuções. `cade reindex --captions` descreve de novo quando o modelo ou o prompt mudam.
 
+Perguntando pelo texto dentro de uma imagem:
+
+```console
+$ cade ask "Imagens em que o personagens falam 'help me pay for divorce papers' "
+Understood: answer · file · topic: personagens falam 'help me pay for divorce papers'
+A imagem em que o personagem diz "help me pay for divorce papers" é a [1].
+
+Cited sources:
+  [1] [file]    2026-09-08 18:56  /home/chipskein/Downloads/HRrl-KYbIAAINeq.jpg
+```
+
+A imagem citada, encontrada pelas palavras da legenda:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-example.jpg" alt="HRrl-KYbIAAINeq.jpg: captura de jogo com a legenda 'help me pay for divorce papers'" width="320">
+</p>
+
 ## Documentação
 
 Para detalhes de implementação e guias aprofundados, veja:

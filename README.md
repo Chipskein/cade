@@ -72,6 +72,23 @@ With `sources.images` on (`cade init` asks), `ingest` describes the png, jpeg an
 
 It costs about 1.7 s per screenshot on an RTX 3060 and 22 s on a 6-core CPU, so a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU. Each `ingest` describes up to `ingest.max_images_per_run` (default 50) and leaves the rest for the next runs. `cade reindex --captions` describes them again after the model or the prompt changes.
 
+Asking about the text inside an image (in Portuguese, "images where the characters say 'help me pay for divorce papers'"):
+
+```console
+$ cade ask "Imagens em que o personagens falam 'help me pay for divorce papers' "
+Understood: answer · file · topic: personagens falam 'help me pay for divorce papers'
+A imagem em que o personagem diz "help me pay for divorce papers" é a [1].
+
+Cited sources:
+  [1] [file]    2026-09-08 18:56  /home/chipskein/Downloads/HRrl-KYbIAAINeq.jpg
+```
+
+The cited image, found by the words in its caption box:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-example.jpg" alt="HRrl-KYbIAAINeq.jpg: a game screenshot with the caption 'help me pay for divorce papers'" width="320">
+</p>
+
 ## Documentation
 
 For implementation details and in-depth guides, see:
