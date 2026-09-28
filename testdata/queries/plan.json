@@ -1061,6 +1061,22 @@
       }
     },
     {
+      "question": "quais tarefas finalizei ontem?",
+      "expect": {
+        "mode": "tarefas",
+        "days": "2026-09-25",
+        "status": "concluidas"
+      }
+    },
+    {
+      "question": "quais tarefas estão com PR aberto?",
+      "expect": {
+        "mode": "tarefas",
+        "days": "2026-09-26",
+        "status": "concluidas"
+      }
+    },
+    {
       "question": "que tickets estão em andamento?",
       "expect": {
         "mode": "tarefas",

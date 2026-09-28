@@ -81,7 +81,7 @@ type prReport struct {
 }
 
 var (
-	taskStatusCodes  = map[tasks.Status]string{tasks.Done: "concluida", tasks.InProgress: "em_andamento"}
+	taskStatusCodes  = map[tasks.Status]string{tasks.Done: "pr_aberto", tasks.InProgress: "em_andamento"}
 	involvementCodes = map[tasks.Involvement]string{tasks.Mine: "sua", tasks.Consulted: "consultada", tasks.MentionedByOthers: "citada_por_outros"}
 	linkCodes        = map[tasks.Link]string{tasks.LinkExact: "exata", tasks.LinkProbable: "provavel"}
 )

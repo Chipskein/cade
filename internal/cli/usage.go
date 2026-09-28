@@ -25,7 +25,7 @@ Comandos:
                                         pergunta em linguagem natural (inclusive
                                         sobre tarefas: "quais tarefas finalizei?")
   tasks [--all] [DATA] [DATA_FIM]       tarefas trabalhadas (links de tarefa); PR aberto
-                                        = concluída (padrão: hoje)
+                                        significa visita à criação, sem saber aprovação/merge
   reindex                               recalcula os vetores com o modelo de embedding
                                         configurado (após trocar de modelo); retomável
   forget <fonte> | --uid UID            apaga eventos de uma fonte ou um evento;
@@ -68,8 +68,8 @@ Commands:
   ask [--source S] [--from D] [--to D] [--no-filters] [--json] QUESTION
                                         natural-language question, in English or
                                         Portuguese (also about tasks: "which tasks did I finish?")
-  tasks [--all] [DATE] [END_DATE]       tasks worked on (task links); PR opened
-                                        = finished (default: today)
+  tasks [--all] [DATE] [END_DATE]       tasks worked on (task links); PR opened means a
+                                        visit to its creation page; approval/merge unknown
   reindex                               recomputes vectors with the configured
                                         embedding model (after changing it); resumable
   forget <source> | --uid UID           deletes a source's events or one event;

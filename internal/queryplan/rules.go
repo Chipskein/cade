@@ -39,7 +39,7 @@ var (
 	ruleGenericWords = wordSet("o a os as um uma que quais qual eu meu meus minha minhas de do da dos das em no na nos nas " +
 		"fiz fizemos trabalhei aconteceu estao ainda ficaram liste listar mostre abri visitei acessei editei alterei " +
 		"modifiquei modificados modificadas todas todos dia " +
-		"finalizei finalizadas conclui concluidas terminei entreguei pendentes pendente andamento abertas abertos nao " +
+		"finalizei finalizadas conclui concluidas terminei entreguei pendentes pendente andamento aberta aberto abertas abertos nao com pr " +
 		"what which did i do work worked on in the my from of show list me happened are is still all day " +
 		"finish finished complete completed done closed open pending progress edit edited changed modified visited opened")
 )
@@ -165,6 +165,8 @@ func (r ruleReading) plan(period, text string) (Plan, bool) {
 // finalizei" is unfinished, not done.
 func taskStatusIn(text string) TaskStatus {
 	switch {
+	case prOpenedCues.MatchString(text):
+		return OnlyDone
 	case inProgressCues.MatchString(text):
 		return OnlyInProgress
 	case doneCues.MatchString(text):

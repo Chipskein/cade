@@ -17,7 +17,7 @@ var (
 // statusLabel is a task's status in the report's first column.
 func statusLabel(status tasks.Status, language Language) string {
 	if status == tasks.Done {
-		return language.pick("concluída", "finished")
+		return language.pick("PR aberto", "PR opened")
 	}
 	return language.pick("em andamento", "in progress")
 }
@@ -33,6 +33,8 @@ func renderTaskReport(out io.Writer, days timeline.DayRange, report tasks.Report
 		return
 	}
 	fmt.Fprint(out, tasksHeader(days, len(groups[tasks.Mine]), language))
+	fmt.Fprintln(out, language.pick("PR aberto = visita à criação do PR; links sem essa visita aparecem como prováveis. Sem rede, aprovação e merge são desconhecidos.", "PR opened = a visit to its creation page; links without that visit are marked probable. Offline, approval and merge are unknown."))
+	fmt.Fprintln(out)
 	renderTasks(out, groups[tasks.Mine], days, language)
 	renderSection(out, language.pick("Consultadas (você abriu a tarefa; sem PR ou mensagem sua)", "Consulted (you opened the task; no PR or message of yours)"),
 		groups[tasks.Consulted], days, language)

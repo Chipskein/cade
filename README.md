@@ -60,6 +60,12 @@ cade ask "what did I work on yesterday?"
 cade tasks today
 ```
 
+`tasks` reports **PR opened** when local history shows a visit to the PR creation page. Offline, it cannot tell whether the PR was approved or merged. To use a project-specific tracker such as Proj4me, add a pattern under `tasks.task_url_patterns` in the config:
+
+```json
+"task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
+```
+
 ## Documentation
 
 For implementation details and in-depth guides, see:
