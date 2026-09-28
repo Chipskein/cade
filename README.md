@@ -75,6 +75,7 @@ For implementation details and in-depth guides, see:
 - [Configuration reference](docs/CONFIGURATION.md)
 - [Benchmarks](docs/BENCHMARKS.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Licensing](docs/LICENSING.md): GPL-3.0-or-later ([LICENSE](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md))
 - [Changelog](CHANGELOG.md)
 
 ## Development

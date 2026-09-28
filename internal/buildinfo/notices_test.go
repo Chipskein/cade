@@ -36,6 +36,26 @@ func TestThirdPartyNoticesNameEveryDependency(t *testing.T) {
 	}
 }
 
+// projectLicense is cade's license since #10: the LICENSE header that
+// names its version and the SPDX identifier the notices declare.
+var projectLicense = struct{ header, spdx string }{
+	header: "GNU GENERAL PUBLIC LICENSE\n                       Version 3, 29 June 2007",
+	spdx:   "`GPL-3.0-or-later`",
+}
+
+// The LICENSE text, the notices and the licensing doc must name the same
+// license, so a later change cannot update one and forget the others.
+func TestLicenseMatchesDeclaredLicense(t *testing.T) {
+	if license := readRepoFile(t, "LICENSE"); !strings.Contains(license, projectLicense.header) {
+		t.Errorf("LICENSE does not start with %q", projectLicense.header)
+	}
+	for _, name := range []string{"THIRD_PARTY_NOTICES.md", "docs/LICENSING.md", "docs/LICENSING.pt-BR.md"} {
+		if !strings.Contains(readRepoFile(t, name), projectLicense.spdx) {
+			t.Errorf("%s does not declare %s", name, projectLicense.spdx)
+		}
+	}
+}
+
 // toolModules are the modules go.mod declares as tools; a tool line names a
 // package, which is the module itself for Mage.
 func toolModules(goMod string) map[string]bool {

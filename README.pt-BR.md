@@ -75,6 +75,7 @@ Para detalhes de implementação e guias aprofundados, veja:
 - [Referência de configuração](docs/CONFIGURATION.pt-BR.md)
 - [Benchmarks](docs/BENCHMARKS.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Licenciamento](docs/LICENSING.pt-BR.md): GPL-3.0-or-later ([LICENSE](LICENSE), [avisos de terceiros](THIRD_PARTY_NOTICES.md))
 - [Changelog](CHANGELOG.pt-BR.md)
 
 ## Desenvolvimento

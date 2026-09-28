@@ -6,6 +6,11 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### License: GPLv3 or later (#10)
+
+- **cade is now under the GPLv3 or later** (`GPL-3.0-or-later`); v0.0.0 stays under the GPLv2. Every component in the binary is permissive and works with both versions; the GPLv3 also accepts Apache-2.0 and (A)GPLv3 libraries, which the PDF search in the roadmap may need. The review, the exceptions (CUDA builds are not distributed) and the checklist for new dependencies are in [docs/LICENSING.md](docs/LICENSING.md).
+- **Third-party notices** now list the libraries llama.cpp compiles into `mtmd` and `vendor-hash` (stb_image, miniaudio, xxHash, rotate-bits, sha1, sha256, sheredom/subprocess), with the texts that require a notice.
+
 ### Build with Mage (#16)
 
 - **The Makefile is gone:** every target is now a [Mage](https://magefile.org/) target written in Go (`magefiles/magefile.go`, logic and tests in `internal/devtasks/`). Mage is a `tool` dependency in `go.mod`: `go tool mage <target>` needs nothing installed, and Mage is never linked into `cade`. `go tool mage -l` lists the targets; the README has the table.
