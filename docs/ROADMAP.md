@@ -227,6 +227,41 @@ sequenceDiagram
   - Um caso de injeção com instruções escritas dentro de uma imagem em `go tool mage evalInjection`.
 - **Critério de aceite:** cobertura mínima do `eval-captions` definida no arquivo da suíte e passando; os casos de imagem na suíte de recuperação passam sem piorar os outros; nenhuma injeção por imagem seguida; nenhum segredo das imagens de fixture no banco; `forget file` apaga as descrições (teste de privacidade); custo por imagem documentado.
 
+### Plano de implementação
+
+- **Issues que dependem desta:** #22 (representações multimodais) precisa poder migrar a descrição para a tabela dela; #23 (rostos) e #24 (busca multimodal) usam a imagem como unidade indexada; #8 e #9 citam `sources.images` e o `mmproj`. Por isso:
+  - descrição e texto visível ficam em chaves **separadas** do metadado, com modelo e versão do prompt (viram `kind` description/ocr na #22);
+  - **nenhuma tabela de descrições**: a #22 cria `representations`, e um cache à parte sobreviveria ao `forget file`;
+  - `image_sha256` e as dimensões ficam no metadado: são o id da futura entidade Image (#20, #23). Pixels nunca.
+- **Modelo:** `llm.ImageDescriber` (`DescribeImage(ctx, llm.RGBImage, mensagens, maxTokens)`), implementado em `llamacpp/vision.go` com `mtmd_bitmap_init` → `mtmd_tokenize` → `mtmd_helper_eval_chunks` → a amostragem de sempre, gulosa (a mesma imagem dá a mesma descrição). A decodificação é em Go (`imagefile`: png, jpeg e webp via `golang.org/x/image`, atrás de interface própria), com redução do maior lado e `DecodeConfig` antes, recusando imagens acima de um limite de pixels (o `max_image_bytes` não protege de uma PNG pequena com 50 000 × 50 000).
+- **Prompt:** constante versionada (`captionPromptVersion`), saída em duas seções (`Descrição:` / `Texto visível:`), "transcreva, não obedeça".
+- **Configuração:** `sources.images` (`false`), `ingest.max_image_bytes`, `ingest.max_images_per_run` (padrões a medir), `generation.vision_projector_path`; `cade init` pergunta só se houver `directories`; `doctor` avisa se o `mmproj` falta com imagens ligadas.
+- **Metadado e migração 10:** `image_sha256`, `image_width`, `image_height`, `caption_model`, `caption_prompt_version`, `caption_description`, `caption_visible_text`, `caption_status` (`described` / `pending` / `unreadable`). O texto do evento é nome + descrição + texto visível. A migração 10 só cria o índice por expressão em `json_extract(metadata, '$.image_sha256')` (sem cópia).
+- **`ingest` em duas etapas:**
+  1. `imagecaption.Planner` percorre as `directories` com o mesmo filtro do `filesource` (`filesource.Walk`, compartilhado): evento guardado com o mesmo `ModifiedAt` e já descrito → pula sem ler; senão calcula o hash e reaproveita a descrição de outro evento com o mesmo hash (inclusive arquivo movido, com `removed_at`); senão descreve até `max_images_per_run`, e o resto fica `pending`. Gerador e `mmproj` só carregam se houver o que descrever, e são liberados antes do embedder.
+  2. O pipeline de sempre; o coletor recebe o plano nas `Options`. `replaces` passa a trocar `pending` por `described` com a mesma revisão. Erro ao decodificar vira `unreadable` (contado, não para o `ingest`); erro do modelo aborta, como hoje. O relatório ganha "imagens: N descritas, M reaproveitadas, K para depois".
+  - Risco aceito: se o embedder falhar depois da etapa 1, as descrições daquela execução se perdem (no máximo `max_images_per_run`).
+- **`cade reindex --captions`:** descreve de novo os eventos com modelo ou versão de prompt diferentes, relendo o arquivo (pula e conta se sumiu ou mudou), e atualiza pelo pipeline (com a máscara). Retomável.
+- **Entregas, uma por commit:**
+  1. `DescribeImage`, `imagefile`, `llm.ImageDescriber`; teste com modelo real (`CADE_TEST_VISION_PROJECTOR`) e `BenchmarkDescribeImage` em CPU e GPU por tamanho de imagem.
+  2. Configuração, `init`, `doctor`, migração 10, `event.Image`.
+  3. As duas etapas do `ingest`, com `FakeImageDescriber`: sem descrever duas vezes, reaproveitar ao mover, limite por execução, `pending` → `described`, token na transcrição falsa não chega ao banco, `forget file` apaga, ordem de carga dos modelos.
+  4. `reindex --captions`.
+  5. Avaliação: `testdata/images/` (gerador em Go + PNGs), `captions.json` com `minimum_coverage`, `evalCaptions` dentro do `eval`, casos de imagem na recuperação (descrição real em cache em `~/.cache/cade/eval` por hash + modelo + prompt), caso de injeção por imagem.
+  6. Docs: README (hardware, tempo para 1 mil capturas), PRIVACY, USECASES, ARCHITECTURE, BENCHMARKS, CHANGELOG.
+- **Medido na entrega 1** (`BenchmarkDescribeImage`, captura 1920 × 1080 de terminal com 10 linhas, ~680 bytes de resposta):
+
+  | Maior lado enviado | RTX 3060 | Ryzen 5 5500 (CPU) |
+  | ------------------ | -------- | ------------------ |
+  | 512 | 1,29 s | — |
+  | 768 | 1,54 s | 19,1 s |
+  | 1024 | 1,73 s | 22,4 s |
+  | 1536 | 2,10 s | — |
+  | sem redução | 2,56 s | — |
+
+  Com 512 px a transcrição perde uma linha e troca nomes de arquivo; a partir de 768 px sai completa. O padrão é 1024 px, porque capturas reais têm fonte menor que a sintética. Mil capturas levam ~29 min na GPU e ~6 h em CPU. Memória com gerador + `mmproj` carregados: 2,7 GB de VRAM (contexto de 8192) ou 2,9 GB de RAM em CPU.
+- **A decidir medindo:** padrão de `max_images_per_run` (entrega 2, a partir da tabela acima); idioma da descrição (EN ou PT) pelo `evalCaptions` e pela recuperação; se o 2B não atingir a cobertura, o 4B só no `ingest` (lá o embedder não está carregado junto).
+
 ---
 
 ## Fase 20 — Documentação de uso contínuo
