@@ -37,7 +37,10 @@ func TestExampleConfigHasEveryField(t *testing.T) {
 
 func TestDocsDescribeEveryField(t *testing.T) {
 	encoded, _ := json.Marshal(Defaults())
-	for _, doc := range []string{"../../docs/CONFIGURATION.md", "../../README.pt-BR.md"} {
+	for _, doc := range []string{
+		"../../docs/CONFIGURATION.md",
+		"../../docs/CONFIGURATION.pt-BR.md",
+	} {
 		text := string(readFile(t, doc))
 		for _, key := range decodedKeys(t, encoded) {
 			if !strings.Contains(text, "`"+key+"`") {
