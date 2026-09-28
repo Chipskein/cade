@@ -60,6 +60,10 @@ type EventStore interface {
 	// DeleteSource removes every event (and embedding) of source, returning
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
+	DeleteEvent(ctx context.Context, uid string) (bool, error)
+	IsForgotten(ctx context.Context, uid string) (bool, error)
+	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
+	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	Close() error
 }
 

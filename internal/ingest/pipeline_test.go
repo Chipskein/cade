@@ -59,6 +59,28 @@ func TestRunTwiceDoesNotDuplicate(t *testing.T) {
 	}
 }
 
+func TestRunDoesNotRestoreForgottenUID(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	store.Forgotten = map[string]bool{"a": true}
+	report, err := newTestPipeline(store, &testfakes.FakeEmbedder{}).Run(context.Background(), FakeCollector{Events: []event.Event{{UID: "a", Source: event.SourceGit, Timestamp: time.Unix(1, 0), Content: "forgotten"}}}, nil)
+	if err != nil || len(store.Events) != 0 || report.AlreadyStored != 1 {
+		t.Fatalf("forgotten event returned: %+v, %v, %+v", store.Events, report, err)
+	}
+}
+
+func TestRetentionDeletesOldEventsAfterIngest(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	now := time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC)
+	pipeline := newTestPipeline(store, &testfakes.FakeEmbedder{}).WithClock(func() time.Time { return now }).WithRetention(map[event.Source]int{event.SourceGit: 30})
+	collector := FakeCollector{Events: []event.Event{{UID: "old", Source: event.SourceGit, Timestamp: now.AddDate(0, 0, -31), Content: "old event"}, {UID: "recent", Source: event.SourceGit, Timestamp: now.AddDate(0, 0, -2), Content: "recent event"}}}
+	if _, err := pipeline.Run(context.Background(), collector, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.Events) != 1 || store.Events[0].UID != "recent" {
+		t.Fatalf("retention kept wrong events: %+v", store.Events)
+	}
+}
+
 func TestRunSkipsEmbeddingForKnownEvents(t *testing.T) {
 	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
 	pipeline := newTestPipeline(store, embedder)

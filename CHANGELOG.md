@@ -6,6 +6,11 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Event deletion and retention (phase 14)
+
+- `cade forget --uid UID` removes one event. `--match TEXT` reviews matching events and requires `--yes` for non-interactive use. Forgotten UIDs are kept without event text to prevent re-ingestion; source forget clears that list.
+- Optional `ingest.retention.max_age_days` limits event age per source; all sources default to disabled. Privacy docs describe event-level deletion and its stored UID/date.
+
 ### Generation with Qwen3.5 (phase 18)
 
 - **Problem:** the default generation model, Qwen2.5-3B-Instruct, is under the Qwen Research License (non-commercial only), still followed the note posing as a "new system instruction", and sometimes did not cite the evidence.

@@ -66,6 +66,7 @@ Both models run in-process through llama.cpp.
 | Goal | Command |
 |---|---|
 | Delete one source | `cade forget teams` (or `git`, `browser`, `file`) |
+| Delete one event | `cade forget --uid UID` or review matches with `cade forget --match TEXT [--source S] [--from D --to D]` |
 | Delete everything | `rm ~/.local/share/cade/cade.db*` |
 | Remove the configuration | `rm -r ~/.config/cade` |
 | Remove the saved prompt state | `rm -r ~/.cache/cade/prompt-state` (rebuilt on the next question) |
@@ -77,4 +78,4 @@ Both models run in-process through llama.cpp.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
-- There is no command to delete a single event.
+- `forget --uid` and confirmed `forget --match` remove the event, chunks, embeddings, keyword and people indexes, and file history; only its UID and deletion date remain to prevent re-ingestion. `forget <source>` clears that forgotten-UID list. Retention is off by default; set `ingest.retention.max_age_days` per source to opt in.

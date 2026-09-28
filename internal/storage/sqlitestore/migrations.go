@@ -37,6 +37,12 @@ var schemaMigrations = []migration{
 	{version: 6, description: "keyword index over chunks (FTS5)", apply: indexExistingChunks},
 	{version: 7, description: "people index and message direction, for filters in SQL", apply: buildPeopleIndex},
 	{version: 8, description: "redact known secrets and remove credential files", backup: true, compact: true, apply: redactStoredEvents},
+	{version: 9, description: "remember individually forgotten event UIDs", apply: createForgottenEvents},
+}
+
+func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS forgotten_events (uid TEXT PRIMARY KEY, forgotten_at INTEGER NOT NULL)`)
+	return err
 }
 
 // Hooks lets the caller report what opening the database did.

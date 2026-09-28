@@ -66,6 +66,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 | Objetivo | Comando |
 |---|---|
 | Apagar uma fonte | `cade forget teams` (ou `git`, `browser`, `file`) |
+| Apagar um evento | `cade forget --uid UID` ou revisar resultados com `cade forget --match TEXTO [--source F] [--from D --to D]` |
 | Apagar tudo | `rm ~/.local/share/cade/cade.db*` |
 | Remover a configuração | `rm -r ~/.config/cade` |
 | Remover o estado do prompt salvo | `rm -r ~/.cache/cade/prompt-state` (refeito na próxima pergunta) |
@@ -77,4 +78,4 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 - Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`.
 - O `forget` não mexe nas cópias de migração (`cade.db.before-v*`); apague-as você mesmo.
 - Cópias feitas fora do cade não são afetadas: backups, snapshots, ou saídas de `cade ask --json` que você salvou.
-- Não há comando para apagar um evento isolado.
+- `forget --uid` e `forget --match` confirmado removem o evento, pedaços, embeddings, índices de palavras e pessoas e histórico do arquivo; só o UID e a data da remoção ficam para impedir a reingestão. `forget <fonte>` limpa essa lista de UIDs esquecidos. A retenção vem desligada; configure `ingest.retention.max_age_days` por fonte para ativá-la.
