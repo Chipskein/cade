@@ -209,6 +209,37 @@ func TestReplaces(t *testing.T) {
 	}
 }
 
+// imageVersion is the same file (revision 1) at a given caption status.
+func imageVersion(status event.CaptionStatus) event.Event {
+	metadata := event.Metadata{event.RevisionKey: "1"}
+	for key, value := range (event.Image{Status: status}).Metadata() {
+		metadata[key] = value
+	}
+	return event.Event{UID: "img", Source: event.SourceFile, Content: "erro.png", Metadata: metadata}
+}
+
+// An unchanged image keeps its revision, so without this rule one that
+// waited for the per-run limit would never get its description.
+func TestReplacesAnUnchangedImageOnlyWhenItsCaptionAdvances(t *testing.T) {
+	cases := []struct {
+		incoming, stored event.CaptionStatus
+		expected         bool
+	}{
+		{event.CaptionDescribed, event.CaptionPending, true},
+		{event.CaptionDescribed, event.CaptionNone, true},
+		{event.CaptionUnreadable, event.CaptionPending, true},
+		{event.CaptionPending, event.CaptionNone, false},
+		{event.CaptionDescribed, event.CaptionDescribed, false},
+		{event.CaptionPending, event.CaptionDescribed, false},
+		{event.CaptionNone, event.CaptionDescribed, false},
+	}
+	for _, c := range cases {
+		if got := replaces(imageVersion(c.incoming), imageVersion(c.stored)); got != c.expected {
+			t.Errorf("%q over stored %q: expected %v, got %v", c.incoming, c.stored, c.expected, got)
+		}
+	}
+}
+
 func visitAt(uid string, second int64) event.Event {
 	return event.Event{UID: uid, Source: event.SourceBrowser, Timestamp: time.Unix(second, 0), Content: "Kubernetes probes\nhttps://k8s.io/probes"}
 }
@@ -312,5 +343,19 @@ func TestAuthoredCollectorMarksStoredCommits(t *testing.T) {
 	}
 	if len(store.AuthorshipMarks) != 1 || store.AuthorshipMarks[0] != "/src/api" {
 		t.Fatalf("expected the repository marked, got %v", store.AuthorshipMarks)
+	}
+}
+
+func TestReplaceStoredMasksAndReembeds(t *testing.T) {
+	store, embedder := testfakes.NewFakeEventStore(), &testfakes.FakeEmbedder{}
+	pipeline := newTestPipeline(store, embedder)
+	stored := event.Event{UID: "img", Source: event.SourceFile, Content: "erro.png\nantigo", Metadata: event.Metadata{}}
+	store.Events = []event.Event{stored}
+	stored.Content = "erro.png\nexport TOKEN=ghp_0123456789abcdefghijABCDEFGHIJ"
+	if err := pipeline.ReplaceStored(context.Background(), stored); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Events[0].Content; !strings.Contains(got, "[redacted:github-token]") || len(embedder.Inputs) != 1 || store.Updated[0] != "img" {
+		t.Fatalf("expected the masked text stored and embedded, got %q with %d embeds", got, len(embedder.Inputs))
 	}
 }

@@ -51,7 +51,9 @@ type Suite struct {
 
 // CorpusEvent is stored as an event whose UID is ID. Group joins events
 // that are the same thing for the user (15 visits to one page, versions of
-// one file); it defaults to the id, and cases name groups.
+// one file); it defaults to the id, and cases name groups. Image names a
+// fixture of testdata/images: its text is the real description, filled by
+// CaptionImages before the corpus is searched.
 type CorpusEvent struct {
 	ID       string         `json:"id"`
 	Group    string         `json:"group,omitempty"`
@@ -59,6 +61,7 @@ type CorpusEvent struct {
 	At       time.Time      `json:"at"`
 	Content  string         `json:"content"`
 	Metadata event.Metadata `json:"metadata"`
+	Image    string         `json:"image,omitempty"`
 }
 
 func (e CorpusEvent) group() string {

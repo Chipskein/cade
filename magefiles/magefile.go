@@ -59,8 +59,11 @@ func Fuzz() error { return tasks().Fuzz() }
 // TestModels runs every test, including the llama.cpp binding against the real models.
 func TestModels() error { return tasks().TestModels() }
 
-// Eval runs the plan, retrieval and injection suites with the real models.
-func Eval() { mg.SerialDeps(EvalPlan, EvalRetrieval, EvalInjection) }
+// Eval runs the plan, caption, retrieval and injection suites with the real models.
+func Eval() { mg.SerialDeps(EvalPlan, EvalCaptions, EvalRetrieval, EvalInjection) }
+
+// EvalCaptions describes the image fixtures (testdata/queries/captions.json) and caches them for the other suites.
+func EvalCaptions() error { return tasks().EvalCaptions() }
 
 // EvalPlan scores the question planner against testdata/queries/plan.json.
 func EvalPlan() error { return tasks().EvalPlan() }

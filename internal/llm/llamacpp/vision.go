@@ -4,13 +4,15 @@ package llamacpp
 #cgo CFLAGS: -I${SRCDIR}/../../../third_party/llama.cpp/tools/mtmd
 #include <stdlib.h>
 #include "mtmd.h"
+#include "mtmd-helper.h"
 
 static void cade_discard_vision_log(enum ggml_log_level level, const char * text, void * user_data) {
 	(void)level; (void)text; (void)user_data;
 }
 
+// The helper logs each image it encodes to stdout; it also silences mtmd.
 static struct mtmd_context * cade_load_projector(const char * path, const struct llama_model * model, bool use_gpu, int threads) {
-	mtmd_log_set(cade_discard_vision_log, NULL);
+	mtmd_helper_log_set(cade_discard_vision_log, NULL);
 	struct mtmd_context_params params = mtmd_context_params_default();
 	params.use_gpu = use_gpu;
 	params.n_threads = threads;

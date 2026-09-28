@@ -28,6 +28,8 @@ Comandos:
                                         significa visita à criação, sem saber aprovação/merge
   reindex                               recalcula os vetores com o modelo de embedding
                                         configurado (após trocar de modelo); retomável
+  reindex --captions                    descreve de novo as imagens cuja descrição veio
+                                        de outro modelo ou prompt; retomável
   forget <fonte> | --uid UID            apaga eventos de uma fonte ou um evento;
   forget --match TEXTO [--source F]     localiza eventos; --yes confirma em scripts
                                         (também aceita --from D --to D);
@@ -72,6 +74,8 @@ Commands:
                                         visit to its creation page; approval/merge unknown
   reindex                               recomputes vectors with the configured
                                         embedding model (after changing it); resumable
+  reindex --captions                    describes again the images whose description
+                                        another model or prompt wrote; resumable
   forget <source> | --uid UID           deletes a source's events or one event;
   forget --match TEXT [--source S]      finds events; --yes confirms in scripts
                                         (also accepts --from D --to D);

@@ -82,3 +82,20 @@ func assertChecksum(t *testing.T, archive string) {
 		t.Errorf("archive %q lacks %s", archive, archiveSuffix)
 	}
 }
+
+// Regression: the archive has no assets/, so a relative image path in a
+// doc it ships showed a broken image.
+func TestDistDocsLoadImagesFromTheRepository(t *testing.T) {
+	for _, file := range distFiles {
+		if !strings.HasSuffix(file, ".md") {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join("..", "..", file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), `src="assets/`) || (strings.Contains(string(raw), "<img") && !strings.Contains(string(raw), distImageURL)) {
+			t.Errorf("%s: images must load from %s, not a relative path", file, distImageURL)
+		}
+	}
+}

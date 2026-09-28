@@ -12,11 +12,16 @@ import (
 	"path/filepath"
 )
 
-// distFiles are the licenses and docs a user needs next to the binary.
+// distFiles are the licenses and docs a user needs next to the binary. The
+// archive has no assets/, so their images use the repository URL
+// (distImageURL), not a relative path.
 var distFiles = []string{
 	"LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "README.pt-BR.md", "PRIVACY.md", "PRIVACY.pt-BR.md",
 	"CHANGELOG.md", "CHANGELOG.pt-BR.md", "config.example.json",
 }
+
+// distImageURL is where the docs in the archive load their images from.
+const distImageURL = "https://raw.githubusercontent.com/Chipskein/cade/dev/assets/"
 
 const (
 	archiveSuffix  = ".tar.gz"

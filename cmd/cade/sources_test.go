@@ -10,7 +10,7 @@ import (
 )
 
 func TestSourceSpecsRegistersAllSources(t *testing.T) {
-	names := ingest.SourceNames(sourceSpecs(config.Defaults()))
+	names := ingest.SourceNames(sourceSpecs(config.Defaults(), nil))
 	if len(names) != 4 || names[0] != "git" || names[1] != "browser" || names[2] != "file" || names[3] != "teams" {
 		t.Fatalf("expected [git browser file teams], got %v", names)
 	}
@@ -31,14 +31,14 @@ func TestNewTeamsCollector(t *testing.T) {
 }
 
 func TestFileCollectorRejectsMissingDirectory(t *testing.T) {
-	factory := fileCollectorFactory(config.Defaults().Sources)
+	factory := fileCollectorFactory(config.Defaults().Sources, nil)
 	if _, err := factory(filepath.Join(t.TempDir(), "absent")); err == nil {
 		t.Fatal("expected an error for a missing directory")
 	}
 }
 
 func TestFileCollectorAcceptsDirectory(t *testing.T) {
-	factory := fileCollectorFactory(config.Defaults().Sources)
+	factory := fileCollectorFactory(config.Defaults().Sources, nil)
 	if _, err := factory(t.TempDir()); err != nil {
 		t.Fatalf("expected a collector, got %v", err)
 	}

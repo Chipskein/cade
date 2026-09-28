@@ -23,11 +23,30 @@ type Config struct {
 	Tasks        TasksConfig     `json:"tasks"`
 	UI           UIConfig        `json:"ui"`
 	Ingest       IngestConfig    `json:"ingest"`
+	Vision       VisionConfig    `json:"vision"`
 }
 
 type IngestConfig struct {
 	Redact    bool            `json:"redact"`
 	Retention RetentionConfig `json:"retention"`
+	// MaxImageBytes skips larger images: they are kept, like other
+	// binaries, with their name only.
+	MaxImageBytes int64 `json:"max_image_bytes"`
+	// MaxImagesPerRun bounds how many new images one `ingest` describes;
+	// the rest wait for the next runs, so a folder of thousands of photos
+	// does not hold up the first ingestion for hours on a CPU.
+	MaxImagesPerRun int `json:"max_images_per_run"`
+}
+
+// VisionConfig locates the image encoder of the generation model, which
+// `ingest` loads to describe images (phase 19); `ask` never does.
+type VisionConfig struct {
+	// ProjectorPath is the mmproj GGUF released with the generation model.
+	ProjectorPath string `json:"projector_path"`
+	// ContextTokens is the generator's context while describing: an image
+	// scaled to 1024 px takes at most ~1000 tokens and the reply 384, so it
+	// can be smaller than generation.context_tokens, and uses less memory.
+	ContextTokens int `json:"context_tokens"`
 }
 
 type RetentionConfig struct {
@@ -78,11 +97,12 @@ type EmbeddingConfig struct {
 	DocumentPrefix string `json:"document_prefix"`
 }
 
-// ModelName identifies the embedding model by its file name, which
-// carries the quantization (Q4 and Q8 vectors differ too); the database
-// records it to refuse mixing vectors of two models.
-func (e EmbeddingConfig) ModelName() string {
-	return filepath.Base(e.ModelPath)
+// ModelName identifies a model by its file name, which carries the
+// quantization (Q4 and Q8 vectors differ too); the database records the
+// embedding model's to refuse mixing vectors of two models, and each image
+// description the generation model's.
+func (m ModelConfig) ModelName() string {
+	return filepath.Base(m.ModelPath)
 }
 
 // RetrievalConfig tunes semantic search and answer generation.
@@ -119,6 +139,9 @@ type SourcesConfig struct {
 	IgnoredDirNames    []string `json:"ignored_dir_names"`
 	IgnoredFileGlobs   []string `json:"ignored_file_globs"`
 	MaxFileBytes       int64    `json:"max_file_bytes"`
+	// Images turns on describing png, jpeg and webp files of Directories
+	// with the local vision model, so they are found by what they show.
+	Images bool `json:"images"`
 }
 
 // DefaultPath is $XDG_CONFIG_HOME/cade/config.json (or ~/.config/...).
@@ -147,7 +170,7 @@ func Load(path string) (Config, error) {
 		return Config{}, fmt.Errorf("parse config %q, expected a JSON object like `cade init` writes: %w", path, err)
 	}
 	cfg.migratePreviousGenerationDefault()
-	if err := cfg.UI.validate(); err != nil {
+	if err := cfg.validate(); err != nil {
 		return Config{}, fmt.Errorf("config %q: %w", path, err)
 	}
 	return cfg.expandPaths()
@@ -159,6 +182,28 @@ func (c *Config) migratePreviousGenerationDefault() {
 	if c.Generation.ModelPath == previousGenerationModelPath {
 		c.Generation.ModelPath = defaultGenerationModelPath
 	}
+}
+
+func (c Config) validate() error {
+	if err := c.UI.validate(); err != nil {
+		return err
+	}
+	if !c.Sources.Images {
+		return nil
+	}
+	return c.Ingest.validateImageLimits()
+}
+
+// validateImageLimits rejects limits that would describe nothing, a
+// mistake that would otherwise only show as images never being found.
+func (ingest IngestConfig) validateImageLimits() error {
+	if ingest.MaxImageBytes <= 0 {
+		return fmt.Errorf("ingest.max_image_bytes is %d, expected a positive byte count with sources.images on", ingest.MaxImageBytes)
+	}
+	if ingest.MaxImagesPerRun <= 0 {
+		return fmt.Errorf("ingest.max_images_per_run is %d, expected a positive count with sources.images on", ingest.MaxImagesPerRun)
+	}
+	return nil
 }
 
 func (ui UIConfig) validate() error {
@@ -206,6 +251,7 @@ func (c Config) expandPaths() (Config, error) {
 	c.DatabasePath = ExpandHomeIn(c.DatabasePath, home)
 	c.Embedding.ModelPath = ExpandHomeIn(c.Embedding.ModelPath, home)
 	c.Generation.ModelPath = ExpandHomeIn(c.Generation.ModelPath, home)
+	c.Vision.ProjectorPath = ExpandHomeIn(c.Vision.ProjectorPath, home)
 	c.Sources.GitRepositories = expandHomeAll(c.Sources.GitRepositories, home)
 	c.Sources.BrowserHistories = expandHomeAll(c.Sources.BrowserHistories, home)
 	c.Sources.Directories = expandHomeAll(c.Sources.Directories, home)

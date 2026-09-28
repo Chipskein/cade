@@ -52,6 +52,22 @@ func (t *Tasks) TestModels() error {
 	return t.runner.Run(t.modelTestCommand(modelRun{models: runtimeModels, args: []string{"test", "-tags", fts5Tag, allPackages}}))
 }
 
+// imageModels describe the image fixtures; the suites whose corpus has
+// images get their paths, and load them only for a fixture missing from
+// the cache evalCaptions writes (phase 19).
+var imageModels = []Model{GenerationModel, VisionProjector}
+
+// withImageModels adds the image models to models.
+func withImageModels(models ...Model) []Model {
+	return append(models, imageModels...)
+}
+
+// EvalCaptions describes the image fixtures against
+// testdata/queries/captions.json and caches the descriptions.
+func (t *Tasks) EvalCaptions() error {
+	return t.runEval(modelRun{models: imageModels, args: t.evalTestArgs(t.settings.EvalTimeout, "TestCaptionSuiteWithModel", "./internal/imagecaption")})
+}
+
 // EvalPlan scores the question planner against testdata/queries/plan.json.
 func (t *Tasks) EvalPlan() error {
 	return t.runEval(modelRun{models: []Model{GenerationModel}, args: t.evalTestArgs(t.settings.EvalTimeout, "TestPlanSuiteWithModel", "./internal/queryplan")})
@@ -60,7 +76,7 @@ func (t *Tasks) EvalPlan() error {
 // EvalRetrieval scores retrieval with the real embedder and SQLite store,
 // then times a cold ask per top_k.
 func (t *Tasks) EvalRetrieval() error {
-	suite := modelRun{models: []Model{EmbeddingModel}, env: []string{evalModeVar + "=" + t.settings.EvalMode},
+	suite := modelRun{models: withImageModels(EmbeddingModel), env: []string{evalModeVar + "=" + t.settings.EvalMode},
 		args: t.evalTestArgs(t.settings.EvalTimeout, "TestRetrieval(Calibration|Suite|Sweep)WithModel", "./internal/retrievalsuite")}
 	if err := t.runEval(suite); err != nil {
 		return err
@@ -73,14 +89,14 @@ func (t *Tasks) EvalRetrieval() error {
 
 // EvalInjection answers the prompt-injection cases with both real models.
 func (t *Tasks) EvalInjection() error {
-	return t.runEval(modelRun{models: []Model{EmbeddingModel, GenerationModel},
+	return t.runEval(modelRun{models: withImageModels(EmbeddingModel),
 		args: t.evalTestArgs(t.settings.EvalTimeout, "TestInjectionWithModel", "./internal/retrievalsuite")})
 }
 
 // EvalScale writes the test-set metrics as the corpus grows to SCALE_REPORT
 // and the terminal.
 func (t *Tasks) EvalScale() error {
-	run := modelRun{models: []Model{EmbeddingModel},
+	run := modelRun{models: withImageModels(EmbeddingModel),
 		env:  []string{evalScaleVar + "=" + t.settings.Scale, evalTopKVar + "=" + t.settings.ScaleTopK, evalModeVar + "=" + t.settings.EvalMode},
 		args: t.evalTestArgs(scaleTimeout, "TestRetrievalScaleWithModel", "./internal/retrievalsuite")}
 	if err := t.prepareEval(run.models); err != nil {
@@ -98,7 +114,7 @@ func (t *Tasks) EvalScale() error {
 
 // EvalRerank measures the test set with and without reranking (phase 17).
 func (t *Tasks) EvalRerank() error {
-	return t.runEval(modelRun{models: []Model{EmbeddingModel, RerankerModel}, env: []string{evalScaleVar + "=" + t.settings.Scale},
+	return t.runEval(modelRun{models: withImageModels(EmbeddingModel, RerankerModel), env: []string{evalScaleVar + "=" + t.settings.Scale},
 		args: t.evalTestArgs(t.settings.EvalTimeout, "TestRetrievalRerankWithModel", "./internal/retrievalsuite")})
 }
 

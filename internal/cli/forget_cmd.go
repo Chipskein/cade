@@ -38,7 +38,7 @@ func runForget(ctx context.Context, env commandEnv, args []string) error {
 		return errors.New(env.language.pick("use cade forget <fonte> ou --uid UID ou --match TEXTO", "use cade forget <source>, --uid UID or --match TEXT"))
 	}
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
-		if _, err := ingest.FindSource(env.toolkit.Sources(cfg), positional[0]); err != nil {
+		if _, err := ingest.FindSource(env.toolkit.Sources(cfg, nil), positional[0]); err != nil {
 			return err
 		}
 		removed, err := store.DeleteSource(ctx, event.Source(positional[0]))

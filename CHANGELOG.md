@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Changelog
 
 **English** · [Português](CHANGELOG.pt-BR.md)
@@ -5,6 +9,16 @@
 What changed in each version, the schema migrations, and what each migration rewrites. What is left for the release is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Unreleased (v0.1.0)
+
+### Search by image description (phase 19, #7)
+
+- **Problem:** screenshots, whiteboard photos, diagrams and error screenshots in the configured folders were stored with their name only, though they are often the record of a decision or an error.
+- **Descriptions:** with `sources.images` on (off by default; `cade init` asks, showing the cost), `ingest file` describes each png, jpeg and webp with Qwen3.5-2B and its `mmproj`, which `go tool mage models` already downloads: a short description in Portuguese and a transcription of the visible text, so no OCR is needed. The description becomes the file event's text and follows the path of any text: secret masking, chunks, hybrid search, filters, `timeline`, `forget` and citations (the image's path).
+- **Once per image:** an unchanged image is skipped without being read; a moved, renamed or copied one reuses its description by the SHA-256 of its bytes. `cade reindex --captions` describes again the images whose description another model or prompt version wrote, in batches, and resumes if interrupted.
+- **Limits:** `ingest.max_images_per_run` (50: ~20 min on a CPU) and `ingest.max_image_bytes` (20 MiB); the rest wait for the next runs, and the report says how many. An image that does not decode is marked unreadable and does not stop the ingestion. Images are scaled to 1024 px (1.7 s each on an RTX 3060, 22 s on a Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.md)). The vision model loads only when there is something to describe, and is freed before the embedding model loads. `cade doctor` checks the `mmproj` when images are on; the new `vision` section sets its path and a 2048-token context.
+- **Stored:** the description and the transcription (apart, with the model and prompt version, for #22), the image's hash and size in pixels; never the pixels. Text inside an image is treated like a message: the prompt says to copy it, not to follow it, and orders in it get the untrusted mark in `ask`. [PRIVACY](PRIVACY.md) has the details.
+- **Migration 10:** an index on the image hash in the metadata. No copy, no rewritten data.
+- **Evaluation:** `go tool mage evalCaptions` describes 8 fixtures (`testdata/images`: synthetic screenshots, a diagram and a public-domain NASA photo) and checks `testdata/queries/captions.json`: coverage 1.00 against a 0.90 floor, no secret left after masking. Seven image cases joined the retrieval test set (32/32; the 25 earlier cases unchanged, MRR 0.89) and one injection case with orders written in an image (not followed). The retrieval and injection suites read the real descriptions from the cache `evalCaptions` writes.
 
 ### License: GPLv3 or later (#10)
 
@@ -30,6 +44,13 @@ What changed in each version, the schema migrations, and what each migration rew
 - In `cade ask --json`, task status changes from `concluida` to `pr_aberto`. This is an intentional breaking change for scripts.
 - A PR link in a sent message without a preceding creation-page visit is now marked probable, so forwarding someone else's PR does not prove that the user opened it.
 - `proj4me` was removed from the default task tracker patterns; the README shows how to add it as a project-specific pattern.
+
+### Secrets kept out of the database (phase 13)
+
+- **Credential files skipped:** `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc` and `.git-credentials` are not read. The list is `sources.ignored_file_globs`; setting the field replaces the default list.
+- **URLs without credentials:** browser URLs drop the `token`, `access_token`, `id_token`, `refresh_token`, `code`, `state`, `sig`, `signature`, `key`, `apikey`, `api_key`, `password`, `X-Amz-*` and `X-Goog-*` parameters; the rest of the URL stays, so deduplication by page still works.
+- **Masking in text:** with `ingest.redact` (default `true`), GitHub, GitLab, AWS and Slack tokens, JWTs and PEM private-key blocks become labels such as `[redacted:github-token]` in event text and metadata, from every source. The globs and URL parameters apply even with masking off. It recognizes formats, not every secret: see [PRIVACY](PRIVACY.md).
+- **Migration 8:** applies the same cleanup to stored events, deletes the files that would now be skipped (with their version history) and compacts the database, after writing a `cade.db.before-v8-*` copy. An event whose text changed loses its vectors until `cade reindex`.
 
 ### Event deletion and retention (phase 14)
 

@@ -183,9 +183,32 @@ func replaces(incoming, stored event.Event) bool {
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
 	if hasIncoming && hasStored {
-		return incomingRevision > storedRevision
+		return incomingRevision > storedRevision || (incomingRevision == storedRevision && captionAdvances(incoming, stored))
 	}
 	return incoming.Content != stored.Content
+}
+
+// captionAdvances reports an unchanged image that has just been dealt with:
+// described, or found unreadable, after waiting for the per-run limit or
+// after images were turned on (phase 19).
+func captionAdvances(incoming, stored event.Event) bool {
+	storedStatus := stored.Image().Status
+	incomingStatus := incoming.Image().Status
+	waiting := storedStatus == event.CaptionNone || storedStatus == event.CaptionPending
+	settled := incomingStatus == event.CaptionDescribed || incomingStatus == event.CaptionUnreadable
+	return waiting && settled
+}
+
+// ReplaceStored overwrites a stored event with ev, masked and embedded
+// like any collected one: for text rewritten in place, such as an image
+// described again (`cade reindex --captions`).
+func (p *Pipeline) ReplaceStored(ctx context.Context, ev event.Event) error {
+	ev = privacy.Event(ev, p.redact)
+	chunks, err := p.chunksFor(ctx, ev)
+	if err != nil {
+		return err
+	}
+	return p.update(ctx, ev, chunks, &Report{})
 }
 
 func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {

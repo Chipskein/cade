@@ -18,6 +18,7 @@ const (
 	SubjectConfigFile Subject = iota
 	SubjectEmbeddingModel
 	SubjectGenerationModel
+	SubjectVisionProjector
 	SubjectKeywordSearch
 	SubjectDatabase
 	SubjectSource
@@ -66,6 +67,11 @@ func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage
 	}
 	if gates := checkThresholdCalibration(cfg, database); gates.Problem != ProblemNone {
 		findings = append(findings, gates)
+	}
+	// Only `ingest` with images on loads the projector; without them a
+	// missing file is not a problem.
+	if cfg.Sources.Images {
+		findings = append(findings, checkModel(fsys, SubjectVisionProjector, "vision.projector_path", cfg.Vision.ProjectorPath))
 	}
 	return append(findings, checkSources(fsys, cfg.Sources)...)
 }

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Benchmarks
 
 Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:
@@ -205,6 +209,22 @@ xychart-beta
 ```
 
 Alvo da fase 6: filtrar pessoas no SQL em vez de carregar tudo.
+
+## Descrição de imagens (fase 19)
+
+`BenchmarkDescribeImage`: uma captura de terminal de 1920 × 1080 com 10 linhas (~680 bytes de resposta), reduzida até o maior lado indicado, descrita pelo Qwen3.5-2B com o `mmproj`. Inclui decodificar, reduzir, codificar a imagem e gerar a descrição.
+
+| Maior lado | RTX 3060 | Ryzen 5 5500 (CPU) |
+|---|---|---|
+| 512 px | 1,29 s | — |
+| 768 px | 1,54 s | 19,1 s |
+| **1024 px (padrão)** | **1,67 s** | **22,4 s** |
+| 1536 px | 2,10 s | — |
+
+- **Por que 1024 px:** com 512 px a transcrição perde uma linha e troca nomes de arquivo; a partir de 768 px sai completa. 1024 px deixa folga para capturas reais, de fonte menor. Sem reduzir, uma captura full HD vira ~2.000 tokens e não cabe no `vision.context_tokens` (2048).
+- **Pasta com 1.000 capturas:** ~30 min na GPU e ~6 h na CPU; com o padrão de 50 por `ingest`, são 20 execuções.
+- **Memória:** gerador + `mmproj` ocupam 2,6 GB de VRAM (1,3 GB de RAM) no build CUDA e 2,9 GB de RAM no de CPU. O embedder não está carregado junto.
+- **Qualidade** (`evalCaptions`, 8 imagens de `testdata/images`): cobertura 1,00 das palavras exigidas (mínimo 0,90), nenhum segredo depois da máscara. Recuperação com 7 casos de imagem: 32/32 no conjunto de teste, com os 25 casos anteriores iguais (MRR 0,89); injeção escrita numa imagem: não seguida.
 
 ## Memória
 

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="220">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # cade
@@ -66,6 +66,12 @@ cade tasks hoje
 "task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
 ```
 
+### Imagens (opcional)
+
+Com `sources.images` ligado (o `cade init` pergunta), o `ingest` descreve os arquivos png, jpeg e webp das suas pastas com o modelo de visão local (o `mmproj` que o `go tool mage models` baixa): capturas de tela, fotos de quadro e diagramas passam a ser encontrados pelo que mostram e pelo texto que têm. Só a descrição fica guardada, nunca os pixels ([PRIVACY.pt-BR.md](PRIVACY.pt-BR.md)).
+
+Custa cerca de 1,7 s por captura numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU. Cada `ingest` descreve até `ingest.max_images_per_run` (padrão 50) e deixa o resto para as próximas execuções. `cade reindex --captions` descreve de novo quando o modelo ou o prompt mudam.
+
 ## Documentação
 
 Para detalhes de implementação e guias aprofundados, veja:
@@ -99,7 +105,8 @@ go tool mage check  # o que a CI roda: fmtCheck, vet, lint e test
 | `test` / `cover` | testes unitários / com a tabela de cobertura por função |
 | `fuzz` | os alvos de fuzz dos leitores, `$FUZZTIME` cada (padrão `30s`) |
 | `testModels` | todos os testes, inclusive o binding do llama.cpp com os modelos reais |
-| `eval` | `evalPlan`, `evalRetrieval` e `evalInjection` com os modelos reais |
+| `eval` | `evalPlan`, `evalCaptions`, `evalRetrieval` e `evalInjection` com os modelos reais |
+| `evalCaptions` | descreve as imagens de teste (`testdata/images`) e confere as palavras que cada descrição precisa ter |
 | `evalScale` / `evalRerank` | curva de escala (`$SCALE`, relatório em `$SCALE_REPORT`) / experimento de reranking (fase 17) |
 | `bench` | benchmarks de latência e memória |
 | `fmt` / `fmtCheck` / `vet` / `lint` | gofmt, go vet, golangci-lint (`go tool mage print GOLANGCI_LINT_VERSION` é a versão fixada) |

@@ -45,6 +45,15 @@ func TestDoctorFailsOnMissingModel(t *testing.T) {
 	}
 }
 
+func TestDoctorFailsOnMissingProjectorWithImagesOn(t *testing.T) {
+	world := doctorWorld()
+	world.cfg.Sources.Images, world.cfg.Vision.ProjectorPath = true, "/home/ana/models/mmproj.gguf"
+	code, stdout, _ := world.run("doctor")
+	if code != 1 || !strings.Contains(stdout, "projetor de visão") || !strings.Contains(stdout, "ajuste `vision.projector_path`") {
+		t.Fatalf("expected the missing projector and how to get it, got %d %q", code, stdout)
+	}
+}
+
 func TestDoctorWarningsKeepExitZero(t *testing.T) {
 	world := doctorWorld()
 	world.database = storage.DatabaseState{Exists: true, FTS5: true, SchemaVersion: 4, LatestSchemaVersion: 7, MigrationBackup: true, SizeBytes: 450 << 20}

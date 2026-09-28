@@ -74,3 +74,25 @@ func (f *FakeGenerator) Close() error {
 	f.Closed = true
 	return nil
 }
+
+// FakeImageDescriber returns Reply for every image and records the sizes
+// it was given.
+type FakeImageDescriber struct {
+	Reply    string
+	Images   []llm.RGBImage
+	FailWith error
+	Closed   bool
+}
+
+func (f *FakeImageDescriber) DescribeImage(ctx context.Context, image llm.RGBImage, _ string, _ int) (string, error) {
+	f.Images = append(f.Images, llm.RGBImage{Width: image.Width, Height: image.Height})
+	if f.FailWith != nil || ctx.Err() != nil {
+		return "", errors.Join(f.FailWith, ctx.Err())
+	}
+	return f.Reply, nil
+}
+
+func (f *FakeImageDescriber) Close() error {
+	f.Closed = true
+	return nil
+}

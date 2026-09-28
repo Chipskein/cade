@@ -83,6 +83,21 @@ func TestModelProblems(t *testing.T) {
 	}
 }
 
+func TestVisionProjectorCheckedOnlyWithImagesOn(t *testing.T) {
+	cfg := healthyConfig()
+	cfg.Vision.ProjectorPath = "/models/absent-mmproj.gguf"
+	for _, finding := range Diagnose(healthyInstall(), configPath, cfg, currentDatabase()) {
+		if finding.Subject == SubjectVisionProjector {
+			t.Fatalf("expected no projector check with images off, got %+v", finding)
+		}
+	}
+	cfg.Sources.Images = true
+	got := findingFor(t, Diagnose(healthyInstall(), configPath, cfg, currentDatabase()), SubjectVisionProjector, "/models/absent-mmproj.gguf")
+	if got.Problem != ProblemMissing || got.Setting != "vision.projector_path" {
+		t.Fatalf("expected the missing projector reported with images on, got %+v", got)
+	}
+}
+
 func TestSourceProblems(t *testing.T) {
 	fsys := healthyInstall().AddDir("/src/plain").AddFile("/chrome/Bookmarks", "{}").AddFile("/notes.md", "").AddDir("/empty-idb")
 	cfg := healthyConfig()

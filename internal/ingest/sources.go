@@ -1,6 +1,10 @@
 package ingest
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/chipskein/cade/internal/event"
+)
 
 // SourceSpec registers one kind of source with the CLI. Adding a source
 // (e.g. Teams, RF1.4) means appending a SourceSpec; nothing else changes.
@@ -30,3 +34,8 @@ func SourceNames(specs []SourceSpec) []string {
 	}
 	return names
 }
+
+// ImageCaptions maps a file's absolute path to its image metadata, decided
+// before the embedder loads (phase 19); a file absent from it is ingested
+// as before.
+type ImageCaptions map[string]event.Image

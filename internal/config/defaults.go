@@ -6,6 +6,7 @@ const allGPULayers = -1
 
 const (
 	defaultGenerationModelPath  = "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf"
+	defaultVisionProjectorPath  = "~/.local/share/cade/models/mmproj-Qwen3.5-2B-F16.gguf"
 	previousGenerationModelPath = "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf"
 )
 
@@ -43,7 +44,30 @@ func Defaults() Config {
 		Sources: defaultSources(),
 		Tasks:   TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
 		UI:      UIConfig{Language: "auto", DateOrder: "auto"},
-		Ingest:  IngestConfig{Redact: true, Retention: RetentionConfig{MaxAgeDays: map[string]int{"git": 0, "browser": 0, "file": 0, "teams": 0}}},
+		Ingest:  defaultIngest(),
+		Vision:  VisionConfig{ProjectorPath: defaultVisionProjectorPath, ContextTokens: visionContextTokens},
+	}
+}
+
+// visionContextTokens holds a 1024 px image (~1000 tokens), the prompt
+// and a 384-token description, with room to spare.
+const visionContextTokens = 2048
+
+// Image limits (phase 19). Describing takes ~1.7 s per screenshot on an RTX
+// 3060 and ~22 s on a 6-core CPU (BenchmarkDescribeImage): 50 per run keep
+// a first CPU ingestion under ~20 minutes, and the rest follow in later
+// runs. 20 MiB covers phone photos; larger files are rarely screenshots.
+const (
+	defaultMaxImagesPerRun = 50
+	defaultMaxImageBytes   = 20 << 20
+)
+
+func defaultIngest() IngestConfig {
+	return IngestConfig{
+		Redact:          true,
+		Retention:       RetentionConfig{MaxAgeDays: map[string]int{"git": 0, "browser": 0, "file": 0, "teams": 0}},
+		MaxImageBytes:   defaultMaxImageBytes,
+		MaxImagesPerRun: defaultMaxImagesPerRun,
 	}
 }
 

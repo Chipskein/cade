@@ -57,3 +57,30 @@ func TestFileTimesRoundTripAsRevision(t *testing.T) {
 		t.Fatal("expected a present file to have no removal time")
 	}
 }
+
+func TestImageMetadataRoundTrips(t *testing.T) {
+	image := Image{SHA256: "ab12", Width: 1920, Height: 1080, Status: CaptionDescribed, Model: "Qwen3.5-2B-Q4_K_M.gguf", PromptVersion: 1,
+		Description: "a terminal", VisibleText: "panic: nil map"}
+	if got := (Event{Metadata: image.Metadata()}).Image(); got != image {
+		t.Fatalf("expected %+v back, got %+v", image, got)
+	}
+}
+
+func TestFileWithoutImageMetadataHasNoCaption(t *testing.T) {
+	if got := (Event{Metadata: File{Path: "/notas/a.md"}.Metadata()}).Image(); got != (Image{}) {
+		t.Fatalf("expected no image metadata on a text file, got %+v", got)
+	}
+}
+
+func TestSearchableTextOnlyForDescribedImages(t *testing.T) {
+	described := Image{Status: CaptionDescribed, Description: "um terminal", VisibleText: "panic: nil map"}
+	if got := described.SearchableText(); got != "Imagem: um terminal\nTexto na imagem:\npanic: nil map" {
+		t.Fatalf("unexpected text %q", got)
+	}
+	if got := (Image{Status: CaptionDescribed, Description: "uma praia"}).SearchableText(); got != "Imagem: uma praia" {
+		t.Fatalf("expected no visible-text label without text, got %q", got)
+	}
+	if got := (Image{Status: CaptionPending, Description: "x"}).SearchableText(); got != "" {
+		t.Fatalf("expected nothing for a pending image, got %q", got)
+	}
+}

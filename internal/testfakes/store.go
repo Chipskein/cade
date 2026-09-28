@@ -339,3 +339,30 @@ func (f *FakeEventStore) MarkCommitAuthorship(_ context.Context, repository stri
 	}
 	return changed, f.FailWith
 }
+
+var _ storage.ImageCaptionIndex = (*FakeEventStore)(nil)
+
+// DescribedImage returns the image of the first described event with this
+// hash.
+func (f *FakeEventStore) DescribedImage(_ context.Context, sha256 string) (event.Image, bool, error) {
+	for _, ev := range f.Events {
+		if image := ev.Image(); image.SHA256 == sha256 && image.Status == event.CaptionDescribed {
+			return image, true, f.FailWith
+		}
+	}
+	return event.Image{}, false, f.FailWith
+}
+
+// OutdatedImages lists the described, present image events whose model or
+// prompt version differs.
+func (f *FakeEventStore) OutdatedImages(_ context.Context, model string, promptVersion int) ([]event.Event, error) {
+	var outdated []event.Event
+	for _, ev := range f.Events {
+		image := ev.Image()
+		present := ev.File().RemovedAt.IsZero()
+		if image.Status == event.CaptionDescribed && present && (image.Model != model || image.PromptVersion != promptVersion) {
+			outdated = append(outdated, ev)
+		}
+	}
+	return outdated, f.FailWith
+}
