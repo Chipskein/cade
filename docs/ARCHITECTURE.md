@@ -4,6 +4,7 @@ Como o código está organizado e qual componente chama qual, no estado da v0.0.
 
 ## Índice
 
+- [Como funciona (visao geral)](#como-funciona-visao-geral)
 - [Pacotes](#pacotes)
 - [Montagem: quem cria as implementações](#montagem-quem-cria-as-implementações)
 - [`cade ingest`](#cade-ingest)
@@ -12,6 +13,37 @@ Como o código está organizado e qual componente chama qual, no estado da v0.0.
 - [`cade timeline` e `cade tasks`](#cade-timeline-e-cade-tasks)
 - [`cade reindex`](#cade-reindex)
 - [Banco](#banco)
+
+---
+
+## Como funciona (visao geral)
+
+Fluxo de alto nível para lembrar o caminho das fontes até as consultas:
+
+```mermaid
+flowchart LR
+    subgraph Fontes
+        git[Git]
+        nav[Navegador]
+        arq[Arquivos]
+        teams[Teams · IndexedDB]
+    end
+
+    Fontes --> ingest[cade ingest<br/>normaliza + embedding]
+    ingest --> db[(SQLite + sqlite-vec)]
+
+    timeline[cade timeline] --> db
+    tasks[cade tasks] --> relatorio[Tarefas e PRs<br/>por links de tarefa e PR]
+    relatorio --> db
+
+    ask[cade ask] --> plano[Interpreta a pergunta<br/>regras, ou LLM + gramática]
+    plano -->|listar| filtro[Filtra no banco]
+    plano -->|responder| busca[Filtra + busca vetorial]
+    plano -->|tarefas| relatorio
+    filtro --> db
+    busca --> db
+    busca --> llm[LLM local<br/>resposta com fontes]
+```
 
 ---
 
