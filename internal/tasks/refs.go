@@ -57,7 +57,7 @@ var codeHosts = []codeHost{
 // "Title (!45) · Merge requests · group/project · GitLab",
 // "Pull Request 45: Title - Repos".
 var (
-	urlToken     = regexp.MustCompile(`https?://[^\s<>"'\])]+`)
+	urlToken      = regexp.MustCompile(`https?://[^\s<>"'\])]+`)
 	prTitleByline = regexp.MustCompile(`\s+by\s+\S+\s+·.*$`)
 	prTitleTail   = regexp.MustCompile(`\s+(·|\(!\d+\)|-\s+Repos).*$`)
 	prTitleHead   = regexp.MustCompile(`^Pull Request \d+:\s*`)
