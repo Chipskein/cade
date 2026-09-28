@@ -34,6 +34,13 @@ func TestPRRefsAcrossHosts(t *testing.T) {
 	}
 }
 
+func TestPRRefsDoNotMatchEmbeddedURLInQuery(t *testing.T) {
+	text := "https://example.com/redirect?next=https://dev.azure.com/acme/Proj/_git/api/pullrequest/77"
+	if refs := prRefs(text); len(refs) != 0 {
+		t.Fatalf("expected no PR refs, got %+v", refs)
+	}
+}
+
 func TestCreateRepoAcrossHosts(t *testing.T) {
 	cases := map[string]string{
 		"https://github.com/acme/api/compare/main...fix-162":           "acme/api",
