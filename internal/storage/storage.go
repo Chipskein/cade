@@ -147,6 +147,9 @@ type ScoredEvent struct {
 type EmbeddingIndex interface {
 	// EmbeddingModel returns the recorded model name, "" if none yet.
 	EmbeddingModel(ctx context.Context) (string, error)
+	// ThresholdCalibration returns the recorded gates, zero if none yet.
+	ThresholdCalibration(ctx context.Context) (ThresholdCalibration, error)
+	RecordThresholdCalibration(ctx context.Context, calibration ThresholdCalibration) error
 	RecordEmbeddingModel(ctx context.Context, model string) error
 	// StartReindex drops every vector, records model and marks a rebuild
 	// pending.
@@ -176,10 +179,40 @@ type DatabaseState struct {
 	// SchemaVersion is the database's; LatestSchemaVersion this binary's.
 	SchemaVersion       int
 	LatestSchemaVersion int
+	// ThresholdCalibration is the model the retrieval gates were set for.
+	ThresholdCalibration ThresholdCalibration
 	// MigrationBackup: a pending migration copies the database (SizeBytes
 	// more on disk) before rewriting it.
 	MigrationBackup bool
 	SizeBytes       int64
 	EmbeddingModel  string
 	ReindexPending  bool
+}
+
+// ThresholdCalibration pairs the retrieval distance gates with the
+// embedding model they were set for: distances of another model live on
+// another scale, and gates left over from it answer "not found" to
+// questions that have an answer (phase 17).
+type ThresholdCalibration struct {
+	Model           string
+	MaxDistance     float64
+	MaxBestDistance float64
+}
+
+// OrIndexedWith fills a missing record: vectors that predate it were
+// searched with the current gates, set for the vectors' model.
+//
+//	recorded.OrIndexedWith(state.EmbeddingModel, current).OutdatedFor(current)
+func (c ThresholdCalibration) OrIndexedWith(indexedModel string, current ThresholdCalibration) ThresholdCalibration {
+	if c.Model != "" {
+		return c
+	}
+	return ThresholdCalibration{Model: indexedModel, MaxDistance: current.MaxDistance, MaxBestDistance: current.MaxBestDistance}
+}
+
+// OutdatedFor reports gates set for another model and unchanged since:
+// changing either gate counts as recalibrating for current.Model.
+func (c ThresholdCalibration) OutdatedFor(current ThresholdCalibration) bool {
+	sameGates := c.MaxDistance == current.MaxDistance && c.MaxBestDistance == current.MaxBestDistance
+	return c.Model != "" && c.Model != current.Model && sameGates
 }

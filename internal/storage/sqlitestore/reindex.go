@@ -3,6 +3,7 @@ package sqlitestore
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -13,8 +14,9 @@ import (
 var _ storage.EmbeddingIndex = (*Store)(nil)
 
 const (
-	embeddingModelSettingKey = "embedding_model"
-	reindexPendingSettingKey = "reindex_pending"
+	embeddingModelSettingKey       = "embedding_model"
+	thresholdCalibrationSettingKey = "retrieval_threshold_calibration"
+	reindexPendingSettingKey       = "reindex_pending"
 )
 
 // EmbeddingModel returns the model the vectors were computed with.
@@ -25,6 +27,29 @@ func (s *Store) EmbeddingModel(ctx context.Context) (string, error) {
 // RecordEmbeddingModel names the model of the stored vectors.
 func (s *Store) RecordEmbeddingModel(ctx context.Context, model string) error {
 	return putSetting(ctx, s.db, embeddingModelSettingKey, model)
+}
+
+// ThresholdCalibration returns the recorded gates and their model, zero if
+// none was recorded yet.
+func (s *Store) ThresholdCalibration(ctx context.Context) (storage.ThresholdCalibration, error) {
+	value, err := s.setting(ctx, thresholdCalibrationSettingKey)
+	if err != nil || value == "" {
+		return storage.ThresholdCalibration{}, err
+	}
+	var calibration storage.ThresholdCalibration
+	if err := json.Unmarshal([]byte(value), &calibration); err != nil {
+		return storage.ThresholdCalibration{}, fmt.Errorf("setting %q holds %q, expected a JSON threshold calibration: %w", thresholdCalibrationSettingKey, value, err)
+	}
+	return calibration, nil
+}
+
+// RecordThresholdCalibration records the gates and the model they are for.
+func (s *Store) RecordThresholdCalibration(ctx context.Context, calibration storage.ThresholdCalibration) error {
+	value, err := json.Marshal(calibration)
+	if err != nil {
+		return fmt.Errorf("encode threshold calibration %+v: %w", calibration, err)
+	}
+	return putSetting(ctx, s.db, thresholdCalibrationSettingKey, string(value))
 }
 
 // StartReindex drops the vector table (its dimension may change with the

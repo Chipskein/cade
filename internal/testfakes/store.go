@@ -32,6 +32,7 @@ type FakeEventStore struct {
 	// EmbeddingModelName, Pending and ReindexStarted back the
 	// storage.EmbeddingIndex methods.
 	EmbeddingModelName string
+	Calibration        storage.ThresholdCalibration
 	Pending            bool
 	ReindexStarted     int
 	// Modifications backs FileModificationsBetween; MarkMissingFiles
@@ -220,6 +221,15 @@ func (f *FakeEventStore) storeChunks(uid string, chunks []storage.Chunk) {
 
 func (f *FakeEventStore) EmbeddingModel(context.Context) (string, error) {
 	return f.EmbeddingModelName, f.FailWith
+}
+
+func (f *FakeEventStore) ThresholdCalibration(context.Context) (storage.ThresholdCalibration, error) {
+	return f.Calibration, f.FailWith
+}
+
+func (f *FakeEventStore) RecordThresholdCalibration(_ context.Context, calibration storage.ThresholdCalibration) error {
+	f.Calibration = calibration
+	return f.FailWith
 }
 
 func (f *FakeEventStore) RecordEmbeddingModel(_ context.Context, model string) error {

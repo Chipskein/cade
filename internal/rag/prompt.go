@@ -62,7 +62,7 @@ func formatEvidence(hits []storage.ScoredEvent, location *time.Location) string 
 	var builder strings.Builder
 	for i, hit := range hits {
 		fmt.Fprintf(&builder, "[%d] %s, %s%s\n%s\n\n", i+1, sourceLabel(hit.Event.Source),
-			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(EvidenceNote(hit, location, PromptWording)), promptEvidenceText(hit))
+			hit.Event.Timestamp.In(location).Format(evidenceTimeLayout), parenthesized(EvidenceNote(hit, location, PromptWording)), PromptEvidenceText(hit))
 	}
 	return builder.String()
 }
@@ -73,7 +73,9 @@ func formatEvidence(hits []storage.ScoredEvent, location *time.Location) string 
 // nothing to obey, and the event keeps its number, mark and source line.
 const omittedText = "(texto omitido)"
 
-func promptEvidenceText(hit storage.ScoredEvent) string {
+// PromptEvidenceText is the text of hit the model reads: the matched chunk,
+// clipped, or a placeholder for text that gives the assistant orders.
+func PromptEvidenceText(hit storage.ScoredEvent) string {
 	if AddressesAssistant(hit.Event) {
 		return omittedText
 	}

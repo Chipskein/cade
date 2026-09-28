@@ -6,6 +6,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### `top_k` e limiares medidos (fase 17)
+
+- **`top_k` 8 → 6:** a varredura (`make eval-retrieval`, `top_k` 4, 6, 8 e 12 cruzados com os dois limiares) mostrou que 6 é o menor valor sem perda de recall no conjunto de teste: recall 1,00, MRR 0,89 (0,88 com 8), rejeição 1,00. Na curva de escala, com 1 mil e 10 mil eventos, dá 0,94, 0,83 e 1,00, contra 0,93, 0,82 e 1,00 na v0.0.0. O `ask` até o primeiro token cai de 12,4 s para 10,6 s em CPU e de 1,77 s para 1,62 s em GPU. Uma configuração com `retrieval.top_k` explícito continua usando o valor dela.
+- **Limiares:** `max_distance` 0,72 e `max_best_distance` 0,61 continuam. Nenhum valor da grade foi melhor, e 0,61 fica dentro do intervalo que a calibração aponta tanto em CPU quanto em GPU.
+- **Limiares junto do modelo:** o banco registra em `store_settings` os dois limiares e o modelo de embedding para o qual foram definidos. Se o `cade reindex` troca o modelo e os limiares continuam os mesmos, ele e o `cade doctor` avisam que valem para o modelo anterior e apontam a calibração (`make eval-retrieval EMBEDDING_MODEL=…`). Mudar qualquer um dos dois limiares conta como recalibrar, e o aviso some. Bancos anteriores assumem os limiares configurados para o modelo dos seus vetores. Não há migração: é uma linha nova em `store_settings`.
+- **Reranking, medido e deixado de fora:** reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte sobe o MRR (0,83 → 0,91 com 1 mil e 10 mil eventos), mas derruba o recall do conjunto de teste de 1,00 para 0,94 e custa 0,57 s por pergunta em CPU, mais 418 MB de modelo. Nenhum comando usa o reranker. `make eval-rerank` refaz a medição, e a ideia voltou para "A definir" no ROADMAP.
+
 ### Exclusão de eventos e retenção (fase 14)
 
 - `cade forget --uid UID` remove um evento. `--match TEXTO` lista eventos correspondentes e exige `--yes` fora de uso interativo. UIDs esquecidos ficam sem o texto do evento para impedir a reingestão; o forget da fonte limpa essa lista.

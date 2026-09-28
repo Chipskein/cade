@@ -123,11 +123,16 @@ func (e *Embedder) Embed(text string) ([]float32, error) {
 }
 
 func (e *Embedder) decode(tokens []C.llama_token) error {
-	e.loaded.clearMemory()
+	return e.loaded.decodeSequence(tokens)
+}
+
+// decodeSequence runs tokens as one pooled sequence from an empty memory.
+func (m loadedModel) decodeSequence(tokens []C.llama_token) error {
+	m.clearMemory()
 	batch := C.cade_sequence_batch(&tokens[0], C.int32_t(len(tokens)))
 	defer C.llama_batch_free(batch)
-	if status := C.llama_decode(e.loaded.ctx, batch); status != 0 {
-		return fmt.Errorf("decode %d tokens for embedding: llama.cpp status %d", len(tokens), status)
+	if status := C.llama_decode(m.ctx, batch); status != 0 {
+		return fmt.Errorf("decode %d tokens as one pooled sequence: llama.cpp status %d", len(tokens), status)
 	}
 	return nil
 }

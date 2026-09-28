@@ -27,7 +27,7 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 | 14 | [Apagar eventos e retenção](#fase-14--apagar-eventos-e-retenção) | a fazer | alto | médio |
 | 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | a fazer | médio | baixo |
 | 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | feita | médio | baixo |
-| 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | a fazer | alto | médio |
+| 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | feita | alto | médio |
 | 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | feita | alto | médio |
 | 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | a fazer | alto | alto |
 | 20 | [Documentação de uso contínuo](#fase-20--documentação-de-uso-contínuo) | a fazer | médio | baixo |
@@ -38,7 +38,7 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 A tabela está na ordem sugerida:
 - **Privacidade primeiro (13, 14):** cada ingestão sem a 13 grava mais segredos, que depois precisam de migração para sair.
 - **Depois as correções baratas (15, 16):** mudam a saída que o usuário lê e os códigos do `ask --json`, então entram antes de medir.
-- **Medições (17, 18):** a 18 foi feita antes da 17, com o `top_k` herdado (8): o Qwen3.5-2B já é o padrão, então a 17 fixa `top_k` e limiares com ele.
+- **Medições (17, 18):** a 18 foi feita antes da 17, com o `top_k` herdado (8); a 17 mediu com o Qwen3.5-2B e fixou o `top_k` em 6.
 - **Imagens (19) depois da 18:** usam o mesmo modelo e o mesmo llama.cpp da 18, então o tamanho escolhido lá precisa servir para descrever imagens também.
 - **Docs (20) e empacotamento (21) por último:** descrevem o estado final.
 
@@ -65,7 +65,6 @@ flowchart LR
         cli["cli<br/>flags, plurais, datas"]
         planner["queryplan"]
         answerer["rag.Answerer<br/>top_k, limiares"]
-        reranker["reranker<br/>(experimento)"]
         tasks["tasks"]
         generator["llm.Generator"]
     end
@@ -77,7 +76,6 @@ flowchart LR
     store --- forgotten
     cli --> planner --> generator
     cli --> answerer --> store
-    answerer --> reranker
     answerer --> generator
     cli --> tasks --> store
     captioner --> generator
@@ -94,7 +92,7 @@ flowchart LR
     class forgotten f14
     class tasks f15
     class cli f16
-    class answerer,reranker f17
+    class answerer f17
     class generator,planner f18
     class captioner f19
 ```
@@ -105,7 +103,7 @@ flowchart LR
 | laranja | 14 | `forget` por evento e lista de uids esquecidos, consultada pelo `ingest.Pipeline` |
 | amarelo | 15 | `tasks` (estado "PR aberto", PR só com visita à página de criação) |
 | verde-água | 16 | `cli` (plurais, flags, ordem de data) |
-| azul | 17 | `rag.Answerer` (`top_k`, limiares) e o reranker opcional |
+| azul | 17 | `rag.Answerer` (`top_k`, limiares); o reranker foi medido e ficou de fora |
 | roxo | 18 | `llm.Generator` e `llm.StructuredGenerator` (Qwen3.5), com efeito no `queryplan` |
 | verde | 19 | descrição de imagens no `filesource`, usando o mesmo gerador com o `mmproj` |
 
@@ -163,14 +161,7 @@ Feita: plurais, flags em qualquer posição, `ui.date_order` e a tabela de perí
 
 ## Fase 17 — `top_k`, limiares e reranking medidos
 
-- **Problema:**
-  - `top_k = 8` foi herdado, não medido. Em CPU, o que domina o `ask` é o modelo ler as 8 evidências (~20 s de 21,5 s com o cache quente, ver [BENCHMARKS](BENCHMARKS.md)), então cada evidência a menos é latência a menos.
-  - `max_distance` (0,72) e `max_best_distance` (0,61) foram calibrados para o nomic-embed. Quem troca o modelo de embedding e roda `cade reindex` passa a receber "não encontrei" sem entender por quê.
-- **Mudança:**
-  1. **Varredura:** `make eval-retrieval` com `top_k` ∈ {4, 6, 8, 12} e os limiares numa grade, reportando recall, MRR, rejeição e o `ask` até o primeiro token em CPU e GPU. Escolher o menor `top_k` que não piora recall e MRR no conjunto de teste; registrar a tabela no BENCHMARKS.
-  2. **Limiares junto do modelo:** gravar em `store_settings`, ao lado de `embedding_model`, o modelo para o qual os limiares valem. Se o modelo registrado muda, `cade reindex` e `cade doctor` avisam que os limiares precisam de ajuste e apontam a calibração que já existe (`retrievalsuite.Calibrate`).
-  3. **Reranking (experimento com portão):** recuperar ~30 candidatos pela busca híbrida e reordená-los com um reranker pequeno pelo llama.cpp (por exemplo, `bge-reranker-v2-m3`, Apache-2.0) antes de cortar no `top_k`. Só entra se melhorar MRR no teste e o custo couber no orçamento de latência e memória; senão, o resultado vai para o BENCHMARKS e a ideia volta para "A definir".
-- **Critério de aceite:** recall, MRR e rejeição no teste iguais ou melhores que o baseline da v0.0.0 em todos os tamanhos da curva de escala; `ask` em CPU igual ou mais rápido; aviso de limiares testado com um modelo registrado diferente.
+Feita: `top_k` 6, com recall igual e o `ask` em CPU 1,8 s mais rápido. Os limiares (0,72 e 0,61) continuam, agora registrados junto do modelo de embedding para o qual valem, e `reindex` e `doctor` avisam quando esse modelo muda. O reranker melhorou o MRR, mas perdeu recall e custa 0,57 s por pergunta em CPU, então voltou para "A definir". Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#top_k-e-limiares-medidos-fase-17) e medições no [BENCHMARKS](BENCHMARKS.md#top_k-limiares-e-reranking-fase-17).
 
 ---
 
@@ -276,9 +267,9 @@ Pontos das revisões em `docs/TOCHECK/` que já estão resolvidos ou que não se
 | ----- | ----------------- |
 | LICENSE, licença dos modelos, CI, binário pronto, versionamento | entregues na v0.0.0 (GPLv2, fases 9 e 10) |
 | Avaliação de recuperação com recall e MRR | existe (`make eval-retrieval`, conjunto de teste, curva de escala); a fase 17 a usa |
-| Busca híbrida com filtros de fonte, período e pessoa | entregue (fases 3 e 6); o reranking é a fase 17 |
+| Busca híbrida com filtros de fonte, período e pessoa | entregue (fases 3 e 6); o reranking foi medido na fase 17 e voltou para "A definir" |
 | Validação determinística do plano, regras para perguntas simples | existe (`queryplan/guard.go`, `rules.go`, gramática GBNF); casos novos entram na suíte de plano a cada fase |
-| Modelo e dimensão do embedding no banco | existe (`embedding_model`, `embedding_dimensions`); falta só o limiar, na fase 17 |
+| Modelo e dimensão do embedding no banco | existe (`embedding_model`, `embedding_dimensions`), e os limiares com o modelo para o qual valem (fase 17) |
 | Estado real do PR pela API do GitHub | exige rede em tempo de execução; a fase 15 torna o nome honesto |
 | Índice vetorial aproximado (FAISS, Annoy) | a busca exata leva ~106 ms em 100 mil eventos; reavaliar perto de 1 milhão (ver "A definir") |
 | Interface comum de fontes | existe (`internal/ingest/sources.go`); uma fonte nova não mexe no núcleo |
@@ -314,9 +305,14 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Modo daemon para o `ask`
 
-- **Problema:** cada `cade ask` carrega os dois modelos. Com o cache de página frio, isso domina na GPU (7,7 s de 8,5 s). Em CPU, o que domina é ler as evidências (~20 s), que um daemon não evita; a fase 17 ataca esse custo.
+- **Problema:** cada `cade ask` carrega os dois modelos. Com o cache de página frio, isso domina na GPU (7,7 s de 8,5 s). Em CPU, o que domina é ler as evidências, que um daemon não evita; a fase 17 reduziu esse custo com o `top_k` 6.
 - **Mudança possível:** um processo que mantém os modelos carregados, atendendo o `cade ask` por um socket Unix só do dono, e que encerra depois de um tempo parado.
 - **A verificar:** se vale a memória ocupada o tempo todo (~2,5 GB de GPU ou ~3,9 GB de RAM).
+
+### Reranking dos candidatos
+
+- **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.md#top_k-limiares-e-reranking-fase-17), `make eval-rerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
+- **A verificar:** um reranker menor ou só em GPU; reordenar sem descartar (o reranker só troca a ordem dos `top_k` já escolhidos, o que não pode perder recall); casos novos na suíte em que a ordem mude a resposta.
 
 ### Índice vetorial aproximado
 

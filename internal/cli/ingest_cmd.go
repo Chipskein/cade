@@ -83,6 +83,10 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, use func(*ingest.P
 		if err := env.checkEmbeddingModel(ctx, cfg, store); err != nil {
 			return err
 		}
+		// Keeps the record current; `reindex` and `doctor` warn about it.
+		if _, err := settleThresholdCalibration(ctx, cfg, store); err != nil {
+			return err
+		}
 		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)
 		if err != nil {
 			return err

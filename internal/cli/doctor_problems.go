@@ -11,11 +11,12 @@ import (
 type problemWording func(finding doctor.Finding, language Language) string
 
 var problemWordings = map[doctor.Problem]problemWording{
-	doctor.ProblemNoConfigFile: fixed("não existe, valem os padrões; rode `cade init`", "does not exist, defaults apply; run `cade init`"),
-	doctor.ProblemNoSources:    fixed("nenhuma fonte configurada; rode `cade init` ou edite `sources`", "no source configured; run `cade init` or edit `sources`"),
-	doctor.ProblemNoDatabase:   fixed("ainda não existe; o primeiro `cade ingest` cria", "does not exist yet; the first `cade ingest` creates it"),
-	doctor.ProblemMissing:      missingWording,
-	doctor.ProblemNotAFile:     withSetting("é um diretório; `%s` espera um arquivo", "is a directory; `%s` expects a file"),
+	doctor.ProblemNoConfigFile:           fixed("não existe, valem os padrões; rode `cade init`", "does not exist, defaults apply; run `cade init`"),
+	doctor.ProblemNoSources:              fixed("nenhuma fonte configurada; rode `cade init` ou edite `sources`", "no source configured; run `cade init` or edit `sources`"),
+	doctor.ProblemNoDatabase:             fixed("ainda não existe; o primeiro `cade ingest` cria", "does not exist yet; the first `cade ingest` creates it"),
+	doctor.ProblemThresholdModelMismatch: thresholdModelWording,
+	doctor.ProblemMissing:                missingWording,
+	doctor.ProblemNotAFile:               withSetting("é um diretório; `%s` espera um arquivo", "is a directory; `%s` expects a file"),
 	doctor.ProblemNotADirectory: withSetting("não é um diretório; `%s` espera um diretório",
 		"is not a directory; `%s` expects a directory"),
 	doctor.ProblemNotGGUF: fixed("não é um modelo GGUF (download incompleto?); rode `make models` de novo",
@@ -32,6 +33,10 @@ var problemWordings = map[doctor.Problem]problemWording{
 	doctor.ProblemReindexPending: fixed("reindexação incompleta: parte dos eventos está sem vetor; rode `cade reindex`",
 		"unfinished reindex: some events have no vector; run `cade reindex`"),
 	doctor.ProblemMigrationPending: migrationWording,
+}
+
+func thresholdModelWording(finding doctor.Finding, language Language) string {
+	return thresholdAdvice(finding.Database.ThresholdCalibration.Model, finding.ConfiguredModel, language)
 }
 
 // problemText words the finding's problem.

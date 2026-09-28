@@ -133,6 +133,38 @@ func TestDatabaseProblems(t *testing.T) {
 	}
 }
 
+func TestThresholdCalibrationFindings(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Embedding.ModelPath = "/models/nomic.gguf"
+	defaults := cfg.Retrieval
+	cases := map[string]struct {
+		calibration storage.ThresholdCalibration
+		want        Problem
+	}{
+		"set for this model":       {storage.ThresholdCalibration{Model: "nomic.gguf", MaxDistance: defaults.MaxDistance, MaxBestDistance: defaults.MaxBestDistance}, ProblemNone},
+		"left from another model":  {storage.ThresholdCalibration{Model: "bge.gguf", MaxDistance: defaults.MaxDistance, MaxBestDistance: defaults.MaxBestDistance}, ProblemThresholdModelMismatch},
+		"retuned after the change": {storage.ThresholdCalibration{Model: "bge.gguf", MaxDistance: 0.5, MaxBestDistance: defaults.MaxBestDistance}, ProblemNone},
+		"no record, same vectors":  {storage.ThresholdCalibration{}, ProblemNone},
+	}
+	for name, c := range cases {
+		database := currentDatabase()
+		database.ThresholdCalibration = c.calibration
+		if got := checkThresholdCalibration(cfg, database); got.Problem != c.want {
+			t.Errorf("%s: expected problem %v, got %+v", name, c.want, got)
+		}
+	}
+}
+
+// A database from before the record adopts its vectors' model.
+func TestThresholdCalibrationAdoptsIndexedModel(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Embedding.ModelPath = "/models/bge.gguf"
+	got := checkThresholdCalibration(cfg, currentDatabase())
+	if got.Problem != ProblemThresholdModelMismatch || got.Database.ThresholdCalibration.Model != "nomic.gguf" {
+		t.Fatalf("expected gates attributed to nomic.gguf, got %+v", got)
+	}
+}
+
 func TestProblemSeverity(t *testing.T) {
 	cases := map[Problem]Severity{
 		ProblemNone: SeverityOK, ProblemNoConfigFile: SeverityWarning, ProblemMigrationPending: SeverityWarning,

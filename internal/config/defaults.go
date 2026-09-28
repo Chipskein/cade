@@ -29,12 +29,16 @@ func Defaults() Config {
 		// SEM_INFORMACAO reply is the final guard for the overlap. 0.61 gates
 		// whole unfiltered questions: the midpoint the calibration set of the
 		// retrieval suite reports with chunked vectors (closest event at most
-		// 0.596 when something answered, at least 0.624 when not); the test
-		// set, never used for tuning, checks it.
+		// 0.596 when something answered, at least 0.624 when not; 0.606 and
+		// 0.621 on the CPU build); the test set, never used for tuning,
+		// checks it. The store records the model
+		// these gates belong to, and reindex and doctor warn when it changes.
+		// top_k 6: the phase 17 sweep (docs/BENCHMARKS.md) kept recall and
+		// MRR of 8 with two fewer events for the model to read.
 		// Ranking a filtered event reads its vectors, ~0.19 ms each
 		// (BenchmarkChunksFor): 1000 stay under 0.2 s, about one filtered
 		// vector search at 100k events. More go through the vector index.
-		Retrieval: RetrievalConfig{TopK: 8, MaxDistance: 0.72, MaxBestDistance: 0.61, MaxAnswerTokens: 512, Mode: "hybrid",
+		Retrieval: RetrievalConfig{TopK: 6, MaxDistance: 0.72, MaxBestDistance: 0.61, MaxAnswerTokens: 512, Mode: "hybrid",
 			MaxFilteredEvents: 1000},
 		Sources: defaultSources(),
 		Tasks:   TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},

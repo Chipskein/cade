@@ -16,6 +16,9 @@ GENERATION_MODEL_URL := $(QWEN35_URL)/Qwen3.5-2B-Q4_K_M.gguf
 # so the local copy carries the model's name.
 VISION_PROJECTOR_URL := $(QWEN35_URL)/mmproj-F16.gguf
 EMBEDDING_MODEL      := $(MODELS_DIR)/$(notdir $(EMBEDDING_MODEL_URL))
+# Only for `make eval-rerank` (phase 17 experiment); no command uses it.
+RERANKER_MODEL_URL   := https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF/resolve/main/bge-reranker-v2-m3-Q4_K_M.gguf
+RERANKER_MODEL       := $(MODELS_DIR)/$(notdir $(RERANKER_MODEL_URL))
 GENERATION_MODEL     := $(MODELS_DIR)/$(notdir $(GENERATION_MODEL_URL))
 VISION_PROJECTOR     := $(MODELS_DIR)/mmproj-Qwen3.5-2B-F16.gguf
 
@@ -55,7 +58,7 @@ BUILDINFO  := github.com/chipskein/cade/internal/buildinfo
 LDFLAGS    := -X $(BUILDINFO).version=$(VERSION) -X $(BUILDINFO).commit=$(COMMIT) \
 	-X $(BUILDINFO).date=$(BUILD_DATE) -X $(BUILDINFO).llamaTag=$(LLAMA_TAG)
 
-.PHONY: build cuda install uninstall dist test cover fuzz test-models eval eval-plan eval-retrieval eval-injection eval-scale bench fmt fmt-check vet lint check llama llama-cuda models clean
+.PHONY: build cuda install uninstall dist test cover fuzz test-models eval eval-plan eval-retrieval eval-injection eval-scale eval-rerank bench fmt fmt-check vet lint check llama llama-cuda models clean
 
 build: llama
 	go build -tags sqlite_fts5 -ldflags "$(LDFLAGS)" -o bin/cade ./cmd/cade
@@ -125,8 +128,9 @@ eval-plan: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(GENERATION_MODEL)
 # Scores retrieval with the real embedder and SQLite store: the calibration
 # set reports where the distance gates belong, the test set (never used for
 # tuning) is checked against its floors. testdata/queries/retrieval/.
-eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
-	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run 'TestRetrieval(Calibration|Suite)WithModel' ./internal/retrievalsuite
+eval-retrieval: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL) $(GENERATION_MODEL)
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) -run 'TestRetrieval(Calibration|Suite|Sweep)WithModel' ./internal/retrievalsuite
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_GENERATION_MODEL=$(GENERATION_MODEL) go test -tags $(TAGS) -run '^$$' -bench '^BenchmarkColdAskTopK$$' -benchtime=1x -timeout $(EVAL_TIMEOUT) ./internal/benchmarks
 
 # Answers the prompt-injection cases (testdata/queries/injection.json) with
 # both real models: each reply must come from the real evidence, not from
@@ -138,9 +142,18 @@ eval-injection: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MOD
 # benchmark baseline. Embeddings are cached in ~/.cache/cade/eval, so only
 # the first run of a size pays for them (~3 ms per event on a GPU).
 SCALE ?= 1000,10000
+SCALE_TOP_K ?= 6
+SCALE_REPORT ?= bench/retrieval-scale.txt
 eval-scale: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL)
-	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_SCALE=$(SCALE) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout 3h \
-		-run TestRetrievalScaleWithModel ./internal/retrievalsuite | tee bench/retrieval-scale.txt
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_EVAL_SCALE=$(SCALE) CADE_EVAL_TOP_K=$(SCALE_TOP_K) CADE_EVAL_MODE=$(MODE) go test -tags $(TAGS) -count=1 -v -timeout 3h \
+		-run TestRetrievalScaleWithModel ./internal/retrievalsuite | tee $(SCALE_REPORT)
+
+# Phase 17 experiment: the test set (and each SCALE size) with and without
+# reranking 30 hybrid-search hits down to top_k with a cross-encoder.
+# Results in docs/BENCHMARKS.md; not part of `make eval`.
+eval-rerank: $(if $(filter cuda,$(GO_TAGS)),llama-cuda,llama) $(EMBEDDING_MODEL) $(RERANKER_MODEL)
+	CADE_TEST_EMBEDDING_MODEL=$(EMBEDDING_MODEL) CADE_TEST_RERANKER_MODEL=$(RERANKER_MODEL) CADE_EVAL_SCALE=$(SCALE) go test -tags $(TAGS) -count=1 -v -timeout $(EVAL_TIMEOUT) \
+		-run TestRetrievalRerankWithModel ./internal/retrievalsuite
 
 eval: eval-plan eval-retrieval eval-injection
 
@@ -209,6 +222,9 @@ $(GENERATION_MODEL):
 
 $(VISION_PROJECTOR):
 	$(call download,$(VISION_PROJECTOR_URL))
+
+$(RERANKER_MODEL):
+	$(call download,$(RERANKER_MODEL_URL))
 
 clean:
 	rm -rf bin dist coverage.out $(LLAMA_DIR)/build $(LLAMA_DIR)/build-cuda
