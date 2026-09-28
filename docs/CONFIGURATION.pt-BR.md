@@ -6,6 +6,7 @@
 | Campo | Finalidade |
 |---|---|
 | `database_path` | Caminho do banco SQLite. |
+| `ingest.redact` | Mascara segredos reconhecidos no texto (padrão `true`). Globs de arquivos e remoção de parâmetros de URL sempre valem. |
 | `embedding.model_path` | Caminho do modelo GGUF de embeddings. |
 | `embedding.context_tokens` | Limite de contexto/tokens do embedding. |
 | `embedding.threads` | Threads de CPU para embedding (`0` = núcleos físicos). |
@@ -29,6 +30,7 @@
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
+| `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
 | `sources.max_file_bytes` | Tamanho máximo de arquivo para ingerir texto. |
 | `ui.language` | Idioma da interface (`auto`, `pt`, `en`). |
 | `ui.date_order` | Ordem de leitura de datas numéricas. |

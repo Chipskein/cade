@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"unicode/utf8"
@@ -20,7 +21,8 @@ type Options struct {
 	IgnoredDirNames []string
 	// MaxFileBytes caps how large a file may be for its text to be read;
 	// larger files are still recorded, without content.
-	MaxFileBytes int64
+	MaxFileBytes     int64
+	IgnoredFileGlobs []string
 }
 
 // Collector walks one directory tree.
@@ -64,6 +66,11 @@ func (c *Collector) visit(ctx context.Context, path string, entry fs.DirEntry, w
 	}
 	if !entry.Type().IsRegular() {
 		return nil
+	}
+	for _, pattern := range c.opts.IgnoredFileGlobs {
+		if matched, _ := pathpkg.Match(pattern, entry.Name()); matched {
+			return nil
+		}
 	}
 	return c.emitFile(path, entry, emit)
 }

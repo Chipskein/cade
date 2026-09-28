@@ -39,6 +39,7 @@ func Defaults() Config {
 		Sources: defaultSources(),
 		Tasks:   TasksConfig{TaskURLPatterns: defaultTaskURLPatterns},
 		UI:      UIConfig{Language: "auto", DateOrder: "auto"},
+		Ingest:  IngestConfig{Redact: true},
 	}
 }
 
@@ -77,6 +78,9 @@ func defaultSources() SourcesConfig {
 		TeamsIndexedDBDirs: []string{},
 		Directories:        []string{},
 		IgnoredDirNames:    []string{".git", "node_modules", "vendor", "__pycache__", ".venv", "target"},
+		IgnoredFileGlobs:   defaultIgnoredFileGlobs,
 		MaxFileBytes:       256 * 1024,
 	}
 }
+
+var defaultIgnoredFileGlobs = []string{".env*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx", "credentials*", ".netrc", ".npmrc", ".pypirc", ".git-credentials"}

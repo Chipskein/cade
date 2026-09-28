@@ -87,7 +87,7 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, use func(*ingest.P
 			return err
 		}
 		defer embedder.Close()
-		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger))
+		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger).WithRedaction(cfg.Ingest.Redact))
 	})
 }
 

@@ -36,6 +36,7 @@ var schemaMigrations = []migration{
 	{version: 5, description: "vectors per chunk instead of per event", backup: true, compact: true, apply: splitIntoChunks},
 	{version: 6, description: "keyword index over chunks (FTS5)", apply: indexExistingChunks},
 	{version: 7, description: "people index and message direction, for filters in SQL", apply: buildPeopleIndex},
+	{version: 8, description: "redact known secrets and remove credential files", backup: true, compact: true, apply: redactStoredEvents},
 }
 
 // Hooks lets the caller report what opening the database did.

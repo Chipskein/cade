@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/privacy"
 )
 
 // OpenDatabase opens a SQLite file; injected so this package does not pick
@@ -84,6 +85,7 @@ func emitVisit(rows *sql.Rows, flavor historyFlavor, historyPath string, emit in
 // independent of the file path (so a moved profile does not re-ingest) yet
 // distinct for every real visit (RNF3.2).
 func visitEvent(browser, historyPath string, visitedAt time.Time, url, title string) event.Event {
+	url = privacy.URL(url)
 	content := url
 	if title != "" {
 		content = title + "\n" + url
