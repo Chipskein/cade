@@ -30,6 +30,7 @@ type planReport struct {
 	Period       string   `json:"period,omitempty"`
 	People       []string `json:"people,omitempty"`
 	Direction    string   `json:"direction,omitempty"`
+	Folder       string   `json:"folder,omitempty"`
 	Topic        string   `json:"topic,omitempty"`
 	TaskStatus   string   `json:"task_status,omitempty"`
 	SemanticText string   `json:"semantic_text,omitempty"`
@@ -95,7 +96,7 @@ func writeAskReport(out io.Writer, report askReport) error {
 func newAskReport(query queryplan.Query) askReport {
 	return askReport{Question: query.Question, Plan: planReport{
 		Mode: planCodes.modes[query.Mode], Source: string(query.Source), Period: describeDays(query.Days),
-		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Topic: query.Topic,
+		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Folder: query.Folder, Topic: query.Topic,
 		TaskStatus: planCodes.statuses[query.TaskStatus], SemanticText: query.SemanticText,
 	}}
 }

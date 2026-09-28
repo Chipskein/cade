@@ -83,13 +83,15 @@ type SimilarityQuery struct {
 
 // EventFilter selects events exactly, as listing.Select does in memory:
 // timestamp in [From, To), the source (empty means all), the message
-// direction, and any of People (everyone when empty).
+// direction, any of People (everyone when empty), and files under Folder
+// (anywhere when empty).
 type EventFilter struct {
 	From      time.Time
 	To        time.Time
 	Source    event.Source
 	Direction listing.Direction
 	People    []listing.PersonMatcher
+	Folder    string
 }
 
 // LexicalQuery describes a filtered keyword search. Match is an FTS5

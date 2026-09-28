@@ -47,10 +47,10 @@ func (a *Answerer) rankAmong(ctx context.Context, embedding []float32, query que
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 
-// resolveFilter is the question's period (or all time), source and
+// resolveFilter is the question's period (or all time), source, folder and
 // criteria, with each name resolved against the stored events.
 func (a *Answerer) resolveFilter(ctx context.Context, query queryplan.Query, observer AnswerObserver) (storage.EventFilter, error) {
-	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source}
+	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source, Folder: query.Folder}
 	if query.Days != nil {
 		scope.From, scope.To = query.Days.Start(), query.Days.End()
 	}

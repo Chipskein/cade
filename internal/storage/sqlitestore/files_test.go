@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
@@ -47,6 +48,23 @@ func TestMarkMissingFilesFlagsAndClears(t *testing.T) {
 	back, _, _ := store.StoredEvent(ctx, event.StableID(event.SourceFile, "/notas/sub/b.md"))
 	if !back.File().RemovedAt.IsZero() {
 		t.Fatal("expected a returning file unflagged")
+	}
+}
+
+func TestFolderFilterKeepsOnlyFilesUnderIt(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	mustSave(t, store, fileVersionEvent("/home/ana/Documents/a.png", "a", fileDay), []float32{0, 1})
+	mustSave(t, store, fileVersionEvent("/home/ana/Documents2/b.png", "b", fileDay), []float32{1, 0})
+	mustSave(t, store, fileVersionEvent("/home/ana/Downloads/c.png", "c", fileDay), []float32{1, 0})
+	filter := storage.EventFilter{From: time.Unix(0, 0), To: fileDay.AddDate(1, 0, 0), Folder: "/home/ana/Documents"}
+	matching, err := store.EventsMatching(ctx, filter)
+	if err != nil || len(matching) != 1 || matching[0].File().Path != "/home/ana/Documents/a.png" {
+		t.Fatalf("expected only the file under Documents, got %+v (err %v)", matching, err)
+	}
+	hits, err := store.SearchSimilar(ctx, storage.SimilarityQuery{Embedding: []float32{1, 0}, Limit: 3, Among: &filter})
+	if err != nil || len(hits) != 1 || hits[0].Event.File().Path != "/home/ana/Documents/a.png" {
+		t.Fatalf("expected the nearest files outside the folder dropped, got %+v (err %v)", hits, err)
 	}
 }
 
