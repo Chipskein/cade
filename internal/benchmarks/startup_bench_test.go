@@ -2,6 +2,7 @@ package benchmarks
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -38,6 +39,21 @@ var coldAskPlanners = []coldAskPlanner{
 	{name: "rules", question: rulesReadQuestion},
 }
 
+var askSweepTopK = []int{4, 6, 8, 12}
+
+func BenchmarkColdAskTopK(b *testing.B) {
+	paths := coldAskPaths{generation: modelPath(b, generationModelEnv), embedding: modelPath(b, embeddingModelEnv)}
+	planner := coldAskPlanner{name: "rules", question: rulesReadQuestion}
+	for _, topK := range askSweepTopK {
+		b.Run(fmt.Sprintf("top_k=%d", topK), func(b *testing.B) {
+			askToFirstToken(b, paths, planner.question, "", topK)
+			for b.Loop() {
+				askToFirstToken(b, paths, planner.question, "", topK)
+			}
+		})
+	}
+}
+
 // BenchmarkColdAsk is what one `cade ask` costs from the start of the
 // process to the first answer token: loading both models, reading the
 // question, embedding it and reading the evidence. The page cache is warm
@@ -67,19 +83,19 @@ func benchmarkColdAsk(b *testing.B, paths coldAskPaths, planner coldAskPlanner, 
 	if planner.savedState {
 		stateDir = b.TempDir()
 	}
-	askToFirstToken(b, paths, planner.question, stateDir)
+	askToFirstToken(b, paths, planner.question, stateDir, config.Defaults().Retrieval.TopK)
 	for b.Loop() {
 		if evict {
 			b.StopTimer()
 			evictFromPageCache(b, paths.generation, paths.embedding)
 			b.StartTimer()
 		}
-		askToFirstToken(b, paths, planner.question, stateDir)
+		askToFirstToken(b, paths, planner.question, stateDir, config.Defaults().Retrieval.TopK)
 	}
 }
 
 // askToFirstToken runs `cade ask`'s model work, generating one token.
-func askToFirstToken(b *testing.B, paths coldAskPaths, question, stateDir string) {
+func askToFirstToken(b *testing.B, paths coldAskPaths, question, stateDir string, topK int) {
 	b.Helper()
 	defaults := config.Defaults()
 	generator, err := llamacpp.LoadGenerator(llamacpp.ModelOptions{Path: paths.generation, ContextTokens: defaults.Generation.ContextTokens,
@@ -97,17 +113,16 @@ func askToFirstToken(b *testing.B, paths coldAskPaths, question, stateDir string
 		b.Fatal(err)
 	}
 	defer embedder.Close()
-	answerFirstToken(b, generator, embedder, queryplan.Resolve(question, plan, queryplan.Overrides{}, time.Now()))
+	answerFirstToken(b, generator, embedder, queryplan.Resolve(question, plan, queryplan.Overrides{}, time.Now()), topK)
 }
 
-func answerFirstToken(b *testing.B, generator llm.Generator, embedder llm.Embedder, query queryplan.Query) {
+func answerFirstToken(b *testing.B, generator llm.Generator, embedder llm.Embedder, query queryplan.Query, topK int) {
 	b.Helper()
-	settings := config.Defaults().Retrieval
-	store := evidenceStore(settings.TopK)
+	store := evidenceStore(topK)
 	store.Events = eventsOf(store.SearchResults)
 	answerer := rag.NewAnswerer(rag.Dependencies{Store: store, Embedder: embedder, Generator: generator, Now: time.Now,
 		Logger: slog.New(slog.NewJSONHandler(io.Discard, nil))},
-		rag.Settings{TopK: settings.TopK, MaxDistance: 2, MaxBestDistance: 2, MaxAnswerTokens: 1})
+		rag.Settings{TopK: topK, MaxDistance: 2, MaxBestDistance: 2, MaxAnswerTokens: 1})
 	tokens := 0
 	observer := rag.AnswerObserver{Generation: llm.GenerationProgress{TokenGenerated: func(string) { tokens++ }}}
 	if _, err := answerer.Answer(context.Background(), query, observer); err != nil {

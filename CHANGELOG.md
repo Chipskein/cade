@@ -6,6 +6,12 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Measured `top_k` and thresholds (phase 17)
+
+- **`top_k` 8 → 6:** the sweep (`make eval-retrieval`, `top_k` 4, 6, 8 and 12 crossed with both thresholds) showed 6 is the smallest value with no recall loss on the test set: recall 1.00, MRR 0.89 (0.88 with 8), rejection 1.00. On the scale curve, at 1k and 10k events, it scores 0.94, 0.83 and 1.00, against 0.93, 0.82 and 1.00 in v0.0.0. `ask` to the first token drops from 12.4 s to 10.6 s on CPU and from 1.77 s to 1.62 s on GPU. A config with an explicit `retrieval.top_k` keeps its value.
+- **Thresholds:** `max_distance` 0.72 and `max_best_distance` 0.61 stay. No value in the grid did better, and 0.61 falls inside the range the calibration reports on both CPU and GPU.
+- **Thresholds tied to the model:** the database records both thresholds in `store_settings`, together with the embedding model they were set for. If `cade reindex` switches the model and the thresholds stay the same, it and `cade doctor` warn that they belong to the previous model and point to the calibration (`make eval-retrieval EMBEDDING_MODEL=…`). Changing either threshold counts as recalibrating, and the warning goes away. Older databases treat the configured thresholds as set for their vectors' model. There is no migration: it is one new row in `store_settings`.
+- **Reranking, measured and left out:** reordering 30 candidates with `bge-reranker-v2-m3` before the cut raises MRR (0.83 → 0.91 at 1k and 10k events), but drops test-set recall from 1.00 to 0.94 and costs 0.57 s per question on CPU, plus a 418 MB model. No command uses the reranker. `make eval-rerank` repeats the measurement, and the idea went back to "A definir" in the ROADMAP.
 ### Task status and PR attribution (phase 15)
 
 - Task reports label the state **PR opened** and explain that it means local history saw the PR creation page; offline approval and merge status are unknown. Questions such as “which tasks did I finish?” still select this state.

@@ -21,6 +21,24 @@ func TestEmbeddingModelIsRecorded(t *testing.T) {
 	}
 }
 
+func TestThresholdCalibrationRoundTrips(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	calibration := storage.ThresholdCalibration{Model: "nomic.gguf", MaxDistance: 0.72, MaxBestDistance: 0.61}
+	testcheck.NoError(t, store.RecordThresholdCalibration(ctx, calibration))
+	got, err := store.ThresholdCalibration(ctx)
+	if err != nil || got != calibration {
+		t.Fatalf("expected %+v back, got %+v: %v", calibration, got, err)
+	}
+}
+
+func TestThresholdCalibrationIsZeroBeforeRecorded(t *testing.T) {
+	got, err := openTestStore(t).ThresholdCalibration(context.Background())
+	if err != nil || got != (storage.ThresholdCalibration{}) {
+		t.Fatalf("expected no calibration, got %+v: %v", got, err)
+	}
+}
+
 // A new model may have another dimension; the vector table must be rebuilt.
 func TestReindexAcceptsANewDimension(t *testing.T) {
 	store := openTestStore(t)

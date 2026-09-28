@@ -64,8 +64,33 @@ func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage
 		checkKeywordSearch(database),
 		checkDatabase(cfg, database),
 	}
+	if gates := checkThresholdCalibration(cfg, database); gates.Problem != ProblemNone {
+		findings = append(findings, gates)
+	}
 	return append(findings, checkSources(fsys, cfg.Sources)...)
 }
+
+// ConfiguredCalibration is the gates cfg searches with, for its embedding
+// model.
+func ConfiguredCalibration(cfg config.Config) storage.ThresholdCalibration {
+	return storage.ThresholdCalibration{Model: cfg.Embedding.ModelName(), MaxDistance: cfg.Retrieval.MaxDistance,
+		MaxBestDistance: cfg.Retrieval.MaxBestDistance}
+}
+
+// checkThresholdCalibration flags gates set for another embedding model;
+// the finding's Database carries the model they were set for.
+func checkThresholdCalibration(cfg config.Config, database storage.DatabaseState) Finding {
+	current := ConfiguredCalibration(cfg)
+	calibration := database.ThresholdCalibration.OrIndexedWith(database.EmbeddingModel, current)
+	if !database.Exists || !calibration.OutdatedFor(current) {
+		return Finding{}
+	}
+	database.ThresholdCalibration = calibration
+	return Finding{Subject: SubjectDatabase, Setting: thresholdSettings, Path: cfg.DatabasePath,
+		Problem: ProblemThresholdModelMismatch, Database: database, ConfiguredModel: current.Model}
+}
+
+const thresholdSettings = "retrieval.max_distance, retrieval.max_best_distance"
 
 // CountBySeverity counts the findings of severity.
 func CountBySeverity(findings []Finding, severity Severity) int {

@@ -22,12 +22,19 @@ func runReindex(ctx context.Context, env commandEnv, args []string) error {
 		if !supported {
 			return errors.New(env.language.pick("este banco não suporta reindexação", "this database does not support reindexing"))
 		}
+		outdated, err := settleThresholdCalibration(ctx, cfg, store)
+		if err != nil {
+			return err
+		}
 		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)
 		if err != nil {
 			return err
 		}
 		defer embedder.Close()
 		pipeline := ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger)
+		if outdated.Model != "" {
+			fmt.Fprintf(env.stderr, env.language.pick("Aviso: %s.\n", "Warning: %s.\n"), thresholdAdvice(outdated.Model, cfg.Embedding.ModelName(), env.language))
+		}
 		return env.reindexWith(ctx, pipeline, index, cfg.Embedding.ModelName())
 	})
 }

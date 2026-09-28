@@ -16,7 +16,7 @@
     "gpu_layers": -1
   },
   "retrieval": {
-    "top_k": 8,
+    "top_k": 6,
     "max_distance": 0.72,
     "max_best_distance": 0.61,
     "max_answer_tokens": 512,

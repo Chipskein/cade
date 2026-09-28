@@ -29,6 +29,31 @@ xychart-beta
 
 Azul: recall. Verde: MRR. Vermelho: redundância (resultados que repetem a mesma página ou arquivo; menor é melhor). A rejeição ficou em 1,00 em todas as fases.
 
+## `top_k`, limiares e reranking (fase 17)
+
+`make eval-retrieval` cruza `top_k` (4, 6, 8, 12) com `max_distance` (0,68, 0,72, 0,76) e `max_best_distance` (0,60, 0,61, 0,63) nos conjuntos de calibração e de teste (25 perguntas), com o `nomic-embed-text-v2-moe` Q4_K_M, e mede o `ask` até o primeiro token para cada `top_k` (`BenchmarkColdAskTopK`, cache de páginas quente, uma execução por valor). CPU e GPU dão a mesma qualidade.
+
+| `top_k` | recall | MRR | rejeição | `ask` CPU | `ask` GPU |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 4 | 0,91 | 0,86 | 1,00 | 9,53 s | 1,52 s |
+| **6** | **1,00** | **0,89** | **1,00** | **10,61 s** | **1,62 s** |
+| 8 (v0.0.0) | 1,00 | 0,88 | 1,00 | 12,40 s | 1,77 s |
+| 12 | 1,00 | 0,88 | 1,00 | 19,20 s | 1,90 s |
+
+- **`top_k` = 6:** o menor valor que não perde recall. O MRR sobe um pouco porque um evento fraco sai do fim da lista. O `ask` em CPU fica 1,8 s mais rápido.
+- **Limiares:** `max_distance` não muda nada entre 0,68 e 0,76. Com `max_best_distance` 0,63, a rejeição na calibração cai para 0,89 (uma pergunta sem resposta passa). A calibração põe o corte entre o pior evento de pergunta com resposta e o melhor de pergunta sem resposta: 0,596–0,624 em GPU e 0,606–0,621 em CPU (os vetores diferem na terceira casa). Os 0,61 atuais ficam dentro dos dois intervalos e continuam valendo.
+- **Curva de escala** (`make eval-scale`, `bench/retrieval-scale.txt`): com 1 mil e com 10 mil eventos, `top_k` 6 dá recall 0,94, MRR 0,83 e rejeição 1,00. A v0.0.0 (`top_k` 8) dava 0,93, 0,82 e 1,00, e a mesma medição hoje com 8 dá 0,94, 0,82 e 1,00 (`bench/retrieval-scale-top8.txt`).
+
+**Reranking, reprovado no portão** (`make eval-rerank`). Os 30 primeiros da busca híbrida, depois dos cortes de distância, são reordenados pelo `bge-reranker-v2-m3` Q4_K_M (418 MB, Apache-2.0) pelo llama.cpp, que lê o mesmo texto que o modelo de resposta, e são cortados em 6:
+
+| eventos | sem reranker (recall / MRR) | com reranker (recall / MRR) | custo por pergunta |
+| ---: | ---: | ---: | ---: |
+| 291 | 1,00 / 0,89 | 0,94 / 0,91 | 72 ms GPU, 567 ms CPU |
+| 1 mil | 0,94 / 0,83 | 0,94 / 0,91 | 61 ms GPU |
+| 10 mil | 0,94 / 0,83 | 0,94 / 0,91 | 58 ms GPU |
+
+O MRR sobe em todos os tamanhos, mas o recall no conjunto de teste cai de 1,00 para 0,94, e o critério pede recall igual ou melhor. O custo também é alto: em CPU, 0,57 s por pergunta, mais carregar outros 418 MB, comeria um terço do que o `top_k` 6 economiza. A ideia volta para "A definir" no ROADMAP.
+
 ## Busca à medida que o histórico cresce
 
 Recall no conjunto de teste com o corpus aumentado por distratores (`make eval-scale`).
