@@ -33,6 +33,21 @@ func TestResolveIgnoreQuestionDropsPlanAndDates(t *testing.T) {
 	}
 }
 
+// Regression: "Na pasta ~/Documents" answered with files from ~/Downloads,
+// since the folder only reached the embedded text.
+func TestResolveRestrictsToTheNamedFolder(t *testing.T) {
+	question := "Na pasta ~/Documents liste imagens com personagens"
+	query := Resolve(question, Plan{Topic: "imagens com personagens"}, Overrides{Home: folderTestHome}, suiteNow)
+	if query.Folder != "/home/ana/Documents" || query.Source != event.SourceFile || !query.NeedsExactSelection() || query.SemanticText != "imagens com personagens" {
+		t.Fatalf("expected a file query under ~/Documents, got %+v", query)
+	}
+	ignored := Resolve(question, Plan{}, Overrides{Home: folderTestHome, IgnoreQuestion: true}, suiteNow)
+	flagged := Resolve(question, Plan{}, Overrides{Home: folderTestHome, Source: event.SourceGit}, suiteNow)
+	if ignored.Folder != "" || flagged.Source != event.SourceGit {
+		t.Fatalf("expected --no-filters to drop the folder and --source to win, got %+v / %+v", ignored, flagged)
+	}
+}
+
 func TestResolveTasksDefaultToToday(t *testing.T) {
 	query := Resolve("quais tarefas finalizei?", Plan{Mode: ModeTasks}, Overrides{}, suiteNow)
 	if query.Mode != ModeTasks || query.Days.String() != "2026-09-26" {

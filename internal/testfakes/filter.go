@@ -17,8 +17,8 @@ func (f *FakeEventStore) CountMatching(ctx context.Context, filter storage.Event
 	return min(len(events), upTo), err
 }
 
-// EventsMatching returns the events in the filter's period and source that
-// listing.Select keeps, oldest first.
+// EventsMatching returns the events in the filter's period, source and
+// folder that listing.Select keeps, oldest first.
 func (f *FakeEventStore) EventsMatching(ctx context.Context, filter storage.EventFilter) ([]event.Event, error) {
 	inPeriod, err := f.EventsBetween(ctx, filter.From, filter.To)
 	var scoped []event.Event
@@ -27,7 +27,7 @@ func (f *FakeEventStore) EventsMatching(ctx context.Context, filter storage.Even
 			scoped = append(scoped, ev)
 		}
 	}
-	return listing.Select(scoped, filter.Direction, filter.People), err
+	return listing.Select(listing.InFolder(scoped, filter.Folder), filter.Direction, filter.People), err
 }
 
 // keepAmong drops the hits whose event does not satisfy among.

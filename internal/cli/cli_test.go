@@ -302,6 +302,16 @@ func TestDescribePlan(t *testing.T) {
 	}
 }
 
+// The folder is read from the question with the home of the toolkit.
+func TestAskAnnouncesTheFolderFilter(t *testing.T) {
+	world := newFakeWorld()
+	world.generator.StructuredReply = `{"tipo": "responder", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": "imagens", "status": null}`
+	code, _, stderr := world.run("ask", "Na pasta ~/Documents liste imagens")
+	if code != 0 || !strings.Contains(stderr, "file · pasta: /home/ana/Documents · assunto: imagens") {
+		t.Fatalf("expected the folder announced, got %d / %q", code, stderr)
+	}
+}
+
 func TestAskRequiresQuestion(t *testing.T) {
 	if code, _, _ := newFakeWorld().run("ask"); code != 1 {
 		t.Fatalf("expected exit 1, got %d", code)

@@ -133,7 +133,7 @@ func (a *Answerer) generate(ctx context.Context, query queryplan.Query, hits []s
 
 // Retrieve returns the evidence Answer would give the model, without
 // generating; the retrieval suite measures it directly. It embeds the
-// query's semantic text. Criteria (people, direction)
+// query's semantic text. Criteria (people, direction) and the folder
 // cannot be applied inside the vector index; when set, retrieval narrows
 // exactly and then ranks. Scoped queries skip the distance cutoff: generic
 // questions such as "what did I do?" are far from every event in embedding
@@ -144,7 +144,7 @@ func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer
 	if err != nil {
 		return nil, err
 	}
-	if !query.Criteria.IsEmpty() {
+	if query.NeedsExactSelection() {
 		return a.retrieveAmong(ctx, query, embedding, observer)
 	}
 	if hits, err := a.identifierHits(ctx, embedding, query); err != nil || len(hits) > 0 {

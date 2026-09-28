@@ -60,6 +60,22 @@ func TestAnswerWithPersonUsesOnlyTheirEvents(t *testing.T) {
 	}
 }
 
+// Regression: "Na pasta ~/Documents liste imagens" cited images from
+// ~/Downloads, the nearest by meaning.
+func TestRetrieveWithFolderUsesOnlyItsFiles(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	for _, path := range []string{"/home/ana/Documents/a.png", "/home/ana/Downloads/b.png"} {
+		store.Events = append(store.Events, event.Event{UID: path, Source: event.SourceFile, Timestamp: fixedNow.Add(-time.Hour),
+			Content: path, Metadata: event.File{Path: path}.Metadata()})
+	}
+	store.Embeddings = map[string][]float32{"/home/ana/Documents/a.png": {0, 1}, "/home/ana/Downloads/b.png": {1, 0}}
+	question := queryplan.Query{Question: "q", Source: event.SourceFile, Folder: "/home/ana/Documents"}
+	hits, err := restrictedAnswerer(store, &testfakes.FakeGenerator{}).Retrieve(context.Background(), question, AnswerObserver{})
+	if err != nil || len(hits) != 1 || hits[0].Event.UID != "/home/ana/Documents/a.png" {
+		t.Fatalf("expected only the file under the folder, got %+v (err %v)", hits, err)
+	}
+}
+
 func TestAnswerWithPersonHonoursTopK(t *testing.T) {
 	answerer := restrictedAnswerer(storeOfMessages(), &testfakes.FakeGenerator{Reply: "x"})
 	answerer.settings.TopK = 1

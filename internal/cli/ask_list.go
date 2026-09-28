@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
@@ -24,6 +25,7 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 	if query.OwnCommitsOnly {
 		events = ownCommitsOnly(events)
 	}
+	events = listing.InFolder(events, query.Folder)
 	events, matched, unknown := query.Criteria.Apply(events)
 	reportPeople(env.stderr, matched, nil, env.language)
 	reportNamesAsText(env.stderr, unknown, env.language)
