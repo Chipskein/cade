@@ -10,6 +10,16 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançada (v0.1.0)
 
+### Ingestão em segundo plano (#41)
+
+- **Problema:** uma ingestão longa (a primeira, milhares de imagens) prendia um terminal por horas, parava quando ele fechava e deixava a CPU ou a GPU no limite enquanto isso.
+- **`cade ingest start`:** confere os argumentos e inicia um `cade ingest` fora do terminal, numa sessão própria (fechar o terminal não o interrompe), com a saída em `~/.local/state/cade/ingest.log`. `cade ingest <fonte|all>` continua rodando no terminal.
+- **Limites:** execuções em segundo plano usam a nova seção `ingest.background`: 2 threads, camadas na GPU (`-1`; `0` deixa a GPU livre), `busy_percent` 50 (os modelos descansam depois de cada chamada e trabalham metade do tempo: a GPU não aceita `nice`, e é isso que limita a carga dela) e 500 imagens por execução. Elas também rodam com nice 19 e a classe de E/S ociosa em todas as threads. `--gentle` aplica os mesmos limites no terminal, e os exemplos de systemd e cron passaram a usá-lo. O [CONFIGURATION](docs/CONFIGURATION.pt-BR.md#como-os-limites-funcionam) explica o que cada camada limita e como limitar a potência da GPU com o `nvidia-smi`.
+- **`status`, `pause`, `resume`, `stop`:** todo `ingest` grava os argumentos, a etapa, o alvo e a última linha de progresso em `~/.local/state/cade/ingest-state.json`, cerca de uma vez por segundo, então `cade ingest status` mostra de qualquer terminal, avisando quando o processo sumiu sem registrar o fim. `pause` congela o processo (SIGSTOP: sem uso de CPU nem GPU, modelos mantidos na memória) e `resume` o acorda. `stop` manda SIGTERM, que encerra como o Ctrl-C e libera a memória, mantendo o que foi gravado; `resume` então roda de novo com os mesmos argumentos e modo, pulando o que já está gravado e reaproveitando as imagens descritas. Fechar o terminal (SIGHUP) também passou a contar como interrupção. O `cade doctor` mostra quando a última ingestão rodou e como terminou, com um aviso quando ela não terminou.
+- **Uma por vez:** enquanto uma ingestão está rodando ou pausada, iniciar outra é recusado com o pid dela (um flock que o kernel solta se o processo morrer). Uma interrompida ou que falhou não bloqueia novas, para o timer continuar ingerindo.
+- **ETA:** os alvos `file` e `git` contam os eventos antes (percorrendo a pasta sem ler os arquivos, `git rev-list --count`), então a linha de progresso mostra "120 lidos de 500 (24%)" e um ETA pelos últimos 500 eventos. `browser` e `teams` mostram a taxa, como antes. Tempos decorridos e ETAs acima de uma hora mostram as horas.
+- Sem mudança de esquema nem migração.
+
 ### Busca por descrição de imagens (fase 19, #7)
 
 - **Problema:** capturas de tela, fotos de quadro, diagramas e prints de erro nas pastas configuradas ficavam só com o nome, embora muitas vezes sejam o registro de uma decisão ou de um erro.

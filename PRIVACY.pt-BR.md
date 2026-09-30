@@ -24,6 +24,8 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 | `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
 | `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
+| `~/.local/state/cade/ingest-state.json` | o `ingest` em andamento ou o último: argumentos (fonte e alvos), etapa, última linha de progresso e erro | `600` |
+| `~/.local/state/cade/ingest.log` | saída do último `ingest start`: linhas de progresso com os alvos, o relatório, erros; substituído a cada execução em segundo plano | `600` |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | cópias do histórico do navegador e do IndexedDB do Teams durante uma ingestão; apagadas ao final | `700` |
 
 Backups da sua pasta pessoal incluem o `cade.db`.
@@ -71,7 +73,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 ## Logs
 
-- Os logs vão só para o stderr; nada é gravado em arquivo de log.
+- Os logs vão só para o stderr. A exceção é o `ingest start`, que não tem terminal: o stderr e o stdout dele vão para `~/.local/state/cade/ingest.log` (veja acima), com o mesmo conteúdo que uma execução no terminal mostra.
 - `--verbose` acrescenta linhas de depuração com a resposta do modelo, os títulos dos eventos recuperados e a pergunta interpretada. Não cole isso em lugar público.
 
 ## Apagar dados

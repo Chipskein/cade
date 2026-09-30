@@ -77,7 +77,8 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF6.5** Tarefas são classificadas como suas (PR aberto ou mensagem sua citando-a), consultadas (só a página aberta) ou citadas só por outras pessoas (resumidas; `--all` lista).
 
 ### RF5 — Interface CLI
-- **RF5.1** `cade ingest <fonte|all> [ALVO...]`: ingere uma fonte com alvos explícitos ou os configurados, exibindo progresso durante a execução.
+- **RF5.1** `cade ingest <fonte|all> [ALVO...]`: ingere uma fonte com alvos explícitos ou os configurados, exibindo progresso durante a execução, com ETA na descrição de imagens e nas fontes `file` e `git`.
+- **RF5.1.1** `cade ingest start <fonte|all>` roda a ingestão num processo fora do terminal (continua depois de fechá-lo), com os limites de `ingest.background` (threads, camadas na GPU, parte do tempo em que os modelos trabalham) e a menor prioridade de CPU e E/S; `cade ingest --gentle` aplica os mesmos limites no terminal. `cade ingest status` mostra, de qualquer terminal, a etapa, o progresso e o ETA da ingestão em andamento ou o fim da última; `pause` a congela mantendo os modelos na memória; `stop` a encerra mantendo o que foi gravado; `resume` continua uma pausada ou roda de novo a última não concluída, no mesmo modo. Enquanto uma ingestão roda ou está pausada, outra não começa. O `cade doctor` mostra quando a última rodou e como terminou (issue #41).
 - **RF5.2** `cade timeline [--source F] DATA [DATA_FIM]`.
 - **RF5.3** `cade ask [--source F] [--from D] [--to D] PERGUNTA`.
 - **RF5.4** Saída legível no terminal, indicando fonte e timestamp de cada resultado.

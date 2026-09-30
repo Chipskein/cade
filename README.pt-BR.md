@@ -43,6 +43,8 @@ Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando 
 ```sh
 cade init
 cade ingest all
+cade ingest start all   # execuções longas: fora do terminal, com limites de CPU/GPU
+cade ingest status      # também: pause, resume, stop
 cade timeline ontem
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
@@ -80,7 +82,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, ingestão agendada. |
+| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, ingestão em segundo plano e agendada. |
 | [Casos de uso](docs/USECASES.md) | Padrões de consulta e fluxos de trabalho práticos. |
 | [Arquitetura](docs/ARCHITECTURE.md) | Como o código está organizado e como os componentes interagem. |
 | [Benchmarks](docs/BENCHMARKS.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |
