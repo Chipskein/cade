@@ -275,6 +275,27 @@ Azul: sem filtro. Laranja: só Teams. Verde: um dia.
 
 ## Tamanho por tabela (#40)
 
+### Histórico sintético
+
+> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compilado com `sqlite_dbstat`) · 2026-09-30 · `e616f06` · os mesmos eventos sintéticos de [Banco](#banco-de-dados).
+
+Bytes por evento de cada tabela, com suas tabelas internas e seus índices; a soma é o `bytes por evento` de [Banco](#banco-de-dados).
+
+| Tabela | O que guarda | 1 mil | 10 mil | 100 mil | % em 100 mil |
+|---|---|---:|---:|---:|---:|
+| `chunk_embeddings` | vetores dos pedaços (sqlite-vec) | 3.240 | 3.203 | 3.135 | 82,4 |
+| `events` | texto e metadados dos eventos | 549 | 526 | 531 | 14,0 |
+| `chunks_fts` | índice de palavras (FTS5) | 107 | 83 | 83 | 2,2 |
+| `chunks` | pedaços de texto de cada evento | 53 | 41 | 44 | 1,2 |
+| `event_people` | pessoas de cada evento | 20 | 13 | 12 | 0,3 |
+| `file_modifications` | data e tamanho de cada versão de arquivo | 8 | 0,8 | 0,1 | 0,0 |
+| outras | configurações, eventos esquecidos | 20 | 2 | 0,2 | 0,0 |
+
+- **Vetores:** ~3,1 KB dos ~3,8 KB por evento em todos os tamanhos; 768 dimensões em `float32` já ocupam 3.072 bytes.
+- **Custo fixo:** `file_modifications` e outras são uma ou duas páginas vazias, então diminuem por evento conforme o histórico cresce. O histórico sintético não tem arquivos; no histórico real abaixo, as duas somam 0,3 MB.
+
+### Histórico real
+
 > `sqlite3 -readonly ~/.local/share/cade/cade.db` com a consulta abaixo · 2026-09-30 · o histórico real da máquina de referência: 238.720 eventos, 246.488 pedaços, 1,26 GB.
 
 ```sql
