@@ -35,6 +35,7 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 - **Prévia de imagens:** com o [`chafa`](https://github.com/hpjansson/chafa) instalado, o `cade ask` mostra no terminal uma prévia das imagens citadas.
 - **Progresso (#35):** a descrição de imagens, o `reindex --captions` e o `forget --match` mostram "12/50 (24%)" e um ETA.
+- **Build:** `go tool mage build` agora compila o binário NVIDIA (requer CUDA Toolkit); `go tool mage cpu` compila o de CPU.
 - **`doctor`** avisa quando o `mmproj` falta, não é um GGUF de `mmproj` ou foi feito para outro modelo.
 
 ### Ingestão em segundo plano (#41)

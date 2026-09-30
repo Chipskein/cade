@@ -16,7 +16,7 @@
 A partir do código-fonte (Linux; Go 1.27+, `gcc`, `cmake`, `ninja`, `git`):
 
 ```sh
-go tool mage build     # ou `go tool mage cuda` para NVIDIA
+go tool mage build     # NVIDIA (CUDA Toolkit); `go tool mage cpu` sem GPU
 go tool mage models    # baixa os modelos em ~/.local/share/cade/models
 go tool mage install   # instala em ~/.local/bin
 ```

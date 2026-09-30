@@ -35,6 +35,7 @@ What changed in each version, the schema migrations, and what each migration rew
 
 - **Image preview:** with [`chafa`](https://github.com/hpjansson/chafa) installed, `cade ask` shows a preview of cited images in the terminal.
 - **Progress (#35):** describing images, `reindex --captions` and `forget --match` show "12/50 (24%)" and an ETA.
+- **Build:** `go tool mage build` now compiles the NVIDIA binary (CUDA Toolkit required); `go tool mage cpu` compiles the CPU one.
 - **`doctor`** reports an `mmproj` that is missing, is not an `mmproj` GGUF, or was made for another model.
 
 ### Background ingestion (#41)
