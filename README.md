@@ -23,6 +23,8 @@ go tool mage install   # installs to ~/.local/bin
 
 Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chipskein/cade/releases).
 
+Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview of cited images in `cade ask`.
+
 ## Platform support
 
 | Source | Linux | macOS | Windows |
@@ -32,6 +34,7 @@ Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chi
 | files | ✓ tested | should work | not supported |
 | teams | ✓ tested | should work | not supported |
 | images | ✓ tested | should work | not supported |
+| image preview (`chafa`) | ✓ tested | should work (Homebrew) | not supported |
 
 Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
 

@@ -19,6 +19,8 @@ go tool mage install    # instala o cade em ~/.local/bin (altere com PREFIX=...)
 
 O `models` baixa o modelo de embedding, o de geração e o projetor de visão dele (`mmproj`), que descreve as imagens quando `sources.images` está ligado.
 
+Opcional em tempo de execução: [`chafa`](https://github.com/hpjansson/chafa) (ex.: `pacman -S chafa`, `apt install chafa`, `brew install chafa`). O `cade ask` o procura no `PATH` e desenha cada png, jpeg ou webp citado logo abaixo da citação, só quando a saída padrão é um terminal. Sem ele, ou se ele falhar, a citação sai como antes. Ele não é ligado ao binário: compilá-lo exige meson e glib, um conjunto de ferramentas mais pesado que o do llama.cpp para um recurso só visual.
+
 ## Instalando o binário de release (Linux x86-64, CPU)
 
 ```sh

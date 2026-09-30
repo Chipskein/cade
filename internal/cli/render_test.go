@@ -67,9 +67,62 @@ func TestClipLine(t *testing.T) {
 func TestRenderAnswerListsAllEvidenceWhenNothingCited(t *testing.T) {
 	answer := rag.Answer{Found: true, Text: "resposta", Evidence: []storage.ScoredEvent{{Event: sampleCommit}}}
 	var out strings.Builder
-	renderAnswer(&out, answer, time.UTC, Portuguese)
+	renderAnswer(&out, answer, time.UTC, Portuguese, nil)
 	if !strings.Contains(out.String(), "Eventos consultados") || !strings.Contains(out.String(), "[1] [git]") {
 		t.Fatalf("expected full evidence list, got:\n%s", out.String())
+	}
+}
+
+// FakeImagePreviewer draws every path as "<preview path>" and records them.
+type FakeImagePreviewer struct {
+	Paths []string
+}
+
+func (f *FakeImagePreviewer) Render(path string) string {
+	f.Paths = append(f.Paths, path)
+	return "<preview " + path + ">"
+}
+
+func citedAnswer(cited event.Event) rag.Answer {
+	return rag.Answer{Found: true, Text: "resposta [1]", Cited: []int{1}, Evidence: []storage.ScoredEvent{{Event: cited}}}
+}
+
+var citedImage = event.Event{Source: event.SourceFile, Timestamp: time.Date(2026, 9, 8, 18, 56, 0, 0, time.UTC), Metadata: event.Metadata{"path": "/d/print.png"}}
+
+func TestRenderSourcesShowsPreviewUnderImageCitation(t *testing.T) {
+	previewer := &FakeImagePreviewer{}
+	var out strings.Builder
+	renderSources(&out, citedAnswer(citedImage), time.UTC, English, previewer.Render)
+	if !strings.Contains(out.String(), "/d/print.png\n<preview /d/print.png>\n") {
+		t.Fatalf("expected the preview right under the citation, got:\n%s", out.String())
+	}
+}
+
+func TestRenderSourcesWithoutPreviewKeepsCitation(t *testing.T) {
+	var out strings.Builder
+	renderSources(&out, citedAnswer(citedImage), time.UTC, English, nil)
+	if !strings.HasSuffix(out.String(), "/d/print.png\n") {
+		t.Fatalf("expected the plain citation, got:\n%s", out.String())
+	}
+}
+
+func TestRenderSourcesAsksNoPreviewForOtherSources(t *testing.T) {
+	previewer := &FakeImagePreviewer{}
+	renderSources(&strings.Builder{}, citedAnswer(sampleCommit), time.UTC, English, previewer.Render)
+	if len(previewer.Paths) != 0 {
+		t.Fatalf("expected no preview request for a commit, got %v", previewer.Paths)
+	}
+}
+
+func TestAskSessionPreviewsOnlyOnTerminal(t *testing.T) {
+	previewer := &FakeImagePreviewer{}
+	env := commandEnv{toolkit: Toolkit{RenderImagePreview: previewer.Render}}
+	if newAskSession(env, false).imagePreviewer() != nil {
+		t.Fatal("expected no previewer when stdout is not a terminal")
+	}
+	env.toolkit.StdoutIsTerminal = true
+	if newAskSession(env, false).imagePreviewer() == nil {
+		t.Fatal("expected the toolkit's previewer on a terminal")
 	}
 }
 

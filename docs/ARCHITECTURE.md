@@ -95,6 +95,7 @@ flowchart TD
     subgraph impl["Implementações"]
         llamacpp["llm/llamacpp<br/>(cgo, llama.cpp)"]
         sqlitestore["storage/sqlitestore<br/>(SQLite, sqlite-vec, FTS5)"]
+        imagepreview["imagepreview<br/>prévia de imagem citada<br/>(programa chafa, opcional)"]
     end
 
     main --> cli
@@ -102,6 +103,7 @@ flowchart TD
     main --> llamacpp
     main --> sqlitestore
     main --> config
+    main --> imagepreview
 
     cli --> doctor
     cli --> discovery
@@ -136,6 +138,8 @@ flowchart TD
     storage --> listing
     storage --> event
     tasks --> event
+
+    imagepreview --> imagefile
 
     llamacpp -. implementa .-> llm
     sqlitestore -. implementa .-> storage

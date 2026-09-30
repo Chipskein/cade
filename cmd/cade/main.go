@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -17,6 +18,7 @@ import (
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/imagecaption"
+	"github.com/chipskein/cade/internal/imagepreview"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/storage"
@@ -47,10 +49,17 @@ func productionToolkit() cli.Toolkit {
 		Sources:            sourceSpecs,
 		ReadIndexedDB:      indexeddb.ReadDirectory,
 		StderrIsTerminal:   isTerminal(os.Stderr),
+		StdoutIsTerminal:   isTerminal(os.Stdout),
+		RenderImagePreview: renderImagePreview,
 		Language:           cli.LanguageFromEnv(os.Getenv),
 		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
 		Now:                time.Now,
 	}
+}
+
+func renderImagePreview(path string) string {
+	previewer := imagepreview.Previewer{Runner: imagepreview.ExecRunner{}, LookPath: exec.LookPath, Size: imagepreview.DefaultPreviewSize}
+	return previewer.Render(context.Background(), path)
 }
 
 func openStore(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error) {
