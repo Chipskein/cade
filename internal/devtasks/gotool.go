@@ -11,6 +11,11 @@ var formattedDirs = []string{"cmd", "internal", "magefiles"}
 
 // Build compiles the CPU binary into bin/cade.
 func (t *Tasks) Build() error {
+	return t.BuildCUDA()
+}
+
+// Build compiles the CPU binary into bin/cade.
+func (t *Tasks) BuildCPU() error {
 	return t.buildBinary(LlamaCPU, fts5Tag)
 }
 
