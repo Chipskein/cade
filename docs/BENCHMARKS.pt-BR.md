@@ -33,6 +33,30 @@ Os gráficos são Mermaid e são atualizados à mão depois de uma nova mediçã
 
 ## Como ler as métricas
 
+### Em linguagem simples
+
+Pense no cade como um assistente que guarda tudo o que você fez num arquivo. Quando você pergunta algo, ele primeiro entende a pergunta, depois procura os papéis certos no arquivo, põe alguns na mesa, lê e responde.
+
+| Termo | Na prática |
+|---|---|
+| CPU / GPU | Com só o processador (a maioria dos notebooks) ou com uma placa de vídeo. Na máquina de referência, a placa de vídeo faz a parte de IA de 7,5 a 23 vezes mais rápido: um `ask` inteiro leva 22,7 s na CPU e 3,04 s na GPU. Se o seu computador não tem placa de vídeo dedicada, olhe os números de CPU. |
+| recall | **Achou?** De cada 100 perguntas que têm resposta no seu histórico, em quantas o papel certo chegou à mesa. Com 10 mil eventos, o recall é 0,96: em 4 de cada 100, não chegou, e a resposta sai incompleta ou "não sei". |
+| MRR | **Achou logo de cara?** Como numa busca na internet: 1,00 = o papel certo é sempre o primeiro da pilha; 0,50 = em média, é o segundo. Hoje é 0,87: na maioria das perguntas, o primeiro. |
+| rejeição | **Sabe dizer "não sei"?** Quando a resposta não está no histórico, quantas vezes ele admite em vez de inventar. Hoje é 1,00: nas 9 perguntas sem resposta da calibração, nunca inventou. |
+| redundância | **Trouxe repetido?** Quanto da mesa foi ocupado pelo mesmo papel duas vezes, em vez de um papel novo. |
+| calibração / teste | Como estudar por uma lista de exercícios e fazer a prova com outra. A nota que vale é a da prova (o conjunto de teste). |
+| `top_k` | Quantos papéis o assistente põe na mesa antes de responder. Mais papéis, mais chance de a resposta estar ali, mas mais tempo lendo: na CPU, 6 papéis levam 9,71 s, e 8 papéis, 11,92 s. |
+| acerto por campo | Para entender a pergunta, o cade preenche uma ficha: é para listar ou responder? De quando? De onde (git, navegador, Teams)? De quem? É o quanto cada item da ficha sai certo. |
+| intervalo de Wilson | A margem de erro, como numa pesquisa eleitoral: 149 acertos em 155 perguntas (96,1%) quer dizer "provavelmente entre 92% e 98%". |
+| lidas por regras | Perguntas simples ("o que eu fiz ontem?") que o cade entende sem IA. Na suíte, 69 de 155, com 0 erros. |
+| `ask` até o primeiro token | Quanto tempo você espera, depois de apertar Enter, até a resposta começar a aparecer: de 1,56 s (GPU, pergunta simples) a 27,2 s (CPU, pergunta que vai à IA, logo depois de ligar o computador). |
+| cache quente / frio | Como abrir um programa pela segunda vez no dia (rápido, já está na memória) ou logo depois de ligar o computador (lento, precisa ler do disco). A diferença é de 4,3 a 4,7 s. |
+| estado salvo | Um "lembrete" em disco (98 MB) da parte fixa das instruções da IA, para ela não reler tudo a cada pergunta. Na CPU, corta o `ask` de 22,7 s para 14,4 s. |
+| `rss_MB` / `gpu_MB` | Quanta memória o cade ocupa enquanto roda: a RAM do computador e a memória da placa de vídeo. Com os dois modelos carregados, 1.412 MB de RAM e 1.948 MB da placa de vídeo; só na CPU, 2.363 MB de RAM. |
+| bytes por evento | Quanto espaço em disco cada item do histórico ocupa (um commit, uma página visitada, uma mensagem). No teste sintético, 3.805 bytes: 100 mil itens = 380,5 MB. No histórico real da máquina de referência, 5.282 bytes: 238.720 itens = 1,26 GB. |
+| KB escritos por evento | Quanto o cade gasta do SSD para guardar cada item. SSDs têm vida útil medida em quanto já foi escrito neles; menos é melhor. Hoje, 43,4 KB por item (eram 156,3 KB): 2.287 itens gravam 99,2 MB. |
+| tokens | Pedaços de palavra que a IA lê e escreve. O tempo da IA cresce com o número de tokens: as instruções para entender a pergunta têm ~2 mil tokens, e uma resposta do teste, de 20 a 34. |
+
 **Qualidade da busca** (suítes de `internal/retrievalsuite`). Cada pergunta tem os eventos que deveriam voltar, ou nenhum, se a resposta não está no histórico.
 
 | Métrica | O que mede | Melhor |

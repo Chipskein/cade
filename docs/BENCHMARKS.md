@@ -33,6 +33,30 @@ The charts are Mermaid and are updated by hand after a new measurement. Mermaid 
 
 ## Reading the metrics
 
+### In plain language
+
+Think of cade as an assistant that keeps everything you did in a filing cabinet. When you ask something, it first works out what you mean, then looks for the right papers in the cabinet, puts a few on the desk, reads them and answers.
+
+| Term | In practice |
+|---|---|
+| CPU / GPU | Running on the processor alone (most laptops) or with a graphics card. On the reference machine, the graphics card does the AI work 7.5 to 23 times faster: a full `ask` takes 22.7 s on the CPU and 3.04 s on the GPU. If your computer has no dedicated graphics card, look at the CPU numbers. |
+| recall | **Did it find it?** Out of 100 questions that have an answer in your history, how many times the right paper reached the desk. With 10 k events recall is 0.96: 4 times out of 100 it did not, and the answer comes out incomplete or "I don't know". |
+| MRR | **Did it find it right away?** Like a web search: 1.00 = the right paper is always on top of the pile; 0.50 = on average it is second. Today it is 0.87: first, for most questions. |
+| rejection | **Can it say "I don't know"?** When the answer is not in the history, how often it admits it instead of making something up. Today it is 1.00: on the 9 unanswerable calibration questions it never made anything up. |
+| redundancy | **Did it bring duplicates?** How much of the desk was taken by the same paper twice instead of a new one. |
+| calibration / test set | Like studying with one set of exercises and taking the exam with another. The grade that counts is the exam (the test set). |
+| `top_k` | How many papers the assistant puts on the desk before answering. More papers, better chance the answer is there, but more time reading: on the CPU, 6 papers take 9.71 s and 8 papers 11.92 s. |
+| per-field accuracy | To understand the question, cade fills in a form: list or answer? From when? From where (git, browser, Teams)? From whom? This is how often each line of the form comes out right. |
+| Wilson interval | The margin of error, as in an opinion poll: 149 right out of 155 questions (96.1%) means "probably between 92% and 98%". |
+| read by rules | Simple questions ("what did I do yesterday?") that cade understands without AI. In the suite, 69 of 155, with 0 mistakes. |
+| `ask` to first token | How long you wait, after pressing Enter, until the answer starts to appear: from 1.56 s (GPU, simple question) to 27.2 s (CPU, question that goes to the AI, right after turning the computer on). |
+| warm / cold cache | Like opening a program for the second time in a day (fast, it is already in memory) or right after turning the computer on (slow, it has to be read from disk). The difference is 4.3 to 4.7 s. |
+| saved state | A "bookmark" on disk (98 MB) for the fixed part of the AI's instructions, so it does not reread them on every question. On the CPU it cuts `ask` from 22.7 s to 14.4 s. |
+| `rss_MB` / `gpu_MB` | How much memory cade takes while running: the computer's RAM and the graphics card's memory. With both models loaded, 1,412 MB of RAM and 1,948 MB of graphics memory; on the CPU alone, 2,363 MB of RAM. |
+| bytes per event | How much disk space each item of the history takes (a commit, a visited page, a message). In the synthetic test, 3,805 bytes: 100 k items = 380.5 MB. In the reference machine's real history, 5,282 bytes: 238,720 items = 1.26 GB. |
+| KB written per event | How much of the SSD cade uses up to store each item. SSD lifetime is measured by how much has been written to it; less is better. Today, 43.4 KB per item (it was 156.3 KB): 2,287 items write 99.2 MB. |
+| tokens | Pieces of words the AI reads and writes. The AI's time grows with the number of tokens: the instructions for understanding the question are ~2 k tokens, and a test answer 20 to 34. |
+
 **Retrieval quality** (suites in `internal/retrievalsuite`). Each question has the events that should come back, or none when the answer is not in the history.
 
 | Metric | What it measures | Best |
