@@ -66,6 +66,12 @@ type Toolkit struct {
 	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
+	// StdoutIsTerminal allows image previews, which are terminal art that
+	// would only clutter a pipe or a file.
+	StdoutIsTerminal bool
+	// RenderImagePreview draws a cited image file as terminal text; "" when
+	// it is not an image or no preview is possible (chafa missing).
+	RenderImagePreview ImagePreviewer
 	// Language of the help text and flag descriptions (from the locale).
 	Language Language
 	// DateOrder reads numeric dates in questions (from the locale).
