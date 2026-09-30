@@ -104,6 +104,13 @@ func (p *Planner) WithProgress(progress func(Tally)) *Planner {
 	return p
 }
 
+// WithModelLoading reports when the vision model starts loading, once, for
+// the first image that needs describing.
+func (p *Planner) WithModelLoading(onLoad func()) *Planner {
+	p.describer.onLoad = onLoad
+	return p
+}
+
 // Captions are the images planned so far, for the file collector.
 func (p *Planner) Captions() ingest.ImageCaptions {
 	return p.captions
@@ -132,6 +139,30 @@ func (p *Planner) PlanDirectory(ctx context.Context, files fs.FS, root string, o
 		}
 		return p.planImage(ctx, files, filepath.Join(root, path), path, info)
 	})
+}
+
+// CountPending reports how many images under root still need attention (not
+// already settled), without reading file bytes or describing anything, up to
+// budget — the run's remaining attempts, so a global cap survives multiple
+// roots being counted one after another.
+func (p *Planner) CountPending(ctx context.Context, files fs.FS, root string, opts filesource.Options, budget int) (int, error) {
+	count := 0
+	err := filesource.Walk(ctx, files, root, opts, func(path string, entry fs.DirEntry) error {
+		if count >= budget || !imagefile.IsDescribedImage(path) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return fmt.Errorf("stat %q: %w", filepath.Join(root, path), err)
+		}
+		settled, err := p.alreadySettled(ctx, filepath.Join(root, path), info)
+		if err != nil || settled {
+			return err
+		}
+		count++
+		return nil
+	})
+	return count, err
 }
 
 func (p *Planner) planImage(ctx context.Context, files fs.FS, absolutePath, path string, info fs.FileInfo) error {

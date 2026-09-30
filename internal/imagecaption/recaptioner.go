@@ -27,6 +27,13 @@ func NewRecaptioner(files fs.FS, load DescriberLoader, model string, logger *slo
 	return &Recaptioner{files: files, describer: newLazyDescriber(load, model, logger)}
 }
 
+// WithModelLoading reports when the vision model starts loading, once, for
+// the first image of the run that needs describing.
+func (r *Recaptioner) WithModelLoading(onLoad func()) *Recaptioner {
+	r.describer.onLoad = onLoad
+	return r
+}
+
 // Recaption returns stored with a new description, or false when its file
 // is gone or its bytes changed: the next `ingest` describes that version.
 func (r *Recaptioner) Recaption(ctx context.Context, stored event.Event) (event.Event, bool, error) {

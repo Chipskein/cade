@@ -34,7 +34,7 @@ func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, sto
 	}
 	planner := imagecaption.NewPlanner(index, env.describerLoader(cfg), imageSettings(cfg), env.logger)
 	defer planner.Close()
-	if err := env.planImages(ctx, planner, roots, cfg.Sources); err != nil {
+	if err := env.planImages(ctx, planner, roots, cfg); err != nil {
 		return err
 	}
 	maps.Copy(captions, planner.Captions())
@@ -58,22 +58,58 @@ func (env commandEnv) imageRoots(jobs []ingestJob) []string {
 	return roots
 }
 
-func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Planner, roots []string, sources config.SourcesConfig) error {
+func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Planner, roots []string, cfg config.Config) error {
+	total, err := env.countPendingImages(ctx, planner, roots, cfg)
+	if err != nil {
+		return err
+	}
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
+	tracker := newETATracker(env.toolkit.Now)
+	planner.WithModelLoading(func() {
+		status.show(env.language.pick("Carregando modelo de visão…", "Loading vision model…"))
+	})
 	planner.WithProgress(func(tally imagecaption.Tally) {
-		status.show(env.language.pick("Descrevendo imagens: ", "Describing images: ") + imageTally(tally, env.language))
+		tracker.advance()
+		status.show(imageProgressLine(tally, total, tracker, env.language))
 	})
 	for _, root := range roots {
 		files, err := fs.Sub(env.toolkit.RootFS, rootfs.Name(root))
 		if err != nil {
 			return fmt.Errorf("open directory %q: %w", root, err)
 		}
-		if err := planner.PlanDirectory(ctx, files, root, filesource.OptionsFor(sources, nil)); err != nil {
+		if err := planner.PlanDirectory(ctx, files, root, filesource.OptionsFor(cfg.Sources, nil)); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// countPendingImages is a cheap pre-pass (stat only, no image reads) over
+// roots to size the progress bar; budget mirrors the real run's cap so the
+// count never claims more than `planImages` will actually attempt.
+func (env commandEnv) countPendingImages(ctx context.Context, planner *imagecaption.Planner, roots []string, cfg config.Config) (int, error) {
+	budget := cfg.Ingest.MaxImagesPerRun
+	total := 0
+	for _, root := range roots {
+		files, err := fs.Sub(env.toolkit.RootFS, rootfs.Name(root))
+		if err != nil {
+			return 0, fmt.Errorf("open directory %q: %w", root, err)
+		}
+		n, err := planner.CountPending(ctx, files, root, filesource.OptionsFor(cfg.Sources, nil), budget-total)
+		if err != nil {
+			return 0, err
+		}
+		total += n
+	}
+	return total, nil
+}
+
+// imageProgressLine is "Descrevendo imagens: 12/50 (24%) · 3 descritas, … · ETA ~1m40s".
+func imageProgressLine(tally imagecaption.Tally, total int, tracker *etaTracker, language Language) string {
+	done := tally.Described + tally.Reused + tally.Pending + tally.Unreadable
+	prefix := language.pick("Descrevendo imagens: ", "Describing images: ")
+	return prefix + progressBar(done, total) + " · " + imageTally(tally, language) + etaSuffix(tracker, total-done)
 }
 
 func (env commandEnv) describerLoader(cfg config.Config) imagecaption.DescriberLoader {

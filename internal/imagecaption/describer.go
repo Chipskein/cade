@@ -16,10 +16,11 @@ type lazyDescriber struct {
 	model  string
 	logger *slog.Logger
 	loaded ClosableDescriber
+	onLoad func()
 }
 
 func newLazyDescriber(load DescriberLoader, model string, logger *slog.Logger) *lazyDescriber {
-	return &lazyDescriber{load: load, model: model, logger: logger}
+	return &lazyDescriber{load: load, model: model, logger: logger, onLoad: func() {}}
 }
 
 // imageFor marks an image that does not decode as unreadable, so one
@@ -40,6 +41,7 @@ func (d *lazyDescriber) imageFor(ctx context.Context, path string, raw []byte, h
 
 func (d *lazyDescriber) describe(ctx context.Context, image llm.RGBImage) (Caption, error) {
 	if d.loaded == nil {
+		d.onLoad()
 		describer, err := d.load()
 		if err != nil {
 			return Caption{}, err

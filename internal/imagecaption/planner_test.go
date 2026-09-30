@@ -170,6 +170,53 @@ func TestPlanStopsWhenTheModelFails(t *testing.T) {
 	}
 }
 
+func TestCountPendingCountsDescribableImagesWithoutLoadingTheModel(t *testing.T) {
+	world := newPlanWorld(10)
+	files := fstest.MapFS{"a.png": pngFile(t, 4, 4, 1), "b.png": pngFile(t, 4, 4, 2), "notas.md": {Data: []byte("texto")}}
+	got, err := world.planner.CountPending(context.Background(), files, plannedRoot, filesource.Options{}, 10)
+	if err != nil {
+		t.Fatalf("count pending: %v", err)
+	}
+	if got != 2 || world.loads != 0 {
+		t.Fatalf("expected 2 images counted without loading the model, got %d count and %d loads", got, world.loads)
+	}
+}
+
+func TestCountPendingStopsAtBudget(t *testing.T) {
+	world := newPlanWorld(10)
+	files := fstest.MapFS{"a.png": pngFile(t, 4, 4, 1), "b.png": pngFile(t, 4, 4, 2), "c.png": pngFile(t, 4, 4, 3)}
+	got, err := world.planner.CountPending(context.Background(), files, plannedRoot, filesource.Options{}, 2)
+	if err != nil {
+		t.Fatalf("count pending: %v", err)
+	}
+	if got != 2 {
+		t.Fatalf("expected the budget to cap the count at 2, got %d", got)
+	}
+}
+
+func TestCountPendingSkipsSettledImages(t *testing.T) {
+	world := newPlanWorld(10)
+	world.store.Events = append(world.store.Events, storedImage("/prints/pronto.png", event.Image{Status: event.CaptionDescribed}))
+	files := fstest.MapFS{"pronto.png": pngFile(t, 4, 4, 1)}
+	got, err := world.planner.CountPending(context.Background(), files, plannedRoot, filesource.Options{}, 10)
+	if err != nil {
+		t.Fatalf("count pending: %v", err)
+	}
+	if got != 0 {
+		t.Fatalf("expected the already-described image not counted, got %d", got)
+	}
+}
+
+func TestWithModelLoadingReportsBeforeTheFirstLoad(t *testing.T) {
+	world := newPlanWorld(10)
+	var loading int
+	world.planner.WithModelLoading(func() { loading++ })
+	world.plan(t, fstest.MapFS{"a.png": pngFile(t, 4, 4, 1), "b.png": pngFile(t, 4, 4, 2)})
+	if loading != 1 {
+		t.Fatalf("expected the loading hook called once, got %d", loading)
+	}
+}
+
 func TestCloseFreesALoadedModelOnce(t *testing.T) {
 	world := newPlanWorld(10)
 	world.plan(t, fstest.MapFS{"a.png": pngFile(t, 4, 4, 1)})
