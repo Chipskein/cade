@@ -1,0 +1,28 @@
+# cade plan suite with Qwen3.5-4B Q4_K_M (Apache-2.0; above the VRAM budget of the default) — 2026-09-27, commit ce1454b + working tree, RTX 3060; compare with plan-baseline.txt (Qwen3.5-2B)
+153 perguntas, 146 totalmente corretas
+  lidas só por regras: 67, com 0 erradas
+  mode       150/153   98%  [ 94%– 99%]
+  days       153/153  100%  [ 98%–100%]
+  source     151/153   99%  [ 95%–100%]
+  people     152/153   99%  [ 96%–100%]
+  direction  151/153   99%  [ 95%–100%]
+  topic      151/153   99%  [ 95%–100%]
+  status     153/153  100%  [ 98%–100%]
+✗ como configurei o pre-commit no repositório?
+    source: esperado "", veio "git"
+✗ mensagens da Ana no chat do projeto
+    direction: esperado "recebidas", veio ""
+    topic: esperado "", veio "projeto"
+✗ o que pedi para o Rui fazer semana passada?
+    direction: esperado "enviadas", veio ""
+✗ mensagens que o Leandro me enviou este mês
+    mode: esperado "listar", veio "responder"
+    source: esperado "teams", veio ""
+✗ show me what Juliana sent me today
+    mode: esperado "listar", veio "responder"
+✗ what did Globex ask for in the renewal?
+    people: esperado "", veio "globex"
+    topic: esperado "Globex", veio "renewal"
+✗ quais cards o Pedro me passou hoje?
+    mode: esperado "tarefas", veio "responder"
+

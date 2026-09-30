@@ -72,7 +72,7 @@ func TestAskJSONTasksCarryEvidence(t *testing.T) {
 	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "concluidas"}`
 	_, stdout, _ := world.run("ask", "--json", "quais tarefas finalizei ontem?")
 	report := decodeAskReport(t, stdout)
-	if len(report.Tasks) != 1 || report.Tasks[0].Key != "14/162" || report.Tasks[0].Status != "concluida" || report.Tasks[0].Involvement != "sua" {
+	if len(report.Tasks) != 1 || report.Tasks[0].Key != "14/162" || report.Tasks[0].Status != "pr_aberto" || report.Tasks[0].Involvement != "sua" {
 		t.Fatalf("unexpected tasks %+v", report.Tasks)
 	}
 	if prs := report.Tasks[0].PRs; len(prs) != 1 || prs[0].Ref != "acme/api#45" || prs[0].Link != "exata" || len(report.Tasks[0].Evidence) == 0 {

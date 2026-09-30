@@ -9,8 +9,8 @@ import (
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 )
 
-// generationModelEnv points at the real GGUF model (see Makefile targets
-// test-models and eval-plan); without it the suite is skipped.
+// generationModelEnv points at the real GGUF model (see the mage targets
+// testModels and evalPlan); without it the suite is skipped.
 const generationModelEnv = "CADE_TEST_GENERATION_MODEL"
 
 // TestPlanSuiteWithModel runs the shipped suite against the real model and

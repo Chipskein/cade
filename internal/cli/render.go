@@ -21,12 +21,19 @@ const (
 	maxDescribedRunes = 110
 )
 
+// timelineHeader is the timeline's first line: "Timeline de 2026-09-25 — 1 evento".
+func timelineHeader(days timeline.DayRange, events int, language Language) string {
+	if events == 0 {
+		return fmt.Sprintf(language.pick("Nenhum evento em %s.\n", "No events on %s.\n"), days)
+	}
+	return fmt.Sprintf(language.pick("Timeline de %s — %s\n", "Timeline of %s — %s\n"), days, language.count(events, eventNoun))
+}
+
 func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event, language Language) {
+	fmt.Fprint(out, timelineHeader(days, len(events), language))
 	if len(events) == 0 {
-		fmt.Fprintf(out, language.pick("Nenhum evento em %s.\n", "No events on %s.\n"), days)
 		return
 	}
-	fmt.Fprintf(out, language.pick("Timeline de %s — %d eventos\n", "Timeline of %s — %d events\n"), days, len(events))
 	location := days.First.Location()
 	var currentDay string
 	for _, ev := range events {
@@ -87,18 +94,21 @@ func clipLine(text string) string {
 	return string(runes[:maxDescribedRunes-1]) + "…"
 }
 
-func renderAnswer(out io.Writer, answer rag.Answer, location *time.Location, language Language) {
+// ImagePreviewer draws the image at path as terminal text, or returns "".
+type ImagePreviewer func(path string) string
+
+func renderAnswer(out io.Writer, answer rag.Answer, location *time.Location, language Language, preview ImagePreviewer) {
 	if !answer.Found {
 		fmt.Fprintln(out, language.pick("Não encontrei informação sobre isso nos dados ingeridos.", "I found nothing about this in the ingested data."))
 		return
 	}
 	fmt.Fprintf(out, "%s\n\n", answer.Text)
-	renderSources(out, answer, location, language)
+	renderSources(out, answer, location, language, preview)
 }
 
 // renderSources lists the cited evidence, or all of it when the reply cited
 // none, so the user can always check what the answer was based on.
-func renderSources(out io.Writer, answer rag.Answer, location *time.Location, language Language) {
+func renderSources(out io.Writer, answer rag.Answer, location *time.Location, language Language, preview ImagePreviewer) {
 	title, numbers := language.pick("Fontes citadas:", "Cited sources:"), answer.Cited
 	if len(numbers) == 0 {
 		title = language.pick("Eventos consultados (a resposta não citou nenhum):", "Events consulted (the answer cited none):")
@@ -107,6 +117,7 @@ func renderSources(out io.Writer, answer rag.Answer, location *time.Location, la
 	fmt.Fprintln(out, title)
 	for _, number := range numbers {
 		renderEvidenceLine(out, number, answer.Evidence[number-1], location, language)
+		renderImagePreview(out, answer.Evidence[number-1].Event, preview)
 	}
 	renderUnknownCitations(out, answer.UnknownCitations, language)
 }
@@ -123,6 +134,17 @@ func renderEvidenceLine(out io.Writer, number int, hit storage.ScoredEvent, loca
 	}
 	if locator := provenance.Of(ev).Locator; !strings.Contains(description, locator) {
 		fmt.Fprintf(out, "      ↳ %s\n", locator)
+	}
+}
+
+// renderImagePreview shows a cited image under its citation; a nil preview
+// (output not a terminal) or an empty one leaves the citation unchanged.
+func renderImagePreview(out io.Writer, ev event.Event, preview ImagePreviewer) {
+	if preview == nil || ev.Source != event.SourceFile {
+		return
+	}
+	if art := preview(ev.File().Path); art != "" {
+		fmt.Fprintln(out, art)
 	}
 }
 

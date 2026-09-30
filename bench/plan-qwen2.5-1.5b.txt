@@ -1,4 +1,4 @@
-# cade plan suite with Qwen2.5-1.5B-Instruct Q4_K_M (Apache-2.0) — 2026-09-27, commit 8727192, RTX 3060; compare with plan-baseline.txt (Qwen2.5-3B)
+# cade plan suite with Qwen2.5-1.5B-Instruct Q4_K_M (Apache-2.0) — 2026-09-27, commit 8727192, RTX 3060; compare with the v0.0.0 plan-baseline.txt (Qwen2.5-3B, same prompt: `git show v0.0.0:bench/plan-baseline.txt`)
 153 perguntas, 117 totalmente corretas
   lidas só por regras: 67, com 0 erradas
   mode       145/153   95%  [ 90%– 97%]

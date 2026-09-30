@@ -33,6 +33,7 @@ var (
 	taskCues       = regexp.MustCompile(`\b(tarefas?|tasks?|tickets?|cards?|demandas?|issues?)\b`)
 	doneCues       = regexp.MustCompile(`(finaliz|conclu|termin|entreg|finish|complet|\bdone\b|\bclosed\b)`)
 	inProgressCues = regexp.MustCompile(`(andamento|pendente|abert|faltando|progress|pending|\bopen\b|unfinished|nao (finaliz|conclu|termin))`)
+	prOpenedCues   = regexp.MustCompile(`\b(pr|pull request)\s+(aberto|aberta|opened)\b`)
 )
 
 // guardPlan drops a mode, status, direction or period the question does
@@ -62,7 +63,7 @@ func guardTaskReport(plan Plan, text string) Plan {
 func statusSupported(status TaskStatus, text string) bool {
 	switch status {
 	case OnlyDone:
-		return doneCues.MatchString(text) && !inProgressCues.MatchString(text)
+		return (doneCues.MatchString(text) || prOpenedCues.MatchString(text)) && (!inProgressCues.MatchString(text) || prOpenedCues.MatchString(text))
 	case OnlyInProgress:
 		return inProgressCues.MatchString(text)
 	}

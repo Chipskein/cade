@@ -24,7 +24,7 @@ func (w *fakeWorld) readIndexedDB(dir string) ([]indexeddb.Record, error) {
 
 func TestTeamsSchemaPrintsStructureOnly(t *testing.T) {
 	code, stdout, _ := newFakeWorld().run("teams-schema", "/home/me/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb/")
-	if code != 0 || !strings.Contains(stdout, `store "replychains": 1 registros`) || !strings.Contains(stdout, "string                 $.content") {
+	if code != 0 || !strings.Contains(stdout, `store "replychains": 1 registro (0 falhas, 0 em blob)`) || !strings.Contains(stdout, "string                 $.content") {
 		t.Fatalf("expected the store summary, got %d:\n%s", code, stdout)
 	}
 	if strings.Contains(stdout, "conteúdo privado") || strings.Contains(stdout, "/home/me") {

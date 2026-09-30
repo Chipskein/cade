@@ -15,23 +15,26 @@ import (
 // resolveAskQuery reads the question's filters, unless --no-filters, and
 // resolves them with the flags, which win.
 func (env commandEnv) resolveAskQuery(ctx context.Context, models *askModels, text string, filters askFlags, session *askSession) (queryplan.Query, error) {
-	overrides, err := askOverrides(filters, env.toolkit.Now())
+	overrides, err := askOverrides(filters, env.toolkit.Now(), env.dateOrder)
 	if err != nil {
 		return queryplan.Query{}, err
 	}
+	// Without a home, a "~/..." folder stays unexpanded and matches nothing,
+	// which the empty answer shows.
+	overrides.Home, _ = env.toolkit.HomeDir()
 	plan, err := env.interpret(ctx, models, text, overrides.IgnoreQuestion, session)
 	if err != nil {
 		return queryplan.Query{}, err
 	}
 	query := queryplan.Resolve(text, plan, overrides, env.toolkit.Now())
 	env.logger.Debug("question resolved", "mode", planCodes.modes[query.Mode], "source", query.Source,
-		"period", describeDays(query.Days), "topic", query.Topic, "semantic_text", query.SemanticText)
+		"period", describeDays(query.Days), "folder", query.Folder, "topic", query.Topic, "semantic_text", query.SemanticText)
 	return env.announceQuery(query, session), nil
 }
 
-func askOverrides(filters askFlags, now time.Time) (queryplan.Overrides, error) {
+func askOverrides(filters askFlags, now time.Time, order timeline.DateOrder) (queryplan.Overrides, error) {
 	days, err := parseOptionalDays(*filters.from, *filters.to, now)
-	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters}, err
+	return queryplan.Overrides{Source: event.Source(*filters.source), Days: days, IgnoreQuestion: *filters.noFilters, DateOrder: order}, err
 }
 
 // interpret reads the filters by rules when they cover the question, else
@@ -72,6 +75,7 @@ type queryLabels struct {
 	directions map[listing.Direction]string
 	statuses   map[queryplan.TaskStatus]string
 	people     string
+	folder     string
 	topic      string
 	noFilters  string
 }
@@ -84,15 +88,15 @@ var planCodes = portugueseQueryLabels
 var portugueseQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"},
 	directions: map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"},
-	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "concluídas", queryplan.OnlyInProgress: "em andamento"},
-	people:     "pessoas: ", topic: "assunto: ", noFilters: "sem filtros",
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR aberto", queryplan.OnlyInProgress: "em andamento"},
+	people:     "pessoas: ", folder: "pasta: ", topic: "assunto: ", noFilters: "sem filtros",
 }
 
 var englishQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "answer", queryplan.ModeList: "list", queryplan.ModeTasks: "tasks"},
 	directions: map[listing.Direction]string{listing.Received: "received", listing.Sent: "sent"},
-	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "finished", queryplan.OnlyInProgress: "in progress"},
-	people:     "people: ", topic: "topic: ", noFilters: "no filters",
+	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR opened", queryplan.OnlyInProgress: "in progress"},
+	people:     "people: ", folder: "folder: ", topic: "topic: ", noFilters: "no filters",
 }
 
 func describeQuery(query queryplan.Query, language Language) string {
@@ -106,6 +110,7 @@ func describeQuery(query queryplan.Query, language Language) string {
 	people := strings.Join(query.Criteria.People, ", ")
 	parts = appendIf(parts, people, labels.people+people)
 	parts = appendIf(parts, labels.directions[query.Criteria.Direction], labels.directions[query.Criteria.Direction])
+	parts = appendIf(parts, query.Folder, labels.folder+query.Folder)
 	parts = appendIf(parts, query.Topic, labels.topic+query.Topic)
 	parts = appendIf(parts, labels.statuses[query.TaskStatus], labels.statuses[query.TaskStatus])
 	if len(parts) == 1 {

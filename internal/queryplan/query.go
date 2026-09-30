@@ -26,11 +26,19 @@ type Query struct {
 	// OwnCommitsOnly drops commits known to be someone else's: set for
 	// first-person questions ("o que eu fiz?") that name no person.
 	OwnCommitsOnly bool
+	// Folder keeps only files under this absolute path ("" is anywhere).
+	Folder string
 }
 
 // IsScoped reports whether exact filters narrow the search.
 func (q Query) IsScoped() bool {
-	return q.Source != "" || q.Days != nil || !q.Criteria.IsEmpty()
+	return q.Source != "" || q.Days != nil || q.NeedsExactSelection()
+}
+
+// NeedsExactSelection reports whether a filter the vector index cannot
+// apply (people, direction, folder) narrows the search.
+func (q Query) NeedsExactSelection() bool {
+	return !q.Criteria.IsEmpty() || q.Folder != ""
 }
 
 // Overrides are the user's explicit choices (flags), which win over what
@@ -40,6 +48,10 @@ type Overrides struct {
 	Days   *timeline.DayRange
 	// IgnoreQuestion skips reading filters from the question entirely.
 	IgnoreQuestion bool
+	// DateOrder reads numeric dates in the question (ui.date_order).
+	DateOrder timeline.DateOrder
+	// Home expands "~" in a folder named by the question.
+	Home string
 }
 
 // Resolve combines the model's plan with overrides and resolves dates and
@@ -57,9 +69,10 @@ func Resolve(question string, plan Plan, overrides Overrides, now time.Time) Que
 		query.Source = plan.Source
 	}
 	if query.Days == nil && !overrides.IgnoreQuestion {
-		query.Days = ResolvePeriod(question, plan.Period, now)
+		query.Days = ResolvePeriod(question, plan.Period, now, overrides.DateOrder)
 	}
 	query.Mode = ResolveMode(plan.Mode, query.Days)
+	query = withFolder(query, overrides)
 	query.SemanticText = semanticText(query)
 	query.OwnCommitsOnly = isFirstPerson(question) && len(query.Criteria.People) == 0
 	return withTaskDefaults(query, now)
@@ -75,6 +88,20 @@ func semanticText(query Query) string {
 		return query.Topic
 	}
 	return query.Question
+}
+
+// withFolder restricts the query to the folder the question names; only
+// files live in folders, so it implies the file source unless a flag
+// chose another.
+func withFolder(query Query, overrides Overrides) Query {
+	if overrides.IgnoreQuestion {
+		return query
+	}
+	query.Folder = FolderIn(query.Question, overrides.Home)
+	if query.Folder != "" && query.Source == "" {
+		query.Source = event.SourceFile
+	}
+	return query
 }
 
 // withTaskDefaults gives a period-less task question ("quais tarefas

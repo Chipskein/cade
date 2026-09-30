@@ -64,6 +64,27 @@ func (p *initPrompt) choiceQuestion(includeAll bool) string {
 	return p.language.pick("Incluir quais? [t]odos, [N]enhum ou os números (ex.: 1 3) [nenhum]: ", "Include which? [a]ll, [N]one or the numbers (e.g. 1 3) [none]: ")
 }
 
+// confirm asks a yes/no question whose default is no, asking again until
+// the answer is understood.
+func (p *initPrompt) confirm(question string) bool {
+	for {
+		answer := strings.ToLower(p.line(question))
+		switch {
+		case slices.Contains(yesWords, answer):
+			return true
+		case answer == "", slices.Contains(noWords, answer):
+			return false
+		}
+		fmt.Fprintln(p.out, p.language.pick("Resposta não entendida.", "Answer not understood."))
+	}
+}
+
+// Yes/no answers, in both languages.
+var (
+	yesWords = []string{"s", "sim", "y", "yes"}
+	noWords  = []string{"n", "não", "nao", "no"}
+)
+
 // choiceWords are the answers meaning every candidate or none, in both
 // languages.
 var (

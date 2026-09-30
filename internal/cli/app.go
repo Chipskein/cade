@@ -14,10 +14,15 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 // ClosableEmbedder is an embedder holding a model that must be released.
@@ -55,13 +60,47 @@ type Toolkit struct {
 	Build         buildinfo.Info
 	LoadEmbedder  func(settings config.EmbeddingConfig, logger *slog.Logger) (ClosableEmbedder, error)
 	LoadGenerator func(settings config.ModelConfig, logger *slog.Logger) (ClosableGenerator, error)
-	Sources       func(cfg config.Config) []ingest.SourceSpec
+	// LoadImageDescriber loads the generation model with its vision
+	// projector; only `ingest` with images on calls it.
+	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
+	// Sources builds the collectors; the file source reads captions, which
+	// the first stage of `ingest` fills.
+	Sources       func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
 	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
+	// StdoutIsTerminal allows image previews, which are terminal art that
+	// would only clutter a pipe or a file.
+	StdoutIsTerminal bool
+	// RenderImagePreview draws a cited image file as terminal text; "" when
+	// it is not an image or no preview is possible (chafa missing).
+	RenderImagePreview ImagePreviewer
 	// Language of the help text and flag descriptions (from the locale).
 	Language Language
-	Now      func() time.Time
+	// DateOrder reads numeric dates in questions (from the locale).
+	DateOrder timeline.DateOrder
+	Now       func() time.Time
+	// IngestRuns follows, stops and detaches `ingest` runs.
+	IngestRuns IngestRunTools
+}
+
+// DetachedIngestVariable is set in the environment of the process that
+// `ingest start` starts, which then runs as a background run.
+const DetachedIngestVariable = "CADE_INGEST_DETACHED"
+
+// IngestRunTools lets an `ingest` be followed, stopped and resumed from
+// another terminal, and run in the background (issue #41).
+type IngestRunTools struct {
+	State ingestrun.StateFile
+	Lock  ingestrun.Lock
+	// LogPath receives the output of background runs.
+	LogPath   string
+	Processes procctl.Processes
+	// Clock paces the models of background and gentle runs.
+	Clock pacing.Clock
+	// Detached is set in the process `ingest start` started.
+	Detached bool
+	PID      int
 }
 
 // commandEnv is what every subcommand receives after global flags are
@@ -69,11 +108,15 @@ type Toolkit struct {
 type commandEnv struct {
 	toolkit Toolkit
 	// language is the locale's, or ui.language when the config sets it.
-	language   Language
+	language Language
+	// dateOrder is the locale's, or ui.date_order when the config sets it.
+	dateOrder  timeline.DateOrder
 	configPath string
 	stdout     io.Writer
 	stderr     io.Writer
 	logger     *slog.Logger
+	// ingestRun is the `ingest` being recorded; nil for other commands.
+	ingestRun *ingestRun
 }
 
 type subcommand func(ctx context.Context, env commandEnv, args []string) error
@@ -99,7 +142,7 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	if err != nil {
 		return exitCode(err, stderr, toolkit.Language)
 	}
-	env.language = configuredLanguage(env, toolkit.Language)
+	env = withUISettings(env)
 	usage := usageFor(env.language)
 	if len(rest) == 0 {
 		fmt.Fprint(stderr, usage)
@@ -117,14 +160,17 @@ func Run(ctx context.Context, args []string, stdout, stderr io.Writer, toolkit T
 	return exitCode(command(ctx, env, rest[1:]), stderr, env.language)
 }
 
-// configuredLanguage applies ui.language over the locale's language. A
-// config that does not load keeps the locale: the command reports why.
-func configuredLanguage(env commandEnv, fromLocale Language) Language {
+// withUISettings applies ui.language and ui.date_order over the locale's.
+// A config that does not load keeps the locale: the command reports why.
+func withUISettings(env commandEnv) commandEnv {
+	env.language, env.dateOrder = env.toolkit.Language, env.toolkit.DateOrder
 	cfg, err := env.toolkit.LoadConfig(env.configPath)
 	if err != nil {
-		return fromLocale
+		return env
 	}
-	return languageFromSetting(cfg.UI.Language, fromLocale)
+	env.language = languageFromSetting(cfg.UI.Language, env.toolkit.Language)
+	env.dateOrder = dateOrderFromSetting(cfg.UI.DateOrder, env.toolkit.DateOrder)
+	return env
 }
 
 func subcommands() map[string]subcommand {
@@ -189,6 +235,30 @@ func newFlagSet(name string, stderr io.Writer, language Language) *flag.FlagSet 
 	return flags
 }
 
+// parseCommandFlags lets flags follow the arguments (`cade timeline ontem
+// --source git`): the flag package stops at the first argument, so parsing
+// resumes after each one. Everything after "--" is an argument. It returns
+// the arguments in order.
+func parseCommandFlags(flags *flag.FlagSet, args []string) ([]string, error) {
+	var positional []string
+	for {
+		if err := flags.Parse(args); err != nil {
+			return nil, usageError(err)
+		}
+		rest := flags.Args()
+		if len(rest) == 0 || endedFlags(args, rest) {
+			return append(positional, rest...), nil
+		}
+		positional, args = append(positional, rest[0]), rest[1:]
+	}
+}
+
+// endedFlags reports whether Parse stopped at a "--", which it consumes.
+func endedFlags(args, rest []string) bool {
+	consumed := len(args) - len(rest)
+	return consumed > 0 && args[consumed-1] == "--"
+}
+
 func exitCode(err error, stderr io.Writer, language Language) int {
 	if err == nil {
 		return 0
@@ -208,6 +278,12 @@ func exitCode(err error, stderr io.Writer, language Language) int {
 	return 1
 }
 
+// loadConfig reads the config, with the background limits during a
+// background or gentle ingestion.
 func (env commandEnv) loadConfig() (config.Config, error) {
-	return env.toolkit.LoadConfig(env.configPath)
+	cfg, err := env.toolkit.LoadConfig(env.configPath)
+	if err != nil || !env.ingestRun.isGentle() {
+		return cfg, err
+	}
+	return cfg.WithBackgroundLimits(), nil
 }

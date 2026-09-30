@@ -15,8 +15,14 @@ Comandos:
                                         pergunta o que incluir e cria a configuração
   doctor                                confere modelos, FTS5, banco e caminhos, e diz
                                         o que corrigir (não altera o banco)
-  ingest <fonte|all> [ALVO...]          ingere uma fonte (git, browser, file, teams);
-                                        sem ALVO usa os alvos configurados
+  ingest [--gentle] <fonte|all> [ALVO...]
+                                        ingere uma fonte (git, browser, file, teams);
+                                        sem ALVO usa os alvos configurados; --gentle
+                                        usa os limites de CPU/GPU de ingest.background
+  ingest start <fonte|all> [ALVO...]    o mesmo em segundo plano, com esses limites;
+                                        continua depois de fechar o terminal
+  ingest status|pause|resume|stop       acompanha, pausa (modelos na memória),
+                                        continua ou para a ingestão
   timeline [--source F] [--all-authors] DATA [DATA_FIM]
                                         eventos de um dia ou intervalo (DATA: AAAA-MM-DD,
                                         hoje, ontem); commits de outros autores só com
@@ -25,10 +31,14 @@ Comandos:
                                         pergunta em linguagem natural (inclusive
                                         sobre tarefas: "quais tarefas finalizei?")
   tasks [--all] [DATA] [DATA_FIM]       tarefas trabalhadas (links de tarefa); PR aberto
-                                        = concluída (padrão: hoje)
+                                        significa visita à criação, sem saber aprovação/merge
   reindex                               recalcula os vetores com o modelo de embedding
                                         configurado (após trocar de modelo); retomável
-  forget <fonte>                        apaga os eventos de uma fonte, para reingerir;
+  reindex --captions                    descreve de novo as imagens cuja descrição veio
+                                        de outro modelo ou prompt; retomável
+  forget <fonte> | --uid UID            apaga eventos de uma fonte ou um evento;
+  forget --match TEXTO [--source F]     localiza eventos; --yes confirma em scripts
+                                        (também aceita --from D --to D);
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
@@ -40,11 +50,12 @@ Exemplos:
   cade ingest git ~/src/meu-projeto
   cade ingest browser ~/.mozilla/firefox/xyz.default/places.sqlite
   cade ingest all
+  cade ingest start file
   cade timeline ontem
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "o que pesquisei sobre sqlite?"
 
-Flags de cada comando: cade <comando> -h
+Flags de cada comando (antes ou depois dos argumentos): cade <comando> -h
 `
 
 const usageEnglish = `cade — local personal history (git, browser, files, teams)
@@ -57,8 +68,14 @@ Commands:
                                         asks what to include and writes the config
   doctor                                checks models, FTS5, database and paths, and
                                         says what to fix (does not change the database)
-  ingest <source|all> [TARGET...]       ingests a source (git, browser, file, teams);
-                                        without TARGET uses the configured targets
+  ingest [--gentle] <source|all> [TARGET...]
+                                        ingests a source (git, browser, file, teams);
+                                        without TARGET uses the configured targets;
+                                        --gentle uses the ingest.background CPU/GPU limits
+  ingest start <source|all> [TARGET...] the same in the background, with those limits;
+                                        keeps going after the terminal closes
+  ingest status|pause|resume|stop       follows, pauses (models kept in memory),
+                                        continues or stops the ingestion
   timeline [--source S] [--all-authors] DATE [END_DATE]
                                         events of a day or range (DATE: YYYY-MM-DD,
                                         hoje, ontem); other authors' commits only with
@@ -66,11 +83,15 @@ Commands:
   ask [--source S] [--from D] [--to D] [--no-filters] [--json] QUESTION
                                         natural-language question, in English or
                                         Portuguese (also about tasks: "which tasks did I finish?")
-  tasks [--all] [DATE] [END_DATE]       tasks worked on (task links); PR opened
-                                        = finished (default: today)
+  tasks [--all] [DATE] [END_DATE]       tasks worked on (task links); PR opened means a
+                                        visit to its creation page; approval/merge unknown
   reindex                               recomputes vectors with the configured
                                         embedding model (after changing it); resumable
-  forget <source>                       deletes a source's events, to re-ingest;
+  reindex --captions                    describes again the images whose description
+                                        another model or prompt wrote; resumable
+  forget <source> | --uid UID           deletes a source's events or one event;
+  forget --match TEXT [--source S]      finds events; --yes confirms in scripts
+                                        (also accepts --from D --to D);
                                         what left the source (e.g. an expired Teams
                                         cache) does not come back
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
@@ -82,10 +103,12 @@ Examples:
   cade ingest git ~/src/my-project
   cade ingest browser ~/.mozilla/firefox/xyz.default/places.sqlite
   cade ingest all
+  cade ingest start file
   cade timeline ontem
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "what did I search about sqlite?"
 
 Labels follow the locale, or ui.language in the config; answers follow
-the question's language. Flags of each command: cade <command> -h
+the question's language. Flags of each command (before or after the
+arguments): cade <command> -h
 `

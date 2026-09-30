@@ -30,6 +30,7 @@ type planReport struct {
 	Period       string   `json:"period,omitempty"`
 	People       []string `json:"people,omitempty"`
 	Direction    string   `json:"direction,omitempty"`
+	Folder       string   `json:"folder,omitempty"`
 	Topic        string   `json:"topic,omitempty"`
 	TaskStatus   string   `json:"task_status,omitempty"`
 	SemanticText string   `json:"semantic_text,omitempty"`
@@ -81,7 +82,7 @@ type prReport struct {
 }
 
 var (
-	taskStatusCodes  = map[tasks.Status]string{tasks.Done: "concluida", tasks.InProgress: "em_andamento"}
+	taskStatusCodes  = map[tasks.Status]string{tasks.Done: "pr_aberto", tasks.InProgress: "em_andamento"}
 	involvementCodes = map[tasks.Involvement]string{tasks.Mine: "sua", tasks.Consulted: "consultada", tasks.MentionedByOthers: "citada_por_outros"}
 	linkCodes        = map[tasks.Link]string{tasks.LinkExact: "exata", tasks.LinkProbable: "provavel"}
 )
@@ -95,7 +96,7 @@ func writeAskReport(out io.Writer, report askReport) error {
 func newAskReport(query queryplan.Query) askReport {
 	return askReport{Question: query.Question, Plan: planReport{
 		Mode: planCodes.modes[query.Mode], Source: string(query.Source), Period: describeDays(query.Days),
-		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Topic: query.Topic,
+		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Folder: query.Folder, Topic: query.Topic,
 		TaskStatus: planCodes.statuses[query.TaskStatus], SemanticText: query.SemanticText,
 	}}
 }

@@ -59,6 +59,14 @@ type File struct {
 	RemovedAt  time.Time
 }
 
+// IsUnder reports whether the file is folder itself or inside it; a
+// sibling sharing the prefix ("Documents2") is not.
+//
+//	event.File{Path: "/home/ana/Documents/a.png"}.IsUnder("/home/ana/Documents") // true
+func (f File) IsUnder(folder string) bool {
+	return f.Path == folder || strings.HasPrefix(f.Path, strings.TrimSuffix(folder, "/")+"/")
+}
+
 // ConversationKind says who a Teams message was addressed to.
 type ConversationKind string
 

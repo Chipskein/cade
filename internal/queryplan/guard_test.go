@@ -74,6 +74,7 @@ func TestGuardTaskReport(t *testing.T) {
 		status   TaskStatus
 	}{
 		{"quais tarefas finalizei essa semana?", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, OnlyDone},
+		{"quais tarefas estão com PR aberto?", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, OnlyDone},
 		{"which tasks are still in progress?", Plan{Mode: ModeTasks, TaskStatus: OnlyInProgress}, ModeTasks, OnlyInProgress},
 		{"tarefas que não finalizei ontem", Plan{Mode: ModeTasks, TaskStatus: OnlyDone}, ModeTasks, AnyStatus},
 		{"tarefas que não finalizei ontem", Plan{Mode: ModeTasks, TaskStatus: OnlyInProgress}, ModeTasks, OnlyInProgress},

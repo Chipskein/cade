@@ -174,6 +174,56 @@
    "relevant": [
     "g5"
    ]
+  },
+  {
+   "question": "qual foi o erro no deploy da api-pedidos?",
+   "topic": "erro no deploy da api-pedidos",
+   "relevant": [
+    "img-deploy"
+   ]
+  },
+  {
+   "question": "qual era o erro no print de ontem?",
+   "period": "ontem",
+   "topic": "erro no print",
+   "relevant": [
+    "img-deploy"
+   ]
+  },
+  {
+   "question": "qual o status do pedido 4821 na transportadora?",
+   "topic": "status do pedido 4821 na transportadora",
+   "relevant": [
+    "img-pedido"
+   ]
+  },
+  {
+   "question": "como era o diagrama do fluxo de pedidos com RabbitMQ?",
+   "topic": "diagrama do fluxo de pedidos com RabbitMQ",
+   "relevant": [
+    "img-fila"
+   ]
+  },
+  {
+   "question": "que erro apareceu no painel de relatórios?",
+   "topic": "erro no painel de relatórios",
+   "relevant": [
+    "img-gateway"
+   ]
+  },
+  {
+   "question": "what was the Go panic about a nil map?",
+   "topic": "Go panic about a nil map",
+   "relevant": [
+    "img-panic"
+   ]
+  },
+  {
+   "question": "tenho alguma foto da Terra vista do espaço?",
+   "topic": "foto da Terra vista do espaço",
+   "relevant": [
+    "img-earth"
+   ]
   }
  ],
  "maximum_redundancy": 0.0

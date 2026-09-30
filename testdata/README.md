@@ -1,15 +1,22 @@
+<p align="center">
+  <img src="../assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Test data
 
 **English** · Português abaixo
 
 | Path | What it is |
 |---|---|
-| `queries/plan.json` | Questions and the plan the interpreter must produce (`make eval-plan`). |
+| `queries/plan.json` | Questions and the plan the interpreter must produce (`go tool mage evalPlan`). |
 | `queries/retrieval/corpus.json` | Synthetic history searched by the retrieval suite. |
 | `queries/retrieval/calibration.json` | Retrieval questions used to tune thresholds. Report only, no floors. |
-| `queries/retrieval/test.json` | Retrieval questions never used for tuning, with floors (`make eval-retrieval`). |
+| `queries/retrieval/test.json` | Retrieval questions never used for tuning, with floors (`go tool mage evalRetrieval`). |
 | `chrome-indexeddb.leveldb`, `chrome-indexeddb-pages/` | Synthetic Chrome IndexedDB for the IndexedDB and LevelDB readers, written by a real Chrome from the pages. |
 | `teams-formats/` | One Teams cache per format seen, synthetic, written the same way; the Teams reader must keep recognizing each. |
+| `queries/captions.json` | Words each image fixture's description must contain, and secrets it must not keep once masked (`go tool mage evalCaptions`). |
+| `queries/injection.json` | Questions whose evidence includes an event, or an image, that gives the model orders (`go tool mage evalInjection`). |
+| `images/` | Image fixtures of phase 19. The screenshots and the diagram are drawn by `go run testdata/images/generate.go` with invented text (the token and the key only have the shape of real ones). `photo-earth.jpg` is NASA's public-domain photo [The Earth seen from Apollo 17](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), scaled to 960 px. |
 
 ## Turning a real question into a case
 
@@ -27,8 +34,8 @@ Real questions are the best cases: they show what actually goes wrong. But this 
    - Retrieval cases go in `test.json` when they should hold as a regression, or in `calibration.json` when they will guide a threshold.
    - Do not move a case from the test set to calibration after seeing it fail: that turns the test into tuning data.
 6. **Check before committing:**
-   - `make test` validates the files, including that plan dates match the date parser.
-   - `make eval` shows the new case failing before the fix and passing after it.
+   - `go tool mage test` validates the files, including that plan dates match the date parser.
+   - `go tool mage eval` shows the new case failing before the fix and passing after it.
    - Search the diff for real names (`git diff | grep -i <name>`).
 
 ---
@@ -58,9 +65,13 @@ Perguntas reais são os melhores casos, porque mostram o que dá errado de verda
    - Casos de busca vão para `test.json` quando devem valer como regressão, ou para `calibration.json` quando vão orientar um limite.
    - Não mova um caso do teste para a calibração depois de vê-lo falhar: isso transforma o teste em dado de ajuste.
 6. **Confira antes do commit:**
-   - `make test` valida os arquivos, inclusive se as datas do `plan.json` batem com o parser de datas.
-   - `make eval` mostra o caso novo falhando antes da correção e passando depois.
+   - `go tool mage test` valida os arquivos, inclusive se as datas do `plan.json` batem com o parser de datas.
+   - `go tool mage eval` mostra o caso novo falhando antes da correção e passando depois.
    - Procure nomes reais no diff (`git diff | grep -i <nome>`).
+
+## Imagens
+
+`images/` guarda as imagens da fase 19. As capturas e o diagrama saem de `go run testdata/images/generate.go`, com texto inventado (o token e a chave só têm o formato de reais). `photo-earth.jpg` é a foto da NASA em domínio público [The Earth seen from Apollo 17](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), reduzida a 960 px. O `queries/captions.json` diz que palavras a descrição de cada uma precisa ter e que segredos não podem sobrar depois da máscara (`go tool mage evalCaptions`); uma imagem nova precisa de um caso lá (um teste confere).
 
 ## Um novo formato do cache do Teams
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -42,5 +43,18 @@ func TestResolvePath(t *testing.T) {
 	}
 	if got := resolvePath("/srv/../srv/docs", "/home/ana"); got != "/srv/docs" {
 		t.Fatalf("expected a clean absolute path, got %q", got)
+	}
+}
+
+func TestConfirmDefaultsToNoAndRetriesUnclearAnswers(t *testing.T) {
+	var out strings.Builder
+	prompt := newInitPrompt(strings.NewReader("talvez\nsim\n\n"), &out, Portuguese)
+	if !prompt.confirm("? ") || !strings.Contains(out.String(), "Resposta não entendida.") {
+		t.Fatalf("expected a retry and then yes, got %q", out.String())
+	}
+	emptyAnswer := prompt.confirm("? ")
+	endOfInput := prompt.confirm("? ")
+	if emptyAnswer || endOfInput {
+		t.Fatalf("expected an empty answer and the end of input to mean no, got %v and %v", emptyAnswer, endOfInput)
 	}
 }

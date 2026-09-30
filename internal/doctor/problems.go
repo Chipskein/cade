@@ -10,6 +10,8 @@ const (
 	ProblemNoSources
 	ProblemNoDatabase
 	ProblemMigrationPending
+	ProblemThresholdModelMismatch
+	ProblemVisionModelMismatch
 	// Failures: a command will fail or return wrong results.
 	ProblemMissing
 	ProblemNotAFile

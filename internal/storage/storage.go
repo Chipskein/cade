@@ -60,6 +60,10 @@ type EventStore interface {
 	// DeleteSource removes every event (and embedding) of source, returning
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
+	DeleteEvent(ctx context.Context, uid string) (bool, error)
+	IsForgotten(ctx context.Context, uid string) (bool, error)
+	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
+	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	Close() error
 }
 
@@ -79,13 +83,15 @@ type SimilarityQuery struct {
 
 // EventFilter selects events exactly, as listing.Select does in memory:
 // timestamp in [From, To), the source (empty means all), the message
-// direction, and any of People (everyone when empty).
+// direction, any of People (everyone when empty), and files under Folder
+// (anywhere when empty).
 type EventFilter struct {
 	From      time.Time
 	To        time.Time
 	Source    event.Source
 	Direction listing.Direction
 	People    []listing.PersonMatcher
+	Folder    string
 }
 
 // LexicalQuery describes a filtered keyword search. Match is an FTS5
@@ -143,6 +149,9 @@ type ScoredEvent struct {
 type EmbeddingIndex interface {
 	// EmbeddingModel returns the recorded model name, "" if none yet.
 	EmbeddingModel(ctx context.Context) (string, error)
+	// ThresholdCalibration returns the recorded gates, zero if none yet.
+	ThresholdCalibration(ctx context.Context) (ThresholdCalibration, error)
+	RecordThresholdCalibration(ctx context.Context, calibration ThresholdCalibration) error
 	RecordEmbeddingModel(ctx context.Context, model string) error
 	// StartReindex drops every vector, records model and marks a rebuild
 	// pending.
@@ -172,10 +181,53 @@ type DatabaseState struct {
 	// SchemaVersion is the database's; LatestSchemaVersion this binary's.
 	SchemaVersion       int
 	LatestSchemaVersion int
+	// ThresholdCalibration is the model the retrieval gates were set for.
+	ThresholdCalibration ThresholdCalibration
 	// MigrationBackup: a pending migration copies the database (SizeBytes
 	// more on disk) before rewriting it.
 	MigrationBackup bool
 	SizeBytes       int64
 	EmbeddingModel  string
 	ReindexPending  bool
+}
+
+// ThresholdCalibration pairs the retrieval distance gates with the
+// embedding model they were set for: distances of another model live on
+// another scale, and gates left over from it answer "not found" to
+// questions that have an answer (phase 17).
+type ThresholdCalibration struct {
+	Model           string
+	MaxDistance     float64
+	MaxBestDistance float64
+}
+
+// OrIndexedWith fills a missing record: vectors that predate it were
+// searched with the current gates, set for the vectors' model.
+//
+//	recorded.OrIndexedWith(state.EmbeddingModel, current).OutdatedFor(current)
+func (c ThresholdCalibration) OrIndexedWith(indexedModel string, current ThresholdCalibration) ThresholdCalibration {
+	if c.Model != "" {
+		return c
+	}
+	return ThresholdCalibration{Model: indexedModel, MaxDistance: current.MaxDistance, MaxBestDistance: current.MaxBestDistance}
+}
+
+// OutdatedFor reports gates set for another model and unchanged since:
+// changing either gate counts as recalibrating for current.Model.
+func (c ThresholdCalibration) OutdatedFor(current ThresholdCalibration) bool {
+	sameGates := c.MaxDistance == current.MaxDistance && c.MaxBestDistance == current.MaxBestDistance
+	return c.Model != "" && c.Model != current.Model && sameGates
+}
+
+// ImageCaptionIndex finds a description by the image's content (phase 19):
+// a moved, renamed or copied image is not described again.
+type ImageCaptionIndex interface {
+	// DescribedImage returns the image metadata of a described file event
+	// whose image has this SHA-256, if any; a file gone from its folder
+	// still counts, since the image may have moved.
+	DescribedImage(ctx context.Context, sha256 string) (event.Image, bool, error)
+	// OutdatedImages returns the described image events still in their
+	// folder whose description another model or prompt version wrote, for
+	// `cade reindex --captions`.
+	OutdatedImages(ctx context.Context, model string, promptVersion int) ([]event.Event, error)
 }

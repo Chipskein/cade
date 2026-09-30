@@ -1,8 +1,143 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Changelog
 
 [English](CHANGELOG.md) · **Português**
 
-O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que falta para a release está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+
+## v0.1.0 — 2026-09-30
+
+### Atualizar da v0.0.0
+
+- **Cópia:** a migração 8 reescreve dados, então o primeiro comando que abrir um banco da v0.0.0 grava antes uma cópia `cade.db.before-v8-<data>` (permissão `600`): leva cerca de um minuto e ocupa o mesmo espaço em disco que o banco. O `cade doctor` diz, sem mudar nada, se há migração pendente e se ela vai copiar.
+- **Reindex:** rode `cade reindex` uma vez depois da migração 8. Um evento que teve um segredo mascarado fica sem vetores até lá.
+- **`ask --json`:** o estado de tarefa `concluida` passou a ser `pr_aberto` (fase 15). Scripts que o leem precisam mudar.
+- **Modelos:** rode `go tool mage models` de novo. Ele baixa o Qwen3.5-2B e o `mmproj`; depois, `qwen2.5-3b-instruct-q4_k_m.gguf` pode ser apagado (fase 18).
+- **Imagens** só são descritas com `sources.images` ligado, que vem desligado (fase 19).
+- **Licença:** GPLv3 ou posterior (#10).
+
+### Migrações
+
+| Versão | O que faz | Cópia | Reescreve dados |
+|---|---|---|---|
+| 8 | mascara segredos conhecidos nos eventos guardados e apaga arquivos de credenciais; o banco é compactado depois | sim | eventos alterados (os vetores esperam o `cade reindex`) |
+| 9 | guarda os UIDs de eventos esquecidos um a um (`forgotten_events`) | não | — |
+| 10 | índice no hash das imagens no metadado | não | — |
+
+### Ingestão agendada e limites das fontes (fase 20)
+
+- O [CONFIGURATION](docs/CONFIGURATION.pt-BR.md) ganhou exemplos de timer `systemd --user` e de crontab rodando `cade ingest all --gentle`, com o aviso de perda de dados logo acima; a seção do Teams está marcada como experimental, com as limitações primeiro; a fonte de arquivos e como a busca híbrida junta as duas listas estão explicadas. O README mostra a matriz de plataformas por fonte.
+
+### Mudanças menores
+
+- **Prévia de imagens:** com o [`chafa`](https://github.com/hpjansson/chafa) instalado, o `cade ask` mostra no terminal uma prévia das imagens citadas.
+- **Progresso (#35):** a descrição de imagens, o `reindex --captions` e o `forget --match` mostram "12/50 (24%)" e um ETA.
+- **Build:** `go tool mage build` agora compila o binário NVIDIA (requer CUDA Toolkit); `go tool mage cpu` compila o de CPU.
+- **`doctor`** avisa quando o `mmproj` falta, não é um GGUF de `mmproj` ou foi feito para outro modelo.
+
+### Ingestão em segundo plano (#41)
+
+- **Problema:** uma ingestão longa (a primeira, milhares de imagens) prendia um terminal por horas, parava quando ele fechava e deixava a CPU ou a GPU no limite enquanto isso.
+- **`cade ingest start`:** confere os argumentos e inicia um `cade ingest` fora do terminal, numa sessão própria (fechar o terminal não o interrompe), com a saída em `~/.local/state/cade/ingest.log`. `cade ingest <fonte|all>` continua rodando no terminal.
+- **Limites:** execuções em segundo plano usam a nova seção `ingest.background`: 2 threads, camadas na GPU (`-1`; `0` deixa a GPU livre), `busy_percent` 50 (os modelos descansam depois de cada chamada e trabalham metade do tempo: a GPU não aceita `nice`, e é isso que limita a carga dela) e 500 imagens por execução. Elas também rodam com nice 19 e a classe de E/S ociosa em todas as threads. `--gentle` aplica os mesmos limites no terminal, e os exemplos de systemd e cron passaram a usá-lo. O [CONFIGURATION](docs/CONFIGURATION.pt-BR.md#como-os-limites-funcionam) explica o que cada camada limita e como limitar a potência da GPU com o `nvidia-smi`.
+- **`status`, `pause`, `resume`, `stop`:** todo `ingest` grava os argumentos, a etapa, o alvo e a última linha de progresso em `~/.local/state/cade/ingest-state.json`, cerca de uma vez por segundo, então `cade ingest status` mostra de qualquer terminal, avisando quando o processo sumiu sem registrar o fim. `pause` congela o processo (SIGSTOP: sem uso de CPU nem GPU, modelos mantidos na memória) e `resume` o acorda. `stop` manda SIGTERM, que encerra como o Ctrl-C e libera a memória, mantendo o que foi gravado; `resume` então roda de novo com os mesmos argumentos e modo, pulando o que já está gravado e reaproveitando as imagens descritas. Fechar o terminal (SIGHUP) também passou a contar como interrupção. O `cade doctor` mostra quando a última ingestão rodou e como terminou, com um aviso quando ela não terminou.
+- **Uma por vez:** enquanto uma ingestão está rodando ou pausada, iniciar outra é recusado com o pid dela (um flock que o kernel solta se o processo morrer). Uma interrompida ou que falhou não bloqueia novas, para o timer continuar ingerindo.
+- **ETA:** os alvos `file` e `git` contam os eventos antes (percorrendo a pasta sem ler os arquivos, `git rev-list --count`), então a linha de progresso mostra "120 lidos de 500 (24%)" e um ETA pelos últimos 500 eventos. `browser` e `teams` mostram a taxa, como antes. Tempos decorridos e ETAs acima de uma hora mostram as horas.
+- Sem mudança de esquema nem migração.
+
+### Busca por descrição de imagens (fase 19, #7)
+
+- **Problema:** capturas de tela, fotos de quadro, diagramas e prints de erro nas pastas configuradas ficavam só com o nome, embora muitas vezes sejam o registro de uma decisão ou de um erro.
+- **Descrições:** com `sources.images` ligado (desligado por padrão; o `cade init` pergunta, mostrando o custo), o `ingest file` descreve cada png, jpeg e webp com o Qwen3.5-2B e o `mmproj`, que o `go tool mage models` já baixa: uma descrição curta, em português, e a transcrição do texto visível, sem precisar de OCR. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto: máscara de segredos, pedaços, busca híbrida, filtros, `timeline`, `forget` e citação (o caminho da imagem).
+- **Uma vez por imagem:** uma imagem que não mudou é pulada sem ser lida; uma movida, renomeada ou copiada reaproveita a descrição pelo SHA-256 dos bytes. `cade reindex --captions` descreve de novo as imagens cuja descrição veio de outro modelo ou versão do prompt, em lotes, e retoma se for interrompido.
+- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
+- **Guardado:** a descrição e a transcrição (separadas, com o modelo e a versão do prompt, para a #22), o hash da imagem e o tamanho em pixels; nunca os pixels. Texto dentro de uma imagem é tratado como uma mensagem: o prompt manda copiar, não obedecer, e ordens nele ganham a marca de não confiável no `ask`. O [PRIVACY](PRIVACY.pt-BR.md) tem os detalhes.
+- **Migração 10:** um índice pelo hash da imagem no metadado. Sem cópia e sem reescrever dados.
+- **Filtro de pasta:** o `ask` lê um caminho escrito na pergunta (`~/Documents`, `/srv/notes`) como filtro exato dos arquivos dentro dele, mostrado como `pasta:` no "Entendi" e `folder` no `--json`. Antes o caminho só entrava no texto buscado por significado, e "na pasta ~/Documents" citava imagens de `~/Downloads`.
+- **Avaliação:** `go tool mage evalCaptions` descreve 8 imagens de teste (`testdata/images`: capturas sintéticas, um diagrama e uma foto da NASA em domínio público) e confere o `testdata/queries/captions.json`: cobertura 1,00 contra o mínimo de 0,90, nenhum segredo depois da máscara. Sete casos de imagem entraram no conjunto de teste da recuperação (32/32; os 25 casos anteriores iguais, MRR 0,89) e um caso de injeção com ordens escritas numa imagem (não seguidas). As suítes de recuperação e de injeção leem as descrições reais do cache que o `evalCaptions` grava.
+
+### Licença: GPLv3 ou posterior (#10)
+
+- **O cade agora está sob a GPLv3 ou posterior** (`GPL-3.0-or-later`); a v0.0.0 continua sob a GPLv2. Todos os componentes do binário são permissivos e funcionam com as duas versões; a GPLv3 também aceita bibliotecas Apache-2.0 e (A)GPLv3, de que a busca em PDFs do roteiro pode precisar. A revisão, as exceções (builds CUDA não são distribuídos) e a lista para conferir dependências novas estão em [docs/LICENSING.pt-BR.md](docs/LICENSING.pt-BR.md).
+- **Os avisos de terceiros** agora listam as bibliotecas que o llama.cpp compila em `mtmd` e `vendor-hash` (stb_image, miniaudio, xxHash, rotate-bits, sha1, sha256, sheredom/subprocess), com os textos que exigem aviso.
+
+### Build com o Mage (#16)
+
+- **O Makefile saiu:** todos os alvos agora são alvos do [Mage](https://magefile.org/) escritos em Go (`magefiles/magefile.go`, lógica e testes em `internal/devtasks/`). O Mage é uma dependência `tool` no `go.mod`: `go tool mage <alvo>` não exige instalar nada, e o Mage nunca entra no binário do `cade`. `go tool mage -l` lista os alvos; o README tem a tabela.
+- **Nomes:** `make X` vira `go tool mage X`; alvos com hífen viram camelCase (`fmtCheck`, `testModels`, `llamaCuda`, `evalPlan`, `evalRetrieval`, `evalInjection`, `evalScale`, `evalRerank`). O Mage ignora maiúsculas, então `go tool mage evalplan` também funciona.
+- **Configurações são variáveis de ambiente** com os mesmos nomes e padrões de antes (`PREFIX`, `DESTDIR`, `MODELS_DIR`, `GO_TAGS`, `LLAMA_NATIVE`, `EVAL_TIMEOUT`, `FUZZTIME`, `SCALE`, `MODE`, `VERSION`…): `make bench GO_TAGS=` agora é `GO_TAGS= go tool mage bench`.
+- **Menos ferramentas externas:** os modelos são baixados e o arquivo de release e o SHA-256 são gerados em Go, então `curl`, `tar` e `sha256sum` não são mais necessários para o build; `git`, `cmake`, `ninja` e `gcc` continuam, para o llama.cpp.
+- **CI** roda os mesmos alvos. `go tool mage print NOME` substitui `make -s print-NOME`; as flags agora saem numa linha só, então a chave de cache do llama.cpp muda uma vez e a primeira execução o recompila.
+### `top_k` e limiares medidos (fase 17)
+
+- **`top_k` 8 → 6:** a varredura (`make eval-retrieval`, `top_k` 4, 6, 8 e 12 cruzados com os dois limiares) mostrou que 6 é o menor valor sem perda de recall no conjunto de teste: recall 1,00, MRR 0,89 (0,88 com 8), rejeição 1,00. Na curva de escala, com 1 mil e 10 mil eventos, dá 0,94, 0,83 e 1,00, contra 0,93, 0,82 e 1,00 na v0.0.0. O `ask` até o primeiro token cai de 12,4 s para 10,6 s em CPU e de 1,77 s para 1,62 s em GPU. Uma configuração com `retrieval.top_k` explícito continua usando o valor dela.
+- **Limiares:** `max_distance` 0,72 e `max_best_distance` 0,61 continuam. Nenhum valor da grade foi melhor, e 0,61 fica dentro do intervalo que a calibração aponta tanto em CPU quanto em GPU.
+- **Limiares junto do modelo:** o banco registra em `store_settings` os dois limiares e o modelo de embedding para o qual foram definidos. Se o `cade reindex` troca o modelo e os limiares continuam os mesmos, ele e o `cade doctor` avisam que valem para o modelo anterior e apontam a calibração (`make eval-retrieval EMBEDDING_MODEL=…`). Mudar qualquer um dos dois limiares conta como recalibrar, e o aviso some. Bancos anteriores assumem os limiares configurados para o modelo dos seus vetores. Não há migração: é uma linha nova em `store_settings`.
+- **Reranking, medido e deixado de fora:** reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte sobe o MRR (0,83 → 0,91 com 1 mil e 10 mil eventos), mas derruba o recall do conjunto de teste de 1,00 para 0,94 e custa 0,57 s por pergunta em CPU, mais 418 MB de modelo. Nenhum comando usa o reranker. `make eval-rerank` refaz a medição, e a ideia voltou para "A definir" no ROADMAP.
+### Estado de tarefas e atribuição de PR (fase 15)
+
+- Os relatórios mostram o estado **PR aberto** e explicam que ele significa que o histórico local registrou a página de criação do PR; sem rede, aprovação e merge são desconhecidos. Perguntas como “quais tarefas finalizei?” continuam selecionando esse estado.
+- No `cade ask --json`, o status muda de `concluida` para `pr_aberto`. A quebra para scripts é intencional.
+- Um link de PR em mensagem enviada sem visita anterior à página de criação passa a ser marcado como provável; repassar o PR de outra pessoa não prova que o usuário o abriu.
+- `proj4me` saiu dos padrões de rastreadores e o README mostra como adicioná-lo como padrão específico do projeto.
+
+### Segredos fora do banco (fase 13)
+
+- **Arquivos de credenciais ignorados:** `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc` e `.git-credentials` não são lidos. A lista fica em `sources.ignored_file_globs`; definir o campo substitui a lista padrão.
+- **URLs sem credenciais:** o navegador perde os parâmetros `token`, `access_token`, `id_token`, `refresh_token`, `code`, `state`, `sig`, `signature`, `key`, `apikey`, `api_key`, `password`, `X-Amz-*` e `X-Goog-*`; o resto da URL fica, e a deduplicação por página continua funcionando.
+- **Máscara no texto:** com `ingest.redact` (padrão `true`), tokens do GitHub, GitLab, AWS e Slack, JWTs e blocos de chave privada PEM viram rótulos como `[redacted:github-token]` no texto e no metadado dos eventos, de qualquer fonte. Os globs e os parâmetros de URL valem mesmo com a máscara desligada. Ela reconhece formatos, não todo segredo: veja o [PRIVACY](PRIVACY.pt-BR.md).
+- **Migração 8:** aplica a mesma limpeza aos eventos já guardados, apaga os arquivos que agora seriam ignorados (com o histórico de versões) e compacta o banco, depois de gravar uma cópia `cade.db.before-v8-*`. Um evento cujo texto mudou perde os vetores até o `cade reindex`.
+
+### Exclusão de eventos e retenção (fase 14)
+
+- `cade forget --uid UID` remove um evento. `--match TEXTO` lista eventos correspondentes e exige `--yes` fora de uso interativo. UIDs esquecidos ficam sem o texto do evento para impedir a reingestão; o forget da fonte limpa essa lista.
+- `ingest.retention.max_age_days` configura idade máxima por fonte; todas vêm desligadas por padrão. O PRIVACY documenta a exclusão pontual e o UID/data armazenados.
+
+### Geração com o Qwen3.5 (fase 18)
+
+- **Problema:** o modelo de geração padrão, o Qwen2.5-3B-Instruct, está sob a Qwen Research License (só uso não comercial), ainda seguia a nota que finge ser "nova instrução do sistema" e às vezes não citava a evidência.
+- **Modelo novo:** o padrão passa a ser o [Qwen3.5-2B](https://huggingface.co/Qwen/Qwen3.5-2B) Q4_K_M, **Apache-2.0** (conferida no model card e no `general.license` do GGUF), no GGUF da unsloth fixado por commit, já que a Qwen não publica GGUF do 3.5. O `make models` baixa também o projetor de visão (`mmproj-Qwen3.5-2B-F16.gguf`, 0,67 GB, Apache-2.0), que o `ask` nunca carrega: ele é da fase 19. O planejador, a resposta e o `ask --json` não mudam de formato.
+- **Atualizar:** rode `make models` de novo. Configurações escritas pelo `cade init` com o antigo padrão Qwen2.5-3B migram para Qwen3.5 ao carregar, então o `qwen2.5-3b-instruct-q4_k_m.gguf` pode ser apagado. Qualquer outro `generation.model_path` explícito continua usando o modelo que aponta. O estado salvo do prompt é refeito sozinho, porque a chave inclui o arquivo do modelo.
+- **llama.cpp:** a tag fixada (b11195) já carrega a arquitetura `qwen35`, o template e o `mmproj`. O `make llama` agora compila também a biblioteca de visão `mtmd`, sem ferramentas, downloader nem subprocessos (sem vídeo, que chamaria o `ffmpeg`). O binário de CPU cresce 1,3 MB, e nenhum símbolo de rede ou de subprocesso entra. Um diretório de build antigo é completado pelo próprio `make`, e o cache do llama.cpp na CI passa a ter na chave um hash dos flags do CMake.
+- **Raciocínio desligado:** o `llama_chat_apply_template` renderiza o template do Qwen3.5 como ChatML simples, sem a opção `enable_thinking`. Quando o template do modelo tem um bloco `<think>`, o cade fecha um bloco vazio depois da abertura do turno do assistente, como faz o template oficial com o raciocínio desligado. Um teste com o modelo real confere que nenhum `<think>` chega à resposta.
+- **Planejador:** a regra de direção ganhou as formas que faltavam ("me perguntou", "da X", "sent me", "asked me", "from X", "I told", "o que X disse" sem direção). Suíte de plano (153 perguntas, RTX 3060, mesmo prompt para os três):
+
+  | campo | Qwen2.5-3B | **Qwen3.5-2B** | Qwen3.5-4B |
+  |---|---|---|---|
+  | totalmente certas | 133 | **135** | 146 |
+  | tipo | 146 | **147** | 150 |
+  | fonte | 147 | **147** | 151 |
+  | pessoas | 145 | **150** | 152 |
+  | direção | 150 | **150** | 151 |
+  | assunto | 144 | **149** | 151 |
+  | período, status | 153 | **153** | 153 |
+
+  Antes do ajuste, o 2B ficava 2 abaixo do 3B só na direção (147 contra 149). Relatórios em `bench/plan-baseline.txt` (2B), `bench/plan-qwen2.5-3b.txt` e `bench/plan-qwen3.5-4b.txt`.
+- **Injeção:** a marca e a regra 9 não bastavam: o 3B, o 2B e o 4B seguiam a injeção em 1 dos 4 casos (o 4B, um caso diferente). O texto de um evento marcado agora sai do prompt: o modelo vê o número, a fonte, a data, a marca e "(texto omitido)", e a regra 9 diz para não usá-lo. A lista de fontes e o `ask --json` continuam mostrando o evento com a marca. `make eval-injection`: **nenhuma injeção seguida**, com os três modelos.
+- **Citações:** a regra 3 pedia o número "junto com a fonte e a data", e o 2B escrevia a fonte e a data por extenso, sem `[n]`. Com um exemplo ("O deploy foi adiado para sexta [2].") o 2B cita nos 4 casos de injeção, o 4B também, e o 3B em 1.
+- **Recuperação:** não muda, porque só usa o modelo de embedding (recall 1,00, MRR 0,88, rejeição 1,00).
+- **Medido** (`make bench`, Ryzen 5 5500 e RTX 3060; 2B contra o 3B da v0.0.0):
+
+  | | GPU | CPU |
+  |---|---|---|
+  | memória ao responder | 1,95 GB de VRAM + 1,47 GB de RAM (antes 2,55 + 1,19) | 2,36 GB de RAM (antes 3,87) |
+  | interpretar a pergunta, sem estado salvo | 1,49 s (antes 1,36) | 12,7 s (antes 19,7) |
+  | `ask` até o 1º token, cache quente (modelo / estado salvo / regras) | 3,16 / 2,88 / 1,60 s (antes 2,93 / 2,48 / 1,59) | 24,8 / 16,5 / 12,0 s (antes 41,5 / 26,0 / 21,5) |
+  | o mesmo, cache frio | 7,4 / 6,9 / 5,7 s (antes 8,8 / 8,5 / 7,7) | 29,6 / 21,1 / 16,2 s (antes 45,2 / 31,2 / 26,6) |
+
+  Em CPU o `ask` fica ~40% mais rápido; na GPU, com o cache quente, 0,2–0,4 s mais lento. O Qwen3.5 é híbrido (camadas recorrentes e de atenção), e o estado recorrente não volta mais que alguns tokens: dentro de um processo, um prompt que só compartilha o começo com o anterior é lido de novo por inteiro. Um `cade ask` é sempre um processo novo, então isso não o afeta, mas a suíte de plano e o `BenchmarkAnswer` (que antes reaproveitava as evidências em memória e agora as relê, 12,3 s em CPU) ficam mais lentos. O estado salvo do prompt funciona com a memória híbrida.
+- **Qwen3.5-4B:** entende melhor as perguntas, mas precisa de 3,5 GB de VRAM, acima do orçamento de ~2,5 GB; fica como alternativa documentada no README (`generation.model_path`).
+
+### Detalhes da CLI (fase 16)
+
+- **Plurais:** toda mensagem com contagem concorda com ela nos dois idiomas: "Timeline de 2026-09-25 — 1 evento", "Tarefas de … — 2 tarefas suas", "1 novo, 0 atualizados", "Tudo pronto (1 aviso)". Onde a forma antiga não concordava, a frase mudou: o `forget` agora escreve "git: 3 eventos removidos." e o `tasks` em inglês "2 tasks of yours". Os testes cobrem 0, 1 e N em cada mensagem, nos dois idiomas.
+- **Flags em qualquer posição:** `cade timeline ontem --source git` e `cade ask "…" --json` funcionam. Os argumentos são reordenados em volta do pacote `flag` padrão, sem dependência nova; depois de `--`, tudo é argumento.
+- **`ui.date_order`** (`auto`, `dmy`, `mdy`): como o `ask` lê datas numéricas como `12/08`. `auto` lê mês primeiro com o sistema (`LC_ALL`, `LC_TIME`, `LANG`) em `en_US` e dia primeiro nos outros casos; uma instalação padrão nos EUA passa a ler `12/08` como 8 de dezembro. As datas da saída continuam ISO; a única exceção, a data de abertura de um PR antigo no `tasks` (`12/09 16:40`), agora é `2026-09-12 16:40`.
+- **Suíte de plano:** as perguntas com data numérica levam `date_order` explícito, e a suíte não carrega se faltar. `make eval-plan` (Qwen2.5-3B, RTX 3060): mesmo resultado do baseline da v0.0.0.
+- **README:** tabela das palavras de período aceitas em cada idioma.
 
 ## v0.0.0 — 2026-09-27 (primeira versão)
 

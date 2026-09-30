@@ -5,6 +5,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 func TestResolveAppliesPlanAndDates(t *testing.T) {
@@ -16,7 +17,7 @@ func TestResolveAppliesPlanAndDates(t *testing.T) {
 }
 
 func TestResolveOverridesWin(t *testing.T) {
-	days := ResolvePeriod("hoje", "", suiteNow)
+	days := ResolvePeriod("hoje", "", suiteNow, timeline.DayFirst)
 	plan := Plan{Period: "ontem", Source: event.SourceGit}
 	query := Resolve("o que fiz ontem?", plan, Overrides{Source: event.SourceTeams, Days: days}, suiteNow)
 	if query.Source != event.SourceTeams || query.Days.String() != "2026-09-26" {
@@ -29,6 +30,21 @@ func TestResolveIgnoreQuestionDropsPlanAndDates(t *testing.T) {
 	query := Resolve("o que a Ana fez ontem?", plan, Overrides{IgnoreQuestion: true}, suiteNow)
 	if query.Mode != ModeAnswer || query.Days != nil || !query.Criteria.IsEmpty() || query.SemanticText != "o que a Ana fez ontem?" {
 		t.Fatalf("expected an unfiltered query, got %+v", query)
+	}
+}
+
+// Regression: "Na pasta ~/Documents" answered with files from ~/Downloads,
+// since the folder only reached the embedded text.
+func TestResolveRestrictsToTheNamedFolder(t *testing.T) {
+	question := "Na pasta ~/Documents liste imagens com personagens"
+	query := Resolve(question, Plan{Topic: "imagens com personagens"}, Overrides{Home: folderTestHome}, suiteNow)
+	if query.Folder != "/home/ana/Documents" || query.Source != event.SourceFile || !query.NeedsExactSelection() || query.SemanticText != "imagens com personagens" {
+		t.Fatalf("expected a file query under ~/Documents, got %+v", query)
+	}
+	ignored := Resolve(question, Plan{}, Overrides{Home: folderTestHome, IgnoreQuestion: true}, suiteNow)
+	flagged := Resolve(question, Plan{}, Overrides{Home: folderTestHome, Source: event.SourceGit}, suiteNow)
+	if ignored.Folder != "" || flagged.Source != event.SourceGit {
+		t.Fatalf("expected --no-filters to drop the folder and --source to win, got %+v / %+v", ignored, flagged)
 	}
 }
 
@@ -50,7 +66,7 @@ func TestSemanticTextUsesTopicOnlyWhenScoped(t *testing.T) {
 }
 
 func TestIsScoped(t *testing.T) {
-	days := ResolvePeriod("hoje", "", suiteNow)
+	days := ResolvePeriod("hoje", "", suiteNow, timeline.DayFirst)
 	scoped := []Query{{Days: days}, {Source: event.SourceGit}, {Criteria: listing.Criteria{Direction: listing.Sent}}}
 	for _, query := range scoped {
 		if !query.IsScoped() {
@@ -74,5 +90,13 @@ func TestFirstPersonQuestionsKeepOwnCommits(t *testing.T) {
 	withPerson := Resolve("o que eu pedi ao Rui?", Plan{Criteria: listing.Criteria{People: []string{"Rui"}}}, Overrides{}, suiteNow)
 	if withPerson.OwnCommitsOnly {
 		t.Fatal("a question naming a person is about that person too")
+	}
+}
+
+func TestResolveReadsNumericDatesInTheGivenOrder(t *testing.T) {
+	dayFirst := Resolve("o que fiz em 12/08?", Plan{}, Overrides{DateOrder: timeline.DayFirst}, suiteNow)
+	monthFirst := Resolve("what did I do on 12/08?", Plan{}, Overrides{DateOrder: timeline.MonthFirst}, suiteNow)
+	if dayFirst.Days.String() != "2026-08-12" || monthFirst.Days.String() != "2025-12-08" {
+		t.Fatalf("expected 12 August in dmy and December 8 in mdy, got %v / %v", dayFirst.Days, monthFirst.Days)
 	}
 }

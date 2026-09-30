@@ -35,13 +35,16 @@ func TestExampleConfigHasEveryField(t *testing.T) {
 	}
 }
 
-func TestReadmesDescribeEveryField(t *testing.T) {
+func TestDocsDescribeEveryField(t *testing.T) {
 	encoded, _ := json.Marshal(Defaults())
-	for _, readme := range []string{"../../README.md", "../../README.pt-BR.md"} {
-		text := string(readFile(t, readme))
+	for _, doc := range []string{
+		"../../docs/CONFIGURATION.md",
+		"../../docs/CONFIGURATION.pt-BR.md",
+	} {
+		text := string(readFile(t, doc))
 		for _, key := range decodedKeys(t, encoded) {
 			if !strings.Contains(text, "`"+key+"`") {
-				t.Errorf("%s does not describe config field %q", readme, key)
+				t.Errorf("%s does not describe config field %q", doc, key)
 			}
 		}
 	}

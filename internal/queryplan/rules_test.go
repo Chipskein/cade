@@ -31,13 +31,16 @@ func TestPlanByRulesOnShippedSuite(t *testing.T) {
 
 func TestPlanByRulesReadsPlainQuestions(t *testing.T) {
 	cases := map[string]Plan{
-		"liste os commits de ontem":       {Mode: ModeList, Period: "ontem", Source: event.SourceGit},
-		"o que eu fiz?":                   {Mode: ModeAnswer},
-		"mensagens que recebi hoje":       {Mode: ModeList, Period: "hoje", Source: event.SourceTeams, Criteria: listing.Criteria{Direction: listing.Received}},
-		"resumo das mensagens de ontem":   {Mode: ModeAnswer, Period: "ontem", Source: event.SourceTeams},
-		"tarefas que não finalizei":       {Mode: ModeTasks, TaskStatus: OnlyInProgress},
-		"which tasks did I finish today?": {Mode: ModeTasks, Period: "today", TaskStatus: OnlyDone},
-		"show everything from yesterday":  {Mode: ModeList, Period: "yesterday"},
+		"liste os commits de ontem":          {Mode: ModeList, Period: "ontem", Source: event.SourceGit},
+		"o que eu fiz?":                      {Mode: ModeAnswer},
+		"mensagens que recebi hoje":          {Mode: ModeList, Period: "hoje", Source: event.SourceTeams, Criteria: listing.Criteria{Direction: listing.Received}},
+		"resumo das mensagens de ontem":      {Mode: ModeAnswer, Period: "ontem", Source: event.SourceTeams},
+		"tarefas que não finalizei":          {Mode: ModeTasks, TaskStatus: OnlyInProgress},
+		"which tasks did I finish today?":    {Mode: ModeTasks, Period: "today", TaskStatus: OnlyDone},
+		"quais tarefas estão com PR aberto?": {Mode: ModeTasks, TaskStatus: OnlyDone},
+		"show everything from yesterday":     {Mode: ModeList, Period: "yesterday"},
+		"liste os commits de 20/09":          {Mode: ModeList, Period: "20/09", Source: event.SourceGit},
+		"list the commits from 9/20":         {Mode: ModeList, Period: "9/20", Source: event.SourceGit},
 	}
 	for question, expected := range cases {
 		expected.ReadByRules = true

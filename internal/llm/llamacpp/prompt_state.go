@@ -94,7 +94,7 @@ func (s promptStateStore) pathForTokens(tokens []int32) string {
 
 // removeOthers deletes every other saved state (older prompts, models,
 // builds, and temporary files of interrupted saves): only the planner's
-// current prefix is worth keeping, and each file is ~70 MB.
+// current prefix is worth keeping, and each file is ~40 MB (Qwen3.5-2B).
 func (s promptStateStore) removeOthers(keep string) {
 	others, _ := filepath.Glob(filepath.Join(s.dir, promptStatePrefix+"*"))
 	for _, other := range others {

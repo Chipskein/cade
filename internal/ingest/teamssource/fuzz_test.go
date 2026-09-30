@@ -11,7 +11,7 @@ import (
 
 // FuzzCollectReplyChain feeds any decodable V8 value to the collector as a
 // reply chain: whatever shape Teams gives it, collecting fails or skips,
-// never panics (a chain without messageMap did). Run longer with `make fuzz`.
+// never panics (a chain without messageMap did). Run longer with `go tool mage fuzz`.
 func FuzzCollectReplyChain(f *testing.F) {
 	f.Add([]byte{0xFF, 0x0F, 'o', '"', 2, 'i', 'd', '"', 1, 'x', '{', 1})
 	f.Add([]byte{0xFF, 0x0F, 'o', '"', 10, 'm', 'e', 's', 's', 'a', 'g', 'e', 'M', 'a', 'p', 'o', '"', 1, '1', '_', '{', 1, '{', 1})

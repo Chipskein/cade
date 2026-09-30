@@ -1,5 +1,17 @@
 {
   "database_path": "~/.local/share/cade/cade.db",
+  "ingest": {
+    "redact": true,
+    "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } },
+    "max_image_bytes": 20971520,
+    "max_images_per_run": 50,
+    "background": {
+      "threads": 2,
+      "gpu_layers": -1,
+      "busy_percent": 50,
+      "max_images_per_run": 500
+    }
+  },
   "embedding": {
     "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
     "context_tokens": 0,
@@ -9,13 +21,17 @@
     "document_prefix": "search_document: "
   },
   "generation": {
-    "model_path": "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf",
+    "model_path": "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf",
     "context_tokens": 8192,
     "threads": 0,
     "gpu_layers": -1
   },
+  "vision": {
+    "projector_path": "~/.local/share/cade/models/mmproj-Qwen3.5-2B-F16.gguf",
+    "context_tokens": 2048
+  },
   "retrieval": {
-    "top_k": 8,
+    "top_k": 6,
     "max_distance": 0.72,
     "max_best_distance": 0.61,
     "max_answer_tokens": 512,
@@ -49,11 +65,12 @@
       ".venv",
       "target"
     ],
-    "max_file_bytes": 262144
+    "ignored_file_globs": [".env*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx", "credentials*", ".netrc", ".npmrc", ".pypirc", ".git-credentials"],
+    "max_file_bytes": 262144,
+    "images": false
   },
   "tasks": {
     "task_url_patterns": [
-      "proj4\\.me/projects/(\\d+)/tasks/(\\d+)",
       "atlassian\\.net/browse/([A-Z][A-Z0-9]+-\\d+)",
       "linear\\.app/[\\w-]+/issue/([A-Z][A-Z0-9]+-\\d+)",
       "github\\.com/([\\w.-]+/[\\w.-]+)/issues/(\\d+)",
@@ -61,6 +78,7 @@
     ]
   },
   "ui": {
-    "language": "auto"
+    "language": "auto",
+    "date_order": "auto"
   }
 }

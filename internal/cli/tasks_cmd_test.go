@@ -18,6 +18,7 @@ func browserVisit(when time.Time, url, title string) event.Event {
 
 func TestTasksReportsFinishedTask(t *testing.T) {
 	world := newFakeWorld()
+	useProj4meTaskPattern(world)
 	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
 	world.store.Events = []event.Event{
 		browserVisit(yesterday, "https://app.proj4.me/projects/14/tasks/162", "Ajuste de CEP"),
@@ -25,7 +26,7 @@ func TestTasksReportsFinishedTask(t *testing.T) {
 		browserVisit(yesterday.Add(21*time.Minute), "https://github.com/acme/api/pull/45", "fix-cep-162 by bruno · Pull Request #45 · acme/api · GitHub"),
 	}
 	code, stdout, _ := world.run("tasks", "ontem")
-	if code != 0 || !strings.Contains(stdout, "concluída     14/162  Ajuste de CEP") || !strings.Contains(stdout, "PR acme/api#45 aberto 09:21 · fix-cep-162") {
+	if code != 0 || !strings.Contains(stdout, "PR aberto     14/162  Ajuste de CEP") || !strings.Contains(stdout, "PR acme/api#45 aberto 09:21 · fix-cep-162") {
 		t.Fatalf("expected the finished task with its PR, got %d:\n%s", code, stdout)
 	}
 }
@@ -57,7 +58,7 @@ func TestFormatOpenedAtShowsDateBeforePeriod(t *testing.T) {
 	days, _ := timeline.ParseDayRange("2026-09-25", "", cliNow)
 	before := formatOpenedAt(time.Date(2026, 9, 12, 16, 40, 0, 0, time.UTC), days)
 	within := formatOpenedAt(time.Date(2026, 9, 25, 16, 40, 0, 0, time.UTC), days)
-	if before != "12/09 16:40" || within != "16:40" {
+	if before != "2026-09-12 16:40" || within != "16:40" {
 		t.Fatalf("unexpected %q / %q", before, within)
 	}
 }
@@ -80,6 +81,7 @@ func teamsLink(when time.Time, text string, sentByMe bool) event.Event {
 // the user's.
 func TestTasksHidesTasksOnlyMentionedByOthers(t *testing.T) {
 	world := newFakeWorld()
+	useProj4meTaskPattern(world)
 	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
 	world.store.Events = []event.Event{
 		teamsLink(yesterday, "vou pegar https://app.proj4.me/projects/14/tasks/162", true),
@@ -87,10 +89,10 @@ func TestTasksHidesTasksOnlyMentionedByOthers(t *testing.T) {
 		browserVisit(yesterday.Add(2*time.Hour), "https://app.proj4.me/projects/227/tasks/36", "Proj4me"),
 	}
 	_, stdout, _ := world.run("tasks", "ontem")
-	if !strings.Contains(stdout, "1 suas") || !strings.Contains(stdout, "14/162") || strings.Contains(stdout, "115/1420") {
+	if !strings.Contains(stdout, "1 tarefa sua") || !strings.Contains(stdout, "14/162") || strings.Contains(stdout, "115/1420") {
 		t.Fatalf("expected only the user's task listed, got:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "Consultadas") || !strings.Contains(stdout, "227/36") || !strings.Contains(stdout, "Citadas só por outras pessoas: 1 tarefas") {
+	if !strings.Contains(stdout, "Consultadas") || !strings.Contains(stdout, "227/36") || !strings.Contains(stdout, "Citadas só por outras pessoas: 1 tarefa — use --all") {
 		t.Fatalf("expected the consulted task and the others summary, got:\n%s", stdout)
 	}
 	_, all, _ := world.run("tasks", "--all", "ontem")
@@ -100,6 +102,7 @@ func TestTasksHidesTasksOnlyMentionedByOthers(t *testing.T) {
 }
 
 func finishedAndOpenTasks(world *fakeWorld) {
+	useProj4meTaskPattern(world)
 	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
 	world.store.Events = []event.Event{
 		browserVisit(yesterday, "https://app.proj4.me/projects/14/tasks/162", "Ajuste de CEP"),
@@ -114,7 +117,7 @@ func TestAskTasksQuestionUsesTaskReport(t *testing.T) {
 	finishedAndOpenTasks(world)
 	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "concluidas"}`
 	code, stdout, stderr := world.run("ask", "quais tarefas eu finalizei ontem?")
-	if code != 0 || world.embedderLoads != 0 || !strings.Contains(stderr, "Entendi: tarefas · 2026-09-25 · concluídas") {
+	if code != 0 || world.embedderLoads != 0 || !strings.Contains(stderr, "Entendi: tarefas · 2026-09-25 · PR aberto") {
 		t.Fatalf("expected a task report without the embedder, got %d, %d loads, %q", code, world.embedderLoads, stderr)
 	}
 	if !strings.Contains(stdout, "14/162") || strings.Contains(stdout, "14/170") {
@@ -147,6 +150,7 @@ func messageFrom(when time.Time, sender, text string) event.Event {
 // tasksPassedOn: Carla passes two tasks in one message, Rui one; the user
 // only visits another task, and a PR for 14/170 targets the Acme branch.
 func tasksPassedOn(world *fakeWorld) {
+	useProj4meTaskPattern(world)
 	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
 	world.store.Events = []event.Event{
 		messageFrom(yesterday, "Carla Dias", "pega https://app.proj4.me/projects/14/tasks/162 e https://app.proj4.me/projects/14/tasks/170"),
@@ -155,6 +159,10 @@ func tasksPassedOn(world *fakeWorld) {
 		browserVisit(yesterday.Add(4*time.Hour), "https://github.com/acme/api/compare/main-acme...p4m/14/170", "Comparing"),
 		browserVisit(yesterday.Add(4*time.Hour+time.Minute), "https://github.com/acme/api/pull/46", "p4m/14/170 -> main-acme by eu · Pull Request #46 · acme/api · GitHub"),
 	}
+}
+
+func useProj4meTaskPattern(world *fakeWorld) {
+	world.cfg.Tasks.TaskURLPatterns = []string{`proj4\.me/projects/(\d+)/tasks/(\d+)`}
 }
 
 // Regression: "tarefas que a Ana me passou ontem" listed every task, as

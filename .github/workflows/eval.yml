@@ -27,8 +27,8 @@ jobs:
       - name: Read pinned versions
         id: versions
         run: |
-          echo "llama=$(make -s print-LLAMA_TAG)" >> "$GITHUB_OUTPUT"
-          echo "models=$(make -s print-EMBEDDING_MODEL_URL print-GENERATION_MODEL_URL | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+          echo "llama=$(go tool mage print LLAMA_TAG)-$(go tool mage print LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "models=$(go tool mage print EMBEDDING_MODEL_URL print GENERATION_MODEL_URL | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
 
       # Same key as the CI workflow, so a build from either is reused.
       - name: Cache the llama.cpp build
@@ -59,7 +59,7 @@ jobs:
 
       - name: Plan and retrieval suites (CPU)
         shell: bash
-        run: make eval GO_TAGS= EVAL_TIMEOUT=5h 2>&1 | tee eval-report.txt
+        run: GO_TAGS= EVAL_TIMEOUT=5h go tool mage eval 2>&1 | tee eval-report.txt
 
       - name: Upload the report
         if: always()

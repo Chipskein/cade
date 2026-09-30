@@ -60,6 +60,27 @@ func TestStoredEvent(t *testing.T) {
 	}
 }
 
+func TestDeleteEventRemovesPrivateRowsAndRemembersUID(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	ev := event.Event{UID: "private-uid", Source: event.SourceTeams, Timestamp: baseTime, Content: "unique-private-message", Metadata: event.Message{Sender: "Private Person", Kind: event.KindChat}.Metadata()}
+	mustSave(t, store, ev, []float32{1, 0})
+	deleted, err := store.DeleteEvent(ctx, ev.UID)
+	if err != nil || !deleted {
+		t.Fatalf("delete event: %v, %v", deleted, err)
+	}
+	for _, table := range []string{"events", "chunks", "chunk_embeddings", "chunks_fts", "event_people", "file_modifications"} {
+		var count int
+		if err := store.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil || count != 0 {
+			t.Errorf("%s retained %d rows (err %v)", table, count, err)
+		}
+	}
+	forgotten, err := store.IsForgotten(ctx, ev.UID)
+	if err != nil || !forgotten {
+		t.Fatalf("UID not retained for suppression: %v, %v", forgotten, err)
+	}
+}
+
 func TestUpdateEventReplacesContentAndEmbedding(t *testing.T) {
 	store := openTestStore(t)
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), []float32{1, 0})

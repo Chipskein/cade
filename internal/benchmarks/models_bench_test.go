@@ -23,7 +23,7 @@ import (
 )
 
 // The model paths come from the same variables as the model tests
-// (Makefile targets bench and test-models); without them these skip.
+// (mage targets bench and testModels); without them these skip.
 const (
 	embeddingModelEnv  = "CADE_TEST_EMBEDDING_MODEL"
 	generationModelEnv = "CADE_TEST_GENERATION_MODEL"

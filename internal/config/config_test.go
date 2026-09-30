@@ -27,6 +27,28 @@ func TestLoadOverridesOnlyGivenFields(t *testing.T) {
 	}
 }
 
+func TestLoadMigratesPreviousGenerationDefault(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	raw := `{"generation":{"model_path":"~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf"}}`
+	testcheck.NoError(t, os.WriteFile(path, []byte(raw), 0o600))
+
+	cfg, err := Load(path)
+	if err != nil || cfg.Generation.ModelPath != ExpandHome(defaultGenerationModelPath) {
+		t.Fatalf("expected migrated generation model path, got %q (err %v)", cfg.Generation.ModelPath, err)
+	}
+}
+
+func TestLoadKeepsCustomGenerationModel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	raw := `{"generation":{"model_path":"~/models/custom.gguf"}}`
+	testcheck.NoError(t, os.WriteFile(path, []byte(raw), 0o600))
+
+	cfg, err := Load(path)
+	if err != nil || cfg.Generation.ModelPath != ExpandHome("~/models/custom.gguf") {
+		t.Fatalf("expected custom generation model path, got %q (err %v)", cfg.Generation.ModelPath, err)
+	}
+}
+
 func TestLoadRejectsInvalidJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{not json`), 0o600))
@@ -129,5 +151,53 @@ func TestLoadAcceptsUILanguage(t *testing.T) {
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"language": "en"}}`), 0o600))
 	if cfg, err := Load(path); err != nil || cfg.UI.Language != "en" {
 		t.Fatalf("expected en, got %+v %v", cfg.UI, err)
+	}
+}
+
+func TestLoadRejectsUnknownDateOrder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"date_order": "ymd"}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "ymd") {
+		t.Fatalf("expected ui.date_order \"ymd\" rejected, got %v", err)
+	}
+}
+
+func TestLoadDefaultsDateOrderToAuto(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ui": {"language": "en"}}`), 0o600))
+	if cfg, err := Load(path); err != nil || cfg.UI.DateOrder != "auto" {
+		t.Fatalf("expected ui.date_order \"auto\" by default, got %q (%v)", cfg.UI.DateOrder, err)
+	}
+}
+
+func TestDefaultsLeaveImagesOffWithUsableLimits(t *testing.T) {
+	defaults := Defaults()
+	if defaults.Sources.Images || defaults.Ingest.validateImageLimits() != nil || defaults.Vision.ContextTokens <= 0 {
+		t.Fatalf("expected images off by default with valid limits, got sources.images=%v ingest=%+v vision=%+v",
+			defaults.Sources.Images, defaults.Ingest, defaults.Vision)
+	}
+}
+
+func TestLoadRejectsImagesWithoutAPerRunLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"images": true}, "ingest": {"max_images_per_run": 0}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "max_images_per_run is 0") {
+		t.Fatalf("expected max_images_per_run 0 rejected, got %v", err)
+	}
+}
+
+// With images off, the limits are never read, so a zero is harmless.
+func TestLoadIgnoresImageLimitsWithImagesOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ingest": {"max_image_bytes": 0}}`), 0o600))
+	if _, err := Load(path); err != nil {
+		t.Fatalf("expected image limits ignored with sources.images off, got %v", err)
+	}
+}
+
+func TestLoadExpandsProjectorPath(t *testing.T) {
+	cfg, err := Load(filepath.Join(t.TempDir(), "absent.json"))
+	if err != nil || strings.HasPrefix(cfg.Vision.ProjectorPath, "~") || !strings.HasSuffix(cfg.Vision.ProjectorPath, "mmproj-Qwen3.5-2B-F16.gguf") {
+		t.Fatalf("expected an expanded projector path, got %q (err %v)", cfg.Vision.ProjectorPath, err)
 	}
 }

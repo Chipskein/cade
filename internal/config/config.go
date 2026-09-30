@@ -22,17 +22,55 @@ type Config struct {
 	Sources      SourcesConfig   `json:"sources"`
 	Tasks        TasksConfig     `json:"tasks"`
 	UI           UIConfig        `json:"ui"`
+	Ingest       IngestConfig    `json:"ingest"`
+	Vision       VisionConfig    `json:"vision"`
 }
 
-// UIConfig sets the language of the CLI's labels and help.
+type IngestConfig struct {
+	Redact    bool            `json:"redact"`
+	Retention RetentionConfig `json:"retention"`
+	// MaxImageBytes skips larger images: they are kept, like other
+	// binaries, with their name only.
+	MaxImageBytes int64 `json:"max_image_bytes"`
+	// MaxImagesPerRun bounds how many new images one `ingest` describes;
+	// the rest wait for the next runs, so a folder of thousands of photos
+	// does not hold up the first ingestion for hours on a CPU.
+	MaxImagesPerRun int              `json:"max_images_per_run"`
+	Background      BackgroundConfig `json:"background"`
+}
+
+// VisionConfig locates the image encoder of the generation model, which
+// `ingest` loads to describe images (phase 19); `ask` never does.
+type VisionConfig struct {
+	// ProjectorPath is the mmproj GGUF released with the generation model.
+	ProjectorPath string `json:"projector_path"`
+	// ContextTokens is the generator's context while describing: an image
+	// scaled to 1024 px takes at most ~1000 tokens and the reply 384, so it
+	// can be smaller than generation.context_tokens, and uses less memory.
+	ContextTokens int `json:"context_tokens"`
+}
+
+type RetentionConfig struct {
+	MaxAgeDays map[string]int `json:"max_age_days"`
+}
+
+// UIConfig sets the language of the CLI's labels and help, and how
+// numeric dates in questions are read.
 type UIConfig struct {
 	// Language is "auto" (follow the locale), "pt" or "en". Answers to
 	// `ask` follow the question's language regardless.
 	Language string `json:"language"`
+	// DateOrder is "auto" (month first for en_US, day first otherwise),
+	// "dmy" or "mdy": whether "12/08" in a question is 12 August or
+	// December 8. Output dates are ISO either way.
+	DateOrder string `json:"date_order"`
 }
 
 // UILanguages are the accepted ui.language values.
 var UILanguages = []string{"auto", "pt", "en"}
+
+// UIDateOrders are the accepted ui.date_order values.
+var UIDateOrders = []string{"auto", "dmy", "mdy"}
 
 // TasksConfig tells `cade tasks` how to recognize task links.
 type TasksConfig struct {
@@ -60,11 +98,12 @@ type EmbeddingConfig struct {
 	DocumentPrefix string `json:"document_prefix"`
 }
 
-// ModelName identifies the embedding model by its file name, which
-// carries the quantization (Q4 and Q8 vectors differ too); the database
-// records it to refuse mixing vectors of two models.
-func (e EmbeddingConfig) ModelName() string {
-	return filepath.Base(e.ModelPath)
+// ModelName identifies a model by its file name, which carries the
+// quantization (Q4 and Q8 vectors differ too); the database records the
+// embedding model's to refuse mixing vectors of two models, and each image
+// description the generation model's.
+func (m ModelConfig) ModelName() string {
+	return filepath.Base(m.ModelPath)
 }
 
 // RetrievalConfig tunes semantic search and answer generation.
@@ -99,7 +138,11 @@ type SourcesConfig struct {
 	TeamsIndexedDBDirs []string `json:"teams_indexeddb_dirs"`
 	Directories        []string `json:"directories"`
 	IgnoredDirNames    []string `json:"ignored_dir_names"`
+	IgnoredFileGlobs   []string `json:"ignored_file_globs"`
 	MaxFileBytes       int64    `json:"max_file_bytes"`
+	// Images turns on describing png, jpeg and webp files of Directories
+	// with the local vision model, so they are found by what they show.
+	Images bool `json:"images"`
 }
 
 // DefaultPath is $XDG_CONFIG_HOME/cade/config.json (or ~/.config/...).
@@ -127,10 +170,54 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return Config{}, fmt.Errorf("parse config %q, expected a JSON object like `cade init` writes: %w", path, err)
 	}
-	if !slices.Contains(UILanguages, cfg.UI.Language) {
-		return Config{}, fmt.Errorf("config %q: ui.language is %q, expected one of %v", path, cfg.UI.Language, UILanguages)
+	cfg.migratePreviousGenerationDefault()
+	if err := cfg.validate(); err != nil {
+		return Config{}, fmt.Errorf("config %q: %w", path, err)
 	}
 	return cfg.expandPaths()
+}
+
+// migratePreviousGenerationDefault moves configs written by cade init before
+// v0.0.0 to the current generation model. Other model paths remain user-set.
+func (c *Config) migratePreviousGenerationDefault() {
+	if c.Generation.ModelPath == previousGenerationModelPath {
+		c.Generation.ModelPath = defaultGenerationModelPath
+	}
+}
+
+func (c Config) validate() error {
+	if err := c.UI.validate(); err != nil {
+		return err
+	}
+	if err := c.Ingest.Background.validate(c.Sources.Images); err != nil {
+		return err
+	}
+	if !c.Sources.Images {
+		return nil
+	}
+	return c.Ingest.validateImageLimits()
+}
+
+// validateImageLimits rejects limits that would describe nothing, a
+// mistake that would otherwise only show as images never being found.
+func (ingest IngestConfig) validateImageLimits() error {
+	if ingest.MaxImageBytes <= 0 {
+		return fmt.Errorf("ingest.max_image_bytes is %d, expected a positive byte count with sources.images on", ingest.MaxImageBytes)
+	}
+	if ingest.MaxImagesPerRun <= 0 {
+		return fmt.Errorf("ingest.max_images_per_run is %d, expected a positive count with sources.images on", ingest.MaxImagesPerRun)
+	}
+	return nil
+}
+
+func (ui UIConfig) validate() error {
+	if !slices.Contains(UILanguages, ui.Language) {
+		return fmt.Errorf("ui.language is %q, expected one of %v", ui.Language, UILanguages)
+	}
+	if !slices.Contains(UIDateOrders, ui.DateOrder) {
+		return fmt.Errorf("ui.date_order is %q, expected one of %v", ui.DateOrder, UIDateOrders)
+	}
+	return nil
 }
 
 // Write creates the config file at path with cfg, owner-only since it
@@ -168,6 +255,7 @@ func (c Config) expandPaths() (Config, error) {
 	c.DatabasePath = ExpandHomeIn(c.DatabasePath, home)
 	c.Embedding.ModelPath = ExpandHomeIn(c.Embedding.ModelPath, home)
 	c.Generation.ModelPath = ExpandHomeIn(c.Generation.ModelPath, home)
+	c.Vision.ProjectorPath = ExpandHomeIn(c.Vision.ProjectorPath, home)
 	c.Sources.GitRepositories = expandHomeAll(c.Sources.GitRepositories, home)
 	c.Sources.BrowserHistories = expandHomeAll(c.Sources.BrowserHistories, home)
 	c.Sources.Directories = expandHomeAll(c.Sources.Directories, home)

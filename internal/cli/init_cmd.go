@@ -46,6 +46,11 @@ func (env commandEnv) askSources(prompt *initPrompt, home string, sources config
 	folders := prompt.lines(language.pick("\nPastas de notas ou documentos a indexar, uma por linha (linha vazia termina):",
 		"\nNote or document folders to index, one per line (an empty line ends):"))
 	sources.Directories = contractAll(resolveAll(folders, home), home)
+	sources.Images = len(sources.Directories) > 0 && prompt.confirm(language.pick(
+		"\nDescrever as imagens (png, jpg, webp) dessas pastas com o modelo local, para achá-las pelo que mostram?\n"+
+			"Leva ~2 s por imagem com GPU e ~20 s em CPU, até 50 por `cade ingest`. [s/N]: ",
+		"\nDescribe the images (png, jpg, webp) in these folders with the local model, to find them by what they show?\n"+
+			"Takes ~2 s per image on a GPU and ~20 s on a CPU, up to 50 per `cade ingest`. [y/N]: "))
 	return sources
 }
 
@@ -82,11 +87,24 @@ func (env commandEnv) askRepositories(prompt *initPrompt, home string, skipped [
 	return chooseFound(prompt, title, contractAll(found, home), true)
 }
 
+var (
+	historyNoun    = nounForms{"histórico", "históricos", "history", "histories"}
+	teamsCacheNoun = nounForms{"cache do Teams", "caches do Teams", "Teams cache", "Teams caches"}
+	repositoryNoun = nounForms{"repositório", "repositórios", "repository", "repositories"}
+	folderNoun     = nounForms{"pasta", "pastas", "folder", "folders"}
+)
+
+// initSourcesLine counts what init configured: "Fontes: 1 histórico, …".
+func initSourcesLine(sources config.SourcesConfig, language Language) string {
+	return fmt.Sprintf(language.pick("Fontes: %s, %s, %s, %s.\n", "Sources: %s, %s, %s, %s.\n"),
+		language.count(len(sources.BrowserHistories), historyNoun), language.count(len(sources.TeamsIndexedDBDirs), teamsCacheNoun),
+		language.count(len(sources.GitRepositories), repositoryNoun), language.count(len(sources.Directories), folderNoun))
+}
+
 func (env commandEnv) printInitSummary(sources config.SourcesConfig) {
 	language := env.language
 	fmt.Fprintf(env.stdout, language.pick("\nConfiguração criada em %s (só o seu usuário lê).\n", "\nConfig written to %s (readable by your user only).\n"), env.configPath)
-	fmt.Fprintf(env.stdout, language.pick("Fontes: %d históricos, %d caches do Teams, %d repositórios, %d pastas.\n", "Sources: %d histories, %d Teams caches, %d repositories, %d folders.\n"),
-		len(sources.BrowserHistories), len(sources.TeamsIndexedDBDirs), len(sources.GitRepositories), len(sources.Directories))
+	fmt.Fprint(env.stdout, initSourcesLine(sources, language))
 	fmt.Fprint(env.stdout, language.pick(
 		"Próximos passos:\n  cade doctor        confere modelos, banco e caminhos\n  cade ingest all    importa as fontes\n",
 		"Next steps:\n  cade doctor        checks models, database and paths\n  cade ingest all    imports the sources\n"))

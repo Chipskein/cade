@@ -1,0 +1,64 @@
+# cade plan suite with Qwen2.5-3B-Instruct Q4_K_M (the default up to v0.0.0) — 2026-09-27, commit ce1454b + working tree (phase 18 planner prompt), RTX 3060; compare with plan-baseline.txt (Qwen3.5-2B)
+153 perguntas, 133 totalmente corretas
+  lidas só por regras: 67, com 0 erradas
+  mode       146/153   95%  [ 91%– 98%]
+  days       153/153  100%  [ 98%–100%]
+  source     147/153   96%  [ 92%– 98%]
+  people     145/153   95%  [ 90%– 97%]
+  direction  150/153   98%  [ 94%– 99%]
+  topic      144/153   94%  [ 89%– 97%]
+  status     153/153  100%  [ 98%–100%]
+✗ que mensagem eu mandei pra Juliana sobre o contrato?
+    source: esperado "teams", veio ""
+✗ conversas com a Beatriz e o Tiago na última semana
+    mode: esperado "listar", veio "responder"
+✗ o que eu pesquisei na web sobre a migração do banco em 20/09?
+    mode: esperado "responder", veio "listar"
+✗ o que eu sei sobre o cliente Acme?
+    people: esperado "", veio "acme"
+    topic: esperado "Acme", veio ""
+✗ Quais foram as tarefas da Acme que me passaram ontem
+    people: esperado "", veio "acme"
+    topic: esperado "Acme", veio ""
+✗ como configurei o pre-commit no repositório?
+    source: esperado "", veio "file"
+✗ o que a Beatriz me mandou hoje?
+    mode: esperado "responder", veio "listar"
+    source: esperado "", veio "teams"
+✗ conversas com a Juliana essa semana
+    mode: esperado "listar", veio "responder"
+✗ mensagens da Ana no chat do projeto
+    direction: esperado "recebidas", veio ""
+✗ mensagens que o Leandro me enviou este mês
+    direction: esperado "recebidas", veio ""
+✗ messages from Beatriz this week
+    direction: esperado "recebidas", veio ""
+✗ conversations with Carla last week
+    mode: esperado "listar", veio "responder"
+✗ show me what Juliana sent me today
+    source: esperado "", veio "teams"
+✗ o que a Zenite pediu no último contrato?
+    people: esperado "", veio "zenite"
+    topic: esperado "Zenite", veio "contrato"
+✗ o que o time de QA reportou ontem?
+    mode: esperado "responder", veio "listar"
+    source: esperado "", veio "teams"
+    people: esperado "", veio "time de qa"
+    topic: esperado "QA", veio ""
+✗ falei com o suporte da AWS sobre o limite?
+    people: esperado "", veio "suporte da aws"
+    topic: esperado "AWS", veio "limite"
+✗ what did Globex ask for in the renewal?
+    people: esperado "", veio "globex"
+    topic: esperado "Globex", veio "renewal"
+✗ did the QA team report anything yesterday?
+    source: esperado "", veio "teams"
+    people: esperado "", veio "qa team"
+    topic: esperado "QA", veio "anything"
+✗ quais cards o Pedro me passou hoje?
+    mode: esperado "tarefas", veio "listar"
+    topic: esperado "", veio "cards"
+✗ tarefas da Zenite que me mandaram essa semana
+    people: esperado "", veio "zenite"
+    topic: esperado "Zenite", veio ""
+

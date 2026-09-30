@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,13 +58,40 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	return emitCommits(string(output), repository, c.resolved, emit)
 }
 
+// historyRefs are the commits read: every branch, tag and remote.
+var historyRefs = []string{"--branches", "--tags", "--remotes", "HEAD"}
+
 func (c *Collector) logArguments() []string {
-	args := []string{"-c", "core.quotepath=off", "log", "--branches", "--tags", "--remotes", "HEAD",
-		"--no-color", "--name-only", logFormat}
-	for _, author := range c.authors {
-		args = append(args, "--author="+author)
+	args := append([]string{"-c", "core.quotepath=off", "log"}, historyRefs...)
+	args = append(args, "--no-color", "--name-only", logFormat)
+	return append(args, c.authorFilters()...)
+}
+
+func (c *Collector) authorFilters() []string {
+	filters := make([]string, len(c.authors))
+	for i, author := range c.authors {
+		filters[i] = "--author=" + author
 	}
-	return args
+	return filters
+}
+
+// EstimateEvents counts the commits CollectEvents will emit, with
+// `git rev-list --count` over the same refs and authors.
+func (c *Collector) EstimateEvents(ctx context.Context) (int, error) {
+	repository, err := filepath.Abs(c.repository)
+	if err != nil {
+		return 0, fmt.Errorf("resolve repository path %q: %w", c.repository, err)
+	}
+	args := append(append([]string{"rev-list", "--count"}, historyRefs...), c.authorFilters()...)
+	output, err := c.runner.Run(ctx, repository, "git", args...)
+	if err != nil {
+		return 0, fmt.Errorf("count commits of %q: %w", repository, err)
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	if err != nil {
+		return 0, fmt.Errorf("parse commit count %q of %q, expected a number: %w", output, repository, err)
+	}
+	return count, nil
 }
 
 func emitCommits(output, repository string, identities []string, emit ingest.EmitFunc) error {

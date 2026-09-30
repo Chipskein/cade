@@ -6,8 +6,8 @@ import (
 )
 
 // English date expressions, so questions can be asked in either language.
-// Slash dates stay day/month ("12/08" is 12 August): guessing the order
-// from the question's language would silently pick the wrong day.
+// Slash dates follow the configured DateOrder, never the question's
+// language: guessing from it would silently pick the wrong day.
 var (
 	englishMonth = `(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)`
 	// "August 12", "Aug 12th, 2025"
@@ -30,7 +30,7 @@ var (
 	ordinalSuffix         = regexp.MustCompile(`^\d{1,2}(st|nd|rd|th)`)
 )
 
-func detectEnglishMonthDate(text string, today time.Time) (DayRange, bool) {
+func detectEnglishMonthDate(text string, today time.Time, _ DateOrder) (DayRange, bool) {
 	if match := monthFirstPattern.FindStringSubmatchIndex(text); match != nil && !isModalMay(text, match) {
 		return singleDay(resolveYear(group(text, match, 3), today), englishMonthNumber(group(text, match, 1)), atoi(group(text, match, 2)), today)
 	}

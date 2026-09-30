@@ -29,7 +29,7 @@ var keywordRanges = []keywordRange{
 // allKeywordRanges checks Portuguese first, then English.
 var allKeywordRanges = append(append([]keywordRange{}, keywordRanges...), englishKeywordRanges...)
 
-func detectKeyword(text string, today time.Time) (DayRange, bool) {
+func detectKeyword(text string, today time.Time, _ DateOrder) (DayRange, bool) {
 	for _, keyword := range allKeywordRanges {
 		if keyword.pattern.MatchString(text) {
 			return keyword.resolve(today), true

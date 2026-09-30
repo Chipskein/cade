@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -16,14 +17,21 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/imagecaption"
+	"github.com/chipskein/cade/internal/imagepreview"
 	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
+	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/storage/sqlitestore"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// SIGHUP (the terminal closed) cancels like Ctrl-C, so a foreground
+	// ingest records that it was interrupted and can be resumed.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	code := cli.Run(ctx, os.Args[1:], os.Stdout, os.Stderr, productionToolkit())
 	stop()
 	os.Exit(code)
@@ -31,23 +39,56 @@ func main() {
 
 func productionToolkit() cli.Toolkit {
 	return cli.Toolkit{
-		DefaultConfigPath: config.DefaultPath,
-		LoadConfig:        config.Load,
-		WriteConfig:       config.Write,
-		OpenStore:         openStore,
-		InspectDatabase:   sqlitestore.Inspect,
-		RootFS:            os.DirFS("/"),
-		HomeDir:           os.UserHomeDir,
-		Stdin:             os.Stdin,
-		Build:             buildinfo.Read(),
-		LoadEmbedder:      loadEmbedder,
-		LoadGenerator:     loadGenerator,
-		Sources:           sourceSpecs,
-		ReadIndexedDB:     indexeddb.ReadDirectory,
-		StderrIsTerminal:  isTerminal(os.Stderr),
-		Language:          cli.LanguageFromEnv(os.Getenv),
-		Now:               time.Now,
+		DefaultConfigPath:  config.DefaultPath,
+		LoadConfig:         config.Load,
+		WriteConfig:        config.Write,
+		OpenStore:          openStore,
+		InspectDatabase:    sqlitestore.Inspect,
+		RootFS:             os.DirFS("/"),
+		HomeDir:            os.UserHomeDir,
+		Stdin:              os.Stdin,
+		Build:              buildinfo.Read(),
+		LoadEmbedder:       loadEmbedder,
+		LoadGenerator:      loadGenerator,
+		LoadImageDescriber: loadImageDescriber,
+		Sources:            sourceSpecs,
+		ReadIndexedDB:      indexeddb.ReadDirectory,
+		StderrIsTerminal:   isTerminal(os.Stderr),
+		StdoutIsTerminal:   isTerminal(os.Stdout),
+		RenderImagePreview: renderImagePreview,
+		Language:           cli.LanguageFromEnv(os.Getenv),
+		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
+		Now:                time.Now,
+		IngestRuns:         ingestRunTools(),
 	}
+}
+
+func ingestRunTools() cli.IngestRunTools {
+	dir := ingestRunDir()
+	return cli.IngestRunTools{
+		State:     ingestrun.JSONStateFile{Dir: dir},
+		Lock:      ingestrun.FileLock{Dir: dir},
+		LogPath:   dir.LogPath(),
+		Processes: procctl.System{},
+		Clock:     pacing.SystemClock{},
+		Detached:  os.Getenv(cli.DetachedIngestVariable) == "1",
+		PID:       os.Getpid(),
+	}
+}
+
+// ingestRunDir falls back to the temporary directory without a home, where
+// the database path cannot be expanded either and ingest fails first.
+func ingestRunDir() ingestrun.Dir {
+	dir, err := ingestrun.DefaultDir(os.Getenv, os.UserHomeDir)
+	if err != nil {
+		return ingestrun.Dir(filepath.Join(os.TempDir(), "cade"))
+	}
+	return dir
+}
+
+func renderImagePreview(path string) string {
+	previewer := imagepreview.Previewer{Runner: imagepreview.ExecRunner{}, LookPath: exec.LookPath, Size: imagepreview.DefaultPreviewSize}
+	return previewer.Render(context.Background(), path)
 }
 
 func openStore(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error) {
@@ -55,7 +96,7 @@ func openStore(ctx context.Context, path string, backupCreated func(backupPath s
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory for %q: %w", path, err)
 	}
-	// MkdirAll keeps the mode of an existing directory (`make models`
+	// MkdirAll keeps the mode of an existing directory (`go tool mage models`
 	// creates it first, world-readable); the history must be owner-only.
 	if err := os.Chmod(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
@@ -73,6 +114,14 @@ func loadGenerator(settings config.ModelConfig, logger *slog.Logger) (cli.Closab
 	opts := modelOptions(settings)
 	opts.Logger, opts.PromptStateDir = logger, promptStateDir()
 	return llamacpp.LoadGenerator(opts)
+}
+
+// loadImageDescriber runs the generation model with the smaller context
+// of vision.context_tokens, and no saved prompt state: each image differs.
+func loadImageDescriber(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error) {
+	opts := modelOptions(generation)
+	opts.ContextTokens, opts.Logger = vision.ContextTokens, logger
+	return llamacpp.LoadImageDescriber(opts, vision.ProjectorPath)
 }
 
 // promptStateDir holds the question planner's saved prompt state (~70 MB,

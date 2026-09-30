@@ -9,6 +9,7 @@ import (
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage"
 )
@@ -21,6 +22,9 @@ type Dependencies struct {
 	Settings       rag.Settings
 	DocumentPrefix string
 	Logger         *slog.Logger
+	// Rerank, when set, reorders what the search returns (Settings.TopK
+	// candidates) and cuts it to Rerank.Keep.
+	Rerank *Reranking
 }
 
 // CaseDone observes a run; done counts from 1.
@@ -35,7 +39,7 @@ func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (
 	if err != nil {
 		return Scoreboard{}, err
 	}
-	return scoreCases(ctx, answerer, suite, onCase)
+	return scoreCases(ctx, caseRetriever{answerer: answerer, rerank: deps.Rerank}, suite, onCase)
 }
 
 // ingestCorpus stores the suite's events through the ingestion pipeline
@@ -50,10 +54,10 @@ func ingestCorpus(ctx context.Context, deps Dependencies, suite Suite, generator
 		Now: func() time.Time { return suite.Now }, Logger: deps.Logger}, deps.Settings), nil
 }
 
-func scoreCases(ctx context.Context, answerer *rag.Answerer, suite Suite, onCase CaseDone) (Scoreboard, error) {
+func scoreCases(ctx context.Context, retriever caseRetriever, suite Suite, onCase CaseDone) (Scoreboard, error) {
 	var board Scoreboard
 	for i, suiteCase := range suite.Cases {
-		result, err := runCase(ctx, answerer, suite, suiteCase)
+		result, err := runCase(ctx, retriever, suite, suiteCase)
 		if err != nil {
 			return Scoreboard{}, err
 		}
@@ -65,9 +69,23 @@ func scoreCases(ctx context.Context, answerer *rag.Answerer, suite Suite, onCase
 	return board, nil
 }
 
-func runCase(ctx context.Context, answerer *rag.Answerer, suite Suite, suiteCase Case) (CaseResult, error) {
+// caseRetriever retrieves as `cade ask` does, then reranks when set.
+type caseRetriever struct {
+	answerer *rag.Answerer
+	rerank   *Reranking
+}
+
+func (r caseRetriever) retrieve(ctx context.Context, query queryplan.Query) ([]storage.ScoredEvent, error) {
+	hits, err := r.answerer.Retrieve(ctx, query, rag.AnswerObserver{})
+	if err != nil || r.rerank == nil {
+		return hits, err
+	}
+	return r.rerank.Apply(query.Question, hits)
+}
+
+func runCase(ctx context.Context, retriever caseRetriever, suite Suite, suiteCase Case) (CaseResult, error) {
 	query := suiteCase.Query(suite.Now)
-	hits, err := answerer.Retrieve(ctx, query, rag.AnswerObserver{})
+	hits, err := retriever.retrieve(ctx, query)
 	if err != nil {
 		return CaseResult{}, fmt.Errorf("retrieve %q: %w", suiteCase.Question, err)
 	}

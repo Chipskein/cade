@@ -28,9 +28,11 @@ type FakeEventStore struct {
 	LastQuery storage.SimilarityQuery
 	FailWith  error
 	Closed    bool
+	Forgotten map[string]bool
 	// EmbeddingModelName, Pending and ReindexStarted back the
 	// storage.EmbeddingIndex methods.
 	EmbeddingModelName string
+	Calibration        storage.ThresholdCalibration
 	Pending            bool
 	ReindexStarted     int
 	// Modifications backs FileModificationsBetween; MarkMissingFiles
@@ -121,6 +123,52 @@ func (f *FakeEventStore) DeleteSource(_ context.Context, source event.Source) (i
 	}
 	removed := len(f.Events) - len(kept)
 	f.Events = kept
+	f.Forgotten = map[string]bool{}
+	return removed, f.FailWith
+}
+
+func (f *FakeEventStore) DeleteEvent(_ context.Context, uid string) (bool, error) {
+	index := f.indexOf(uid)
+	if index < 0 {
+		return false, f.FailWith
+	}
+	f.Events = append(f.Events[:index], f.Events[index+1:]...)
+	if f.Forgotten == nil {
+		f.Forgotten = map[string]bool{}
+	}
+	f.Forgotten[uid] = true
+	return true, f.FailWith
+}
+
+func (f *FakeEventStore) IsForgotten(_ context.Context, uid string) (bool, error) {
+	return f.Forgotten[uid], f.FailWith
+}
+
+func (f *FakeEventStore) EventsContaining(_ context.Context, text string, filter storage.EventFilter) ([]event.Event, error) {
+	var result []event.Event
+	for _, ev := range f.Events {
+		if (filter.Source == "" || ev.Source == filter.Source) && strings.Contains(strings.ToLower(ev.Content), strings.ToLower(text)) {
+			result = append(result, ev)
+		}
+	}
+	return result, f.FailWith
+}
+
+func (f *FakeEventStore) DeleteBefore(_ context.Context, source event.Source, before time.Time) (int, error) {
+	removed := 0
+	kept := f.Events[:0]
+	for _, ev := range f.Events {
+		if ev.Source == source && ev.Timestamp.Before(before) {
+			if f.Forgotten == nil {
+				f.Forgotten = map[string]bool{}
+			}
+			f.Forgotten[ev.UID] = true
+			removed++
+			continue
+		}
+		kept = append(kept, ev)
+	}
+	f.Events = kept
 	return removed, f.FailWith
 }
 
@@ -173,6 +221,15 @@ func (f *FakeEventStore) storeChunks(uid string, chunks []storage.Chunk) {
 
 func (f *FakeEventStore) EmbeddingModel(context.Context) (string, error) {
 	return f.EmbeddingModelName, f.FailWith
+}
+
+func (f *FakeEventStore) ThresholdCalibration(context.Context) (storage.ThresholdCalibration, error) {
+	return f.Calibration, f.FailWith
+}
+
+func (f *FakeEventStore) RecordThresholdCalibration(_ context.Context, calibration storage.ThresholdCalibration) error {
+	f.Calibration = calibration
+	return f.FailWith
 }
 
 func (f *FakeEventStore) RecordEmbeddingModel(_ context.Context, model string) error {
@@ -281,4 +338,31 @@ func (f *FakeEventStore) MarkCommitAuthorship(_ context.Context, repository stri
 		f.Events[i].Metadata["authorship"], changed = string(commit.Authorship), changed+1
 	}
 	return changed, f.FailWith
+}
+
+var _ storage.ImageCaptionIndex = (*FakeEventStore)(nil)
+
+// DescribedImage returns the image of the first described event with this
+// hash.
+func (f *FakeEventStore) DescribedImage(_ context.Context, sha256 string) (event.Image, bool, error) {
+	for _, ev := range f.Events {
+		if image := ev.Image(); image.SHA256 == sha256 && image.Status == event.CaptionDescribed {
+			return image, true, f.FailWith
+		}
+	}
+	return event.Image{}, false, f.FailWith
+}
+
+// OutdatedImages lists the described, present image events whose model or
+// prompt version differs.
+func (f *FakeEventStore) OutdatedImages(_ context.Context, model string, promptVersion int) ([]event.Event, error) {
+	var outdated []event.Event
+	for _, ev := range f.Events {
+		image := ev.Image()
+		present := ev.File().RemovedAt.IsZero()
+		if image.Status == event.CaptionDescribed && present && (image.Model != model || image.PromptVersion != promptVersion) {
+			outdated = append(outdated, ev)
+		}
+	}
+	return outdated, f.FailWith
 }

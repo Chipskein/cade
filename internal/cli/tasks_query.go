@@ -138,6 +138,6 @@ func renderFilteredTasks(out io.Writer, days timeline.DayRange, list []tasks.Tas
 			"No tasks found on %s with these filters (tasks are recognized by task links in messages and pages).\n"), days)
 		return
 	}
-	fmt.Fprintf(out, language.pick("Tarefas de %s — %d\n\n", "Tasks of %s — %d\n\n"), days, len(list))
+	fmt.Fprintf(out, language.pick("Tarefas de %s — %s\n\n", "Tasks of %s — %s\n\n"), days, language.count(len(list), taskNoun))
 	renderTasks(out, list, days, language)
 }

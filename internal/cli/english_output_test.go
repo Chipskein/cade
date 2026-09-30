@@ -10,7 +10,7 @@ import (
 // portugueseLabels are words only the Portuguese labels use; the fixtures'
 // content (task titles, messages) avoids them.
 var portugueseLabels = []string{
-	"evento", "Evento", "tarefa", "Tarefa", "Entendi", "Fontes", "Nenhum", "concluída", "andamento", "Não encontrei",
+	"evento", "Evento", "tarefa", "Tarefa", "Entendi", "Fontes", "Nenhum", "PR aberto", "andamento", "Não encontrei",
 	"pessoas:", "assunto:", "Filtrando", "Consultadas", "Citadas", "aberto", "provável", "suas", "recebidas",
 	"novos", "atualizados", "Carregando", "Buscando", "Gerando", "erro:",
 }
@@ -36,7 +36,7 @@ func TestTimelineInEnglish(t *testing.T) {
 	world := englishWorld()
 	_, ingested, _ := world.run("ingest", "git")
 	code, stdout, stderr := world.run("timeline", "hoje")
-	if code != 0 || !strings.Contains(stdout, "Timeline of 2026-09-26 — 1 events") || !strings.Contains(ingested, "1 new, 0 updated, 0 already stored") {
+	if code != 0 || !strings.Contains(stdout, "Timeline of 2026-09-26 — 1 event\n") || !strings.Contains(ingested, "1 new, 0 updated, 0 already stored (1 read)") {
 		t.Fatalf("expected an English timeline, got %d %q %q", code, stdout, ingested)
 	}
 	_, empty, _ := world.run("timeline", "2026-01-01")
@@ -47,7 +47,7 @@ func TestTasksInEnglish(t *testing.T) {
 	world := englishWorld()
 	finishedAndOpenTasks(world)
 	code, stdout, stderr := world.run("tasks", "ontem")
-	if code != 0 || !strings.Contains(stdout, "finished      14/162  Ajuste de CEP") || !strings.Contains(stdout, "PR acme/api#45 opened 09:21") {
+	if code != 0 || !strings.Contains(stdout, "PR opened     14/162  Ajuste de CEP") || !strings.Contains(stdout, "PR acme/api#45 opened 09:21") {
 		t.Fatalf("expected an English task report, got %d:\n%s", code, stdout)
 	}
 	_, none, _ := world.run("tasks", "2026-01-01")
@@ -82,7 +82,7 @@ func TestAskTasksInEnglish(t *testing.T) {
 	finishedAndOpenTasks(world)
 	world.generator.StructuredReply = `{"tipo": "tarefas", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": "concluidas"}`
 	code, stdout, stderr := world.run("ask", "which tasks did I finish yesterday?")
-	if code != 0 || !strings.Contains(stderr, "Understood: tasks · 2026-09-25 · finished") {
+	if code != 0 || !strings.Contains(stderr, "Understood: tasks · 2026-09-25 · PR opened") {
 		t.Fatalf("expected an English task answer, got %d %q %q", code, stdout, stderr)
 	}
 	requireEnglish(t, stdout, stderr)

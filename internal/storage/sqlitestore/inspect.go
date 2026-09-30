@@ -64,6 +64,9 @@ func readDatabaseState(ctx context.Context, db *sql.DB, state *storage.DatabaseS
 	if state.EmbeddingModel, err = store.EmbeddingModel(ctx); err != nil {
 		return err
 	}
+	if state.ThresholdCalibration, err = store.ThresholdCalibration(ctx); err != nil {
+		return err
+	}
 	state.ReindexPending, err = store.ReindexPending(ctx)
 	return err
 }

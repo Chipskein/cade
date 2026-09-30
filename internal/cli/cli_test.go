@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"strings"
 	"testing"
@@ -12,11 +13,15 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/ingest/filesource"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
+	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
+	"github.com/chipskein/cade/internal/timeline"
 )
 
 var cliNow = time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
@@ -53,11 +58,29 @@ type fakeWorld struct {
 	writtenConfig      string
 	writtenCfg         config.Config
 	language           Language
+	dateOrder          timeline.DateOrder
 	// files, stdin and database back init and doctor.
 	files    testfakes.FakeFileSystem
 	stdin    string
 	database storage.DatabaseState
 	build    buildinfo.Info
+	// realFiles makes the file source walk files with the real collector;
+	// describer backs the vision model, and describerOpenAtEmbedderLoad
+	// records whether it was still loaded when the embedder loaded.
+	realFiles                   bool
+	describer                   *testfakes.FakeImageDescriber
+	describerLoads              int
+	describerOpenAtEmbedderLoad bool
+	// runState, runLock, processes and pacingClock back the ingest run
+	// tools; detached makes this process the one `ingest start` started.
+	runState    *testfakes.FakeRunStateFile
+	runLock     *testfakes.FakeIngestLock
+	processes   *testfakes.FakeProcesses
+	pacingClock *testfakes.FakePacingClock
+	detached    bool
+	// loadedEmbedding and loadedGeneration are the settings the models
+	// were last loaded with.
+	loadedEmbedding config.EmbeddingConfig
 }
 
 func newFakeWorld() *fakeWorld {
@@ -66,6 +89,8 @@ func newFakeWorld() *fakeWorld {
 	return &fakeWorld{
 		store: testfakes.NewFakeEventStore(), embedder: &testfakes.FakeEmbedder{},
 		generator: &testfakes.FakeGenerator{}, cfg: cfg, files: testfakes.NewFakeFileSystem(),
+		runState: &testfakes.FakeRunStateFile{}, runLock: &testfakes.FakeIngestLock{}, processes: &testfakes.FakeProcesses{StartedPID: 4321},
+		pacingClock: &testfakes.FakePacingClock{Current: cliNow},
 	}
 }
 
@@ -80,15 +105,24 @@ func (w *fakeWorld) toolkit() Toolkit {
 		HomeDir:           func() (string, error) { return "/home/ana", nil },
 		Stdin:             strings.NewReader(w.stdin),
 		Build:             w.build,
-		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
+		LoadEmbedder: func(settings config.EmbeddingConfig, _ *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
+			w.loadedEmbedding = settings
+			w.describerOpenAtEmbedderLoad = w.describerLoads > 0 && !w.describer.Closed
 			return w.embedder, nil
+		},
+		LoadImageDescriber: func(config.ModelConfig, config.VisionConfig, *slog.Logger) (imagecaption.ClosableDescriber, error) {
+			w.describerLoads++
+			return w.describer, nil
 		},
 		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
 		ReadIndexedDB: w.readIndexedDB,
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
+		DateOrder:     w.dateOrder,
+		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
+			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
 }
 
@@ -105,12 +139,19 @@ func (w *fakeWorld) loadGenerator(config.ModelConfig, *slog.Logger) (ClosableGen
 	return w.generator, nil
 }
 
-func (w *fakeWorld) sources(cfg config.Config) []ingest.SourceSpec {
+func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec {
 	collector := FakeCollector{Events: []event.Event{sampleCommit}}
 	newCollector := func(string) (ingest.EventCollector, error) { return collector, nil }
+	newFileCollector := newCollector
+	if w.realFiles {
+		newFileCollector = func(root string) (ingest.EventCollector, error) {
+			files, err := fs.Sub(w.files, rootfs.Name(root))
+			return filesource.NewCollector(files, root, filesource.OptionsFor(cfg.Sources, captions)), err
+		}
+	}
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: newCollector},
-		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newCollector},
+		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newFileCollector},
 	}
 }
 
@@ -145,7 +186,7 @@ func TestInitWritesConfigAtGivenPath(t *testing.T) {
 func TestIngestUsesConfiguredTargetsAndReports(t *testing.T) {
 	world := newFakeWorld()
 	code, stdout, stderr := world.run("ingest", "git")
-	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novos, 0 atualizados, 0 já existentes") {
+	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git      /repo: 1 novo, 0 atualizados, 0 já existentes (1 lido)") {
 		t.Fatalf("expected one ingested commit, got %d %q %q", code, stdout, stderr)
 	}
 }
@@ -276,6 +317,16 @@ func TestDescribePlan(t *testing.T) {
 	}
 }
 
+// The folder is read from the question with the home of the toolkit.
+func TestAskAnnouncesTheFolderFilter(t *testing.T) {
+	world := newFakeWorld()
+	world.generator.StructuredReply = `{"tipo": "responder", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": "imagens", "status": null}`
+	code, _, stderr := world.run("ask", "Na pasta ~/Documents liste imagens")
+	if code != 0 || !strings.Contains(stderr, "file · pasta: /home/ana/Documents · assunto: imagens") {
+		t.Fatalf("expected the folder announced, got %d / %q", code, stderr)
+	}
+}
+
 func TestAskRequiresQuestion(t *testing.T) {
 	if code, _, _ := newFakeWorld().run("ask"); code != 1 {
 		t.Fatalf("expected exit 1, got %d", code)
@@ -300,7 +351,7 @@ func TestForgetRemovesOnlyThatSource(t *testing.T) {
 	world := newFakeWorld()
 	world.store.Events = []event.Event{sampleCommit, {UID: "f", Source: event.SourceFile}}
 	code, stdout, _ := world.run("forget", "git")
-	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "1 eventos de git removidos") {
+	if code != 0 || len(world.store.Events) != 1 || !strings.Contains(stdout, "git: 1 evento removido") {
 		t.Fatalf("expected only git removed, got %d %q with %d left", code, stdout, len(world.store.Events))
 	}
 }
@@ -317,6 +368,15 @@ func TestForgetRejectsUnknownSource(t *testing.T) {
 func TestForgetRequiresOneSource(t *testing.T) {
 	if code, _, _ := newFakeWorld().run("forget"); code != 1 {
 		t.Fatalf("expected exit 1, got %d", code)
+	}
+}
+
+func TestForgetMatchNeedsYesOutsideTerminal(t *testing.T) {
+	world := newFakeWorld()
+	world.store.Events = []event.Event{{UID: "match-me", Source: event.SourceTeams, Content: "private phrase", Timestamp: time.Now()}}
+	code, stdout, _ := world.run("forget", "--match", "private")
+	if code != 1 || len(world.store.Events) != 1 || !strings.Contains(stdout, "match-me") {
+		t.Fatalf("expected review with no deletion, got %d %q and %d events", code, stdout, len(world.store.Events))
 	}
 }
 

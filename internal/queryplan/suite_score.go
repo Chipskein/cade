@@ -33,7 +33,7 @@ type CaseResult struct {
 //
 //	result := queryplan.ScoreCase(suiteCase, plan, suite.Now)
 func ScoreCase(suiteCase SuiteCase, plan Plan, now time.Time) CaseResult {
-	expected, got := expectedValues(suiteCase.Expect), observedValues(plan, suiteCase.Question, now)
+	expected, got := expectedValues(suiteCase.Expect), observedValues(plan, suiteCase, now)
 	result := CaseResult{Question: suiteCase.Question, ByRules: plan.ReadByRules}
 	for _, field := range scoredFields {
 		if !fieldMatches(field, expected[field], got[field]) {
@@ -52,8 +52,8 @@ func expectedValues(expect ExpectedPlan) map[Field]string {
 		FieldDirection: expect.Direction, FieldTopic: expect.Topic, FieldStatus: expect.Status}
 }
 
-func observedValues(plan Plan, question string, now time.Time) map[Field]string {
-	query, days := Resolve(question, plan, Overrides{}, now), ""
+func observedValues(plan Plan, suiteCase SuiteCase, now time.Time) map[Field]string {
+	query, days := Resolve(suiteCase.Question, plan, Overrides{DateOrder: suiteCase.dateOrder()}, now), ""
 	if query.Days != nil {
 		days = query.Days.String()
 	}

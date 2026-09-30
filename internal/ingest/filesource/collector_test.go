@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/ingest"
 )
 
 var modified = time.Date(2026, 9, 25, 8, 0, 0, 0, time.UTC)
@@ -40,6 +41,16 @@ func TestCollectSkipsIgnoredDirectories(t *testing.T) {
 	events := collectTree(t, sampleTree())
 	if len(events) != 3 {
 		t.Fatalf("expected 3 files outside ignored dirs, got %v", keys(events))
+	}
+}
+
+func TestCollectSkipsCredentialFileGlobs(t *testing.T) {
+	tree := fstest.MapFS{".env": {Data: []byte("secret")}, "id_rsa": {Data: []byte("key")}, "notes.md": {Data: []byte("safe")}}
+	opts := Options{MaxFileBytes: 100, IgnoredFileGlobs: []string{".env*", "id_rsa*"}}
+	var paths []string
+	err := NewCollector(tree, "/root", opts).CollectEvents(context.Background(), func(ev event.Event) error { paths = append(paths, ev.File().Path); return nil })
+	if err != nil || len(paths) != 1 || paths[0] != "/root/notes.md" {
+		t.Fatalf("ignored files were emitted: paths=%v err=%v", paths, err)
 	}
 }
 
@@ -92,4 +103,33 @@ func keys(events map[string]event.Event) []string {
 		names = append(names, name)
 	}
 	return names
+}
+
+func TestCollectUsesTheCaptionOfADescribedImage(t *testing.T) {
+	image := event.Image{SHA256: "ab12", Status: event.CaptionDescribed, Description: "um terminal", VisibleText: "panic: nil map"}
+	opts := Options{MaxFileBytes: 50, Captions: ingest.ImageCaptions{"/root/image.png": image}}
+	var got event.Event
+	err := NewCollector(fstest.MapFS{"image.png": {Data: []byte{0x89, 'P'}, ModTime: modified}}, "/root", opts).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if err != nil || got.Content != "image.png\n"+image.SearchableText() || got.Image() != image || got.File().Path != "/root/image.png" {
+		t.Fatalf("expected the caption as text and in metadata, got %+v (err %v)", got, err)
+	}
+}
+
+func TestCollectKeepsAPendingImageAsItsName(t *testing.T) {
+	opts := Options{MaxFileBytes: 50, Captions: ingest.ImageCaptions{"/root/image.png": {Status: event.CaptionPending}}}
+	var got event.Event
+	_ = NewCollector(fstest.MapFS{"image.png": {Data: []byte{0x89, 'P'}, ModTime: modified}}, "/root", opts).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if got.Content != "image.png" || got.Image().Status != event.CaptionPending {
+		t.Fatalf("expected the name only, marked pending, got %+v", got)
+	}
+}
+
+func TestEstimateEventsCountsTheFilesCollected(t *testing.T) {
+	opts := Options{IgnoredDirNames: []string{".git", "node_modules"}, MaxFileBytes: 50}
+	count, err := NewCollector(sampleTree(), "/root", opts).EstimateEvents(context.Background())
+	if err != nil || count != len(collectTree(t, sampleTree())) {
+		t.Fatalf("expected the count of collected files, got %d (err %v)", count, err)
+	}
 }

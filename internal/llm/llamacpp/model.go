@@ -126,13 +126,24 @@ func (m loadedModel) forgetFrom(position int) bool {
 // tokenize converts text to tokens, growing the buffer when llama.cpp reports
 // (as a negative count) that it needs more room.
 func (m loadedModel) tokenize(text string, parseSpecial bool) ([]C.llama_token, error) {
+	return m.tokenizeText(text, tokenizeOptions{addSpecial: true, parseSpecial: parseSpecial})
+}
+
+// tokenizeOptions: addSpecial adds the model's BOS/EOS around the text;
+// parseSpecial reads special-token markup in it.
+type tokenizeOptions struct {
+	addSpecial   bool
+	parseSpecial bool
+}
+
+func (m loadedModel) tokenizeText(text string, opts tokenizeOptions) ([]C.llama_token, error) {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
 	tokens := make([]C.llama_token, len(text)+8)
-	count := m.tokenizeInto(cText, len(text), tokens, parseSpecial)
+	count := m.tokenizeInto(cText, len(text), tokens, opts)
 	if count < 0 {
 		tokens = make([]C.llama_token, -count)
-		count = m.tokenizeInto(cText, len(text), tokens, parseSpecial)
+		count = m.tokenizeInto(cText, len(text), tokens, opts)
 	}
 	if count < 0 {
 		return nil, fmt.Errorf("tokenize %d bytes of text: llama.cpp returned %d", len(text), count)
@@ -140,9 +151,9 @@ func (m loadedModel) tokenize(text string, parseSpecial bool) ([]C.llama_token, 
 	return tokens[:count], nil
 }
 
-func (m loadedModel) tokenizeInto(cText *C.char, length int, tokens []C.llama_token, parseSpecial bool) int {
+func (m loadedModel) tokenizeInto(cText *C.char, length int, tokens []C.llama_token, opts tokenizeOptions) int {
 	return int(C.llama_tokenize(m.vocab, cText, C.int32_t(length),
-		&tokens[0], C.int32_t(len(tokens)), C.bool(true), C.bool(parseSpecial)))
+		&tokens[0], C.int32_t(len(tokens)), C.bool(opts.addSpecial), C.bool(opts.parseSpecial)))
 }
 
 func (m loadedModel) tokenPiece(token C.llama_token) []byte {

@@ -42,13 +42,13 @@ type codeHost struct {
 // codeHosts cover the common hosts; GitLab's "/-/" path segment also
 // matches self-hosted instances.
 var codeHosts = []codeHost{
-	{regexp.MustCompile(`https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)`),
+	{regexp.MustCompile(`^https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)(?:[/?#].*)?$`),
 		regexp.MustCompile(`^https://github\.com/([\w.-]+/[\w.-]+)/compare/`)},
-	{regexp.MustCompile(`https?://([\w.-]+(?:/[\w.-]+)+?)/-/merge_requests/(\d+)`),
+	{regexp.MustCompile(`^https?://([\w.-]+(?:/[\w.-]+)+?)/-/merge_requests/(\d+)(?:[/?#].*)?$`),
 		regexp.MustCompile(`^https?://([\w.-]+(?:/[\w.-]+)+?)/-/merge_requests/new`)},
-	{regexp.MustCompile(`https://bitbucket\.org/([\w.-]+/[\w.-]+)/pull-requests/(\d+)`),
+	{regexp.MustCompile(`^https://bitbucket\.org/([\w.-]+/[\w.-]+)/pull-requests/(\d+)(?:[/?#].*)?$`),
 		regexp.MustCompile(`^https://bitbucket\.org/([\w.-]+/[\w.-]+)/pull-requests/new`)},
-	{regexp.MustCompile(`https://dev\.azure\.com/([\w.-]+/[\w.%-]+/_git/[\w.%-]+)/pullrequest/(\d+)`),
+	{regexp.MustCompile(`^https://dev\.azure\.com/([\w.-]+/[\w.%-]+/_git/[\w.%-]+)/pullrequest/(\d+)(?:[/?#].*)?$`),
 		regexp.MustCompile(`^https://dev\.azure\.com/([\w.-]+/[\w.%-]+/_git/[\w.%-]+)/pullrequestcreate`)},
 }
 
@@ -57,6 +57,7 @@ var codeHosts = []codeHost{
 // "Title (!45) · Merge requests · group/project · GitLab",
 // "Pull Request 45: Title - Repos".
 var (
+	urlToken      = regexp.MustCompile(`https?://[^\s<>"'\])]+`)
 	prTitleByline = regexp.MustCompile(`\s+by\s+\S+\s+·.*$`)
 	prTitleTail   = regexp.MustCompile(`\s+(·|\(!\d+\)|-\s+Repos).*$`)
 	prTitleHead   = regexp.MustCompile(`^Pull Request \d+:\s*`)
@@ -86,10 +87,12 @@ func taskRefs(patterns []*regexp.Regexp, text string) []TaskRef {
 
 func prRefs(text string) []PRRef {
 	var refs []PRRef
-	for _, host := range codeHosts {
-		for _, groups := range host.pr.FindAllStringSubmatch(text, -1) {
-			number, _ := strconv.Atoi(groups[2])
-			refs = append(refs, PRRef{Repo: groups[1], Number: number})
+	for _, token := range urlToken.FindAllString(text, -1) {
+		for _, host := range codeHosts {
+			if groups := host.pr.FindStringSubmatch(token); groups != nil {
+				number, _ := strconv.Atoi(groups[2])
+				refs = append(refs, PRRef{Repo: groups[1], Number: number})
+			}
 		}
 	}
 	return refs

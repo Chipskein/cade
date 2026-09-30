@@ -147,7 +147,7 @@ func requireFTS5(ctx context.Context, db *sql.DB) error {
 		return err
 	}
 	if !enabled {
-		return fmt.Errorf("SQLite was compiled without FTS5; build with `make` or `go build -tags sqlite_fts5`")
+		return fmt.Errorf("SQLite was compiled without FTS5; build with `go tool mage build` or `go build -tags sqlite_fts5`")
 	}
 	return nil
 }

@@ -19,7 +19,7 @@ func newTestProgress(interactive bool) (*ingestProgress, *FakeClock, *strings.Bu
 	clock := &FakeClock{Current: cliNow}
 	var out strings.Builder
 	env := commandEnv{stderr: &out, toolkit: Toolkit{Now: clock.Now, StderrIsTerminal: interactive}}
-	return newIngestProgress(env, "teams x"), clock, &out
+	return newIngestProgress(env, "teams x", 0), clock, &out
 }
 
 func TestProgressWaitsForInterval(t *testing.T) {
@@ -35,7 +35,7 @@ func TestProgressRedrawsInPlaceOnTerminal(t *testing.T) {
 	progress, clock, out := newTestProgress(true)
 	clock.Current = cliNow.Add(2 * time.Second)
 	progress.update(ingest.Report{Collected: 100, Inserted: 60, AlreadyStored: 40})
-	expected := clearLine + "teams x: 100 lidos, 60 novos, 0 atualizados, 40 já existentes · 50/s"
+	expected := clearLine + "teams x: 100 lidos, 60 novos, 0 atualizados, 40 já existentes · 50/s · 0:02"
 	if out.String() != expected {
 		t.Fatalf("expected %q, got %q", expected, out.String())
 	}

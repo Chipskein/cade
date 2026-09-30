@@ -102,8 +102,10 @@ func (b Builder) Build(periodEvents, history []event.Event, periodEnd time.Time)
 // cite the task directly (inherited events say nothing about ownership).
 func (b Builder) involvement(task *Task) Involvement {
 	level := MentionedByOthers
-	if task.Status == Done {
-		return Mine
+	for _, pr := range task.PRs {
+		if pr.OpenedByMe {
+			return Mine
+		}
 	}
 	for _, ev := range task.Events {
 		if !b.cites(ev, task.Key) {

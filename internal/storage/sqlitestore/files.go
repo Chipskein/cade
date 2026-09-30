@@ -102,10 +102,19 @@ func (f storedFile) withPresence(present bool, at time.Time) (event.Metadata, bo
 	return mergeMetadata(f.metadata, file.Metadata()), !present
 }
 
+// underFolderCondition keeps alias's file events whose path is inside
+// folder.
+func underFolderCondition(alias, folder string) sqlCondition {
+	prefix := strings.TrimSuffix(folder, "/") + "/"
+	var condition sqlCondition
+	condition.add(fmt.Sprintf(`%[1]s.source = ? AND substr(json_extract(%[1]s.metadata, '$.path'), 1, length(?)) = ?`, alias),
+		string(event.SourceFile), prefix, prefix)
+	return condition
+}
+
 func (s *Store) filesUnder(ctx context.Context, root string) ([]storedFile, error) {
-	prefix := strings.TrimSuffix(root, "/") + "/"
-	rows, err := s.db.QueryContext(ctx, `SELECT id, metadata FROM events WHERE source = ?
-		AND substr(json_extract(metadata, '$.path'), 1, length(?)) = ?`, string(event.SourceFile), prefix, prefix)
+	under := underFolderCondition("events", root)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, metadata FROM events WHERE `+under.String(), under.args...)
 	if err != nil {
 		return nil, fmt.Errorf("list files under %q: %w", root, err)
 	}

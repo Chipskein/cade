@@ -80,11 +80,14 @@ func (l *prLinker) directTask(ev event.Event) string {
 	return ""
 }
 
-// attachPRs adds to each task the PRs the user opened by periodEnd: exact
-// links first, then PRs with no link opened soon after work on the task.
+// attachPRs adds likely user PRs by periodEnd, with uncertain evidence marked
+// probable; unlinked PRs use nearby task work as a fallback.
 func (l *prLinker) attachPRs(tasks map[string]*Task, periodEnd time.Time) {
-	for _, pr := range l.openedPRs(periodEnd) {
+	for _, pr := range l.candidatePRs(periodEnd) {
 		key, link := l.taskOfPR[pr.Ref.Key()], LinkExact
+		if !pr.OpenedByMe {
+			link = LinkProbable
+		}
 		if key == "" {
 			key, link = probableTask(tasks, pr.OpenedAt), LinkProbable
 		}
@@ -95,10 +98,10 @@ func (l *prLinker) attachPRs(tasks map[string]*Task, periodEnd time.Time) {
 	}
 }
 
-func (l *prLinker) openedPRs(periodEnd time.Time) []*PullRequest {
+func (l *prLinker) candidatePRs(periodEnd time.Time) []*PullRequest {
 	var opened []*PullRequest
 	for _, pr := range l.prs {
-		if pr.OpenedByMe && pr.OpenedAt.Before(periodEnd) {
+		if (pr.OpenedByMe || pr.MentionedByMe) && pr.OpenedAt.Before(periodEnd) {
 			opened = append(opened, pr)
 		}
 	}

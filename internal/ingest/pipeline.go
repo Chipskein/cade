@@ -11,6 +11,7 @@ import (
 	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/privacy"
 	"github.com/chipskein/cade/internal/storage"
 )
 
@@ -38,6 +39,14 @@ type SnapshotCollector interface {
 	SnapshotRoot() string
 }
 
+// EventEstimator knows cheaply, before collecting, about how many events
+// it will emit, so the progress can show an ETA (issue #41). Collectors
+// that can only tell by reading everything do not implement it.
+type EventEstimator interface {
+	EventCollector
+	EstimateEvents(ctx context.Context) (int, error)
+}
+
 // Report counts what one ingestion run did.
 type Report struct {
 	Collected int
@@ -56,6 +65,8 @@ type Pipeline struct {
 	embedder       llm.Embedder
 	documentPrefix string
 	logger         *slog.Logger
+	redact         bool
+	retention      map[event.Source]int
 	now            func() time.Time
 }
 
@@ -64,12 +75,19 @@ type Pipeline struct {
 //
 //	pipeline := ingest.NewPipeline(store, embedder, "search_document: ", logger)
 func NewPipeline(store storage.EventStore, embedder llm.Embedder, documentPrefix string, logger *slog.Logger) *Pipeline {
-	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now}
+	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now, redact: true}
 }
+
+func (p *Pipeline) WithRedaction(enabled bool) *Pipeline { p.redact = enabled; return p }
 
 // WithClock replaces the clock that dates removed files.
 func (p *Pipeline) WithClock(now func() time.Time) *Pipeline {
 	p.now = now
+	return p
+}
+
+func (p *Pipeline) WithRetention(retention map[event.Source]int) *Pipeline {
+	p.retention = retention
 	return p
 }
 
@@ -84,6 +102,7 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	var report Report
 	present := map[string]bool{}
 	err := collector.CollectEvents(ctx, func(ev event.Event) error {
+		ev = privacy.Event(ev, p.redact)
 		report.Collected++
 		if ev.Source == event.SourceFile {
 			present[ev.File().Path] = true
@@ -98,7 +117,18 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	if report.Removed, err = p.markRemoved(ctx, collector, present); err != nil {
 		return report, err
 	}
-	return report, p.markAuthorship(ctx, collector)
+	if err := p.markAuthorship(ctx, collector); err != nil {
+		return report, err
+	}
+	for source, days := range p.retention {
+		if days <= 0 {
+			continue
+		}
+		if _, err := p.store.DeleteBefore(ctx, source, p.now().AddDate(0, 0, -days)); err != nil {
+			return report, err
+		}
+	}
+	return report, nil
 }
 
 func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector) error {
@@ -126,6 +156,14 @@ func (p *Pipeline) markRemoved(ctx context.Context, collector EventCollector, pr
 type ProgressFunc func(Report)
 
 func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Report) error {
+	forgotten, err := p.store.IsForgotten(ctx, ev.UID)
+	if err != nil {
+		return err
+	}
+	if forgotten {
+		report.AlreadyStored++
+		return nil
+	}
 	stored, known, err := p.store.StoredEvent(ctx, ev.UID)
 	if err != nil {
 		return err
@@ -153,9 +191,32 @@ func replaces(incoming, stored event.Event) bool {
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
 	if hasIncoming && hasStored {
-		return incomingRevision > storedRevision
+		return incomingRevision > storedRevision || (incomingRevision == storedRevision && captionAdvances(incoming, stored))
 	}
 	return incoming.Content != stored.Content
+}
+
+// captionAdvances reports an unchanged image that has just been dealt with:
+// described, or found unreadable, after waiting for the per-run limit or
+// after images were turned on (phase 19).
+func captionAdvances(incoming, stored event.Event) bool {
+	storedStatus := stored.Image().Status
+	incomingStatus := incoming.Image().Status
+	waiting := storedStatus == event.CaptionNone || storedStatus == event.CaptionPending
+	settled := incomingStatus == event.CaptionDescribed || incomingStatus == event.CaptionUnreadable
+	return waiting && settled
+}
+
+// ReplaceStored overwrites a stored event with ev, masked and embedded
+// like any collected one: for text rewritten in place, such as an image
+// described again (`cade reindex --captions`).
+func (p *Pipeline) ReplaceStored(ctx context.Context, ev event.Event) error {
+	ev = privacy.Event(ev, p.redact)
+	chunks, err := p.chunksFor(ctx, ev)
+	if err != nil {
+		return err
+	}
+	return p.update(ctx, ev, chunks, &Report{})
 }
 
 func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {

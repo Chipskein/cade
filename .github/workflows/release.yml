@@ -1,7 +1,9 @@
 name: Release
 
-# Pushing a tag vX.Y.Z builds the CPU binary and publishes a GitHub release
-# with the archive, its SHA-256 and docs/release-notes/vX.Y.Z.md as notes.
+# Pushing a tag vX.Y.Z on a master commit builds the CPU binary and
+# publishes a GitHub release with the archive, its SHA-256 and
+# docs/release-notes/vX.Y.Z.md as notes. Releases come from master only:
+# a tag on a dev commit fails here and publishes nothing.
 
 on:
   push:
@@ -21,6 +23,15 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Require the tagged commit to be on master
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/master || {
+            echo "tag ${GITHUB_REF_NAME} is on $GITHUB_SHA, which is not on master; merge into master and tag there"
+            exit 1
+          }
 
       - uses: actions/setup-go@v6
         with:
@@ -33,10 +44,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Test
-        run: make test
+        run: go tool mage test
 
       - name: Build the archive
-        run: make dist VERSION="${GITHUB_REF_NAME}"
+        run: VERSION="${GITHUB_REF_NAME}" go tool mage dist
 
       - name: Check the binary reports the tag
         run: ./bin/cade version | tee /dev/stderr | grep -q "cade ${GITHUB_REF_NAME} ("

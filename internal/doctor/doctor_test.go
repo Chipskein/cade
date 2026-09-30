@@ -1,12 +1,36 @@
 package doctor
 
 import (
+	"bytes"
+	"encoding/binary"
 	"testing"
 
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 )
+
+// ggufStringType is the GGUF metadata value-type tag for a string.
+const ggufStringType = 8
+
+// ggufWithSizeLabel builds a minimal GGUF file whose only metadata entry
+// is "general.size_label", for testing the vision-pairing check.
+func ggufWithSizeLabel(size string) string {
+	var buf bytes.Buffer
+	buf.WriteString("GGUF")
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(3))
+	_ = binary.Write(&buf, binary.LittleEndian, uint64(0))
+	_ = binary.Write(&buf, binary.LittleEndian, uint64(1))
+	writeGGUFString(&buf, "general.size_label")
+	_ = binary.Write(&buf, binary.LittleEndian, uint32(ggufStringType))
+	writeGGUFString(&buf, size)
+	return buf.String()
+}
+
+func writeGGUFString(buf *bytes.Buffer, s string) {
+	_ = binary.Write(buf, binary.LittleEndian, uint64(len(s)))
+	buf.WriteString(s)
+}
 
 const (
 	configPath     = "/home/ana/.config/cade/config.json"
@@ -83,6 +107,76 @@ func TestModelProblems(t *testing.T) {
 	}
 }
 
+func TestVisionProjectorCheckedOnlyWithImagesOn(t *testing.T) {
+	cfg := healthyConfig()
+	cfg.Vision.ProjectorPath = "/models/absent-mmproj.gguf"
+	for _, finding := range Diagnose(healthyInstall(), configPath, cfg, currentDatabase()) {
+		if finding.Subject == SubjectVisionProjector {
+			t.Fatalf("expected no projector check with images off, got %+v", finding)
+		}
+	}
+	cfg.Sources.Images = true
+	got := findingFor(t, Diagnose(healthyInstall(), configPath, cfg, currentDatabase()), SubjectVisionProjector, "/models/absent-mmproj.gguf")
+	if got.Problem != ProblemMissing || got.Setting != "vision.projector_path" {
+		t.Fatalf("expected the missing projector reported with images on, got %+v", got)
+	}
+}
+
+func TestVisionProjectorPairingMismatchIsWarned(t *testing.T) {
+	cfg := healthyConfig()
+	cfg.Sources.Images = true
+	cfg.Generation.ModelPath = "/models/qwen-4b.gguf"
+	cfg.Vision.ProjectorPath = "/models/mmproj-qwen-2b.gguf"
+	fsys := healthyInstall().
+		AddFile(cfg.Generation.ModelPath, ggufWithSizeLabel("4B")).
+		AddFile(cfg.Vision.ProjectorPath, ggufWithSizeLabel("2B"))
+	findings := Diagnose(fsys, configPath, cfg, currentDatabase())
+	got := mismatchFinding(t, findings)
+	if got.PairedModelSize != "4B" || got.ProjectorSize != "2B" || got.PairedModelPath != cfg.Generation.ModelPath {
+		t.Fatalf("expected a pairing mismatch naming both sizes, got %+v", got)
+	}
+}
+
+// mismatchFinding is the one SubjectVisionProjector finding reporting
+// ProblemVisionModelMismatch; both it and the plain projector-file check
+// share a subject and path, so findingFor can't tell them apart.
+func mismatchFinding(t *testing.T, findings []Finding) Finding {
+	t.Helper()
+	for _, finding := range findings {
+		if finding.Subject == SubjectVisionProjector && finding.Problem == ProblemVisionModelMismatch {
+			return finding
+		}
+	}
+	t.Fatalf("no vision pairing mismatch finding in %+v", findings)
+	return Finding{}
+}
+
+func TestVisionProjectorPairingMatchHasNoProblem(t *testing.T) {
+	cfg := healthyConfig()
+	cfg.Sources.Images = true
+	cfg.Generation.ModelPath = "/models/qwen-2b.gguf"
+	cfg.Vision.ProjectorPath = "/models/mmproj-qwen-2b.gguf"
+	fsys := healthyInstall().
+		AddFile(cfg.Generation.ModelPath, ggufWithSizeLabel("2B")).
+		AddFile(cfg.Vision.ProjectorPath, ggufWithSizeLabel("2B"))
+	for _, finding := range Diagnose(fsys, configPath, cfg, currentDatabase()) {
+		if finding.Subject == SubjectVisionProjector && finding.Problem != ProblemNone {
+			t.Fatalf("expected matching sizes to report no problem, got %+v", finding)
+		}
+	}
+}
+
+func TestVisionProjectorPairingSkippedWithoutSizeLabels(t *testing.T) {
+	cfg := healthyConfig()
+	cfg.Sources.Images = true
+	cfg.Vision.ProjectorPath = "/models/mmproj.gguf"
+	fsys := healthyInstall().AddFile(cfg.Vision.ProjectorPath, "GGUF\x03rest")
+	got := findingFor(t, Diagnose(fsys, configPath, cfg, currentDatabase()), SubjectVisionProjector, cfg.Vision.ProjectorPath)
+	if got.Problem != ProblemNone {
+		t.Fatalf("expected no problem when neither file carries a size_label, got %+v", got)
+	}
+}
+
 func TestSourceProblems(t *testing.T) {
 	fsys := healthyInstall().AddDir("/src/plain").AddFile("/chrome/Bookmarks", "{}").AddFile("/notes.md", "").AddDir("/empty-idb")
 	cfg := healthyConfig()
@@ -130,6 +224,38 @@ func TestDatabaseProblems(t *testing.T) {
 		if got.Problem != c.want || got.ConfiguredModel != "nomic.gguf" {
 			t.Errorf("%s: expected problem %d, got %+v", name, c.want, got)
 		}
+	}
+}
+
+func TestThresholdCalibrationFindings(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Embedding.ModelPath = "/models/nomic.gguf"
+	defaults := cfg.Retrieval
+	cases := map[string]struct {
+		calibration storage.ThresholdCalibration
+		want        Problem
+	}{
+		"set for this model":       {storage.ThresholdCalibration{Model: "nomic.gguf", MaxDistance: defaults.MaxDistance, MaxBestDistance: defaults.MaxBestDistance}, ProblemNone},
+		"left from another model":  {storage.ThresholdCalibration{Model: "bge.gguf", MaxDistance: defaults.MaxDistance, MaxBestDistance: defaults.MaxBestDistance}, ProblemThresholdModelMismatch},
+		"retuned after the change": {storage.ThresholdCalibration{Model: "bge.gguf", MaxDistance: 0.5, MaxBestDistance: defaults.MaxBestDistance}, ProblemNone},
+		"no record, same vectors":  {storage.ThresholdCalibration{}, ProblemNone},
+	}
+	for name, c := range cases {
+		database := currentDatabase()
+		database.ThresholdCalibration = c.calibration
+		if got := checkThresholdCalibration(cfg, database); got.Problem != c.want {
+			t.Errorf("%s: expected problem %v, got %+v", name, c.want, got)
+		}
+	}
+}
+
+// A database from before the record adopts its vectors' model.
+func TestThresholdCalibrationAdoptsIndexedModel(t *testing.T) {
+	cfg := config.Defaults()
+	cfg.Embedding.ModelPath = "/models/bge.gguf"
+	got := checkThresholdCalibration(cfg, currentDatabase())
+	if got.Problem != ProblemThresholdModelMismatch || got.Database.ThresholdCalibration.Model != "nomic.gguf" {
+		t.Fatalf("expected gates attributed to nomic.gguf, got %+v", got)
 	}
 }
 

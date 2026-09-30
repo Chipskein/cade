@@ -46,6 +46,10 @@ func filterCondition(filter storage.EventFilter) sqlCondition {
 	if len(filter.People) > 0 {
 		addPeople(&condition, filter.People)
 	}
+	if filter.Folder != "" {
+		under := underFolderCondition("events", filter.Folder)
+		condition.add(under.String(), under.args...)
+	}
 	return condition
 }
 

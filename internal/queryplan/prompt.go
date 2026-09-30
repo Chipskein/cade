@@ -19,9 +19,9 @@ Preencha SOMENTE o que a pergunta afirma explicitamente; o resto é null ou []. 
 - periodo: a expressão de tempo completa, copiada da pergunta no idioma dela ("ontem", "semana passada", "últimos 3 dias", "12/08", "yesterday", "last week"), ou null.
 - fonte: "teams" (mensagens, chats, conversas), "git" (commits), "browser" (páginas, sites, pesquisas na web), "file" (arquivos), ou null.
 - pessoas: nomes de pessoas citados, como escritos. Empresas, clientes, siglas e projetos NÃO são pessoas: vão em assunto.
-- direcao (só para mensagens): "recebidas" para "me passou", "me pediu", "me mandou", "recebi", "de X"; "enviadas" para "mandei", "enviei", "pedi para", "para X"; null para "com X", "conversa com X" ou quando não se aplica.
+- direcao (só para mensagens): "recebidas" quando alguém escreveu para o usuário: "me passou", "me pediu", "me perguntou", "me mandou", "recebi", "de X", "da X", "sent me", "asked me", "from X"; "enviadas" quando o usuário escreveu: "mandei", "enviei", "falei para", "pedi para", "para X", "I sent", "I told", "I asked"; null para "com X", "conversa com X", "o que X disse", "what X said" ou quando não se aplica.
 - assunto: o tema buscado ("redis", "o deploy da 2.0"), sem pessoas nem datas; null se a pergunta não tem tema.
-- status (só para tipo "tarefas"): "concluidas" para "finalizei", "concluí", "terminei", "finished"; "em_andamento" para "em andamento", "pendentes", "não terminei", "in progress"; senão null.`
+- status (só para tipo "tarefas"): "concluidas" para "finalizei", "concluí", "terminei", "finished" ou "PR aberto"; "em_andamento" para "em andamento", "pendentes", "não terminei", "in progress"; senão null.`
 
 // planExamples teach what a small model gets wrong: no filters for plain
 // questions, direction of "me passou", "com X" has no direction, companies

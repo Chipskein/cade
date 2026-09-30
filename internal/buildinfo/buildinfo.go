@@ -1,4 +1,4 @@
-// Package buildinfo says which cade this is: `cade version`. The Makefile
+// Package buildinfo says which cade this is: `cade version`. `go tool mage build`
 // sets the version, commit and date with -ldflags -X; a plain `go build`
 // falls back to the VCS stamp the Go toolchain embeds.
 package buildinfo
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Set by the Makefile: -X github.com/chipskein/cade/internal/buildinfo.version=...
+// Set by `go tool mage build`: -X github.com/chipskein/cade/internal/buildinfo.version=...
 var (
 	version  = ""
 	commit   = ""

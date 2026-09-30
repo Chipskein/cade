@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
 )
@@ -17,6 +18,41 @@ func TestReindexRecomputesVectorsWithConfiguredModel(t *testing.T) {
 	code, stdout, stderr := world.run("reindex")
 	if code != 0 || !strings.Contains(stdout, "2 eventos reindexados com "+configuredModel) || world.store.EmbeddingModelName != configuredModel || world.store.Pending {
 		t.Fatalf("expected both events reindexed with the configured model, got %d %q %q", code, stdout, stderr)
+	}
+}
+
+const previousModel = "nomic-embed-text-v1.5.Q8_0.gguf"
+
+// The gates were set for the previous model and left as they were.
+func TestReindexWarnsThatGatesBelongToThePreviousModel(t *testing.T) {
+	world := newFakeWorld()
+	world.store.Events = []event.Event{sampleCommit}
+	world.store.EmbeddingModelName = previousModel
+	code, _, stderr := world.run("reindex")
+	if code != 0 || !strings.Contains(stderr, "calibrados para "+previousModel+" e não valem para "+configuredModel) ||
+		!strings.Contains(stderr, "go tool mage evalRetrieval") || world.store.Calibration.Model != previousModel {
+		t.Fatalf("expected a warning and the calibration kept for %s, got %d %q %+v", previousModel, code, stderr, world.store.Calibration)
+	}
+}
+
+// Changing a gate after the model change counts as recalibrating.
+func TestReindexAcceptsGatesRetunedForTheNewModel(t *testing.T) {
+	world := newFakeWorld()
+	world.store.Events = []event.Event{sampleCommit}
+	world.store.EmbeddingModelName = previousModel
+	world.store.Calibration = storage.ThresholdCalibration{Model: previousModel, MaxDistance: 0.5, MaxBestDistance: 0.4}
+	code, _, stderr := world.run("reindex")
+	if code != 0 || strings.Contains(stderr, "calibrados") || world.store.Calibration.Model != configuredModel {
+		t.Fatalf("expected no warning and the new model recorded, got %d %q %+v", code, stderr, world.store.Calibration)
+	}
+}
+
+func TestIngestRecordsTheGatesInEffect(t *testing.T) {
+	world := newFakeWorld()
+	defaults := config.Defaults().Retrieval
+	want := storage.ThresholdCalibration{Model: configuredModel, MaxDistance: defaults.MaxDistance, MaxBestDistance: defaults.MaxBestDistance}
+	if code, _, _ := world.run("ingest", "git"); code != 0 || world.store.Calibration != want {
+		t.Fatalf("expected %+v recorded, got %d %+v", want, code, world.store.Calibration)
 	}
 }
 

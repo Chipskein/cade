@@ -39,7 +39,7 @@ var (
 	ruleGenericWords = wordSet("o a os as um uma que quais qual eu meu meus minha minhas de do da dos das em no na nos nas " +
 		"fiz fizemos trabalhei aconteceu estao ainda ficaram liste listar mostre abri visitei acessei editei alterei " +
 		"modifiquei modificados modificadas todas todos dia " +
-		"finalizei finalizadas conclui concluidas terminei entreguei pendentes pendente andamento abertas abertos nao " +
+		"finalizei finalizadas conclui concluidas terminei entreguei pendentes pendente andamento aberta aberto abertas abertos nao com pr " +
 		"what which did i do work worked on in the my from of show list me happened are is still all day " +
 		"finish finished complete completed done closed open pending progress edit edited changed modified visited opened")
 )
@@ -68,7 +68,7 @@ func wordSet(words string) map[string]bool {
 //	plan, ok := queryplan.PlanByRules("liste os commits de ontem") // listar, git, "ontem"
 func PlanByRules(question string) (Plan, bool) {
 	text := textnorm.Fold(question)
-	period, _ := timeline.DayPhrase(question, ruleAnchor)
+	period := rulePeriod(question)
 	rest := text
 	if period != "" {
 		rest = strings.Replace(text, period, " ", 1)
@@ -78,6 +78,17 @@ func PlanByRules(question string) (Plan, bool) {
 		return Plan{}, false
 	}
 	return reading.plan(period, text)
+}
+
+// rulePeriod finds the period phrase in either date order: the rules only
+// cut it out of the question, and Resolve reads it in the configured one.
+func rulePeriod(question string) string {
+	for _, order := range []timeline.DateOrder{timeline.DayFirst, timeline.MonthFirst} {
+		if period, found := timeline.DayPhrase(question, ruleAnchor, order); found {
+			return period
+		}
+	}
+	return ""
 }
 
 // ruleReading is what the words of a question said.
@@ -154,6 +165,8 @@ func (r ruleReading) plan(period, text string) (Plan, bool) {
 // finalizei" is unfinished, not done.
 func taskStatusIn(text string) TaskStatus {
 	switch {
+	case prOpenedCues.MatchString(text):
+		return OnlyDone
 	case inProgressCues.MatchString(text):
 		return OnlyInProgress
 	case doneCues.MatchString(text):

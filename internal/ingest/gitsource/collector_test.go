@@ -228,3 +228,19 @@ func boolInt(value bool) int {
 	}
 	return 0
 }
+
+func TestEstimateEventsCountsTheSameCommits(t *testing.T) {
+	runner := &FakeGitRunner{Output: "2\n"}
+	count, err := NewCollector(runner, "/repo", []string{"ana@x.io"}, nil).EstimateEvents(context.Background())
+	want := []string{"rev-list", "--count", "--branches", "--tags", "--remotes", "HEAD", "--author=ana@x.io"}
+	if err != nil || count != 2 || !slices.Equal(runner.LastArgs, want) {
+		t.Fatalf("expected 2 commits counted with %v, got %d with %v (err %v)", want, count, runner.LastArgs, err)
+	}
+}
+
+func TestEstimateEventsRejectsOutputThatIsNotACount(t *testing.T) {
+	_, err := NewCollector(&FakeGitRunner{Output: "fatal\n"}, "/repo", nil, nil).EstimateEvents(context.Background())
+	if err == nil || !strings.Contains(err.Error(), `"fatal\n"`) {
+		t.Fatalf("expected the unexpected output quoted, got %v", err)
+	}
+}

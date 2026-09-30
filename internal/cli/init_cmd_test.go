@@ -37,6 +37,11 @@ func TestInitWithoutAnswersTakesDefaults(t *testing.T) {
 	if len(sources.TeamsIndexedDBDirs) != 0 || len(sources.GitRepositories) != 0 || len(sources.Directories) != 0 {
 		t.Fatalf("expected no Teams, repositories or folders by default, got %+v", sources)
 	}
+	for _, pattern := range world.writtenCfg.Tasks.TaskURLPatterns {
+		if strings.Contains(pattern, "proj4.me") {
+			t.Fatalf("project-specific tracker leaked into init defaults: %q", pattern)
+		}
+	}
 	if !strings.Contains(stdout, "Configuração criada em /cfg/config.json") || !strings.Contains(stdout, "cade doctor") {
 		t.Fatalf("expected the summary and next steps, got %q", stdout)
 	}
@@ -54,6 +59,25 @@ func TestInitRecordsEveryAnswer(t *testing.T) {
 	}
 	if !slices.Equal(sources.GitRepositories, []string{"~/src/api"}) || !slices.Equal(sources.Directories, []string{"~/notas", "/srv/docs"}) {
 		t.Fatalf("expected ~/src/api and two folders, got %+v", sources)
+	}
+}
+
+func TestInitAsksAboutImagesOnlyWithFolders(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\ns\n")
+	_, stdout, _ := world.run("init")
+	if !world.writtenCfg.Sources.Images || !strings.Contains(stdout, "~20 s em CPU") {
+		t.Fatalf("expected images on after the cost was shown, got %v %q", world.writtenCfg.Sources.Images, stdout)
+	}
+	world = initWorld("n\n\n\n\n")
+	if _, stdout, _ := world.run("init"); world.writtenCfg.Sources.Images || strings.Contains(stdout, "Descrever as imagens") {
+		t.Fatalf("expected no image question without folders, got %q", stdout)
+	}
+}
+
+func TestInitLeavesImagesOffByDefault(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\n")
+	if _, _, stderr := world.run("init"); world.writtenCfg.Sources.Images {
+		t.Fatalf("expected images off when the question is not answered, got on (%q)", stderr)
 	}
 }
 

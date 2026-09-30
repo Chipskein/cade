@@ -42,15 +42,22 @@ func maskedDirName(dir string) string {
 	return trimmed[strings.LastIndex(trimmed, "/")+1:]
 }
 
+var (
+	recordNoun      = nounForms{"registro", "registros", "record", "records"}
+	failureNoun     = nounForms{"falha", "falhas", "failed", "failed"}
+	blobNoun        = nounForms{"em blob", "em blob", "in a blob", "in blobs"}
+	omittedPathNoun = nounForms{"caminho menos frequente omitido", "caminhos menos frequentes omitidos", "less frequent path left out", "less frequent paths left out"}
+)
+
 func renderStoreSummary(out io.Writer, summary idbschema.StoreSummary, language Language) {
-	fmt.Fprintf(out, language.pick("\nbanco %q · store %q: %d registros (%d falhas, %d em blob)\n", "\ndatabase %q · store %q: %d records (%d failed, %d in blobs)\n"),
-		summary.Database, summary.Store, summary.Records, summary.Failed, summary.BlobWrapped)
+	fmt.Fprintf(out, language.pick("\nbanco %q · store %q: %s (%s, %s)\n", "\ndatabase %q · store %q: %s (%s, %s)\n"), summary.Database, summary.Store,
+		language.count(summary.Records, recordNoun), language.count(summary.Failed, failureNoun), language.count(summary.BlobWrapped, blobNoun))
 	fields := mostFrequentFields(summary.Fields, maxFieldsPerStore)
 	for _, field := range fields {
 		fmt.Fprintf(out, "  %8d  %-22s %s\n", field.Count, describeKinds(field.Kinds), field.Path)
 	}
 	if omitted := len(summary.Fields) - len(fields); omitted > 0 {
-		fmt.Fprintf(out, language.pick("  (+%d caminhos menos frequentes omitidos)\n", "  (+%d less frequent paths left out)\n"), omitted)
+		fmt.Fprintf(out, "  (+%s)\n", language.count(omitted, omittedPathNoun))
 	}
 }
 

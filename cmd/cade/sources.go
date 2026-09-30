@@ -16,11 +16,11 @@ import (
 
 // sourceSpecs registers every ingestable source. A new source (RF1.4
 // Teams) is one more entry here plus its collector package.
-func sourceSpecs(cfg config.Config) []ingest.SourceSpec {
+func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec {
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: gitCollectorFactory(cfg.Sources)},
 		{Name: "browser", DefaultTargets: cfg.Sources.BrowserHistories, NewCollector: newBrowserCollector},
-		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources)},
+		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources, captions)},
 		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newTeamsCollector},
 	}
 }
@@ -39,7 +39,7 @@ func newBrowserCollector(historyPath string) (ingest.EventCollector, error) {
 	return browsersource.NewCollector(openSQLiteFile, historyPath), nil
 }
 
-func fileCollectorFactory(sources config.SourcesConfig) func(string) (ingest.EventCollector, error) {
+func fileCollectorFactory(sources config.SourcesConfig, captions ingest.ImageCaptions) func(string) (ingest.EventCollector, error) {
 	return func(directory string) (ingest.EventCollector, error) {
 		root, err := filepath.Abs(directory)
 		if err != nil {
@@ -48,7 +48,6 @@ func fileCollectorFactory(sources config.SourcesConfig) func(string) (ingest.Eve
 		if info, err := os.Stat(root); err != nil || !info.IsDir() {
 			return nil, fmt.Errorf("directory %q does not exist or is not a directory", root)
 		}
-		opts := filesource.Options{IgnoredDirNames: sources.IgnoredDirNames, MaxFileBytes: sources.MaxFileBytes}
-		return filesource.NewCollector(os.DirFS(root), root, opts), nil
+		return filesource.NewCollector(os.DirFS(root), root, filesource.OptionsFor(sources, captions)), nil
 	}
 }

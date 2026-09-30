@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
+</p>
+
 # Especificação — CLI de Histórico Pessoal
 
 > Ferramenta CLI local que agrega a atividade pessoal de múltiplas fontes e responde consultas por timeline e por busca semântica. 100% local por requisito de privacidade.
@@ -36,6 +40,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF1.4** Ingerir mensagens de chat do Teams a partir do IndexedDB do Teams web no Chrome (store `replychains`), sem Graph API e sem rede. Entram apenas mensagens de conversa (`RichText/Html` e `Text`); chamadas, gravações, eventos de sistema, mensagens apagadas e cópias do feed de notificações são ignorados. Cada mensagem registra o tipo de conversa (chat, canal, reunião) e se foi enviada, recebida ou publicada num canal.
 - **RF1.5** A ingestão é **incremental**: reexecutar não duplica eventos já ingeridos (deduplicação por identificador estável do evento).
 - **RF1.6** Uma mudança de formato do Teams não passa em silêncio: se o IndexedDB tem registros mas nenhum store `replychains`, ou mensagens em que nenhuma tem os campos lidos (`id`, `conversationId`, `messageType`, `content` e o horário de chegada), a ingestão falha apontando para `cade teams-schema`. Mensagens de sistema ou apagadas continuam descartadas sem erro, e um IndexedDB vazio não é erro. Os eventos já gravados estão no formato do cade e não dependem do formato do Teams.
+- **RF1.7** Com `sources.images` ligado (padrão desligado; o `cade init` pergunta), cada imagem png, jpeg ou webp das pastas de RF1.3 é descrita pelo modelo de geração com o projetor de visão (`mmproj`): uma descrição curta, em português, e a transcrição do texto visível. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto (máscara de segredos, pedaços, busca híbrida, `forget`). Cada imagem é descrita uma vez: mover ou renomear reaproveita a descrição pelo SHA-256 dos bytes; `cade reindex --captions` descreve de novo quando o modelo ou o prompt mudam. `ingest.max_images_per_run` limita quantas são descritas por execução (o resto fica pendente) e `ingest.max_image_bytes`, o tamanho do arquivo; uma imagem que não abre é marcada ilegível sem parar a ingestão. O modelo de visão é liberado antes de o de embedding carregar.
 
 ### RF2 — Modelo de evento normalizado
 - **RF2.1** Toda fonte é convertida a um formato comum de evento: `timestamp`, `source` (git/browser/file/teams), `content` (texto), `metadata` (dados específicos da fonte) e um identificador único para deduplicação.
@@ -58,29 +63,33 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF4.7** Só o assunto é buscado por significado quando há filtros exatos (período, fonte, pessoa, direção): em "commits de ontem sobre autenticação", embutir a pergunta inteira trazia mensagens com a palavra "ontem" antes dos commits. Sem filtros, a pergunta inteira é embutida, pois o assunto isolado fica distante demais de tudo e cairia no corte de distância.
 - **RF4.8** `cade ask --json` devolve o plano resolvido e o resultado com a referência (uid, fonte, data, localizador) de cada evento que o sustenta: evidências e quais foram citadas, eventos listados, ou tarefas com PRs e eventos.
 - **RF4.9** Mensagens formadas só por cumprimentos, confirmações e palavras de ligação ("ok", "valeu", "bom dia", "pode ser") não entram como evidência de respostas: entre as mensagens de uma pessoa, elas ficavam à frente do pedido real. Listagens continuam mostrando tudo.
-- **RF4.10** Perguntas sem filtro só recebem evidência se o evento mais próximo estiver a no máximo `retrieval.max_best_distance` (0,62); um corte só por evento não separava perguntas com e sem resposta. Calibrado na suíte de recuperação; no histórico real a margem é menor, por isso é configurável e o `--verbose` registra a distância quando a pergunta é rejeitada.
+- **RF4.10** Perguntas sem filtro só recebem evidência se o evento mais próximo estiver a no máximo `retrieval.max_best_distance` (0,61); um corte só por evento não separava perguntas com e sem resposta. Calibrado na suíte de recuperação; no histórico real a margem é menor, por isso é configurável e o `--verbose` registra a distância quando a pergunta é rejeitada. Os limiares valem para um modelo de embedding: o banco registra para qual, e `reindex` e `doctor` avisam quando o modelo muda e os limiares ficam iguais. A resposta recebe até `retrieval.top_k` (6) eventos, o menor valor sem perda de recall na suíte (fase 17).
 - **RF4.11** Nas respostas, repetições da mesma coisa (mesma URL, mesmo caminho de arquivo, mesmo commit ou mensagem, pelo localizador da proveniência) viram uma evidência só, com a contagem e a data mais recente ("12 visitas, última em …"); a busca pede mais vizinhos até ter `top_k` itens distintos. Arquivos removidos da pasta não entram como evidência. Listagens continuam mostrando cada ocorrência.
 - **RF4.12** Texto idêntico é embutido uma vez: a ingestão e o `reindex` reaproveitam o vetor de um evento com o mesmo `content_hash`.
 - **RF4.13** Busca híbrida (`retrieval.mode = hybrid`, padrão): a busca vetorial e a por palavras (FTS5/BM25 sobre os pedaços, com hash de commit e caminho de arquivo no primeiro pedaço) usam os mesmos filtros e são combinadas por fusão de posições (RRF, k = 60). Uma pergunta com identificador explícito (código `[A-Z]+-\d+`, hash hexadecimal de 7 a 40 caracteres, número de PR) é respondida só com os eventos que o contêm, sem as portas de distância. `vector` e `lexical` usam uma busca só. Perguntas com pessoa continuam só vetoriais.
-- **RF4.14** Texto que dá ordens ao assistente (um vocativo como "assistente", "instrução do sistema" ou "assistant" a até 80 caracteres de um pedido como "ignore", "responda que", "cite apenas", "regras") é marcado na evidência como `NÃO CONFIÁVEL: contém ordens ao assistente`, e uma regra do prompt manda não seguir, não usar e não citar o evento marcado. O evento continua na evidência e aparece com a marca na lista de fontes e como `untrusted` no `--json`. Num histórico real de 108 mil eventos, nenhum foi marcado. Delimitar cada evidência com tags (`<evento>…</evento>`) foi medido e piorou: o modelo de 3B seguiu mais injeções e citou menos.
+- **RF4.14** Texto que dá ordens ao assistente (um vocativo como "assistente", "instrução do sistema" ou "assistant" a até 80 caracteres de um pedido como "ignore", "responda que", "cite apenas", "regras") é marcado na evidência como `NÃO CONFIÁVEL: contém ordens ao assistente`, e vai ao prompt sem o texto (fase 18: com o texto, os três modelos medidos ainda seguiam 1 de 4 injeções), com uma regra que manda não usá-lo nem citá-lo. O evento continua numerado na evidência e aparece com a marca na lista de fontes e como `untrusted` no `--json`. Num histórico real de 108 mil eventos, nenhum foi marcado. Delimitar cada evidência com tags (`<evento>…</evento>`) foi medido e piorou: o modelo de 3B seguiu mais injeções e citou menos.
 
 ### RF6 — Relatório de tarefas
 - **RF6.1** `cade tasks [DATA [FIM]]` lista as tarefas trabalhadas no período, reconhecidas por links de rastreadores (regex configuráveis em `tasks.task_url_patterns`) em visitas e mensagens.
-- **RF6.2** Uma tarefa está concluída quando um PR aberto pelo usuário está ligado a ela (regra do usuário: PR aberto = tarefa finalizada). Abertura detectada localmente: visita à página de criação do PR logo antes da primeira visita ao PR, ou mensagem enviada com o link. Hosts: GitHub, GitLab, Bitbucket, Azure DevOps.
+- **RF6.2** Uma tarefa tem estado "PR aberto" quando um PR ligado a ela foi aberto. Abertura confirmada localmente pela visita à página de criação antes da primeira visita ao PR; uma mensagem enviada com o link é provável. Sem rede, aprovação e merge são desconhecidos. Hosts: GitHub, GitLab, Bitbucket, Azure DevOps.
 - **RF6.3** Ligação PR ↔ tarefa: exata (mensagem que cita uma única tarefa e o PR, ou título do PR citando o id da tarefa) ou provável (PR aberto até 2h após trabalhar na tarefa), sempre indicada.
-- **RF6.4** Perguntas sobre tarefas no `cade ask` ("quais tarefas finalizei ontem?", "what tasks are still in progress?") devolvem o mesmo relatório, com filtro opcional de status (concluídas / em andamento) e período padrão de hoje. Com pessoa ou direção ("tarefas que a Ana me passou ontem"), só entram tarefas com link nas mensagens selecionadas, de qualquer dono; um nome que não é de ninguém filtra pelo texto da tarefa, PRs e mensagens ("tarefas de Solaris" → PR `-> main-solaris`). Uma mensagem citando várias tarefas conta para todas. O tipo "tarefas" e o status só valem se a pergunta os sustentar (menciona tarefa/ticket/demanda; "finalizei", "pendentes"...).
+- **RF6.4** Perguntas sobre tarefas no `cade ask` ("quais tarefas finalizei ontem?", "what tasks are still in progress?") devolvem o mesmo relatório, com filtro opcional de status (PR aberto / em andamento) e período padrão de hoje. Com pessoa ou direção ("tarefas que a Ana me passou ontem"), só entram tarefas com link nas mensagens selecionadas, de qualquer dono; um nome que não é de ninguém filtra pelo texto da tarefa, PRs e mensagens ("tarefas de Solaris" → PR `-> main-solaris`). Uma mensagem citando várias tarefas conta para todas. O tipo "tarefas" e o status só valem se a pergunta os sustentar (menciona tarefa/ticket/demanda; "finalizei", "pendentes"...).
 - **RF6.5** Tarefas são classificadas como suas (PR aberto ou mensagem sua citando-a), consultadas (só a página aberta) ou citadas só por outras pessoas (resumidas; `--all` lista).
 
 ### RF5 — Interface CLI
-- **RF5.1** `cade ingest <fonte|all> [ALVO...]`: ingere uma fonte com alvos explícitos ou os configurados, exibindo progresso durante a execução.
+- **RF5.1** `cade ingest <fonte|all> [ALVO...]`: ingere uma fonte com alvos explícitos ou os configurados, exibindo progresso durante a execução, com ETA na descrição de imagens e nas fontes `file` e `git`.
+- **RF5.1.1** `cade ingest start <fonte|all>` roda a ingestão num processo fora do terminal (continua depois de fechá-lo), com os limites de `ingest.background` (threads, camadas na GPU, parte do tempo em que os modelos trabalham) e a menor prioridade de CPU e E/S; `cade ingest --gentle` aplica os mesmos limites no terminal. `cade ingest status` mostra, de qualquer terminal, a etapa, o progresso e o ETA da ingestão em andamento ou o fim da última; `pause` a congela mantendo os modelos na memória; `stop` a encerra mantendo o que foi gravado; `resume` continua uma pausada ou roda de novo a última não concluída, no mesmo modo. Enquanto uma ingestão roda ou está pausada, outra não começa. O `cade doctor` mostra quando a última rodou e como terminou (issue #41).
 - **RF5.2** `cade timeline [--source F] DATA [DATA_FIM]`.
 - **RF5.3** `cade ask [--source F] [--from D] [--to D] PERGUNTA`.
 - **RF5.4** Saída legível no terminal, indicando fonte e timestamp de cada resultado.
 - **RF5.5** `cade forget <fonte>` remove os eventos de uma fonte para reingestão; `cade teams-schema DIR` imprime a estrutura (sem valores) de um IndexedDB, para diagnosticar mudanças de formato do Teams.
 - **RF5.6** `cade init` acha os históricos de navegador (Chromium e Firefox), os caches do Teams e os repositórios git sob um diretório informado, pergunta o que incluir (o Teams fica de fora por padrão) e grava a configuração com permissão `600`. Olha só nomes, nunca conteúdo; sem entrada, fica com os padrões.
-- **RF5.7** `cade doctor` confere os modelos (arquivo GGUF), o FTS5 do SQLite, o banco (versão do esquema, migração com cópia pendente, modelo dos vetores, reindexação pendente) e cada caminho configurado, dizendo como corrigir cada problema. Lê o banco sem migrá-lo e sai com código 1 quando algum comando falharia.
+- **RF5.7** `cade doctor` confere os modelos (arquivo GGUF), o FTS5 do SQLite, o banco (versão do esquema, migração com cópia pendente, modelo dos vetores, reindexação pendente, limiares definidos para outro modelo) e cada caminho configurado, dizendo como corrigir cada problema. Lê o banco sem migrá-lo e sai com código 1 quando algum comando falharia.
 - **RF5.8** A interface (ajuda, rótulos, progresso e erros da CLI) segue o idioma do sistema (`LC_ALL`, `LC_MESSAGES`, `LANG`: português para `pt*`, inglês nos outros casos) ou `ui.language` (`auto`, `pt`, `en`); a resposta do `ask` segue o idioma da pergunta, e os códigos do `ask --json` não mudam com o idioma.
 - **RF5.9** `cade version` (ou `--version`) mostra a versão, o commit, a data, o tipo de build (CPU/CUDA) e a tag do llama.cpp.
+- **RF5.10** As flags de cada comando podem vir antes ou depois dos argumentos (`cade timeline ontem --source git`); depois de `--`, tudo é argumento.
+- **RF5.11** Mensagens com contagem concordam com o número nos dois idiomas ("1 evento", "0 eventos", "2 tarefas suas").
+- **RF5.12** Datas numéricas nas perguntas (`12/08`) seguem `ui.date_order` (`auto`, `dmy`, `mdy`); `auto` lê mês primeiro com o sistema (`LC_ALL`, `LC_TIME`, `LANG`) em `en_US` e dia primeiro nos outros casos. As datas da saída são sempre ISO (`AAAA-MM-DD`).
 
 ---
 
@@ -118,7 +127,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 ### RNF5 — Desempenho
 - **RNF5.1** A busca retorna em tempo interativo para o volume de uso pessoal.
 - **RNF5.2** Cada modelo é carregado uma única vez por execução.
-- **RNF5.3** `make bench` mede latência e memória; `bench/baseline.txt` guarda a referência (RTX 3060, 2026-09-27) e `bench/baseline-cpu.txt`, a mesma máquina sem a GPU (Ryzen 5 5500). Na GPU: busca vetorial em 100 mil eventos, ~103 ms; ler o histórico inteiro (pergunta com pessoa e sem período), ~342 ms; embedding de um evento, ~3,4 ms (36 ms em CPU); interpretar a pergunta pelo modelo sem estado salvo, 1,4 s (19,7 s em CPU); gerar a resposta com 8 evidências, ~0,4 s (2,9 s em CPU); ~3,8 KB por evento no banco; modelos ocupam ~2,5 GB de GPU e ~1,2 GB de RAM (~3,9 GB de RAM em CPU).
+- **RNF5.3** `go tool mage bench` mede latência e memória; `bench/baseline.txt` guarda a referência (RTX 3060, 2026-09-27) e `bench/baseline-cpu.txt`, a mesma máquina sem a GPU (Ryzen 5 5500). Na GPU: busca vetorial em 100 mil eventos, ~103 ms; ler o histórico inteiro (pergunta com pessoa e sem período), ~342 ms; embedding de um evento, ~3,4 ms (36 ms em CPU); interpretar a pergunta pelo modelo sem estado salvo, 1,4 s (19,7 s em CPU); gerar a resposta com 8 evidências, ~0,4 s (2,9 s em CPU); ~3,8 KB por evento no banco; modelos ocupam ~2,5 GB de GPU e ~1,2 GB de RAM (~3,9 GB de RAM em CPU).
 - **RNF5.4** Um `cade ask` não refaz trabalho fixo: perguntas feitas só de período, fonte e palavras genéricas são lidas por regras, sem modelo, e uma listagem ou relatório lido assim nem carrega modelo; o estado do modelo depois das instruções e exemplos fixos do planejador fica salvo em `~/.cache/cade/prompt-state/`, com chave na versão do llama.cpp, no build, no arquivo do modelo, no contexto e nos tokens do prompt. Até o primeiro token da resposta, com o cache de página quente, em CPU: 41,5 s → 26,0 s com o estado salvo, 21,5 s pelas regras; na GPU: 2,9 s → 2,5 s → 1,6 s.
 
 ### RNF6 — Configuração
@@ -126,14 +135,14 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RNF6.2** `config.example.json` traz todos os campos, e o README descreve cada um numa tabela; testes falham se o exemplo ou as tabelas deixarem de cobrir um campo.
 
 ### RNF7 — Qualidade da interpretação
-- **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `make eval-plan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.
+- **RNF7.1** Uma suíte de ~150 perguntas representativas (`testdata/queries/plan.json`: período, git, Teams, navegador, arquivos, busca semântica, pessoas, tarefas, empresas lidas como pessoa, ambíguas, PT e EN) fixa o plano esperado de cada uma. `go tool mage evalPlan` roda a suíte com o modelo real e mede o acerto por campo com intervalo de Wilson de 95%.
 - **RNF7.2** Cada campo tem um piso (`minimum_accuracy`) comparado com o limite inferior do intervalo: mudanças de prompt ou modelo que o derrubem falham o teste, em vez de regredirem em silêncio, e um erro isolado não reprova.
-- **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `make eval-retrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `make eval-scale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
-- **RNF7.4** Casos de injeção (`testdata/queries/injection.json`, `make eval-injection`): perguntas cuja evidência inclui um evento do corpus escrito para manipular o modelo (mensagem, título de página, nota que tenta fechar o delimitador, texto em inglês), respondidas com os dois modelos reais. Reprova quando a resposta segue a injeção, não traz o fato real, cita evidência inexistente ou responde `SEM_INFORMACAO`; falta de citação é relatada sem reprovar, porque o modelo de 3B às vezes não cita mesmo sem injeção.
+- **RNF7.3** Suíte de recuperação (`testdata/queries/retrieval/`, `go tool mage evalRetrieval`): corpus sintético de ~290 eventos com distratores parecidos, visitas repetidas, versões de arquivo, notas longas, commits de outros autores e conversa do dia a dia, ingerido num SQLite real com o embedder real. Os casos se dividem em calibração (só relata onde os limites deveriam ficar) e teste (nunca usado para ajustar, com pisos de recall, MRR e rejeição); mede também a redundância. `go tool mage evalScale` gera a curva por tamanho do corpus (`bench/retrieval-scale.txt`); o baseline antes da próxima versão fica em `bench/retrieval-baseline.txt`.
+- **RNF7.4** Casos de injeção (`testdata/queries/injection.json`, `go tool mage evalInjection`): perguntas cuja evidência inclui um evento do corpus escrito para manipular o modelo (mensagem, título de página, nota que tenta fechar o delimitador, texto em inglês), respondidas com os dois modelos reais. Reprova quando a resposta segue a injeção, não traz o fato real, cita evidência inexistente ou responde `SEM_INFORMACAO`; falta de citação é relatada sem reprovar, porque o modelo de 3B às vezes não cita mesmo sem injeção.
 
 ### RNF8 — Qualidade do código
-- **RNF8.1** Cada push e pull request passa por `gofmt`, `go vet`, `golangci-lint` (`errcheck`, `staticcheck`, `unused`, `ineffassign`) e `make test` na CI (`.github/workflows/ci.yml`); qualquer falha deixa a execução vermelha. `make check` roda o mesmo localmente.
-- **RNF8.2** As suítes com modelo (`make eval`) rodam em workflow manual ou semanal (`.github/workflows/eval.yml`), em CPU, com o relatório publicado como artefato.
+- **RNF8.1** Cada push e pull request passa por `gofmt`, `go vet`, `golangci-lint` (`errcheck`, `staticcheck`, `unused`, `ineffassign`) e `go tool mage test` na CI (`.github/workflows/ci.yml`); qualquer falha deixa a execução vermelha. `go tool mage check` roda o mesmo localmente.
+- **RNF8.2** As suítes com modelo (`go tool mage eval`) rodam em workflow manual ou semanal (`.github/workflows/eval.yml`), em CPU, com o relatório publicado como artefato.
 - **RNF8.3** A cobertura dos testes aparece no resumo de cada execução e num badge do README.
 
 ---
@@ -154,9 +163,10 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 | CA9.1 | A busca vetorial combinada com filtro de fonte e/ou período respeita o filtro. | Atendido |
 | CA10 | Nenhuma operação faz requisição de rede com dados de atividade. | Atendido e verificado sem rede |
 | CA11 | Um novo ingestor torna seus eventos consultáveis sem alterar as consultas. | Atendido (Teams foi adicionado assim) |
+| CA12 | Uma imagem das pastas configuradas é encontrada pelo que mostra e pelo texto nela, sem que segredos, pixels ou ordens escritas nela cheguem ao banco ou à resposta. | Atendido (`evalCaptions`, casos de imagem em `evalRetrieval` e `evalInjection`) |
 
 Notas:
-- **CA8** — A qualidade da resposta depende do modelo de geração. O Qwen2.5-3B nem sempre cita os eventos com `[n]`; nesse caso a CLI lista todos os eventos consultados.
+- **CA8** — A qualidade da resposta depende do modelo de geração. Com o Qwen3.5-2B e a regra de citação com exemplo (fase 18), as respostas dos casos de injeção citam todas com `[n]`; quando uma resposta não cita, a CLI lista todos os eventos consultados.
 - **CA9.1** — O filtro é aplicado dentro da busca KNN do sqlite-vec (colunas de metadata do `vec0`), não após o corte top-k; há teste de regressão para isso. O período vem das flags ou de uma data citada na pergunta ("o que pesquisei semana passada" filtra a semana anterior). Dias da semana ("na segunda") ainda não são reconhecidos.
 - **CA10** — O código não usa cliente de rede e o llama.cpp é compilado sem suporte a download. Verificado em 2026-09-27 num namespace sem rede (`unshare -rn`, só o loopback, desligado): `cade ingest all` e um `cade ask` que carrega os dois modelos funcionaram, com a resposta e a fonte certas.
 
@@ -179,15 +189,16 @@ Notas:
 |---|---|
 | Linguagem | Go |
 | Persistência | SQLite (`mattn/go-sqlite3`) + sqlite-vec |
-| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo; CUDA opcional (`make cuda`) |
+| Inferência | llama.cpp (tag `b11195`), compilado estático e ligado via cgo, com a biblioteca de visão `mtmd`; CUDA opcional (`go tool mage cuda`) |
 | Embeddings | nomic-embed-text-v2-moe Q4_K_M (multilíngue) |
-| Geração | Qwen2.5-3B-Instruct Q4_K_M |
+| Geração | Qwen3.5-2B Q4_K_M (Apache-2.0), com o projetor de visão (`mmproj`) ao lado |
 | Teams | leitor próprio de LevelDB, IndexedDB do Chromium e serialização V8 |
 
 **Decisões de design:**
 - llama.cpp embutido em vez de Ollama ou `llama-server`, para não depender de um processo servidor.
 - O nomic-embed-text-v1.5 foi substituído pelo v2-moe por ser centrado em inglês e ordenar mal perguntas em português.
 - O Qwen2.5-1.5B foi substituído pelo 3B, que respondia "não encontrei" indevidamente em perguntas com filtro.
+- O Qwen2.5-3B (licença só não comercial) foi substituído pelo Qwen3.5-2B (Apache-2.0), que entende as perguntas igual ou melhor em todos os campos da suíte de plano, cabe em menos VRAM e também lê imagens (fase 19). O 4B entende melhor ainda, mas passa do orçamento de VRAM.
 - Teams lido do IndexedDB local em vez da Graph API: dispensa login, consentimento do tenant e acesso à rede, ao custo de cobrir apenas o que o cliente armazenou.
 - O LevelDB é lido por implementação própria (sem `goleveldb`, que está sem manutenção), mantendo a versão de maior sequência de cada chave, o que é correto independentemente do comparador `idb_cmp1` do Chromium.
 
@@ -197,8 +208,8 @@ Notas:
 
 - Arquivos: apenas o início do texto (até `max_file_bytes`) é indexado; não há divisão em trechos.
 - Teams: o formato interno pode mudar em atualizações do cliente; mensagens apagadas depois de ingeridas continuam no banco.
+- Imagens: descrever custa ~1,7 s por imagem numa RTX 3060 e ~22 s numa CPU de 6 núcleos; uma pasta grande leva várias execuções de `ingest`. Fotos sem texto dependem só da descrição, curta e genérica. A descrição de uma imagem apagada da pasta fica no banco até `cade forget file`.
 - Trocar o modelo de embedding exige um banco novo (a dimensão dos vetores é fixada no primeiro insert).
-- As flags de cada comando devem vir antes dos argumentos posicionais.
 - Tarefas passadas sem link (só em texto) não são reconhecidas.
 - O modelo de 3B às vezes lê empresas e clientes como pessoas; o filtro de texto para nomes desconhecidos compensa em listagens e tarefas.
 
