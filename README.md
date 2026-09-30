@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # cade
@@ -33,7 +33,65 @@ cade tasks today
 cade ask "what did I work on yesterday?"
 ```
 
-### Images (optional)
+## Scheduled ingestion
+
+> **Chrome purges visits older than ~90 days and the Teams client only caches what you have opened — if you skip a run, that window closes for good.**
+
+`~/.config/systemd/user/cade-ingest.service`:
+
+```ini
+[Unit]
+Description=cade ingest
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/cade ingest all
+```
+
+`~/.config/systemd/user/cade-ingest.timer`:
+
+```ini
+[Unit]
+Description=Run cade ingest daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+systemctl --user enable --now cade-ingest.timer
+```
+
+Or with crontab:
+
+```cron
+0 8 * * * ~/.local/bin/cade ingest all
+```
+
+## Teams *(experimental)*
+
+> - Depends on the internal IndexedDB format the Teams web client writes to a Chromium profile — the format can change without notice.
+> - Only sees what the client has cached. A conversation you never opened has no messages here.
+> - Messages deleted at the source after ingestion remain in cade until `cade forget`.
+> - Ingests only chat messages — not calendar events or call history.
+
+## Platform support
+
+Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
+
+| Source | Linux | macOS | Windows |
+|--------|-------|-------|---------|
+| git | ✓ tested | should work | not supported |
+| browser | ✓ tested | should work | not supported |
+| files | ✓ tested | should work | not supported |
+| teams | ✓ tested | should work | not supported |
+| images | ✓ tested | should work | not supported |
+
+## Images (optional)
 
 Enable `sources.images` (`cade init` asks) and `ingest` describes your png, jpeg and webp files with a local vision model, so you can find them by what they show and the text in them. Only the description is stored, never the pixels.
 
