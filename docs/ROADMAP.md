@@ -4,7 +4,7 @@
 
 # cade — roadmap
 
-O que falta para a v0.2.0, e em que ordem. A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.md](BENCHMARKS.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
+O que falta para a v0.2.0, e em que ordem. A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
 
 Cada fase é uma issue no GitHub, com as tasks e os arquivos de cada uma. Aqui fica a ordem, o porquê e o aceite resumido.
 
@@ -288,7 +288,7 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Reranking dos candidatos
 
-- **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.md#reranking-fase-17-reprovado), `go tool mage evalRerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
+- **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.pt-BR.md#reranking-fase-17-reprovado), `go tool mage evalRerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
 - **A verificar:** um reranker menor ou só em GPU; reordenar sem descartar (o reranker só troca a ordem dos `top_k` já escolhidos, o que não pode perder recall); casos novos na suíte em que a ordem mude a resposta.
 
 ### Índice vetorial aproximado

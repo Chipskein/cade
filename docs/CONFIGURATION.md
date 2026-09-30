@@ -79,11 +79,11 @@
 
 `cade ask` runs a **hybrid search**: vector similarity (embedding against chunks) and keyword (BM25/FTS5) are run independently, then merged by **reciprocal rank fusion** — each event's score is `Σ 1/(60 + rank)` across both lists, so the top of neither drowns the other. The mode can be changed with `retrieval.mode` (`hybrid`, `vector`, or `lexical`).
 
-Vector search scans all chunks linearly (no approximate index). On a 6-core CPU this costs ~111 ms at 100 k events (unfiltered; see [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). A date or source filter reduces it proportionally. Detailed measurements in [BENCHMARKS.md](BENCHMARKS.md).
+Vector search scans all chunks linearly (no approximate index). On a 6-core CPU this costs ~114 ms at 100 k events (unfiltered; see [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). A date or source filter reduces it proportionally. Detailed measurements in [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Image description cost
 
-With `sources.images` on, each image costs about 1.7 s on an RTX 3060 and 22 s on a 6-core CPU: a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU, spread over runs by `ingest.max_images_per_run`. Measurements in [BENCHMARKS.md](BENCHMARKS.md).
+With `sources.images` on, each image costs about 1.8 s on an RTX 3060 and 21 s on a 6-core CPU: a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU, spread over runs by `ingest.max_images_per_run`. Measurements in [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Teams source *(experimental)*
 

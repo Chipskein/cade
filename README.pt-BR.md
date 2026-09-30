@@ -85,7 +85,7 @@ Cited sources:
 | [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, ingestão em segundo plano e agendada. |
 | [Casos de uso](docs/USECASES.md) | Padrões de consulta e fluxos de trabalho práticos. |
 | [Arquitetura](docs/ARCHITECTURE.md) | Como o código está organizado e como os componentes interagem. |
-| [Benchmarks](docs/BENCHMARKS.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |
+| [Benchmarks](docs/BENCHMARKS.pt-BR.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |
 | [Desenvolvimento](docs/DEVELOPMENT.pt-BR.md) | Alvos de build, variáveis de ambiente, CI. |
 | [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.pt-BR.md) | O que está planejado e o que mudou. |
 
