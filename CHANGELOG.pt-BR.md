@@ -8,6 +8,14 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Não lançado
+
+### Menos escrita no disco na ingestão (#51)
+
+- A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
+- Sem mudança no esquema, e os dados gravados são os mesmos.
+
 ## v0.1.0 — 2026-09-30
 
 ### Atualizar da v0.0.0

@@ -8,6 +8,14 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Unreleased
+
+### Fewer disk writes on ingestion (#51)
+
+- Ingestion stores events in transactions of 200 instead of one per event; a transaction also commits once it has been open for 2 s, checked between events, so a `cade forget` run meanwhile usually waits for it (up to 5 s) instead of failing. On the first ingestion of 2,287 events (`git` + `file`, on an SSD), writes fell from 357 MB to 99 MB, or from 156 KB to 43 KB per new event, and the time did not get worse (59 s → 56 s). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- An interrupted ingestion (Ctrl-C, `cade ingest stop`, an error) loses only the open batch, at most 200 events; the next run stores them again.
+- No schema change, and the stored data is the same.
+
 ## v0.1.0 — 2026-09-30
 
 ### Upgrading from v0.0.0
