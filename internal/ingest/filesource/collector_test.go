@@ -125,3 +125,11 @@ func TestCollectKeepsAPendingImageAsItsName(t *testing.T) {
 		t.Fatalf("expected the name only, marked pending, got %+v", got)
 	}
 }
+
+func TestEstimateEventsCountsTheFilesCollected(t *testing.T) {
+	opts := Options{IgnoredDirNames: []string{".git", "node_modules"}, MaxFileBytes: 50}
+	count, err := NewCollector(sampleTree(), "/root", opts).EstimateEvents(context.Background())
+	if err != nil || count != len(collectTree(t, sampleTree())) {
+		t.Fatalf("expected the count of collected files, got %d (err %v)", count, err)
+	}
+}
