@@ -32,15 +32,16 @@ var tasks = sync.OnceValue(func() *devtasks.Tasks {
 	})
 })
 
+// Build compiles the default binary, NVIDIA (CUDA Toolkit required), into bin/cade.
 func Build() error { return tasks().Build() }
 
-// Build compiles the CPU binary into bin/cade.
-func Cpu() error { return tasks().Build() }
+// Cpu compiles the CPU binary into bin/cade, for machines without CUDA.
+func Cpu() error { return tasks().BuildCPU() }
 
 // Cuda compiles the NVIDIA binary into bin/cade (CUDA Toolkit required).
 func Cuda() error { return tasks().BuildCUDA() }
 
-// Install copies bin/cade (CPU or CUDA) to $DESTDIR$PREFIX/bin, building the CPU one if missing.
+// Install copies bin/cade (CPU or CUDA) to $DESTDIR$PREFIX/bin, building the default one if missing.
 func Install() error { return tasks().Install() }
 
 // Uninstall removes $DESTDIR$PREFIX/bin/cade.

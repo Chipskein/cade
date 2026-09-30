@@ -11,10 +11,10 @@
 Requirements: Go 1.27+, `gcc`, `cmake`, `ninja`, `git`.
 
 ```sh
-go tool mage build      # CPU build
-go tool mage cuda       # optional NVIDIA build (CUDA Toolkit required)
+go tool mage build      # default build: NVIDIA (CUDA Toolkit required); same as `cuda`
+go tool mage cpu        # CPU build, for machines without CUDA
 go tool mage models     # downloads the models to ~/.local/share/cade/models
-go tool mage install    # installs cade to ~/.local/bin (override with PREFIX=...)
+go tool mage install    # installs bin/cade (building the default one if missing) to ~/.local/bin (override with PREFIX=...)
 ```
 
 `models` downloads the embedding model, the generation model and its vision projector (`mmproj`), which describes images when `sources.images` is on.

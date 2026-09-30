@@ -33,6 +33,17 @@ func TestBuildCUDAPrefersTheVariablesOverGit(t *testing.T) {
 	assertLines(t, world.runner.Lines(), "go build -tags sqlite_fts5,cuda -ldflags "+stampedLinkerFlags+" -o bin/cade ./cmd/cade")
 }
 
+// Build became the NVIDIA build in 7cfdba1; mage cpu must keep calling BuildCPU.
+func TestBuildDefaultsToTheCUDABuild(t *testing.T) {
+	world := newTestWorld(t)
+	world.writeFile(t, cudaBuildDir+"/"+lastLlamaLibrary, "")
+	world.env[EnvVersion], world.env[EnvCommit], world.env[EnvBuildDate] = "v1.2.3", "abc", "2026-09-28"
+	if err := world.tasks().Build(); err != nil {
+		t.Fatal(err)
+	}
+	assertLines(t, world.runner.Lines(), "go build -tags sqlite_fts5,cuda -ldflags "+stampedLinkerFlags+" -o bin/cade ./cmd/cade")
+}
+
 func TestBuildStampWithoutGitReportsDev(t *testing.T) {
 	world := newTestWorld(t)
 	world.runner.FailOn = "git"

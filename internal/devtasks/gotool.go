@@ -9,7 +9,7 @@ import (
 // formattedDirs are the Go sources gofmt checks.
 var formattedDirs = []string{"cmd", "internal", "magefiles"}
 
-// Build compiles binary into bin/cade.
+// Build compiles the default binary into bin/cade: NVIDIA since 7cfdba1.
 func (t *Tasks) Build() error {
 	return t.BuildCUDA()
 }
