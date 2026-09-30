@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="../assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Referência de configuração
@@ -57,6 +57,25 @@ O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visit
 ```json
 "task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
 ```
+
+## Comportamento da ingestão de arquivos
+
+**O que é lido:** texto UTF-8 válido (sem bytes NUL) até `sources.max_file_bytes` (padrão 256 KiB). Arquivos maiores são registrados sem conteúdo. Imagens (png, jpeg, webp) com `sources.images` ligado recebem uma descrição do modelo de visão local no lugar do texto bruto.
+
+**O que é ignorado:**
+- Arquivos não-UTF-8 e arquivos com bytes NUL (binários).
+- Diretórios cujo nome está em `sources.ignored_dir_names` (padrão: `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target`) — toda a subárvore é pulada.
+- Arquivos que casam com `sources.ignored_file_globs` (padrão: `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials`). Definir esse campo substitui a lista padrão inteira.
+
+**Pedaços:** o texto é dividido em pedaços de 1.200 caracteres com sobreposição de 120 caracteres, para que uma frase cortada na borda apareça inteira em um dos pedaços. Cada pedaço recebe seu próprio vetor de embedding.
+
+**Detecção de mudança:** o cade guarda um hash do conteúdo por arquivo. Um arquivo sem alteração é ignorado na próxima execução; um arquivo alterado substitui a entrada anterior. Um arquivo removido da pasta é marcado como apagado e deixa de aparecer nos resultados.
+
+## Como a busca funciona
+
+O `cade ask` executa uma **busca híbrida**: similaridade vetorial (embedding contra pedaços) e palavras-chave (BM25/FTS5) são executadas de forma independente e depois mescladas por **reciprocal rank fusion** — a pontuação de cada evento é `Σ 1/(60 + posição)` nas duas listas, para que o topo de nenhuma delas afogue a outra. O modo pode ser alterado com `retrieval.mode` (`hybrid`, `vector` ou `lexical`).
+
+A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~111 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Custo da descrição de imagens
 

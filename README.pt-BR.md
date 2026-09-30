@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # cade
@@ -33,7 +33,65 @@ cade tasks hoje
 cade ask "o que eu fiz ontem?"
 ```
 
-### Imagens (opcional)
+## Ingestão agendada
+
+> **O Chrome apaga visitas com mais de ~90 dias e o cliente do Teams só guarda em cache o que você abriu — se você pular uma execução, essa janela fecha para sempre.**
+
+`~/.config/systemd/user/cade-ingest.service`:
+
+```ini
+[Unit]
+Description=cade ingest
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/cade ingest all
+```
+
+`~/.config/systemd/user/cade-ingest.timer`:
+
+```ini
+[Unit]
+Description=Executa cade ingest diariamente
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+systemctl --user enable --now cade-ingest.timer
+```
+
+Ou com crontab:
+
+```cron
+0 8 * * * ~/.local/bin/cade ingest all
+```
+
+## Teams *(experimental)*
+
+> - Depende do formato interno do IndexedDB que o cliente web do Teams grava num perfil Chromium — o formato pode mudar sem aviso.
+> - Só enxerga o que o cliente tem em cache. Uma conversa que você nunca abriu não tem mensagens aqui.
+> - Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
+> - Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
+
+## Suporte por plataforma
+
+Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando a partir do código-fonte. Windows não é suportado.
+
+| Fonte | Linux | macOS | Windows |
+|-------|-------|-------|---------|
+| git | ✓ testado | deve funcionar | não suportado |
+| browser | ✓ testado | deve funcionar | não suportado |
+| arquivos | ✓ testado | deve funcionar | não suportado |
+| teams | ✓ testado | deve funcionar | não suportado |
+| imagens | ✓ testado | deve funcionar | não suportado |
+
+## Imagens (opcional)
 
 Ligue `sources.images` (o `cade init` pergunta) e o `ingest` descreve seus arquivos png, jpeg e webp com um modelo de visão local, para você encontrá-los pelo que mostram e pelo texto que têm. Só a descrição fica guardada, nunca os pixels.
 

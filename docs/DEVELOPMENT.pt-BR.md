@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="../assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Desenvolvimento

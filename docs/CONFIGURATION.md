@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/cade.png" alt="cade mascot: a Go gopher filing folders" width="200">
+  <img src="../assets/cade2.png" alt="cade mascot: a Go gopher filing folders" width="200">
 </p>
 
 # Configuration reference
@@ -57,6 +57,25 @@
 ```json
 "task_url_patterns": ["proj4\\.me/projects/(\\d+)/tasks/(\\d+)"]
 ```
+
+## File ingestion behavior
+
+**What is read:** valid UTF-8 text (no NUL bytes) up to `sources.max_file_bytes` (default 256 KiB). Larger files are still recorded without content. Images (png, jpeg, webp) with `sources.images` on get a description from the local vision model in place of raw text.
+
+**What is ignored:**
+- Non-UTF-8 files and files containing NUL bytes (binaries).
+- Directories whose name is in `sources.ignored_dir_names` (default: `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target`) — the whole subtree is skipped.
+- Files matching `sources.ignored_file_globs` (default: `.env*`, `*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, `*.p12`, `*.pfx`, `credentials*`, `.netrc`, `.npmrc`, `.pypirc`, `.git-credentials`). Setting this field replaces the entire default list.
+
+**Chunks:** text is split into 1,200-character pieces with 120-character overlap so a sentence cut at a boundary is whole in one of them. Each chunk gets its own embedding vector.
+
+**Change detection:** cade stores a content hash per file. An unchanged file is skipped on the next run; a changed file replaces the previous entry. A file removed from the directory is marked as deleted and no longer appears in results.
+
+## How search works
+
+`cade ask` runs a **hybrid search**: vector similarity (embedding against chunks) and keyword (BM25/FTS5) are run independently, then merged by **reciprocal rank fusion** — each event's score is `Σ 1/(60 + rank)` across both lists, so the top of neither drowns the other. The mode can be changed with `retrieval.mode` (`hybrid`, `vector`, or `lexical`).
+
+Vector search scans all chunks linearly (no approximate index). On a 6-core CPU this costs ~111 ms at 100 k events (unfiltered; see [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). A date or source filter reduces it proportionally. Detailed measurements in [BENCHMARKS.md](BENCHMARKS.md).
 
 ## Image description cost
 
