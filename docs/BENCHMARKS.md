@@ -4,63 +4,169 @@
 
 # Benchmarks
 
-Medições do cade numa máquina de referência: Ryzen 5 5500, RTX 3060 12 GB, build CUDA. Os números vêm de:
-- `bench/baseline.txt` (`go tool mage bench`) e `bench/baseline-cpu.txt` (`GO_TAGS= go tool mage bench`, a mesma máquina sem a GPU);
-- `bench/retrieval-baseline.txt`, `bench/retrieval-scale.txt` e `bench/plan-baseline.txt` (`go tool mage eval`, `go tool mage evalScale`);
-- das medições por fase registradas no `CHANGELOG.pt-BR.md`.
+Measurements of cade on a reference machine. Each section gives the command that reproduces it, the date, the commit and the build. Sections that no command today reproduces are under [History](#history).
 
-Os gráficos são Mermaid e precisam ser atualizados à mão depois de uma nova medição. O Mermaid não desenha legenda, então ela vem escrita abaixo de cada gráfico.
+## Machine and builds
 
-## Qualidade da busca por fase
+| | |
+|---|---|
+| CPU | AMD Ryzen 5 5500, 6 cores / 12 threads |
+| GPU | NVIDIA RTX 3060 12 GB, **power-limited to 120 W** (default 170 W) to keep it cool; at 170 W it reached 93 °C |
+| Disk | Kingston A400 (SATA), ext4 |
+| CUDA build | `go tool mage bench` / `go tool mage eval` (default, `cuda` tag) |
+| CPU build | `GO_TAGS= go tool mage bench` (the same machine, without the GPU) |
+| Models | `nomic-embed-text-v2-moe` Q4_K_M (embeddings), Qwen3.5-2B Q4_K_M + `mmproj` (generation and images) |
 
-Conjunto de teste da suíte de recuperação (24 perguntas, nunca usado para ajustar limites).
+Today's numbers were measured on **2026-09-30, commit `f4e5379`**. The raw outputs are in `bench/`:
 
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#2563eb, #16a34a, #dc2626"
----
-xychart-beta
-  title "Qualidade da busca por fase"
-  x-axis ["baseline", "fase 0.5", "fase 1", "fase 2", "fase 3"]
-  y-axis "valor (0 a 1)" 0 --> 1
-  line [0.80, 0.80, 0.80, 0.87, 1.00]
-  line [0.74, 0.74, 0.74, 0.81, 0.88]
-  line [0.17, 0.17, 0.00, 0.00, 0.00]
-```
+| File | Command |
+|---|---|
+| `bench/baseline.txt` | `go tool mage bench` (CUDA) |
+| `bench/baseline-cpu.txt` | `GO_TAGS= go tool mage bench` |
+| `bench/plan-baseline.txt` | `go tool mage evalPlan` (part of `go tool mage eval`) |
+| `bench/retrieval-scale.txt` | `go tool mage evalScale` |
+| `bench/retrieval-scale-top8.txt` | `SCALE_TOP_K=8 SCALE_REPORT=bench/retrieval-scale-top8.txt go tool mage evalScale` |
 
-Azul: recall. Verde: MRR. Vermelho: redundância (resultados que repetem a mesma página ou arquivo; menor é melhor). A rejeição ficou em 1,00 em todas as fases.
+The baselines up to 2026-09-27 were measured with the GPU at 170 W. At 120 W only image description got slower (0.1–0.2 s); the rest of the GPU numbers stayed the same or got faster. For a single question the GPU waits on memory, not on power.
 
-## `top_k`, limiares e reranking (fase 17)
+The charts are Mermaid and are updated by hand after a new measurement. Mermaid draws no legend, so it is written below each chart.
 
-`go tool mage evalRetrieval` cruza `top_k` (4, 6, 8, 12) com `max_distance` (0,68, 0,72, 0,76) e `max_best_distance` (0,60, 0,61, 0,63) nos conjuntos de calibração e de teste (25 perguntas), com o `nomic-embed-text-v2-moe` Q4_K_M, e mede o `ask` até o primeiro token para cada `top_k` (`BenchmarkColdAskTopK`, cache de páginas quente, uma execução por valor). CPU e GPU dão a mesma qualidade.
+## Reading the metrics
 
-| `top_k` | recall | MRR | rejeição | `ask` CPU | `ask` GPU |
+**Retrieval quality** (suites in `internal/retrievalsuite`). Each question has the events that should come back, or none when the answer is not in the history.
+
+| Metric | What it measures | Best |
+|---|---|---|
+| recall | Of the questions that have an answer, the share where at least one expected event is among the `top_k` returned. 0.94 = for 6% of the questions the answer never reaches the model. | 1.00 |
+| MRR | *Mean reciprocal rank*: the mean of 1/position of the first expected event (1st place = 1, 2nd = 0.5, 3rd = 0.33, missing = 0). Tells how close to the top the answer shows up. | 1.00 |
+| rejection | Of the questions with **no** answer in the history, the share where search returns nothing, so cade says it does not know instead of making something up. | 1.00 |
+| redundancy | Share of the results that repeat the page or file of another result, taking the place of new evidence. | 0.00 |
+| calibration / test set | Calibration tunes the thresholds; the test set is never used to tune anything and is the number that counts. | |
+
+**Question interpretation** (`internal/queryplan`). The planner turns the question into a plan with seven fields: `mode` (answer or list), `days` (period), `source` (git, browser, file, Teams), `people`, `direction` (sent/received), `topic` and `status` (of tasks).
+
+| Metric | What it measures |
+|---|---|
+| per-field accuracy | Share of the questions where that field came out as expected. |
+| Wilson 95% interval | The range where the true accuracy probably lies, given the size of the suite. The suite fails when the **lower** bound falls below the field's floor, so luck on a small set does not pass. |
+| fully correct | Questions with all seven fields right. |
+| read by rules | Questions the rules understand without a model; "0 wrong" = none of them came out different from the expected plan. |
+
+**Time and resources** (`go test -bench`).
+
+| Metric | What it measures |
+|---|---|
+| ns/op (shown in ms or s) | Mean time of one operation over 5 runs (`-benchtime 5x`). Model benchmarks warm up first, so loading is not counted, except in the full `ask` ones. |
+| `ask` to first token | From process start to the first token of the answer: loading the models, interpreting, searching and reading the evidence. It is the wait the person feels. |
+| warm / cold page cache | Warm: the model files are already in the system's memory (read recently). Cold: evicted before each run, as after a reboot; adds reading ~1.6 GB from disk. |
+| `rss_MB` | The process's resident RAM (`VmRSS`) at the end of the benchmark. |
+| `gpu_MB` | GPU memory used by the process, according to `nvidia-smi`. |
+| `bytes/event` | Database file size divided by the number of events, with vectors, indexes and text. Used to project growth. |
+| `reply_tokens/op` | Tokens generated per answer. Generation time depends on it, and it differs between CPU and GPU because the generated text changes. |
+| KB written per event | Bytes the process sent to disk (`write_bytes` from `/proc/PID/io`) divided by the new events. Measures SSD wear, not database size. |
+
+## Retrieval quality
+
+> `go tool mage eval` (`TestRetrievalSuiteWithModel`) · 2026-09-30 · `f4e5379` · CUDA. CPU gives the same quality.
+
+Test set of 32 questions (25 text and 7 image) over ~300 events, `top_k` 6:
+
+| recall | MRR | rejection | redundancy |
+|---:|---:|---:|---:|
+| 1.00 | 0.87 | 1.00 | 0.00 |
+
+32 of 32 correct. On 2026-09-27 the MRR was 0.89.
+
+The injection suite (`TestInjectionWithModel`, 5 questions with instructions hidden in events and in an image) passed with no instruction followed.
+
+## `top_k` and thresholds
+
+> Quality: `go tool mage eval` (`TestRetrievalSweepWithModel`) · Time: `go tool mage bench` and `GO_TAGS= go tool mage bench` (`BenchmarkColdAskTopK`, warm page cache) · 2026-09-30 · `f4e5379`
+
+`top_k` is how many events search hands to the model. More events raise the chance that the answer is there, but the model has to read all of them before answering.
+
+| `top_k` | recall | MRR | rejection | `ask` CPU | `ask` GPU |
 | ---: | ---: | ---: | ---: | ---: | ---: |
-| 4 | 0,91 | 0,86 | 1,00 | 9,53 s | 1,52 s |
-| **6** | **1,00** | **0,89** | **1,00** | **10,61 s** | **1,62 s** |
-| 8 (v0.0.0) | 1,00 | 0,88 | 1,00 | 12,40 s | 1,77 s |
-| 12 | 1,00 | 0,88 | 1,00 | 19,20 s | 1,90 s |
+| 4 | 0.93 | 0.86 | 1.00 | 7.65 s | 1.44 s |
+| **6 (default)** | **1.00** | **0.87** | **1.00** | **9.71 s** | **1.56 s** |
+| 8 (v0.0.0) | 1.00 | 0.88 | 1.00 | 11.92 s | 1.62 s |
+| 12 | 1.00 | 0.88 | 1.00 | 16.47 s | 1.76 s |
 
-- **`top_k` = 6:** o menor valor que não perde recall. O MRR sobe um pouco porque um evento fraco sai do fim da lista. O `ask` em CPU fica 1,8 s mais rápido.
-- **Limiares:** `max_distance` não muda nada entre 0,68 e 0,76. Com `max_best_distance` 0,63, a rejeição na calibração cai para 0,89 (uma pergunta sem resposta passa). A calibração põe o corte entre o pior evento de pergunta com resposta e o melhor de pergunta sem resposta: 0,596–0,624 em GPU e 0,606–0,621 em CPU (os vetores diferem na terceira casa). Os 0,61 atuais ficam dentro dos dois intervalos e continuam valendo.
-- **Curva de escala** (`go tool mage evalScale`, `bench/retrieval-scale.txt`): com 1 mil e com 10 mil eventos, `top_k` 6 dá recall 0,94, MRR 0,83 e rejeição 1,00. A v0.0.0 (`top_k` 8) dava 0,93, 0,82 e 1,00, e a mesma medição hoje com 8 dá 0,94, 0,82 e 1,00 (`bench/retrieval-scale-top8.txt`).
+- **`top_k` = 6:** the smallest value that loses no recall. With 8 the MRR rises by 0.01 and `ask` on CPU gets 2.2 s slower.
+- **Thresholds:** `max_distance` changes nothing between 0.68 and 0.76. With `max_best_distance` 0.63, rejection on the calibration set drops to 0.89 (one unanswerable question gets through). Calibration puts the cut between the worst event of an answerable question (0.596) and the best event of an unanswerable one (0.624). The current 0.61 is inside that range. On CPU the range was 0.606–0.621 on 2026-09-27; the vectors differ in the third decimal.
 
-**Reranking, reprovado no portão** (`go tool mage evalRerank`). Os 30 primeiros da busca híbrida, depois dos cortes de distância, são reordenados pelo `bge-reranker-v2-m3` Q4_K_M (418 MB, Apache-2.0) pelo llama.cpp, que lê o mesmo texto que o modelo de resposta, e são cortados em 6:
+## Retrieval as the history grows
 
-| eventos | sem reranker (recall / MRR) | com reranker (recall / MRR) | custo por pergunta |
+> `go tool mage evalScale` (`bench/retrieval-scale.txt`) and the same with `SCALE_TOP_K=8` (`bench/retrieval-scale-top8.txt`) · 2026-09-30 · `f4e5379` · CUDA
+
+The test set with the corpus padded with distractor events up to 1 k and 10 k events:
+
+| events | `top_k` 6: recall / MRR / rejection | `top_k` 8: recall / MRR / rejection |
+|---:|---|---|
+| 1 k | 0.96 / 0.84 / 1.00 | 0.96 / 0.86 / 1.00 |
+| 10 k | 0.96 / 0.83 / 1.00 | 0.96 / 0.82 / 1.00 |
+
+The distractors are generated from fixed templates and are less varied than a real history, so the drop with size tends to be larger in practice.
+
+## Reranking (phase 17, rejected)
+
+> `go tool mage evalRerank` · 2026-09-27 · `ce1454b` · CUDA (GPU at 170 W) and CPU · not re-run: the reranker is not in use.
+
+The top 30 of the hybrid search, after the distance cuts, were reordered by `bge-reranker-v2-m3` Q4_K_M (418 MB) and cut to 6:
+
+| events | without reranker (recall / MRR) | with reranker (recall / MRR) | cost per question |
 | ---: | ---: | ---: | ---: |
-| 291 | 1,00 / 0,89 | 0,94 / 0,91 | 72 ms GPU, 567 ms CPU |
-| 1 mil | 0,94 / 0,83 | 0,94 / 0,91 | 61 ms GPU |
-| 10 mil | 0,94 / 0,83 | 0,94 / 0,91 | 58 ms GPU |
+| 291 | 1.00 / 0.89 | 0.94 / 0.91 | 72 ms GPU, 567 ms CPU |
+| 1 k | 0.94 / 0.83 | 0.94 / 0.91 | 61 ms GPU |
+| 10 k | 0.94 / 0.83 | 0.94 / 0.91 | 58 ms GPU |
 
-O MRR sobe em todos os tamanhos, mas o recall no conjunto de teste cai de 1,00 para 0,94, e o critério pede recall igual ou melhor. O custo também é alto: em CPU, 0,57 s por pergunta, mais carregar outros 418 MB, comeria um terço do que o `top_k` 6 economiza. A ideia volta para "A definir" no ROADMAP.
+MRR went up, but recall on the test set fell from 1.00 to 0.94, and the criterion requires equal or better recall. On CPU, 0.57 s per question plus loading another 418 MB would eat a third of what `top_k` 6 saves.
 
-## Busca à medida que o histórico cresce
+## Question interpretation
 
-Recall no conjunto de teste com o corpus aumentado por distratores (`go tool mage evalScale`).
+> `go tool mage evalPlan` (`bench/plan-baseline.txt`) · 2026-09-30 · `f4e5379` · CUDA · Qwen3.5-2B
+
+Suite of 155 questions: 131 fully correct, 69 read by the rules alone, none of them wrong.
+
+```mermaid
+xychart-beta
+  title "Planner accuracy per field (%), Qwen3.5-2B"
+  x-axis ["mode", "days", "source", "people", "direction", "topic", "status"]
+  y-axis "accuracy (%)" 90 --> 100
+  bar [96, 100, 95, 97, 97, 97, 100]
+```
+
+| Field | Correct | Wilson 95% |
+|---|---:|---|
+| `mode` | 149/155 | 92%–98% |
+| `days` | 155/155 | 98%–100% |
+| `source` | 147/155 | 90%–97% |
+| `people` | 150/155 | 93%–99% |
+| `direction` | 150/155 | 93%–99% |
+| `topic` | 151/155 | 94%–99% |
+| `status` | 155/155 | 98%–100% |
+
+On 2026-09-27, with 153 questions, 135 were fully correct. The most frequent errors are message listings read as a question to answer (`mode`) and person names missing from `people`. The comparison with other models is under [History](#history).
+
+## `ask` latency per stage
+
+> `go tool mage bench` and `GO_TAGS= go tool mage bench` (`BenchmarkEmbedEvent`, `BenchmarkPlanQuestion`, `BenchmarkAnswer`) · 2026-09-30 · `f4e5379`
+
+Each model warms up before the measurement. "Interpret the question" uses the model with a cold prompt cache and no saved state: it is the cost of a question the rules do not read. "Generate the answer" includes reading the evidence.
+
+| Stage | GPU | CPU |
+|---|---:|---:|
+| embed one event | 3.1 ms | 32 ms |
+| interpret the question | 1.49 s | 12.6 s |
+| read the evidence and generate the answer | 0.47 s (20 tokens) | 10.9 s (34 tokens) |
+
+The planner prompt has ~2 k tokens of instructions and examples, and llama.cpp's grammar sampler is slow per token.
+
+## A full `ask`
+
+> `go tool mage bench` and `GO_TAGS= go tool mage bench` (`BenchmarkColdAsk`) · 2026-09-30 · `f4e5379`
+
+From start to the first token of the answer, loading both models. The question is read by the model decoding the whole prompt, by the model with the saved prompt state, or by the rules, with no model.
 
 ```mermaid
 ---
@@ -70,70 +176,12 @@ config:
       plotColorPalette: "#9ca3af, #2563eb, #16a34a"
 ---
 xychart-beta
-  title "Recall por tamanho do histórico"
-  x-axis ["291 eventos", "1 mil", "10 mil"]
-  y-axis "recall" 0.5 --> 1
-  line [0.80, 0.73, 0.73]
-  line [0.87, 0.80, 0.80]
-  line [1.00, 0.93, 0.93]
-```
-
-Cinza: baseline. Azul: depois da fase 2 (pedaços). Verde: depois da fase 3 (busca híbrida). Os distratores são gerados de modelos fixos e são menos variados que um histórico real, então a queda com o tamanho tende a ser maior na prática.
-
-## Interpretação das perguntas
-
-Acerto por campo na suíte de 153 perguntas (`go tool mage evalPlan`), com o prompt da fase 18 para os três modelos (`bench/plan-baseline.txt`, `plan-qwen2.5-3b.txt`, `plan-qwen3.5-4b.txt`). Os pisos da suíte são comparados com o limite inferior do intervalo de Wilson de 95%, que fica 3 a 6 pontos abaixo destes valores.
-
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
----
-xychart-beta
-  title "Acerto do planejador por campo (%)"
-  x-axis ["tipo", "período", "fonte", "pessoas", "direção", "assunto", "status"]
-  y-axis "acerto (%)" 90 --> 100
-  bar [95, 100, 96, 95, 98, 94, 100]
-  bar [96, 100, 96, 98, 98, 97, 100]
-  bar [98, 100, 99, 99, 99, 99, 100]
-```
-
-Cinza: Qwen2.5-3B (padrão até a v0.0.0). Azul: Qwen3.5-2B (padrão). Verde: Qwen3.5-4B, fora do orçamento de VRAM. Totalmente certas: 133, 135 e 146.
-
-## Latência do `ask` por etapa
-
-Cada modelo aquece antes da medição. A interpretação roda pelo modelo, com o cache de prompt frio e sem o estado salvo: é o custo de uma pergunta que as regras não leem.
-
-```mermaid
-xychart-beta
-  title "Latência por etapa (ms, GPU)"
-  x-axis ["embedding de um evento", "interpretar a pergunta", "gerar a resposta"]
-  y-axis "ms" 0 --> 1600
-  bar [3.5, 1494, 584]
-```
-
-Em CPU (Ryzen 5 5500, 6 threads) as mesmas etapas levam 33 ms, 12,7 s e 12,3 s. O prompt do planejador tem ~2 mil tokens de instruções e exemplos, e o sampler com gramática do llama.cpp é lento por token. Desde a fase 18, "gerar a resposta" inclui ler as 8 evidências: com o Qwen2.5-3B (399 ms na GPU, 2,9 s na CPU) o benchmark reaproveitava da rodada anterior o prompt em memória, e o estado recorrente do Qwen3.5 não volta atrás. Num `cade ask`, que é sempre um processo novo, as evidências são lidas nos dois casos.
-
-## Um `ask` inteiro (fases 5 e 18)
-
-Do início até o primeiro token da resposta, com o carregamento dos dois modelos (`BenchmarkColdAsk`). A pergunta é lida pelo modelo decodificando o prompt inteiro (como antes da fase 5), pelo modelo com o estado do prompt salvo, ou pelas regras, sem modelo. Cache de página quente: os modelos foram lidos há pouco. Frio: foram tirados da memória antes de cada rodada, como depois de reiniciar.
-
-```mermaid
----
-config:
-  themeVariables:
-    xyChart:
-      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
----
-xychart-beta
-  title "ask até o primeiro token, CPU (s)"
-  x-axis ["cache quente", "cache frio"]
-  y-axis "s" 0 --> 35
-  bar [24.8, 29.6]
-  bar [16.5, 21.1]
-  bar [12.0, 16.2]
+  title "ask to first token, CPU (s)"
+  x-axis ["warm cache", "cold cache"]
+  y-axis "s" 0 --> 30
+  bar [22.7, 27.2]
+  bar [14.4, 19.0]
+  bar [9.8, 14.5]
 ```
 
 ```mermaid
@@ -144,25 +192,39 @@ config:
       plotColorPalette: "#9ca3af, #2563eb, #16a34a"
 ---
 xychart-beta
-  title "ask até o primeiro token, GPU (s)"
-  x-axis ["cache quente", "cache frio"]
+  title "ask to first token, GPU (s)"
+  x-axis ["warm cache", "cold cache"]
   y-axis "s" 0 --> 10
-  bar [3.16, 7.40]
-  bar [2.88, 6.89]
-  bar [1.60, 5.68]
+  bar [3.04, 7.65]
+  bar [2.77, 7.28]
+  bar [1.56, 5.86]
 ```
 
-Cinza: modelo, prompt decodificado inteiro. Azul: modelo com o estado salvo. Verde: regras.
+Grey: model, whole prompt decoded. Blue: model with saved state. Green: rules.
 
-- **Modelo (fase 18):** com o Qwen3.5-2B, a CPU foi de 41,5 / 26,0 / 21,5 s para 24,8 / 16,5 / 12,0 s com o cache quente. Na GPU, o cache quente ficou 0,2–0,4 s mais lento (2,93 / 2,48 / 1,59 s com o Qwen2.5-3B), e o frio, ~1,5 s mais rápido, porque o modelo é menor.
-- **CPU:** o estado salvo corta 34% do `ask` com o cache quente (24,8 → 16,5 s), e as regras, 52%. O que sobra é quase todo a leitura das 8 evidências pelo modelo antes da resposta.
-- **GPU:** o ganho é menor em segundos (3,16 → 2,88 → 1,60 s), e o cache frio domina: ler ~1,6 GB de modelos do disco leva ~4 s.
-- **Estado salvo:** um arquivo de ~40 MB em `~/.cache/cade/prompt-state/` (~55 MB com o Qwen2.5-3B), gravado na primeira pergunta que vai ao modelo.
-- **Regras:** leem 67 das 153 perguntas da suíte de plano, sem nenhum erro. Uma listagem ou relatório de tarefas lido por elas nem carrega modelo.
+- **CPU:** the saved state cuts 36% of `ask` with a warm cache (22.7 → 14.4 s), and the rules 57% (→ 9.8 s). What is left is almost all the model reading the evidence before answering. On 2026-09-27 it was 24.8 / 16.5 / 12.0 s.
+- **GPU:** the gain is smaller in seconds (3.04 → 2.77 → 1.56 s), and the cold cache dominates: reading the models from disk adds ~4.5 s.
+- **Saved state:** a 98 MB file in `~/.cache/cade/prompt-state/`, written on the first question that goes to the model.
+- **Rules:** they read 69 of the 155 questions of the plan suite. A task listing or report read by them does not even load a model.
 
-## Busca vetorial no banco
+## Database
 
-Busca dos vizinhos mais próximos em históricos sintéticos (`go tool mage bench`), antes da fase 2. Com pedaços, a busca em 100 mil eventos passou de 103 para 112 ms.
+> `go tool mage bench` (`internal/storage/sqlitestore`) · 2026-09-30 · `f4e5379` · database on tmpfs, synthetic events. These numbers do not depend on CPU or GPU build.
+
+| Measure | 1 k | 10 k | 100 k |
+|---|---:|---:|---:|
+| vector search, no filter (ms) | 2.2 | 12.7 | 113.4 |
+| vector search, Teams only (ms) | 1.5 | 8.2 | 70.1 |
+| vector search, one day (ms) | 0.9 | 6.8 | 57.3 |
+| search for common words, FTS5 (ms) | 1.5 | 9.0 | 78.0 |
+| search for a hash prefix (ms) | 0.10 | 0.10 | 0.11 |
+| read one day (ms) | 0.04 | 0.15 | 0.68 |
+| read everything (ms) | 2.0 | 27.6 | 346.0 |
+| person with no period, read everything and filter in Go (ms) | 3.8 | 44.5 | 469.5 |
+| person with no period, filter in SQL (ms) | 0.35 | 0.89 | 8.5 |
+| direction with no period, count + vector search (ms) | 2.7 | 16.1 | 122.8 |
+| chunk vectors of 1,000 events (ms) | 202 | 177 | 201 |
+| bytes per event | 4,010 | 3,867 | 3,805 |
 
 ```mermaid
 ---
@@ -172,123 +234,175 @@ config:
       plotColorPalette: "#2563eb, #f97316, #16a34a"
 ---
 xychart-beta
-  title "Busca vetorial (ms)"
-  x-axis ["1 mil eventos", "10 mil", "100 mil"]
+  title "Vector search (ms)"
+  x-axis ["1 k events", "10 k", "100 k"]
   y-axis "ms" 0 --> 120
-  line [2.3, 12.1, 103.1]
-  line [1.7, 7.6, 59.9]
-  line [1.2, 6.6, 47.4]
+  line [2.2, 12.7, 113.4]
+  line [1.5, 8.2, 70.1]
+  line [0.9, 6.8, 57.3]
 ```
 
-Azul: sem filtro. Laranja: só Teams. Verde: um dia. O tempo cresce de forma linear com o histórico, porque o sqlite-vec compara com todos os vetores; filtros reduzem o trabalho.
+Blue: no filter. Orange: Teams only. Green: one day.
 
-## Busca por palavra no banco
+- **Vector search:** grows linearly with the history, because sqlite-vec compares against every vector; filters reduce the work.
+- **Word search:** the synthetic corpus repeats the same few words in almost every event, so this is the worst case.
+- **Person with no period:** the question used to load the whole history and filter in Go (469 ms and 187 MB allocated at 100 k events). With the filter in SQL it takes 8.5 ms and 0.7 MB.
+- **Saving an event:** 0.69 ms in its own transaction (`BenchmarkSaveEvent`) and 0.50 ms in a batch of 200 (`BenchmarkSaveEventInBatch`). On tmpfs `fsync` costs nothing; the effect of batches on disk is under [Disk writes during ingestion](#disk-writes-during-ingestion-51).
 
-A metade por palavras da busca híbrida (FTS5), com eventos sintéticos. Um hash de commit é resolvido em 0,1 ms em qualquer tamanho.
+## Size per table (#40)
+
+> `sqlite3 -readonly ~/.local/share/cade/cade.db` with the query below · 2026-09-30 · the reference machine's real history: 238,720 events, 246,488 chunks, 1.26 GB.
+
+```sql
+SELECT CASE
+    WHEN name LIKE 'chunk_embeddings%' THEN 'chunk_embeddings'
+    WHEN name LIKE 'chunks_fts%' THEN 'chunks_fts'
+    WHEN name LIKE 'events%' OR name = 'sqlite_autoindex_events_1' THEN 'events'
+    WHEN name LIKE 'chunks%' OR name = 'sqlite_autoindex_chunks_1' THEN 'chunks'
+    WHEN name LIKE 'event_people%' THEN 'event_people'
+    ELSE 'other' END AS table_name,
+  round(sum(pgsize) / 1048576.0, 1) AS mb,
+  round(100.0 * sum(pgsize) / (SELECT sum(pgsize) FROM dbstat), 1) AS pct
+FROM dbstat GROUP BY table_name ORDER BY mb DESC;
+```
+
+Each table includes its internal tables and its indexes.
+
+| Table | What it holds | MB | % |
+|---|---|---:|---:|
+| `chunk_embeddings` | chunk vectors (sqlite-vec) | 960.1 | 79.8 |
+| `events` | event text and metadata | 203.4 | 16.9 |
+| `chunks_fts` | word index (FTS5) | 22.8 | 1.9 |
+| `chunks` | text chunks of each event | 9.8 | 0.8 |
+| `event_people` | people of each event | 6.0 | 0.5 |
+| other | settings, modified files, forgotten events | 0.3 | 0.0 |
+
+Vectors are 4/5 of the database: ~4.0 KB per chunk, for 768 `float32` dimensions that take 3 KB on their own.
+
+## Disk writes during ingestion (#51)
+
+> Manual measurement, no mage target · 2026-09-30 · commits `d963b97`–`11020d0` · CUDA · Kingston A400 with ext4 (not tmpfs)
+
+To reproduce: write a `config.json` with `database_path` in an empty directory, point `XDG_CONFIG_HOME` at it, run `cade ingest git` on the cade repository and `cade ingest file ~/Downloads` with images off, and read `write_bytes` from `/proc/PID/io` before the process exits. Mean of two interleaved runs, 2,287 new events.
 
 ```mermaid
 xychart-beta
-  title "Busca por palavras comuns (ms)"
-  x-axis ["1 mil eventos", "10 mil", "100 mil"]
-  y-axis "ms" 0 --> 80
-  bar [1.5, 8.9, 76.1]
-```
-
-O corpus sintético repete as mesmas poucas palavras em quase todos os eventos, então este é o pior caso; num histórico real as palavras são mais variadas.
-
-## Carregar o histórico inteiro
-
-É o que acontece numa pergunta com pessoa e sem período. Ler um dia leva menos de 1 ms em qualquer tamanho.
-
-```mermaid
-xychart-beta
-  title "Ler todos os eventos (ms)"
-  x-axis ["1 mil eventos", "10 mil", "100 mil"]
-  y-axis "ms" 0 --> 360
-  bar [2.5, 29.7, 345.1]
-```
-
-Alvo da fase 6: filtrar pessoas no SQL em vez de carregar tudo.
-
-## Escrita no disco na ingestão (#51)
-
-Primeira ingestão de 2.287 eventos (`cade ingest git` do repositório do cade e `cade ingest file ~/Downloads`, imagens desligadas) num banco novo, num Kingston A400 com ext4 (não em tmpfs), build CUDA. Os bytes são o `write_bytes` do `/proc/PID/io`, lido quando o processo termina; o tempo soma as duas ingestões. Média de duas rodadas intercaladas.
-
-```mermaid
-xychart-beta
-  title "Escrito no disco por evento novo (KB)"
-  x-axis ["uma transação por evento", "lotes de 50", "lotes de 200", "lotes de 1.000"]
+  title "Written to disk per new event (KB)"
+  x-axis ["one transaction per event", "batches of 50", "batches of 200", "batches of 1,000"]
   y-axis "KB" 0 --> 160
   bar [156.3, 48.7, 43.4, 41.4]
 ```
 
-| Gravação | Escrito (MB) | KB por evento | Banco (MB) | Tempo (s) |
+| Writes | Written (MB) | KB per event | Database (MB) | Time (s) |
 |---|---|---|---|---|
-| uma transação por evento (antes) | 357,4 | 156,3 | 26,6 | 59,3 |
-| lotes de 50 | 111,3 | 48,7 | 26,4 | 58,4 |
-| **lotes de 200** (escolhido) | 99,2 | 43,4 | 26,6 | 55,7 |
-| lotes de 1.000 | 94,7 | 41,4 | 26,6 | 54,9 |
-| lotes de 200 com `synchronous=NORMAL` | 101,4 | 44,3 | 26,6 | 56,7 |
+| one transaction per event (before) | 357.4 | 156.3 | 26.6 | 59.3 |
+| batches of 50 | 111.3 | 48.7 | 26.4 | 58.4 |
+| **batches of 200** (chosen) | 99.2 | 43.4 | 26.6 | 55.7 |
+| batches of 1,000 | 94.7 | 41.4 | 26.6 | 54.9 |
+| batches of 200 with `synchronous=NORMAL` | 101.4 | 44.3 | 26.6 | 56.7 |
 
-- Agrupar corta a escrita em ~3,6×, e o tempo não piora; a variação entre rodadas (±4 s) é maior que a diferença entre os tamanhos de lote.
-- De 200 para 1.000 a escrita cai só 5%, e uma interrupção perderia até 5× mais eventos para refazer; por isso 200 (`eventsPerCommit`).
-- Um lote também é gravado depois de 2 s aberto (`batchMaxAge`), abaixo dos 5 s que outro comando espera pelo banco.
-- `synchronous=NORMAL` não mudou nem a escrita nem o tempo porque já era o modo em uso: o `go-sqlite3` é compilado com `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`, que põe todo banco em WAL em `NORMAL`.
-- Uma segunda ingestão sem nada novo escreve ~0,1 MB, antes e depois.
-- No `go tool mage bench` (banco em tmpfs, onde o `fsync` não custa), gravar um evento leva 0,71 ms na própria transação (`BenchmarkSaveEvent`) e 0,58 ms num lote (`BenchmarkSaveEventInBatch`).
+- Batching cuts writes by ~3.6× without making it slower; the variation between runs (±4 s) is larger than the difference between batch sizes.
+- From 200 to 1,000 writes drop only 5%, and an interruption would lose up to 5× more events to redo; hence 200 (`eventsPerCommit`).
+- A batch is also committed after being open for 2 s (`batchMaxAge`), below the 5 s another command waits for the database.
+- `synchronous=NORMAL` changed nothing because it was already the mode in use: `go-sqlite3` is compiled with `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`.
+- A second ingestion with nothing new writes ~0.1 MB, before and after.
 
-## Descrição de imagens (fase 19)
+## Image description
 
-`BenchmarkDescribeImage`: uma captura de terminal de 1920 × 1080 com 10 linhas (~680 bytes de resposta), reduzida até o maior lado indicado, descrita pelo Qwen3.5-2B com o `mmproj`. Inclui decodificar, reduzir, codificar a imagem e gerar a descrição.
+> `go tool mage bench` and `GO_TAGS= go tool mage bench` (`BenchmarkDescribeImage`) · quality: `go tool mage eval` (`TestCaptionSuiteWithModel`) · 2026-09-30 · `f4e5379`
 
-| Maior lado | RTX 3060 | Ryzen 5 5500 (CPU) |
-|---|---|---|
-| 512 px | 1,29 s | — |
-| 768 px | 1,54 s | 19,1 s |
-| **1024 px (padrão)** | **1,67 s** | **22,4 s** |
-| 1536 px | 2,10 s | — |
+A 1920 × 1080 terminal screenshot with 10 lines (~680 bytes of reply), scaled down to the given longest side and described by Qwen3.5-2B with the `mmproj`. Includes decoding, scaling, encoding the image and generating the description.
 
-- **Por que 1024 px:** com 512 px a transcrição perde uma linha e troca nomes de arquivo; a partir de 768 px sai completa. 1024 px deixa folga para capturas reais, de fonte menor. Sem reduzir, uma captura full HD vira ~2.000 tokens e não cabe no `vision.context_tokens` (2048).
-- **Pasta com 1.000 capturas:** ~30 min na GPU e ~6 h na CPU; com o padrão de 50 por `ingest`, são 20 execuções.
-- **Memória:** gerador + `mmproj` ocupam 2,6 GB de VRAM (1,3 GB de RAM) no build CUDA e 2,9 GB de RAM no de CPU. O embedder não está carregado junto.
-- **Qualidade** (`evalCaptions`, 8 imagens de `testdata/images`): cobertura 1,00 das palavras exigidas (mínimo 0,90), nenhum segredo depois da máscara. Recuperação com 7 casos de imagem: 32/32 no conjunto de teste, com os 25 casos anteriores iguais (MRR 0,89); injeção escrita numa imagem: não seguida.
+| Longest side | GPU | CPU |
+|---|---:|---:|
+| 512 px | 1.44 s | 15.0 s |
+| 768 px | 1.68 s | 18.5 s |
+| **1024 px (default)** | **1.80 s** | **20.8 s** |
+| 1536 px | 2.28 s | 35.7 s |
 
-## Memória
+- **Why 1024 px:** at 512 px the transcription loses a line and swaps file names; from 768 px on it comes out complete. 1024 px leaves room for real screenshots with smaller fonts. Without scaling, a full-HD screenshot becomes ~2,000 tokens and does not fit `vision.context_tokens` (2048).
+- **Folder with 1,000 screenshots:** ~30 min on the GPU and ~6 h on the CPU; with the default of 50 per `ingest`, that is 20 runs.
+- **Memory:** generator + `mmproj` take 2.6 GB of VRAM in the CUDA build and 2.7 GB of RAM in the CPU build. The embedder is not loaded at the same time.
+- **Quality:** 8 images from `testdata/images`, coverage 1.00 of the required words (minimum 0.90), no secret left after masking.
+
+## Memory
+
+> `go test -tags sqlite_fts5,cuda -run '^$' -bench 'EmbedEvent|PlanQuestion|Answer' -benchtime 5x ./internal/benchmarks` and the same without `,cuda`, with `CADE_TEST_EMBEDDING_MODEL`, `CADE_TEST_GENERATION_MODEL` and `CADE_TEST_VISION_PROJECTOR` pointing at the models · 2026-09-30 · `f4e5379`
+
+These three benchmarks run on their own because in `go tool mage bench` image description runs first, in the same process, and the RAM it leaves behind shows up in the `rss_MB` of the ones after it.
 
 ```mermaid
 ---
 config:
   themeVariables:
     xyChart:
-      plotColorPalette: "#2563eb, #f97316"
+      plotColorPalette: "#2563eb, #f97316, #9ca3af"
 ---
 xychart-beta
-  title "Memória com os modelos carregados (MB)"
-  x-axis ["só embedding", "embedding + geração"]
-  y-axis "MB" 0 --> 2800
-  bar [979, 1473]
-  bar [390, 1948]
+  title "Memory with the models loaded (MB)"
+  x-axis ["embeddings only", "embeddings + generation"]
+  y-axis "MB" 0 --> 2500
+  bar [922, 1412]
+  bar [328, 1948]
+  bar [634, 2363]
 ```
 
-Azul: RAM do processo. Laranja: memória da GPU. Numa build só de CPU, os pesos ficam na RAM.
+Blue: process RAM, CUDA build. Orange: GPU memory, CUDA build. Grey: process RAM, CPU build, where the weights live in RAM.
 
-## Números
+## History
 
-| Medida | 1 mil | 10 mil | 100 mil |
-|---|---|---|---|
-| busca vetorial, sem filtro (ms) | 2,3 | 12,1 | 103,1 |
-| busca vetorial, só Teams (ms) | 1,7 | 7,6 | 59,9 |
-| busca vetorial, um dia (ms) | 1,2 | 6,6 | 47,4 |
-| ler um dia (ms) | 0,05 | 0,16 | 0,75 |
-| ler tudo (ms) | 2,5 | 29,7 | 345,1 |
-| vetores de 1.000 eventos (ms) | 170 | 152 | 165 |
-| bytes por evento | 3.633 | 3.563 | 3.498 |
+Numbers from earlier phases that no command today reproduces: the code of those phases no longer exists. They are a record of the path, not the current state.
 
-| Modelo | Latência GPU | Latência CPU | RAM | GPU |
-|---|---|---|---|---|
-| embedding de um evento | 3,5 ms | 33 ms | 966 MB | 328 MB |
-| interpretar a pergunta (modelo, sem estado salvo) | 1.494 ms | 12,7 s | 1.473 MB | 1.948 MB |
-| ler as evidências e gerar a resposta (~30 tokens) | 584 ms | 12,3 s | 1.473 MB | 1.948 MB |
-| `ask` até o primeiro token, cache quente (modelo / estado salvo / regras) | 3,16 / 2,88 / 1,60 s | 24,8 / 16,5 / 12,0 s | | |
+### Retrieval quality per phase
 
-RAM e GPU são do build CUDA. No build só de CPU os pesos ficam na RAM, e o processo com os dois modelos chega a ~2,4 GB (~3,9 GB com o Qwen2.5-3B).
+> Retrieval suite of 2026-09-26 (24 test questions), measured at each phase; `bench/retrieval-baseline.txt` is the output from before phase 0.5.
+
+```mermaid
+---
+config:
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#2563eb, #16a34a, #dc2626"
+---
+xychart-beta
+  title "Retrieval quality per phase"
+  x-axis ["baseline", "phase 0.5", "phase 1", "phase 2", "phase 3"]
+  y-axis "value (0 to 1)" 0 --> 1
+  line [0.80, 0.80, 0.80, 0.87, 1.00]
+  line [0.74, 0.74, 0.74, 0.81, 0.88]
+  line [0.17, 0.17, 0.00, 0.00, 0.00]
+```
+
+Blue: recall. Green: MRR. Red: redundancy. Rejection stayed at 1.00 in every phase.
+
+### Recall by history size, per phase
+
+```mermaid
+---
+config:
+  themeVariables:
+    xyChart:
+      plotColorPalette: "#9ca3af, #2563eb, #16a34a"
+---
+xychart-beta
+  title "Recall by history size"
+  x-axis ["291 events", "1 k", "10 k"]
+  y-axis "recall" 0.5 --> 1
+  line [0.80, 0.73, 0.73]
+  line [0.87, 0.80, 0.80]
+  line [1.00, 0.93, 0.93]
+```
+
+Grey: baseline. Blue: after phase 2 (chunks). Green: after phase 3 (hybrid search).
+
+### Planner with other models
+
+> `go tool mage evalPlan` with `GENERATION_MODEL` pointing at another model · 2026-09-27 · `ce1454b` · 153 questions · `bench/plan-qwen2.5-3b.txt`, `plan-qwen3.5-4b.txt` (and `plan-qwen2.5-1.5b.txt`, 117 fully correct)
+
+| Model | mode | days | source | people | direction | topic | status | fully correct |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Qwen2.5-3B (default up to v0.0.0) | 95% | 100% | 96% | 95% | 98% | 94% | 100% | 133 |
+| Qwen3.5-2B (default) | 96% | 100% | 96% | 98% | 98% | 97% | 100% | 135 |
+| Qwen3.5-4B (over the VRAM budget) | 98% | 100% | 99% | 99% | 99% | 99% | 100% | 146 |
+
+With Qwen2.5-3B, an `ask` on CPU with a warm cache took 41.5 / 26.0 / 21.5 s (model / saved state / rules) and the saved state was ~55 MB.

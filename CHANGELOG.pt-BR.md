@@ -6,13 +6,13 @@
 
 [English](CHANGELOG.md) · **Português**
 
-O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 
 ## Não lançado
 
 ### Menos escrita no disco na ingestão (#51)
 
-- A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 - Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
 - Sem mudança no esquema, e os dados gravados são os mesmos.
 
@@ -61,7 +61,7 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - **Problema:** capturas de tela, fotos de quadro, diagramas e prints de erro nas pastas configuradas ficavam só com o nome, embora muitas vezes sejam o registro de uma decisão ou de um erro.
 - **Descrições:** com `sources.images` ligado (desligado por padrão; o `cade init` pergunta, mostrando o custo), o `ingest file` descreve cada png, jpeg e webp com o Qwen3.5-2B e o `mmproj`, que o `go tool mage models` já baixa: uma descrição curta, em português, e a transcrição do texto visível, sem precisar de OCR. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto: máscara de segredos, pedaços, busca híbrida, filtros, `timeline`, `forget` e citação (o caminho da imagem).
 - **Uma vez por imagem:** uma imagem que não mudou é pulada sem ser lida; uma movida, renomeada ou copiada reaproveita a descrição pelo SHA-256 dos bytes. `cade reindex --captions` descreve de novo as imagens cuja descrição veio de outro modelo ou versão do prompt, em lotes, e retoma se for interrompido.
-- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
+- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.pt-BR.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
 - **Guardado:** a descrição e a transcrição (separadas, com o modelo e a versão do prompt, para a #22), o hash da imagem e o tamanho em pixels; nunca os pixels. Texto dentro de uma imagem é tratado como uma mensagem: o prompt manda copiar, não obedecer, e ordens nele ganham a marca de não confiável no `ask`. O [PRIVACY](PRIVACY.pt-BR.md) tem os detalhes.
 - **Migração 10:** um índice pelo hash da imagem no metadado. Sem cópia e sem reescrever dados.
 - **Filtro de pasta:** o `ask` lê um caminho escrito na pergunta (`~/Documents`, `/srv/notes`) como filtro exato dos arquivos dentro dele, mostrado como `pasta:` no "Entendi" e `folder` no `--json`. Antes o caminho só entrava no texto buscado por significado, e "na pasta ~/Documents" citava imagens de `~/Downloads`.

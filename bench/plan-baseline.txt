@@ -1,30 +1,38 @@
-# cade plan baseline — 2026-09-27 (fase 18: Qwen3.5-2B Q4_K_M, Apache-2.0), commit ce1454b + working tree, RTX 3060; 153 casos, pisos comparados ao limite inferior de Wilson 95%
-153 perguntas, 135 totalmente corretas
-  lidas só por regras: 67, com 0 erradas
-  mode       147/153   96%  [ 92%– 98%]
-  days       153/153  100%  [ 98%–100%]
-  source     147/153   96%  [ 92%– 98%]
-  people     150/153   98%  [ 94%– 99%]
-  direction  150/153   98%  [ 94%– 99%]
-  topic      149/153   97%  [ 93%– 99%]
-  status     153/153  100%  [ 98%–100%]
+# cade plan baseline — 2026-09-30 (Qwen3.5-2B Q4_K_M, Apache-2.0), commit f4e5379, RTX 3060 at 120 W; go tool mage evalPlan; 155 casos, pisos comparados ao limite inferior de Wilson 95%
+155 perguntas, 131 totalmente corretas
+  lidas só por regras: 69, com 0 erradas
+  mode       149/155   96%  [ 92%– 98%]
+  days       155/155  100%  [ 98%–100%]
+  source     147/155   95%  [ 90%– 97%]
+  people     150/155   97%  [ 93%– 99%]
+  direction  150/155   97%  [ 93%– 99%]
+  topic      151/155   97%  [ 94%– 99%]
+  status     155/155  100%  [ 98%–100%]
 ✗ quais commits fiz sobre autenticação essa semana?
     mode: esperado "listar", veio "responder"
 ✗ o que o Marcos me pediu ontem?
     people: esperado "marcos", veio ""
+✗ que mensagem eu mandei pra Juliana sobre o contrato?
+    source: esperado "teams", veio ""
 ✗ conversas com a Beatriz e o Tiago na última semana
     mode: esperado "listar", veio "responder"
     topic: esperado "", veio "conversas"
+✗ what did Lucas ask me today?
+    people: esperado "lucas", veio ""
 ✗ quais tickets o Vitor me mandou essa semana?
     people: esperado "vitor", veio ""
 ✗ como faço deploy do serviço de notificações?
-    source: esperado "", veio "git"
+    source: esperado "", veio "browser"
 ✗ como configurei o pre-commit no repositório?
     source: esperado "", veio "git"
+✗ que site eu usei para converter o JSON?
+    source: esperado "browser", veio ""
 ✗ mensagens que recebi do Pedro ontem
     mode: esperado "listar", veio "responder"
 ✗ conversas com a Juliana essa semana
     mode: esperado "listar", veio "responder"
+✗ o que o Tiago me pediu sobre o relatório?
+    people: esperado "tiago", veio ""
 ✗ o que o Marcos respondeu sobre o deploy?
     source: esperado "", veio "teams"
 ✗ mensagens da Ana no chat do projeto
@@ -34,6 +42,10 @@
     direction: esperado "enviadas", veio ""
 ✗ o que a Carla falou sobre o CEP?
     source: esperado "", veio "teams"
+✗ messages from Beatriz this week
+    direction: esperado "recebidas", veio ""
+✗ what did I tell Rui about the contract?
+    direction: esperado "enviadas", veio ""
 ✗ conversations with Carla last week
     mode: esperado "listar", veio "responder"
 ✗ what did Marcos say about the migration?
@@ -48,4 +60,3 @@
     direction: esperado "", veio "enviadas"
 ✗ what did Globex ask for in the renewal?
     topic: esperado "Globex", veio "renewal"
-

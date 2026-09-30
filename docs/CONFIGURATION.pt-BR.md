@@ -79,11 +79,11 @@ O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visit
 
 O `cade ask` executa uma **busca híbrida**: similaridade vetorial (embedding contra pedaços) e palavras-chave (BM25/FTS5) são executadas de forma independente e depois mescladas por **reciprocal rank fusion** — a pontuação de cada evento é `Σ 1/(60 + posição)` nas duas listas, para que o topo de nenhuma delas afogue a outra. O modo pode ser alterado com `retrieval.mode` (`hybrid`, `vector` ou `lexical`).
 
-A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~111 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.md](BENCHMARKS.md).
+A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~114 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).
 
 ## Custo da descrição de imagens
 
-Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.md](BENCHMARKS.md).
+Com `sources.images` ligado, cada imagem custa cerca de 1,8 s numa RTX 3060 e 21 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).
 
 ## Fonte Teams *(experimental)*
 
