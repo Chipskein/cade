@@ -235,6 +235,8 @@ Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.
 | [#53](https://github.com/Chipskein/cade/issues/53) | macOS (Apple Silicon, Metal) | 5 tasks, pronta para começar; não traz nada novo para quem já usa no Linux |
 | [#54](https://github.com/Chipskein/cade/issues/54) | Windows 11 x86-64, só CPU | a maior issue aberta (12 tasks); depende da task 4 da #53 e usa o ponto de commit da fase 22 |
 | [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
+| [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
+| [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
 
 ---
 
