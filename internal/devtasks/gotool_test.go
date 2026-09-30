@@ -13,7 +13,7 @@ func TestBuildStampsTheVersionFromGit(t *testing.T) {
 	world.runner.Outputs["git describe --tags --always --dirty"] = "v1.2.3"
 	world.runner.Outputs["git rev-parse --short=12 HEAD"] = "abc"
 	world.runner.Outputs["git log -1 --format=%cd --date=format:%Y-%m-%d"] = "2026-09-28"
-	if err := world.tasks().Build(); err != nil {
+	if err := world.tasks().BuildCPU(); err != nil {
 		t.Fatal(err)
 	}
 	lines := world.runner.Lines()

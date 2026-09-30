@@ -33,7 +33,7 @@ const (
 // runs on any x86-64 CPU with AVX2; CUDA stays a local build (it ties the
 // binary to a driver and GPU architecture).
 func (t *Tasks) Dist() error {
-	if err := t.Build(); err != nil {
+	if err := t.BuildCPU(); err != nil {
 		return err
 	}
 	name, err := t.distName()
