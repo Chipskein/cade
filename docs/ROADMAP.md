@@ -4,182 +4,243 @@
 
 # cade — roadmap
 
-O que falta para a v0.1.0, e em que ordem. A [v0.0.0](https://github.com/Chipskein/cade/releases/tag/v0.0.0) saiu em 2026-09-27; o que ela entregou, fase a fase e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.md](BENCHMARKS.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
+O que falta para a v0.2.0, e em que ordem. A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.md](BENCHMARKS.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
+
+Cada fase é uma issue no GitHub, com as tasks e os arquivos de cada uma. Aqui fica a ordem, o porquê e o aceite resumido.
 
 ## Como cada entrega é feita
 
-- Uma fase (ou parte dela) por vez, cada uma num commit próprio.
+- Uma fase (ou parte dela) por vez. Cada task é um commit que passa no `go tool mage check` sozinho e muda no máximo 10 arquivos, contando testes e docs ([AGENTS.md](../AGENTS.md)).
 - Cada entrega vem com testes (`go tool mage test`), a suíte (`go tool mage eval`) quando afeta busca ou plano, `go tool mage bench` quando afeta desempenho, e docs (README EN/PT, `docs/USECASES.md`, PRIVACY quando toca dados, CHANGELOG, e os diagramas de `docs/ARCHITECTURE.md` quando muda quem chama quem).
 - Mudança de esquema é migração (`PRAGMA user_version`, com cópia quando reescreve dados), nunca `forget` + `ingest`: reimportar perde dados, porque o cache do Teams expira e o histórico do Chrome guarda só ~90 dias.
 - Tudo continua local, sem rede em tempo de execução. Propostas que dependem de rede (por exemplo, consultar a API do GitHub para saber se um PR foi mergeado) ficam fora.
 
-## Foco da v0.1.0
+## Foco da v0.2.0
 
-A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release. A v0.1.0 cuida do que as revisões apontaram como mais arriscado no uso real, nesta ordem:
+A v0.1.0 cuidou do risco no uso real: privacidade, respostas honestas, custo da resposta e imagens. A v0.2.0 faz o `cade` entender **quem e o quê** aparece nos eventos, e não só o que aconteceu. Nesta ordem:
 
-1. **Privacidade:** segredos não devem chegar ao banco, e deve ser possível apagar menos que uma fonte inteira.
-2. **Não enganar quem usa:** "concluída" que é só "PR aberto", limiares calibrados para um único modelo, plurais errados, datas ambíguas.
-3. **Qualidade e custo da resposta:** `top_k` e limiares medidos em vez de herdados, e a geração migrada para o Qwen3.5, com licença permissiva e que siga a regra contra injeção.
-4. **Imagens:** o Qwen3.5 também lê imagens, então as imagens das pastas configuradas ganham uma descrição local e passam a ser encontradas pela busca que já existe.
-5. **Não perder dados:** ingestão agendada documentada, limitações do Teams e da fonte de arquivos explícitas.
+1. **Base medida:** gravar menos no disco (#51), benchmarks reproduzíveis (#14) e um plano de espaço (#40), para comparar o antes e o depois das tabelas novas.
+2. **Regras de privacidade antes dos dados novos:** as entidades concentram dados pessoais (pessoas, mensagens), então as lacunas da LGPD e do GDPR são levantadas antes (#25).
+3. **Entidades e relacionamentos:** entidades (#20), relações entre elas (#21), representações multimodais (#22) e a busca que usa tudo isso (#24).
+4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19).
+
+Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 
 ## Situação
 
-| Fase | Tema | Situação | Impacto | Esforço |
-| ---- | ---- | -------- | ------- | ------- |
-| 13 | [Segredos fora do banco](#fase-13--segredos-fora-do-banco) | feita | alto | médio |
-| 14 | [Apagar eventos e retenção](#fase-14--apagar-eventos-e-retenção) | feita | alto | médio |
-| 15 | [Semântica das tarefas](#fase-15--semântica-das-tarefas) | feita | médio | baixo |
-| 16 | [Detalhes da CLI](#fase-16--detalhes-da-cli) | feita | médio | baixo |
-| 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | feita | alto | médio |
-| 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | feita | alto | médio |
-| 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | feita | alto | alto |
-| 20 | [Documentação de uso contínuo](#fase-20--documentação-de-uso-contínuo) | feita | médio | baixo |
-| 21 | [Empacotamento da v0.1.0](#fase-21--empacotamento-da-v010) | a fazer | pré-requisito do lançamento | baixo |
-| — | [Pendências da v0.0.0](#pendências-da-v000) | em aberto | — | — |
-| — | [A definir](#a-definir) | em aberto | — | — |
+| Fase | Tema | Issue | Situação | Impacto | Esforço |
+| ---- | ---- | ----- | -------- | ------- | ------- |
+| 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | a fazer | médio | baixo |
+| 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | a fazer | médio | baixo |
+| 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | a fazer | médio | médio |
+| 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
+| 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
+| 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
+| 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
+| 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
+| 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | a fazer | médio | alto |
+| 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
+| — | [Pendências](#pendências) | — | em aberto | — | — |
+| — | [v0.3.0](#v030) | várias | depois | — | — |
+| — | [A definir](#a-definir) | — | em aberto | — | — |
 
 A tabela está na ordem sugerida:
-- **Privacidade primeiro (13, 14):** cada ingestão sem a 13 grava mais segredos, que depois precisam de migração para sair.
-- **Depois as correções baratas (15, 16):** mudam a saída que o usuário lê e os códigos do `ask --json`, então entram antes de medir.
-- **Medições (17, 18):** a 18 foi feita antes da 17, com o `top_k` herdado (8); a 17 mediu com o Qwen3.5-2B e fixou o `top_k` em 6.
-- **Imagens (19) depois da 18:** usam o mesmo modelo e o mesmo llama.cpp da 18, então o tamanho escolhido lá precisa servir para descrever imagens também.
-- **Docs (20) e empacotamento (21) por último:** descrevem o estado final.
+- **Lotes e benchmarks primeiro (22, 23):** as tabelas novas das fases 26 a 28 aumentam a escrita por evento, e o tamanho e o tempo delas só podem ser comparados com uma base medida e reproduzível.
+- **Espaço logo depois (24):** mede o tamanho por tabela na base da fase 23 e decide quantização, compressão e deduplicação antes de as fases 26 a 28 criarem tabelas novas, que já nascem no formato escolhido.
+- **LGPD antes das entidades (25):** a fase 26 cria a entidade `Person`. As regras (o que guardar, como exportar, como o `forget` apaga) precisam existir antes de os dados existirem.
+- **Entidades, relações, representações e busca (26 a 29):** cada uma depende da anterior. Cada uma começa pelos casos da suíte (`go tool mage eval`) que falham hoje; sem um caso que falhe, a fase espera. A fase 27 começa pelo passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`timeline --around`), para ver se ele já resolve parte dos casos.
+- **IndexedDB (30) independente:** não depende das anteriores e pode correr em paralelo a qualquer uma a partir da 22. Fica no fim da tabela porque é a que menos muda o que já existe.
+- **Empacotamento (31) por último.**
 
 ### Onde cada fase entra no código
 
-Os mesmos componentes dos diagramas de [ARCHITECTURE.md](ARCHITECTURE.md); em destaque, os que cada fase muda.
+Os mesmos componentes dos diagramas de [ARCHITECTURE.md](ARCHITECTURE.md); em destaque, os que cada fase muda. As fases 23 a 25 são de medição e docs e não aparecem.
 
 ```mermaid
 flowchart LR
     subgraph ingestao["cade ingest"]
         collectors["coletores<br/>git · browser · file · teams"]
-        redact["máscara de segredos<br/>(novo)"]
-        captioner["descrição de imagens<br/>(novo)"]
-        pipeline["ingest.Pipeline"]
-        embedder["llm.Embedder"]
+        idbsource["coletor por schema<br/>IndexedDB (novo)"]
+        pipeline["ingest.Pipeline<br/>lotes"]
+        linker["entidades e relações<br/>dos eventos (novo)"]
     end
 
     subgraph banco["banco"]
         store["storage.EventStore<br/>sqlitestore"]
-        forgotten["uids esquecidos<br/>(novo)"]
+        entities["entities<br/>(novo)"]
+        relationships["relationships<br/>(novo)"]
+        representations["representations<br/>(novo)"]
     end
 
-    subgraph consulta["cade ask / tasks / timeline"]
-        cli["cli<br/>flags, plurais, datas"]
-        planner["queryplan"]
-        answerer["rag.Answerer<br/>top_k, limiares"]
-        tasks["tasks"]
-        generator["llm.Generator"]
+    subgraph consulta["cade ask"]
+        planner["queryplan<br/>entidade, relação, modalidade"]
+        answerer["rag.Answerer"]
     end
 
-    collectors --> redact --> pipeline
-    collectors -->|imagens| captioner --> redact
-    pipeline --> embedder
+    subgraph descoberta["descoberta"]
+        idbschema["idbschema<br/>+ modelo com GBNF"]
+    end
+
+    collectors --> pipeline
+    idbsource --> pipeline
+    idbschema -.->|schema salvo| idbsource
+    pipeline --> linker --> entities
+    linker --> relationships
     pipeline --> store
-    store --- forgotten
-    cli --> planner --> generator
-    cli --> answerer --> store
-    answerer --> generator
-    cli --> tasks --> store
-    captioner --> generator
+    pipeline --> representations
+    planner --> answerer
+    answerer --> relationships
+    answerer --> store
 
-    classDef f13 fill:#fde2e2,stroke:#c0392b
-    classDef f14 fill:#fdebd0,stroke:#d35400
-    classDef f15 fill:#fcf3cf,stroke:#b7950b
-    classDef f16 fill:#e8f8f5,stroke:#148f77
-    classDef f17 fill:#d6eaf8,stroke:#2471a3
-    classDef f18 fill:#e8daef,stroke:#7d3c98
-    classDef f19 fill:#d5f5e3,stroke:#1e8449
+    classDef f22 fill:#fde2e2,stroke:#c0392b
+    classDef f26 fill:#fdebd0,stroke:#d35400
+    classDef f27 fill:#fcf3cf,stroke:#b7950b
+    classDef f28 fill:#d5f5e3,stroke:#1e8449
+    classDef f29 fill:#d6eaf8,stroke:#2471a3
+    classDef f30 fill:#e8daef,stroke:#7d3c98
 
-    class redact f13
-    class forgotten f14
-    class tasks f15
-    class cli f16
-    class answerer f17
-    class generator,planner f18
-    class captioner f19
+    class pipeline,store f22
+    class entities,linker f26
+    class relationships f27
+    class representations f28
+    class planner,answerer f29
+    class idbsource,idbschema f30
 ```
 
 | Cor | Fase | Componente |
 | --- | ---- | ---------- |
-| vermelho | 13 | máscara de segredos entre o coletor e o `ingest.Pipeline`, e globs no `filesource` |
-| laranja | 14 | `forget` por evento e lista de uids esquecidos, consultada pelo `ingest.Pipeline` |
-| amarelo | 15 | `tasks` (estado "PR aberto", PR só com visita à página de criação) |
-| verde-água | 16 | `cli` (plurais, flags, ordem de data) |
-| azul | 17 | `rag.Answerer` (`top_k`, limiares); o reranker foi medido e ficou de fora |
-| roxo | 18 | `llm.Generator` e `llm.StructuredGenerator` (Qwen3.5), com efeito no `queryplan` |
-| verde | 19 | descrição de imagens no `filesource`, usando o mesmo gerador com o `mmproj` |
+| vermelho | 22 | `ingest.Pipeline` grava em lotes; `sqlitestore` e o fake ganham a transação em lote |
+| laranja | 26 | tabela `entities`, associação com eventos e a ligação feita na ingestão |
+| amarelo | 27 | tabela `relationships`, consultas com vários saltos |
+| verde | 28 | tabela `representations`, com as descrições de imagem da fase 19 migradas para ela |
+| azul | 29 | `queryplan` (gramática, `guard`, regras) e `rag.Answerer` usando os candidatos do grafo |
+| roxo | 30 | descoberta de schema com o modelo e o coletor genérico de IndexedDB |
 
 ---
 
-## Fase 13 — Segredos fora do banco
+## Fase 22 — Transações em lote na ingestão
 
-Feita: arquivos de credenciais ignorados por padrão (`sources.ignored_file_globs`), parâmetros de credenciais removidos das URLs e tokens de formato conhecido mascarados no texto e no metadado (`ingest.redact`), com a migração 8 limpando o que já estava guardado. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#segredos-fora-do-banco-fase-13).
+**Issue:** [#51](https://github.com/Chipskein/cade/issues/51).
 
----
-
-## Fase 14 — Apagar eventos e retenção
-
-Feita: `cade forget --uid` e `--match` apagam eventos isolados (texto, pedaços, vetores e índices), com o UID guardado para o `ingest` não trazê-lo de volta, e `ingest.retention.max_age_days` limita a idade por fonte (desligado por padrão). Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#exclusão-de-eventos-e-retenção-fase-14).
+- **Problema:** cada evento é uma transação (`SaveEvent`, `UpdateEvent`). Na primeira ingestão de 3.620 eventos, o `cade` escreveu 485 MB no disco para um banco de 17 MB.
+- **Mudança:** o `ingest.Pipeline` grava em transações de N eventos (N numa constante, escolhido medindo 50, 200 e 1.000). Uma interrupção perde no máximo o lote aberto, e a deduplicação (RF1.5) o recupera. Avaliar também `synchronous=NORMAL`. O `secure_delete=on` fica.
+- **Aceite:** bytes escritos por evento caem, medidos em `/proc/PID/io` num banco em disco; o tempo da primeira ingestão não piora; interromper e rodar de novo dá os mesmos eventos (teste de regressão); `go tool mage eval` sem mudança.
 
 ---
 
-## Fase 15 — Semântica das tarefas
+## Fase 23 — Benchmarks reproduzíveis
 
-Feita: o estado "concluída" virou **PR aberto** (visita à página de criação do PR; aprovação e merge são desconhecidos sem rede), o `ask --json` passou a usar `pr_aberto`, um PR de outra pessoa repassado numa mensagem conta como provável, e o `proj4me` saiu dos padrões. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#estado-de-tarefas-e-atribuição-de-pr-fase-15).
+**Issue:** [#14](https://github.com/Chipskein/cade/issues/14).
 
----
-
-## Fase 16 — Detalhes da CLI
-
-Feita: plurais, flags em qualquer posição, `ui.date_order` e a tabela de períodos no README. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#detalhes-da-cli-fase-16).
+- **Problema:** o BENCHMARKS junta números de `bench/*.txt` e do CHANGELOG, com gráficos atualizados à mão, sem dizer com que comando, data e build cada um foi medido. Também existe só em português, sem o sufixo `.pt-BR`.
+- **Mudança:** cada seção com o comando, a data, a máquina e o build; os números de hoje medidos de novo; seções sem comando reproduzível removidas ou marcadas como históricas; bytes escritos na ingestão (fase 22) incluídos; `BENCHMARKS.md` em inglês e `BENCHMARKS.pt-BR.md` em português.
+- **Aceite:** todo número do BENCHMARKS pode ser reproduzido pelo comando ao lado dele; EN e PT com os links atualizados.
 
 ---
 
-## Fase 17 — `top_k`, limiares e reranking medidos
+## Fase 24 — Plano de espaço
 
-Feita: `top_k` 6, com recall igual e o `ask` em CPU 1,8 s mais rápido. Os limiares (0,72 e 0,61) continuam, agora registrados junto do modelo de embedding para o qual valem, e `reindex` e `doctor` avisam quando esse modelo muda. O reranker melhorou o MRR, mas perdeu recall e custa 0,57 s por pergunta em CPU, então voltou para "A definir". Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#top_k-e-limiares-medidos-fase-17) e medições no [BENCHMARKS](BENCHMARKS.md#top_k-limiares-e-reranking-fase-17).
+**Issue:** [#40](https://github.com/Chipskein/cade/issues/40).
 
----
-
-## Fase 18 — Migrar a geração para o Qwen3.5
-
-Feita: o padrão é o Qwen3.5-2B (Apache-2.0), com o `mmproj` baixado pelo `go tool mage models` e a biblioteca `mtmd` no build. O 2B entende as perguntas igual ou melhor que o 2.5-3B em todos os campos da suíte de plano, e nenhuma injeção é seguida, porque o texto do evento marcado sai do prompt. O 4B, melhor ainda, ficou como alternativa documentada, fora do orçamento de VRAM. Detalhes e medições no [CHANGELOG](../CHANGELOG.pt-BR.md#geração-com-o-qwen35-fase-18).
+- **Problema:** o histórico cresce sem limite. Na base sintética são ~3,5 KB por evento; no banco real da fase 22, ~4,7 KB. Não se sabe em que tabela está o espaço.
+- **Mudança:** medir o tamanho por tabela e índice (`events`, `chunks`, `chunks_fts`, vetores, `file_modifications`, `event_people`) com 1 mil, 10 mil e 100 mil eventos, e avaliar cada alavanca pelo espaço, pela busca (recall e MRR do `go tool mage evalRetrieval`) e pela ingestão: quantização dos vetores no sqlite-vec (`int8`, binário), compressão do texto, deduplicação, não duplicar a fonte (só viável para arquivos e git, em que a fonte continua lá) e estratégias diferentes para dados recentes e antigos.
+- **Aceite:** a tabela de tamanho por tabela no BENCHMARKS; cada alavanca com o ganho e o custo; as escolhidas viram issues próprias, e as que couberem entram antes da fase 26.
 
 ---
 
-## Fase 19 — Busca por descrição de imagens
+## Fase 25 — LGPD e GDPR
 
-Feita: com `sources.images` ligado, o `ingest` descreve as imagens das pastas com o Qwen3.5-2B e o `mmproj` antes de carregar o embedder, e a descrição (em português, com o texto visível transcrito) vira o texto do evento; `cade reindex --captions` descreve de novo quando o modelo ou o prompt mudam. O `evalCaptions` cobre 1,00 das palavras exigidas sem deixar segredo, os casos de imagem passam na recuperação sem mudar os anteriores, e a injeção escrita numa imagem não é seguida. O 2B bastou. Detalhes e medições no [CHANGELOG](../CHANGELOG.pt-BR.md#busca-por-descrição-de-imagens-fase-19-7); o plano de implementação está no commit `6200ed1`.
+**Issue:** [#25](https://github.com/Chipskein/cade/issues/25).
 
----
-
-## Fase 20 — Documentação de uso contínuo
-
-Feita (#8): o timer `systemd --user` e o crontab com `cade ingest all --gentle`, a seção experimental do Teams, a fonte de arquivos e a fusão da busca híbrida estão no [CONFIGURATION](CONFIGURATION.pt-BR.md), e a matriz de plataformas no README. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#ingestão-agendada-e-limites-das-fontes-fase-20).
+- **Problema:** muito já existe (tudo local, PRIVACY, `forget` por fonte, UID, texto e período, `secure_delete`, banco só do dono), mas ninguém comparou isso com a LGPD e o GDPR. Falta, por exemplo, exportar os dados de uma pessoa ou de uma fonte.
+- **Mudança:** tabela "requisito → como o `cade` atende → lacuna" no PRIVACY (EN e PT), sem amarrar o `cade` a uma lei. Cada lacuna vira uma issue. As regras para a entidade `Person` (fase 26) e para dados biométricos (rostos, v0.3.0) ficam definidas aqui.
+- **Aceite:** a tabela no PRIVACY; uma issue por lacuna; as regras para `Person` definidas antes da fase 26 começar.
 
 ---
 
-## Fase 21 — Empacotamento da v0.1.0
+## Fase 26 — Modelo de entidades
 
-O processo da v0.0.0 continua:
+**Issue:** [#20](https://github.com/Chipskein/cade/issues/20).
 
-1. Trocar o cabeçalho do topo do CHANGELOG (EN/PT) pela versão e data, e escrever `docs/release-notes/v0.1.0.md`, avisando: a migração da fase 13 (com cópia e `cade reindex`), o código `"pr_aberto"` no `ask --json`, a troca do modelo de geração pelo Qwen3.5 com o `mmproj` (`go tool mage models` de novo; o 2.5-3B pode ser apagado) e que as imagens só são descritas com `sources.images` ligado.
+- **Problema:** o `cade` guarda eventos, mas não os objetos que aparecem em vários deles (pessoa, arquivo, imagem, repositório, mensagem, URL).
+- **O que já existe:** `event_people` (pessoas por evento, com as grafias juntadas por `listing.NameKey`), um evento por arquivo com as versões em `file_modifications`, e as descrições de imagem reaproveitadas pelo hash.
+- **Mudança:** tabela `entities` com identificador estável, tipo numa enumeração e metadata livre por tipo, e a associação com os eventos. `Person` e `File` são preenchidas a partir do que já existe, numa migração com backup. O `forget` apaga as associações e as entidades que ficarem sem evento.
+- **Aceite:** os casos da suíte que motivaram a fase passam; a migração tem teste; `go tool mage eval` não piora nos casos existentes.
+
+---
+
+## Fase 27 — Relacionamentos
+
+**Issue:** [#21](https://github.com/Chipskein/cade/issues/21).
+
+- **Antes:** o passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`cade timeline --around UID` e os vizinhos no tempo no `ask`), sem tabela nova. Só os casos que continuarem falhando justificam o grafo.
+- **Mudança:** tabela `relationships` (origem, relação, destino, confiança, evento de onde saiu), com os tipos numa enumeração, restrição contra duplicatas e consultas com vários saltos por CTE recursiva. Os coletores gravam as relações que já sabem (quem enviou a mensagem, arquivo citado num commit). O `forget` de um evento apaga as relações derivadas dele.
+- **Aceite:** os casos da suíte passam; nenhum banco de grafos externo; `go tool mage eval` não piora.
+
+---
+
+## Fase 28 — Representações multimodais
+
+**Issue:** [#22](https://github.com/Chipskein/cade/issues/22).
+
+- **Problema:** a descrição de imagem (fase 19) fica na metadata do evento. OCR, embeddings visuais e outras representações futuras não teriam onde ficar sem se acoplar à imagem.
+- **Mudança:** tabela `representations` (modalidade, tipo, modelo, conteúdo, vetor no `sqlite-vec`). As descrições existentes migram para ela, e o `reindex --captions` passa a gravar lá. O `forget` apaga as representações derivadas.
+- **Aceite:** a migração tem teste e `go tool mage evalCaptions` não muda; o tamanho do banco e o tempo do `ask`, antes e depois, no BENCHMARKS.
+
+---
+
+## Fase 29 — Busca por entidades e relações
+
+**Issue:** [#24](https://github.com/Chipskein/cade/issues/24).
+
+- **Problema:** perguntas como "documentos do projeto X que o João enviou" ou "imagens que o Pedro me mandou" dependem de quem enviou, do que está ligado a quê e da modalidade, não só da semelhança.
+- **Mudança:** o `queryplan` ganha entidade, relação e modalidade (gramática GBNF, `guard`, regras); o `ask` usa o grafo para restringir ou ampliar os candidatos e depois aplica a busca híbrida de hoje. Perguntas sem relacionamento seguem o caminho atual. Pessoa entra como remetente ou citada; reconhecer pelo rosto fica para a v0.3.0.
+- **Aceite:** casos novos nas suítes de plano e de recuperação (entidade + imagem, pessoa + imagem, pessoa + remetente + imagem, entidade + texto + relacionamento); `go tool mage eval` não piora nos casos existentes; os resultados mantêm a proveniência até o conteúdo original.
+
+---
+
+## Fase 30 — Schemas de IndexedDB via modelo local
+
+**Issue:** [#19](https://github.com/Chipskein/cade/issues/19).
+
+- **Problema:** cada aplicação com IndexedDB precisa de um coletor em código; só existe o do Teams. O `cade teams-schema` já resume a estrutura sem valores, mas o mapeamento para eventos é escrito à mão.
+- **Mudança:** o modelo local atua como tradutor. Ele recebe o resumo do `idbschema` e poucas amostras e preenche um mapeamento declarativo para o evento do `cade`, com a saída restrita por gramática GBNF. O mapeamento é gerado uma vez por aplicação, salvo fora do código e editável. A indexação usa o schema salvo sem rodar o modelo. O decodificador (`indexeddb`, `v8value`) não muda.
+- **Aceite:** o schema gerado para o Teams produz os mesmos eventos do `teamssource` de hoje (teste); uma segunda aplicação é indexada sem código específico; o PRIVACY diz o que o modelo vê na descoberta.
+
+---
+
+## Fase 31 — Empacotamento da v0.2.0
+
+O processo da v0.1.0 continua:
+
+1. Trocar o cabeçalho do topo do CHANGELOG (EN/PT) pela versão e data, e escrever `docs/release-notes/v0.2.0.md`, avisando: as migrações com cópia (entidades e representações), o que muda no `ask --json` se a fase 29 mudar, e como gerar e editar um schema de IndexedDB.
 2. Conferir os [critérios de release](#critérios-de-release).
-3. Levar o `dev` para o `master` e criar a tag lá: `git tag v0.1.0 origin/master && git push origin v0.1.0`. O workflow testa, gera o binário e publica o release; uma tag fora do `master` falha sem publicar.
+3. Levar o `dev` para o `master` por PR com merge commit e criar a tag lá: `git tag v0.2.0 origin/master && git push origin v0.2.0`. O workflow testa, gera o binário e publica o release; uma tag fora do `master` falha sem publicar.
 
 ---
 
-## Pendências da v0.0.0
+## Pendências
 
-- **CI (fase 10):** registrar o tempo com o cache quente, um PR com teste ou `gofmt` quebrado ficando vermelho, e quanto o `eval.yml` leva em CPU.
+- **CI (fase 10, da v0.0.0):** registrar o tempo com o cache quente, um PR com teste ou `gofmt` quebrado ficando vermelho, e quanto o `eval.yml` leva em CPU.
 
 ---
 
-## Avaliado e fora da v0.1.0
+## v0.3.0
 
-Pontos das revisões em `docs/TOCHECK/` que já estão resolvidos ou que não seguem os princípios do projeto:
+Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.2.0:
+
+| Issue | Tema | Por que depois |
+| ----- | ---- | -------------- |
+| [#23](https://github.com/Chipskein/cade/issues/23) | Rostos | depende das fases 25 a 28; precisa de outro runtime de inferência e de um modelo com licença compatível com a GPLv3; opt-in, porque é dado biométrico |
+| [#53](https://github.com/Chipskein/cade/issues/53) | macOS (Apple Silicon, Metal) | 5 tasks, pronta para começar; não traz nada novo para quem já usa no Linux |
+| [#54](https://github.com/Chipskein/cade/issues/54) | Windows 11 x86-64, só CPU | a maior issue aberta (12 tasks); depende da task 4 da #53 e usa o ponto de commit da fase 22 |
+| [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
+
+---
+
+## Avaliado e fora do plano
+
+Pontos das revisões em `docs/TOCHECK/` (feitas para a v0.1.0) que já estão resolvidos ou que não seguem os princípios do projeto:
 
 | Ponto | Por que fica fora |
 | ----- | ----------------- |
@@ -203,15 +264,11 @@ Outras ideias entram aqui antes de virar fase: problema, mudança proposta e cri
 
 - **Problema:** perguntas como "o que aconteceu antes desse commit?" ou "como essa decisão evoluiu?" dependem de ordem e vizinhança, não de semelhança.
 - **Começo barato:** `cade timeline --around UID [--window 2h]` e, no `ask`, trazer os vizinhos no tempo de um evento citado. Sem tabela nova.
-- **Depois:** ligações explícitas entre eventos (mesmo id de tarefa, mesmo arquivo citado num commit e numa mensagem, mesmo repositório), guardadas numa tabela com migração. Medir com casos novos na suíte de recuperação antes de decidir.
+- **Depois:** ligações explícitas entre eventos (mesmo id de tarefa, mesmo arquivo citado num commit e numa mensagem, mesmo repositório), guardadas numa tabela com migração. Medir com casos novos na suíte de recuperação antes de decidir. É a [fase 27](#fase-27--relacionamentos) ([#21](https://github.com/Chipskein/cade/issues/21)).
 
 ### Contexto de projeto
 
 Ligar commits, visitas e mensagens ao repositório e à branch em que se trabalhava (a branch não é guardada hoje). A verificar: de onde tirá-la sem rede (reflog, `HEAD` no momento do commit) e se melhora as respostas medidas.
-
-### Criptografia do banco
-
-Hoje o PRIVACY recomenda criptografia de disco. A verificar: se o SQLCipher convive com o sqlite-vec e o FTS5 no build atual, onde guardar a chave (keyring do sistema, sem rede) e o custo na busca.
 
 ### Nomes compostos no filtro de pessoa
 
@@ -234,7 +291,7 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Índice vetorial aproximado
 
-Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. Primeiro medir quantização dos vetores no próprio sqlite-vec (`int8`, binário), antes de outra biblioteca.
+Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. Primeiro medir quantização dos vetores no próprio sqlite-vec (`int8`, binário), antes de outra biblioteca; a medição entra na [fase 24](#fase-24--plano-de-espaço).
 
 ### Binário para arm64
 
@@ -255,16 +312,14 @@ As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO
 A versão sai quando:
 
 - [ ] a CI está verde no commit da tag;
-- [ ] `go tool mage test` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
-- [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.0.0, em todos os tamanhos da curva de escala;
-- [ ] todas as migrações que reescrevem dados fazem backup antes e têm teste em `migrations_test.go`;
-- [ ] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas (teste de privacidade);
-- [ ] nenhum segredo das fixtures da fase 13 chega ao banco, nem pelo texto nem pela descrição de uma imagem;
-- [ ] o modelo de geração padrão é o Qwen3.5, com a licença do modelo e do `mmproj` registrada, e `go tool mage evalInjection` sem nenhuma injeção seguida;
-- [ ] `go tool mage evalCaptions` passa, e as perguntas sobre imagens estão no conjunto de teste da suíte de recuperação;
-- [ ] o baseline de benchmark é atualizado com GPU, CPU e cold start;
+- [ ] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
+- [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam;
+- [ ] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
+- [ ] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
+- [ ] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
+- [ ] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
+- [ ] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
+- [ ] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
 - [ ] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
-- [ ] um usuário novo chega ao primeiro `cade ask` seguindo só o README;
-- [ ] `cade version` mostra a versão da tag, e `THIRD_PARTY_NOTICES.md` e a licença dos modelos estão no repositório;
-- [ ] as notas de versão avisam da migração com cópia, do `cade reindex` obrigatório e das mudanças no `ask --json`;
+- [ ] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
 - [ ] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.
