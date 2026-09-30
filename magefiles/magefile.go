@@ -32,8 +32,10 @@ var tasks = sync.OnceValue(func() *devtasks.Tasks {
 	})
 })
 
-// Build compiles the CPU binary into bin/cade.
 func Build() error { return tasks().Build() }
+
+// Build compiles the CPU binary into bin/cade.
+func Cpu() error { return tasks().Build() }
 
 // Cuda compiles the NVIDIA binary into bin/cade (CUDA Toolkit required).
 func Cuda() error { return tasks().BuildCUDA() }
