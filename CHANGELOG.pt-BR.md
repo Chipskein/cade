@@ -6,9 +6,36 @@
 
 [English](CHANGELOG.md) · **Português**
 
-O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que falta para a release está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## Não lançada (v0.1.0)
+## v0.1.0 — 2026-09-30
+
+### Atualizar da v0.0.0
+
+- **Cópia:** a migração 8 reescreve dados, então o primeiro comando que abrir um banco da v0.0.0 grava antes uma cópia `cade.db.before-v8-<data>` (permissão `600`): leva cerca de um minuto e ocupa o mesmo espaço em disco que o banco. O `cade doctor` diz, sem mudar nada, se há migração pendente e se ela vai copiar.
+- **Reindex:** rode `cade reindex` uma vez depois da migração 8. Um evento que teve um segredo mascarado fica sem vetores até lá.
+- **`ask --json`:** o estado de tarefa `concluida` passou a ser `pr_aberto` (fase 15). Scripts que o leem precisam mudar.
+- **Modelos:** rode `go tool mage models` de novo. Ele baixa o Qwen3.5-2B e o `mmproj`; depois, `qwen2.5-3b-instruct-q4_k_m.gguf` pode ser apagado (fase 18).
+- **Imagens** só são descritas com `sources.images` ligado, que vem desligado (fase 19).
+- **Licença:** GPLv3 ou posterior (#10).
+
+### Migrações
+
+| Versão | O que faz | Cópia | Reescreve dados |
+|---|---|---|---|
+| 8 | mascara segredos conhecidos nos eventos guardados e apaga arquivos de credenciais; o banco é compactado depois | sim | eventos alterados (os vetores esperam o `cade reindex`) |
+| 9 | guarda os UIDs de eventos esquecidos um a um (`forgotten_events`) | não | — |
+| 10 | índice no hash das imagens no metadado | não | — |
+
+### Ingestão agendada e limites das fontes (fase 20)
+
+- O [CONFIGURATION](docs/CONFIGURATION.pt-BR.md) ganhou exemplos de timer `systemd --user` e de crontab rodando `cade ingest all --gentle`, com o aviso de perda de dados logo acima; a seção do Teams está marcada como experimental, com as limitações primeiro; a fonte de arquivos e como a busca híbrida junta as duas listas estão explicadas. O README mostra a matriz de plataformas por fonte.
+
+### Mudanças menores
+
+- **Prévia de imagens:** com o [`chafa`](https://github.com/hpjansson/chafa) instalado, o `cade ask` mostra no terminal uma prévia das imagens citadas.
+- **Progresso (#35):** a descrição de imagens, o `reindex --captions` e o `forget --match` mostram "12/50 (24%)" e um ETA.
+- **`doctor`** avisa quando o `mmproj` falta, não é um GGUF de `mmproj` ou foi feito para outro modelo.
 
 ### Ingestão em segundo plano (#41)
 

@@ -34,7 +34,7 @@ A v0.0.0 fechou a base: avaliação, busca híbrida, CI, instalação e release.
 | 17 | [`top_k`, limiares e reranking medidos](#fase-17--top_k-limiares-e-reranking-medidos) | feita | alto | médio |
 | 18 | [Migrar a geração para o Qwen3.5](#fase-18--migrar-a-geração-para-o-qwen35) | feita | alto | médio |
 | 19 | [Busca por descrição de imagens](#fase-19--busca-por-descrição-de-imagens) | feita | alto | alto |
-| 20 | [Documentação de uso contínuo](#fase-20--documentação-de-uso-contínuo) | a fazer | médio | baixo |
+| 20 | [Documentação de uso contínuo](#fase-20--documentação-de-uso-contínuo) | feita | médio | baixo |
 | 21 | [Empacotamento da v0.1.0](#fase-21--empacotamento-da-v010) | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências da v0.0.0](#pendências-da-v000) | em aberto | — | — |
 | — | [A definir](#a-definir) | em aberto | — | — |
@@ -157,15 +157,7 @@ Feita: com `sources.images` ligado, o `ingest` descreve as imagens das pastas co
 
 ## Fase 20 — Documentação de uso contínuo
 
-- **Problema:** quem esquece de rodar `ingest` perde dados de vez (Chrome ~90 dias, cache do Teams), e várias limitações só aparecem lendo o PRIVACY ou o código.
-- **Mudança (README EN/PT):**
-  - **Ingestão agendada:** exemplo de timer `systemd --user` e de crontab rodando `cade ingest all`, com o aviso da perda logo acima.
-  - **Teams experimental:** rótulo na seção, com as limitações no início: depende do formato interno do IndexedDB do Teams web, só vê o que o cliente tem em cache, mensagens nunca abertas não existem, mensagens apagadas depois da ingestão ficam até o `forget`.
-  - **Plataformas:** matriz SO (Linux / macOS / Windows) × fonte, marcando o que é testado (Linux), o que deve funcionar e o que não é suportado.
-  - **Fonte de arquivos:** o que é lido (UTF-8 até `max_file_bytes`; imagens descritas, fase 19), o que é ignorado (outros binários, `ignored_dir_names`, os globs da fase 13), pedaços de 1.200 caracteres, detecção de mudança por `content_hash`, arquivo apagado da pasta.
-  - **Como a busca decide:** a fusão da busca híbrida (reciprocal rank fusion) em uma frase, e o custo da busca vetorial sem índice aproximado (~106 ms em 100 mil eventos em CPU, `bench/baseline-cpu.txt`), com o tamanho a partir do qual isso vira problema.
-  - **Por quê:** 2–3 linhas de motivação (daily, retomar contexto, relatório de horas) e uma frase de comparação com ferramentas de captura de tela, acima de "Como funciona". GIF do `cade ask` opcional.
-- **Critério de aceite:** seções presentes nos dois READMEs; o timer do systemd testado numa sessão real.
+Feita (#8): o timer `systemd --user` e o crontab com `cade ingest all --gentle`, a seção experimental do Teams, a fonte de arquivos e a fusão da busca híbrida estão no [CONFIGURATION](CONFIGURATION.pt-BR.md), e a matriz de plataformas no README. Detalhes no [CHANGELOG](../CHANGELOG.pt-BR.md#ingestão-agendada-e-limites-das-fontes-fase-20).
 
 ---
 

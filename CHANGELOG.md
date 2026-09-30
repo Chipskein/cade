@@ -6,9 +6,36 @@
 
 **English** · [Português](CHANGELOG.pt-BR.md)
 
-What changed in each version, the schema migrations, and what each migration rewrites. What is left for the release is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## Unreleased (v0.1.0)
+## v0.1.0 — 2026-09-30
+
+### Upgrading from v0.0.0
+
+- **Backup:** migration 8 rewrites data, so the first command that opens a v0.0.0 database writes a `cade.db.before-v8-<date>` copy (mode `600`) first: it takes about a minute and as much free disk as the database. `cade doctor` tells, without changing anything, whether a migration is pending and whether it will copy.
+- **Reindex:** run `cade reindex` once after migration 8. An event whose text had a secret masked loses its vectors until then.
+- **`ask --json`:** the task status `concluida` is now `pr_aberto` (phase 15). Scripts that read it must change.
+- **Models:** run `go tool mage models` again. It downloads Qwen3.5-2B and its `mmproj`; `qwen2.5-3b-instruct-q4_k_m.gguf` can then be deleted (phase 18).
+- **Images** are described only with `sources.images` on, which is off by default (phase 19).
+- **License:** GPLv3 or later (#10).
+
+### Migrations
+
+| Version | What it does | Backup | Rewrites data |
+|---|---|---|---|
+| 8 | masks known secrets in stored events and deletes credential files; the database is compacted afterwards | yes | changed events (their vectors wait for `cade reindex`) |
+| 9 | remembers individually forgotten event UIDs (`forgotten_events`) | no | — |
+| 10 | index on the image hash in the metadata | no | — |
+
+### Scheduled ingestion and source limits (phase 20)
+
+- [CONFIGURATION](docs/CONFIGURATION.md) gained a `systemd --user` timer and a crontab example running `cade ingest all --gentle`, with the data-loss warning above them; the Teams section is marked experimental, with its limits first; the file source and how the hybrid search merges its two lists are explained. The README shows the platform matrix per source.
+
+### Smaller changes
+
+- **Image preview:** with [`chafa`](https://github.com/hpjansson/chafa) installed, `cade ask` shows a preview of cited images in the terminal.
+- **Progress (#35):** describing images, `reindex --captions` and `forget --match` show "12/50 (24%)" and an ETA.
+- **`doctor`** reports an `mmproj` that is missing, is not an `mmproj` GGUF, or was made for another model.
 
 ### Background ingestion (#41)
 
