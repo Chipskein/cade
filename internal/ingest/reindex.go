@@ -66,7 +66,7 @@ func (p *Pipeline) reindexBatch(ctx context.Context, index storage.EmbeddingInde
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		chunks, err := p.chunksFor(ctx, ev)
+		chunks, err := p.chunksFor(ctx, p.store, ev)
 		if err != nil {
 			return 0, err
 		}

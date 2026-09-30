@@ -359,3 +359,85 @@ func TestReplaceStoredMasksAndReembeds(t *testing.T) {
 		t.Fatalf("expected the masked text stored and embedded, got %q with %d embeds", got, len(embedder.Inputs))
 	}
 }
+
+// InterruptedCollector emits its first Emitted events, then fails as a
+// Ctrl-C would, mid-batch.
+type InterruptedCollector struct {
+	Events  []event.Event
+	Emitted int
+}
+
+func (c InterruptedCollector) CollectEvents(ctx context.Context, emit EmitFunc) error {
+	if err := (FakeCollector{Events: c.Events[:c.Emitted]}).CollectEvents(ctx, emit); err != nil {
+		return err
+	}
+	return context.Canceled
+}
+
+func fiveEvents() FakeCollector {
+	var events []event.Event
+	for i, uid := range []string{"a", "b", "c", "d", "e"} {
+		events = append(events, event.Event{UID: uid, Source: event.SourceGit, Timestamp: time.Unix(int64(i), 0), Content: "commit " + uid})
+	}
+	return FakeCollector{Events: events}
+}
+
+func newBatchingPipeline(store *testfakes.FakeEventStore, eventsPerBatch int) *Pipeline {
+	pipeline := newTestPipeline(store, &testfakes.FakeEmbedder{})
+	pipeline.eventsPerBatch = eventsPerBatch
+	return pipeline
+}
+
+func storedUIDs(store *testfakes.FakeEventStore) []string {
+	var uids []string
+	for _, ev := range store.Events {
+		uids = append(uids, ev.UID+"="+ev.Content)
+	}
+	return uids
+}
+
+func TestRunCommitsEachFullBatchAndTheRest(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	_, err := newBatchingPipeline(store, 2).Run(context.Background(), fiveEvents(), nil)
+	testcheck.NoError(t, err)
+	if store.BatchesBegun != 3 || store.Commits != 3 || store.Rollbacks != 0 || len(store.Events) != 5 {
+		t.Fatalf("expected 3 batches (2+2+1) committed, got begun=%d commits=%d rollbacks=%d stored=%d",
+			store.BatchesBegun, store.Commits, store.Rollbacks, len(store.Events))
+	}
+}
+
+func TestRunWithNothingCollectedOpensNoBatch(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	_, err := newBatchingPipeline(store, 2).Run(context.Background(), FakeCollector{}, nil)
+	if err != nil || store.BatchesBegun != 0 {
+		t.Fatalf("expected no batch for an empty collection, got %d (err %v)", store.BatchesBegun, err)
+	}
+}
+
+func TestRunInterruptedMidBatchLosesOnlyThatBatch(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	interrupted := InterruptedCollector{Events: fiveEvents().Events, Emitted: 3}
+	_, err := newBatchingPipeline(store, 2).Run(context.Background(), interrupted, nil)
+	if !errors.Is(err, context.Canceled) || store.Rollbacks != 1 || strings.Join(storedUIDs(store), ",") != "a=commit a,b=commit b" {
+		t.Fatalf("expected the first batch kept and the open one rolled back, got %v (err %v, rollbacks %d)", storedUIDs(store), err, store.Rollbacks)
+	}
+}
+
+// Regression for #51: batching must not lose what an interruption rolled
+// back; running again stores the same events as a run never interrupted.
+func TestRunAfterInterruptionStoresTheSameEventsAsAnUninterruptedRun(t *testing.T) {
+	uninterrupted := testfakes.NewFakeEventStore()
+	_, err := newBatchingPipeline(uninterrupted, 2).Run(context.Background(), fiveEvents(), nil)
+	testcheck.NoError(t, err)
+	resumed := testfakes.NewFakeEventStore()
+	pipeline := newBatchingPipeline(resumed, 2)
+	if _, err := pipeline.Run(context.Background(), InterruptedCollector{Events: fiveEvents().Events, Emitted: 3}, nil); err == nil {
+		t.Fatal("expected the interrupted run to fail")
+	}
+	report, err := pipeline.Run(context.Background(), fiveEvents(), nil)
+	testcheck.NoError(t, err)
+	want, got := strings.Join(storedUIDs(uninterrupted), ","), strings.Join(storedUIDs(resumed), ",")
+	if got != want || report.Inserted != 3 || report.AlreadyStored != 2 {
+		t.Fatalf("expected %s after resuming (3 inserted, 2 already stored), got %s with %+v", want, got, report)
+	}
+}

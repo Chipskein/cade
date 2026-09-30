@@ -47,6 +47,10 @@ type FakeEventStore struct {
 	LexicalQueries []storage.LexicalQuery
 	// AuthorshipMarks lists the repositories passed to MarkCommitAuthorship.
 	AuthorshipMarks []string
+	// BatchesBegun, Commits and Rollbacks count FakeEventBatch calls.
+	BatchesBegun int
+	Commits      int
+	Rollbacks    int
 }
 
 // NewFakeEventStore returns an empty store.

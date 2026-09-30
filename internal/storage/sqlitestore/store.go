@@ -71,11 +71,15 @@ func (s *Store) Close() error {
 
 // SaveEvent inserts the event and its chunks atomically.
 func (s *Store) SaveEvent(ctx context.Context, ev event.Event, chunks []storage.Chunk) (bool, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return false, fmt.Errorf("begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+	var inserted bool
+	err := s.inTransaction(ctx, func(tx *sql.Tx) (err error) {
+		inserted, err = saveEventIn(ctx, tx, ev, chunks)
+		return err
+	})
+	return inserted, err
+}
+
+func saveEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []storage.Chunk) (bool, error) {
 	eventID, inserted, err := insertEventRow(ctx, tx, ev)
 	if err != nil || !inserted {
 		return false, err
@@ -89,10 +93,24 @@ func (s *Store) SaveEvent(ctx context.Context, ev event.Event, chunks []storage.
 	if err := insertChunks(ctx, tx, eventID, ev, chunks); err != nil {
 		return false, err
 	}
-	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit event %q: %w", ev.UID, err)
-	}
 	return true, nil
+}
+
+// inTransaction runs write in its own transaction, committed only if
+// write succeeds.
+func (s *Store) inTransaction(ctx context.Context, write func(*sql.Tx) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+	if err := write(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
 }
 
 func insertEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, bool, error) {

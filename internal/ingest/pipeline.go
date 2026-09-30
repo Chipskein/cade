@@ -68,6 +68,7 @@ type Pipeline struct {
 	redact         bool
 	retention      map[event.Source]int
 	now            func() time.Time
+	eventsPerBatch int
 }
 
 // NewPipeline wires a pipeline. documentPrefix is prepended to the text
@@ -75,12 +76,12 @@ type Pipeline struct {
 //
 //	pipeline := ingest.NewPipeline(store, embedder, "search_document: ", logger)
 func NewPipeline(store storage.EventStore, embedder llm.Embedder, documentPrefix string, logger *slog.Logger) *Pipeline {
-	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now, redact: true}
+	return &Pipeline{store: store, embedder: embedder, documentPrefix: documentPrefix, logger: logger, now: time.Now, redact: true, eventsPerBatch: eventsPerCommit}
 }
 
 func (p *Pipeline) WithRedaction(enabled bool) *Pipeline { p.redact = enabled; return p }
 
-// WithClock replaces the clock that dates removed files.
+// WithClock replaces the clock that dates removed files and ages batches.
 func (p *Pipeline) WithClock(now func() time.Time) *Pipeline {
 	p.now = now
 	return p
@@ -93,24 +94,11 @@ func (p *Pipeline) WithRetention(retention map[event.Source]int) *Pipeline {
 
 // Run drains the collector. Any failure aborts the run rather than skipping
 // the event, because a silently missing event breaks timeline trust
-// (RNF3.1); re-running is safe thanks to deduplication.
+// (RNF3.1); re-running is safe thanks to deduplication, and recovers the
+// batch the failure rolled back (whose events report still counts).
 // progress, when non-nil, receives the running totals after every event.
 func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress ProgressFunc) (Report, error) {
-	if progress == nil {
-		progress = func(Report) {}
-	}
-	var report Report
-	present := map[string]bool{}
-	err := collector.CollectEvents(ctx, func(ev event.Event) error {
-		ev = privacy.Event(ev, p.redact)
-		report.Collected++
-		if ev.Source == event.SourceFile {
-			present[ev.File().Path] = true
-		}
-		err := p.ingestEvent(ctx, ev, &report)
-		progress(report)
-		return err
-	})
+	report, present, err := p.collect(ctx, collector, progress)
 	if err != nil {
 		return report, err
 	}
@@ -120,15 +108,52 @@ func (p *Pipeline) Run(ctx context.Context, collector EventCollector, progress P
 	if err := p.markAuthorship(ctx, collector); err != nil {
 		return report, err
 	}
+	return report, p.applyRetention(ctx)
+}
+
+// collect stores the collector's events in batches, returning the file
+// paths it saw.
+func (p *Pipeline) collect(ctx context.Context, collector EventCollector, progress ProgressFunc) (Report, map[string]bool, error) {
+	var report Report
+	present := map[string]bool{}
+	batches := newEventBatcher(p.store, p.now, p.eventsPerBatch)
+	err := collector.CollectEvents(ctx, func(ev event.Event) error {
+		ev = privacy.Event(ev, p.redact)
+		report.Collected++
+		if ev.Source == event.SourceFile {
+			present[ev.File().Path] = true
+		}
+		err := p.ingestInBatch(ctx, batches, ev, &report)
+		if progress != nil {
+			progress(report)
+		}
+		return err
+	})
+	return report, present, batches.finish(err)
+}
+
+func (p *Pipeline) ingestInBatch(ctx context.Context, batches *eventBatcher, ev event.Event, report *Report) error {
+	writer, err := batches.writer(ctx)
+	if err != nil {
+		return err
+	}
+	if err := p.ingestEvent(ctx, writer, ev, report); err != nil {
+		return err
+	}
+	return batches.eventWritten()
+}
+
+// applyRetention forgets the events older than each source's limit.
+func (p *Pipeline) applyRetention(ctx context.Context) error {
 	for source, days := range p.retention {
 		if days <= 0 {
 			continue
 		}
 		if _, err := p.store.DeleteBefore(ctx, source, p.now().AddDate(0, 0, -days)); err != nil {
-			return report, err
+			return err
 		}
 	}
-	return report, nil
+	return nil
 }
 
 func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector) error {
@@ -155,8 +180,8 @@ func (p *Pipeline) markRemoved(ctx context.Context, collector EventCollector, pr
 // ProgressFunc observes a run's running totals.
 type ProgressFunc func(Report)
 
-func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Report) error {
-	forgotten, err := p.store.IsForgotten(ctx, ev.UID)
+func (p *Pipeline) ingestEvent(ctx context.Context, writer storage.EventWriter, ev event.Event, report *Report) error {
+	forgotten, err := writer.IsForgotten(ctx, ev.UID)
 	if err != nil {
 		return err
 	}
@@ -164,7 +189,7 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 		report.AlreadyStored++
 		return nil
 	}
-	stored, known, err := p.store.StoredEvent(ctx, ev.UID)
+	stored, known, err := writer.StoredEvent(ctx, ev.UID)
 	if err != nil {
 		return err
 	}
@@ -172,14 +197,14 @@ func (p *Pipeline) ingestEvent(ctx context.Context, ev event.Event, report *Repo
 		report.AlreadyStored++
 		return nil
 	}
-	chunks, err := p.chunksFor(ctx, ev)
+	chunks, err := p.chunksFor(ctx, writer, ev)
 	if err != nil {
 		return err
 	}
 	if known {
-		return p.update(ctx, ev, chunks, report)
+		return p.update(ctx, writer, ev, chunks, report)
 	}
-	return p.insert(ctx, ev, chunks, report)
+	return p.insert(ctx, writer, ev, chunks, report)
 }
 
 // replaces reports whether incoming should overwrite stored. With a
@@ -212,15 +237,15 @@ func captionAdvances(incoming, stored event.Event) bool {
 // described again (`cade reindex --captions`).
 func (p *Pipeline) ReplaceStored(ctx context.Context, ev event.Event) error {
 	ev = privacy.Event(ev, p.redact)
-	chunks, err := p.chunksFor(ctx, ev)
+	chunks, err := p.chunksFor(ctx, p.store, ev)
 	if err != nil {
 		return err
 	}
-	return p.update(ctx, ev, chunks, &Report{})
+	return p.update(ctx, p.store, ev, chunks, &Report{})
 }
 
-func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {
-	inserted, err := p.store.SaveEvent(ctx, ev, chunks)
+func (p *Pipeline) insert(ctx context.Context, writer storage.EventWriter, ev event.Event, chunks []storage.Chunk, report *Report) error {
+	inserted, err := writer.SaveEvent(ctx, ev, chunks)
 	if err != nil {
 		return err
 	}
@@ -230,8 +255,8 @@ func (p *Pipeline) insert(ctx context.Context, ev event.Event, chunks []storage.
 	return nil
 }
 
-func (p *Pipeline) update(ctx context.Context, ev event.Event, chunks []storage.Chunk, report *Report) error {
-	if err := p.store.UpdateEvent(ctx, ev, chunks); err != nil {
+func (p *Pipeline) update(ctx context.Context, writer storage.EventWriter, ev event.Event, chunks []storage.Chunk, report *Report) error {
+	if err := writer.UpdateEvent(ctx, ev, chunks); err != nil {
 		return err
 	}
 	report.Updated++
@@ -244,11 +269,11 @@ func (p *Pipeline) update(ctx context.Context, ev event.Event, chunks []storage.
 // cannot be found by semantic search (RF2.2). Text already stored with
 // chunks (a revisited page, a message cached twice) reuses them instead of
 // running the embedder again.
-func (p *Pipeline) chunksFor(ctx context.Context, ev event.Event) ([]storage.Chunk, error) {
+func (p *Pipeline) chunksFor(ctx context.Context, writer storage.EventWriter, ev event.Event) ([]storage.Chunk, error) {
 	if ev.Content == "" {
 		return nil, nil
 	}
-	if chunks, found, err := p.store.StoredChunksForContent(ctx, ev.Content); err != nil || found {
+	if chunks, found, err := writer.StoredChunksForContent(ctx, ev.Content); err != nil || found {
 		return chunks, err
 	}
 	var chunks []storage.Chunk

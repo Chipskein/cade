@@ -210,6 +210,33 @@ xychart-beta
 
 Alvo da fase 6: filtrar pessoas no SQL em vez de carregar tudo.
 
+## Escrita no disco na ingestão (#51)
+
+Primeira ingestão de 2.287 eventos (`cade ingest git` do repositório do cade e `cade ingest file ~/Downloads`, imagens desligadas) num banco novo, num Kingston A400 com ext4 (não em tmpfs), build CUDA. Os bytes são o `write_bytes` do `/proc/PID/io`, lido quando o processo termina; o tempo soma as duas ingestões. Média de duas rodadas intercaladas.
+
+```mermaid
+xychart-beta
+  title "Escrito no disco por evento novo (KB)"
+  x-axis ["uma transação por evento", "lotes de 50", "lotes de 200", "lotes de 1.000"]
+  y-axis "KB" 0 --> 160
+  bar [156.3, 48.7, 43.4, 41.4]
+```
+
+| Gravação | Escrito (MB) | KB por evento | Banco (MB) | Tempo (s) |
+|---|---|---|---|---|
+| uma transação por evento (antes) | 357,4 | 156,3 | 26,6 | 59,3 |
+| lotes de 50 | 111,3 | 48,7 | 26,4 | 58,4 |
+| **lotes de 200** (escolhido) | 99,2 | 43,4 | 26,6 | 55,7 |
+| lotes de 1.000 | 94,7 | 41,4 | 26,6 | 54,9 |
+| lotes de 200 com `synchronous=NORMAL` | 101,4 | 44,3 | 26,6 | 56,7 |
+
+- Agrupar corta a escrita em ~3,6×, e o tempo não piora; a variação entre rodadas (±4 s) é maior que a diferença entre os tamanhos de lote.
+- De 200 para 1.000 a escrita cai só 5%, e uma interrupção perderia até 5× mais eventos para refazer; por isso 200 (`eventsPerCommit`).
+- Um lote também é gravado depois de 2 s aberto (`batchMaxAge`), abaixo dos 5 s que outro comando espera pelo banco.
+- `synchronous=NORMAL` não mudou nem a escrita nem o tempo porque já era o modo em uso: o `go-sqlite3` é compilado com `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`, que põe todo banco em WAL em `NORMAL`.
+- Uma segunda ingestão sem nada novo escreve ~0,1 MB, antes e depois.
+- No `go tool mage bench` (banco em tmpfs, onde o `fsync` não custa), gravar um evento leva 0,71 ms na própria transação (`BenchmarkSaveEvent`) e 0,58 ms num lote (`BenchmarkSaveEventInBatch`).
+
 ## Descrição de imagens (fase 19)
 
 `BenchmarkDescribeImage`: uma captura de terminal de 1920 × 1080 com 10 linhas (~680 bytes de resposta), reduzida até o maior lado indicado, descrita pelo Qwen3.5-2B com o `mmproj`. Inclui decodificar, reduzir, codificar a imagem e gerar a descrição.

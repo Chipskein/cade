@@ -11,8 +11,8 @@ import (
 	"github.com/chipskein/cade/internal/listing"
 )
 
-// EventStore persists events and their embeddings.
-type EventStore interface {
+// EventWriter is what ingestion reads and writes for each collected event.
+type EventWriter interface {
 	// StoredEvent returns the stored event with this UID, if any, so
 	// ingestion can skip unchanged events (and their embedding) on re-runs
 	// and replace changed ones.
@@ -27,6 +27,30 @@ type EventStore interface {
 	// SaveEvent stores the event and its embedded chunks. It returns false
 	// without error when the UID already exists (RF1.5).
 	SaveEvent(ctx context.Context, ev event.Event, chunks []Chunk) (bool, error)
+	// IsForgotten reports a UID removed by `cade forget` or retention,
+	// which ingestion must not store again.
+	IsForgotten(ctx context.Context, uid string) (bool, error)
+}
+
+// EventBatch is an EventWriter whose writes land in one transaction
+// (issue #51): a commit per event rewrote every changed page and synced,
+// writing ~28× the database's size on a first ingestion. While a batch is
+// open, use only the batch: the store may have no other connection.
+type EventBatch interface {
+	EventWriter
+	// Commit makes the batch's writes durable. After any error from the
+	// batch, Rollback instead: the failed event may be half written.
+	Commit() error
+	// Rollback discards the batch; it is safe after Commit.
+	Rollback() error
+}
+
+// EventStore persists events and their embeddings.
+type EventStore interface {
+	EventWriter
+	// BeginBatch opens a batch; the caller must Commit or Rollback it
+	// before using the store again.
+	BeginBatch(ctx context.Context) (EventBatch, error)
 	// EventsBetween returns events with from <= timestamp < to, oldest first.
 	EventsBetween(ctx context.Context, from, to time.Time) ([]event.Event, error)
 	// SearchSimilar returns the nearest chunks to the query embedding that
@@ -61,7 +85,6 @@ type EventStore interface {
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
 	DeleteEvent(ctx context.Context, uid string) (bool, error)
-	IsForgotten(ctx context.Context, uid string) (bool, error)
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	Close() error

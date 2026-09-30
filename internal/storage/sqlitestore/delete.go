@@ -70,8 +70,12 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 }
 
 func (s *Store) IsForgotten(ctx context.Context, uid string) (bool, error) {
+	return isForgotten(ctx, s.db, uid)
+}
+
+func isForgotten(ctx context.Context, querier queryer, uid string) (bool, error) {
 	var found bool
-	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forgotten_events WHERE uid=?)`, uid).Scan(&found)
+	err := querier.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forgotten_events WHERE uid=?)`, uid).Scan(&found)
 	return found, err
 }
 
