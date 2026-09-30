@@ -3,6 +3,8 @@
 package sqlitestore
 
 import (
+	"database/sql"
+	"math/rand"
 	"testing"
 
 	"github.com/chipskein/cade/internal/testcheck"
@@ -29,6 +31,36 @@ func BenchmarkTableSize(b *testing.B) {
 			b.ReportMetric(float64(bytes)/events, table+"-bytes/event")
 		}
 	})
+}
+
+// benchFormatVectors is the largest benchSizes: one vector per event.
+const benchFormatVectors = 100_000
+
+// BenchmarkVectorFormat is the unfiltered vector search of 100k vectors
+// in each format sqlite-vec can store (#40), with the bytes each takes.
+func BenchmarkVectorFormat(b *testing.B) {
+	random := rand.New(rand.NewSource(4))
+	vectors := make([][]float32, benchFormatVectors)
+	for i := range vectors {
+		vectors[i] = benchVector(random)
+	}
+	for _, f := range vectorFormats {
+		b.Run(f.name, func(b *testing.B) {
+			db := openFormatTable(b, f, benchDimensions)
+			fillFormatTable(b, db, f, vectors)
+			for b.Loop() {
+				nearestIDs(b, db, f, benchVector(random), 24)
+			}
+			b.ReportMetric(float64(vectorTableBytes(b, db))/benchFormatVectors, "bytes/vector")
+		})
+	}
+}
+
+func vectorTableBytes(b *testing.B, db *sql.DB) int64 {
+	b.Helper()
+	var bytes int64
+	testcheck.NoError(b, db.QueryRow(`SELECT sum(pgsize) FROM dbstat WHERE name LIKE 'vectors%'`).Scan(&bytes))
+	return bytes
 }
 
 func (s benchStore) bytesPerTable(b *testing.B) map[string]int64 {

@@ -16,6 +16,17 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
 - Sem mudança no esquema, e os dados gravados são os mesmos.
 
+### Plano de espaço (#40)
+
+- O `go tool mage bench` mostra os bytes por evento de cada tabela (`BenchmarkTableSize`) e o tamanho e o tempo de busca de cada formato de vetor do sqlite-vec (`BenchmarkVectorFormat`). Os vetores são 82% da base sintética e 79% do banco real da máquina de referência.
+- Três alavancas viraram issues:
+  - compactar as posições vazias da tabela de vetores (#65, −21%);
+  - vetores `int8` escalados por vetor (#66, que mantêm 99,4% do top-10 exato nos vetores reais);
+  - um conjunto de pedaços e vetores por texto, e não por evento (#67).
+
+  Juntas, levariam o banco real de ~1,24 GB para ~0,35 GB. Os números e as alavancas que ficaram de fora estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#alavancas-de-espaço-40).
+- Nada muda no banco nem no `cade`.
+
 ## v0.1.0 — 2026-09-30
 
 ### Atualizar da v0.0.0
