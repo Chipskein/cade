@@ -1,3 +1,17 @@
+## Task size
+
+- One task = one commit that builds and passes `go tool mage check` on its own.
+- A task changes **at most 10 files**, tests and docs included. Check with
+  `git diff --stat` before calling a task done.
+- A feature that needs more is split into tasks **before starting**, listed in
+  order with the files each one touches, e.g.:
+  1. core package + its tests;
+  2. CLI wiring + its tests;
+  3. docs (README, docs/, CHANGELOG, PRIVACY in both languages).
+- Docs go in their own task when they would push a task over the limit.
+- If a task grows past the limit while in progress, stop, split what is left
+  into a new task, and say so; never raise the limit silently.
+
 ## Code style
 
 - Functions: 4-20 lines. Split if longer.
