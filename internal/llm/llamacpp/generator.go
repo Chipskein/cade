@@ -27,6 +27,7 @@ const (
 type Generator struct {
 	mu        sync.Mutex
 	loaded    loadedModel
+	modelPath string
 	sampler   *C.struct_llama_sampler
 	batchSize int
 	cache     promptCache
@@ -59,6 +60,7 @@ func LoadGenerator(opts ModelOptions) (*Generator, error) {
 	}
 	return &Generator{
 		loaded:    loaded,
+		modelPath: opts.Path,
 		sampler:   newSampler(),
 		batchSize: int(params.n_batch),
 		states:    states,

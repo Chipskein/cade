@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"strings"
 	"testing"
@@ -10,6 +12,31 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 )
+
+// ggufStringType is the GGUF metadata value-type tag for a string.
+const ggufStringType = 8
+
+// ggufWithSizeLabel builds a minimal GGUF file whose only metadata entry
+// is "general.size_label", for testing the vision-pairing warning.
+func ggufWithSizeLabel(size string) string {
+	var buf bytes.Buffer
+	buf.WriteString("GGUF")
+	writeGGUFUint32(&buf, 3)
+	writeGGUFUint64(&buf, 0)
+	writeGGUFUint64(&buf, 1)
+	writeGGUFString(&buf, "general.size_label")
+	writeGGUFUint32(&buf, ggufStringType)
+	writeGGUFString(&buf, size)
+	return buf.String()
+}
+
+func writeGGUFUint32(buf *bytes.Buffer, v uint32) { _ = binary.Write(buf, binary.LittleEndian, v) }
+func writeGGUFUint64(buf *bytes.Buffer, v uint64) { _ = binary.Write(buf, binary.LittleEndian, v) }
+
+func writeGGUFString(buf *bytes.Buffer, s string) {
+	writeGGUFUint64(buf, uint64(len(s)))
+	buf.WriteString(s)
+}
 
 // doctorWorld is an installation where everything the config names
 // exists: a config file, both models, one repository and a database.
@@ -51,6 +78,20 @@ func TestDoctorFailsOnMissingProjectorWithImagesOn(t *testing.T) {
 	code, stdout, _ := world.run("doctor")
 	if code != 1 || !strings.Contains(stdout, "projetor de visão") || !strings.Contains(stdout, "ajuste `vision.projector_path`") {
 		t.Fatalf("expected the missing projector and how to get it, got %d %q", code, stdout)
+	}
+}
+
+func TestDoctorWarnsOnVisionPairingMismatch(t *testing.T) {
+	world := doctorWorld()
+	world.cfg.Sources.Images = true
+	world.cfg.Generation.ModelPath = "/home/ana/models/qwen-4b.gguf"
+	world.cfg.Vision.ProjectorPath = "/home/ana/models/mmproj-qwen-2b.gguf"
+	world.files.
+		AddFile(world.cfg.Generation.ModelPath, ggufWithSizeLabel("4B")).
+		AddFile(world.cfg.Vision.ProjectorPath, ggufWithSizeLabel("2B"))
+	code, stdout, _ := world.run("doctor")
+	if code != 0 || !strings.Contains(stdout, "tamanho 2B, mas o modelo de geração \"qwen-4b.gguf\" é 4B") {
+		t.Fatalf("expected a pairing-mismatch warning naming both models, got %d %q", code, stdout)
 	}
 }
 
