@@ -12,7 +12,11 @@ import (
 
 // StoredEvent returns the stored event with uid, if any.
 func (s *Store) StoredEvent(ctx context.Context, uid string) (event.Event, bool, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM events WHERE uid = ?`, uid)
+	return storedEvent(ctx, s.db, uid)
+}
+
+func storedEvent(ctx context.Context, querier queryer, uid string) (event.Event, bool, error) {
+	row := querier.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM events WHERE uid = ?`, uid)
 	ev, err := scanEvent(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return event.Event{}, false, nil
@@ -26,11 +30,12 @@ func (s *Store) StoredEvent(ctx context.Context, uid string) (event.Event, bool,
 // UpdateEvent replaces the row and the embedding of ev.UID atomically, so
 // search never sees the new text with the old vector.
 func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, chunks []storage.Chunk) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+	return s.inTransaction(ctx, func(tx *sql.Tx) error {
+		return updateEventIn(ctx, tx, ev, chunks)
+	})
+}
+
+func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []storage.Chunk) error {
 	eventID, err := updateEventRow(ctx, tx, ev)
 	if err != nil {
 		return err
@@ -44,10 +49,7 @@ func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, chunks []storag
 	if err := insertChunks(ctx, tx, eventID, ev, chunks); err != nil {
 		return err
 	}
-	if err := recordFileModification(ctx, tx, ev); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return recordFileModification(ctx, tx, ev)
 }
 
 func updateEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, error) {

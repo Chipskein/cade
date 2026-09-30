@@ -87,7 +87,7 @@ func deleteChunks(ctx context.Context, tx *sql.Tx, eventID int64) error {
 func (s *Store) ChunksFor(ctx context.Context, uids []string) (map[string][]storage.Chunk, error) {
 	chunks := make(map[string][]storage.Chunk, len(uids))
 	for _, uid := range uids {
-		eventChunks, err := s.chunksOf(ctx, uid)
+		eventChunks, err := chunksOf(ctx, s.db, uid)
 		if err != nil {
 			return nil, err
 		}
@@ -100,8 +100,8 @@ func (s *Store) ChunksFor(ctx context.Context, uids []string) (map[string][]stor
 
 // chunksOf reads the chunk rows first, then each vector by primary key:
 // the single connection cannot query while a result set is open.
-func (s *Store) chunksOf(ctx context.Context, uid string) ([]storage.Chunk, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT chunks.id, ordinal, char_start, char_end FROM chunks
+func chunksOf(ctx context.Context, querier queryer, uid string) ([]storage.Chunk, error) {
+	rows, err := querier.QueryContext(ctx, `SELECT chunks.id, ordinal, char_start, char_end FROM chunks
 		JOIN events ON events.id = chunks.event_id WHERE events.uid = ? ORDER BY ordinal`, uid)
 	if err != nil {
 		return nil, fmt.Errorf("read chunks of event %q: %w", uid, err)
@@ -111,7 +111,7 @@ func (s *Store) chunksOf(ctx context.Context, uid string) ([]storage.Chunk, erro
 		return nil, err
 	}
 	for i, id := range ids {
-		if chunks[i].Vector, err = s.chunkVector(ctx, id); err != nil {
+		if chunks[i].Vector, err = chunkVector(ctx, querier, id); err != nil {
 			return nil, err
 		}
 	}
@@ -133,17 +133,19 @@ func scanChunks(rows *sql.Rows) ([]int64, []storage.Chunk, error) {
 	return ids, chunks, rows.Err()
 }
 
-func (s *Store) chunkVector(ctx context.Context, chunkID int64) ([]float32, error) {
+func chunkVector(ctx context.Context, querier queryer, chunkID int64) ([]float32, error) {
 	var blob []byte
-	if err := s.db.QueryRowContext(ctx, `SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?`, chunkID).Scan(&blob); err != nil {
+	if err := querier.QueryRowContext(ctx, `SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?`, chunkID).Scan(&blob); err != nil {
 		return nil, fmt.Errorf("read vector of chunk %d: %w", chunkID, err)
 	}
 	return decodeFloat32s(blob)
 }
 
-// queryer is satisfied by both *sql.DB and *sql.Tx.
+// queryer is satisfied by both *sql.DB and *sql.Tx, so a read works alone
+// or inside an open EventBatch.
 type queryer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
 func queryInts(ctx context.Context, querier queryer, query string, args ...any) ([]int64, error) {
