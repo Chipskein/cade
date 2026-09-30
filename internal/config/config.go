@@ -35,7 +35,8 @@ type IngestConfig struct {
 	// MaxImagesPerRun bounds how many new images one `ingest` describes;
 	// the rest wait for the next runs, so a folder of thousands of photos
 	// does not hold up the first ingestion for hours on a CPU.
-	MaxImagesPerRun int `json:"max_images_per_run"`
+	MaxImagesPerRun int              `json:"max_images_per_run"`
+	Background      BackgroundConfig `json:"background"`
 }
 
 // VisionConfig locates the image encoder of the generation model, which
@@ -186,6 +187,9 @@ func (c *Config) migratePreviousGenerationDefault() {
 
 func (c Config) validate() error {
 	if err := c.UI.validate(); err != nil {
+		return err
+	}
+	if err := c.Ingest.Background.validate(c.Sources.Images); err != nil {
 		return err
 	}
 	if !c.Sources.Images {

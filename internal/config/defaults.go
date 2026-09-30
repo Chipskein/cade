@@ -68,6 +68,7 @@ func defaultIngest() IngestConfig {
 		Retention:       RetentionConfig{MaxAgeDays: map[string]int{"git": 0, "browser": 0, "file": 0, "teams": 0}},
 		MaxImageBytes:   defaultMaxImageBytes,
 		MaxImagesPerRun: defaultMaxImagesPerRun,
+		Background:      defaultBackground(),
 	}
 }
 
