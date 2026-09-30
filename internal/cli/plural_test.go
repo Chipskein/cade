@@ -163,7 +163,7 @@ func renderDoctorVerdict(n int, problem doctor.Problem, language Language) strin
 		findings[i] = doctor.Finding{Problem: problem}
 	}
 	var out strings.Builder
-	if err := doctorVerdict(&out, findings, language); err != nil {
+	if err := doctorVerdict(&out, findings, language, 0); err != nil {
 		return err.Error()
 	}
 	return out.String()
