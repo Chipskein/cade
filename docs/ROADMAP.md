@@ -32,7 +32,10 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | ---- | ---- | ----- | -------- | ------- | ------- |
 | 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | a fazer | médio | baixo |
 | 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | a fazer | médio | baixo |
-| 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | a fazer | médio | médio |
+| 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | feito | médio | médio |
+| 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | a fazer | médio | baixo |
+| 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | a fazer | alto | médio |
+| 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | a fazer | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
@@ -47,6 +50,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 A tabela está na ordem sugerida:
 - **Lotes e benchmarks primeiro (22, 23):** as tabelas novas das fases 26 a 28 aumentam a escrita por evento, e o tamanho e o tempo delas só podem ser comparados com uma base medida e reproduzível.
 - **Espaço logo depois (24):** mede o tamanho por tabela na base da fase 23 e decide quantização, compressão e deduplicação antes de as fases 26 a 28 criarem tabelas novas, que já nascem no formato escolhido.
+- **Alavancas de espaço (24a a 24c):** as escolhidas na fase 24, da mais barata para a mais cara. A 24a não tem perda e não muda a busca. A 24b reescreve os vetores e precisa do `evalRetrieval`. A 24c muda o caminho da busca e pode esperar se a 24b já bastar; a fase 28 (#22, representações) é a primeira tabela nova que depende do formato dos vetores.
 - **LGPD antes das entidades (25):** a fase 26 cria a entidade `Person`. As regras (o que guardar, como exportar, como o `forget` apaga) precisam existir antes de os dados existirem.
 - **Entidades, relações, representações e busca (26 a 29):** cada uma depende da anterior. Cada uma começa pelos casos da suíte (`go tool mage eval`) que falham hoje; sem um caso que falhe, a fase espera. A fase 27 começa pelo passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`timeline --around`), para ver se ele já resolve parte dos casos.
 - **IndexedDB (30) independente:** não depende das anteriores e pode correr em paralelo a qualquer uma a partir da 22. Fica no fim da tabela porque é a que menos muda o que já existe.
@@ -145,6 +149,40 @@ flowchart LR
 - **Problema:** o histórico cresce sem limite. Na base sintética são ~3,5 KB por evento; no banco real da fase 22, ~4,7 KB. Não se sabe em que tabela está o espaço.
 - **Mudança:** medir o tamanho por tabela e índice (`events`, `chunks`, `chunks_fts`, vetores, `file_modifications`, `event_people`) com 1 mil, 10 mil e 100 mil eventos, e avaliar cada alavanca pelo espaço, pela busca (recall e MRR do `go tool mage evalRetrieval`) e pela ingestão: quantização dos vetores no sqlite-vec (`int8`, binário), compressão do texto, deduplicação, não duplicar a fonte (só viável para arquivos e git, em que a fonte continua lá) e estratégias diferentes para dados recentes e antigos.
 - **Aceite:** a tabela de tamanho por tabela no BENCHMARKS; cada alavanca com o ganho e o custo; as escolhidas viram issues próprias, e as que couberem entram antes da fase 26.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#alavancas-de-espaço-40)):
+  - Os vetores são 82% da base sintética e 79% do banco real (985 de 1.242 MB).
+  - Três alavancas viraram fases: [24a](#fase-24a--compactar-os-vetores), [24b](#fase-24b--vetores-em-int8) e [24c](#fase-24c--um-vetor-por-texto). Juntas levam o banco real de ~1,24 GB para ~0,35 GB.
+  - Ficaram de fora: comprimir o texto (−3%, e quebra os filtros SQL em `metadata`), guardar só a referência de `file`/`git` (−1%) e `bit` para dados antigos (perde um quarto do top-10).
+
+---
+
+## Fase 24a — Compactar os vetores
+
+**Issue:** [#65](https://github.com/Chipskein/cade/issues/65).
+
+- **Problema:** o vec0 não reaproveita as posições apagadas; no banco real, 89.270 de 335.872 (27%, ~262 MB) estão vazias.
+- **Mudança:** reescrever `chunk_embeddings` só com os vetores vivos no fim do `reindex` e num comando explícito.
+- **Aceite:** `ceil(vetores / 1024)` blocos depois de compactar; o mesmo top-k antes e depois.
+
+---
+
+## Fase 24b — Vetores em `int8`
+
+**Issue:** [#66](https://github.com/Chipskein/cade/issues/66).
+
+- **Problema:** cada vetor ocupa 3.072 bytes em `float32`.
+- **Mudança:** `int8[768]` com cada vetor escalado pelo seu maior componente, numa migração com cópia. Nos vetores reais, mantém 99,4% do top-10 exato (a escala `unit` do sqlite-vec mantém 95,5%), com a mesma latência e 1/4 do espaço.
+- **Aceite:** recall e MRR do `go tool mage evalRetrieval` iguais aos de hoje; `bytes/event` cai ~2,3 KB.
+
+---
+
+## Fase 24c — Um vetor por texto
+
+**Issue:** [#67](https://github.com/Chipskein/cade/issues/67).
+
+- **Problema:** 47% dos pedaços são de texto que outro evento já tem (uma página visitada várias vezes). O vetor é reaproveitado na ingestão, mas gravado de novo, e as cópias disputam o top-k.
+- **Mudança:** pedaços, vetores e FTS5 por `content_hash`, com os eventos apontando para eles; os filtros de fonte e período (CA9.1) ganham outro desenho.
+- **Aceite:** um pedaço por texto distinto; recall e MRR iguais ou melhores; filtros e `forget` com o mesmo resultado de hoje.
 
 ---
 
@@ -293,7 +331,7 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Índice vetorial aproximado
 
-Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. Primeiro medir quantização dos vetores no próprio sqlite-vec (`int8`, binário), antes de outra biblioteca; a medição entra na [fase 24](#fase-24--plano-de-espaço).
+Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. A quantização no próprio sqlite-vec foi medida na [fase 24](#fase-24--plano-de-espaço): o `int8` ([fase 24b](#fase-24b--vetores-em-int8)) guarda 1/4 do espaço, mas a busca continua tão lenta quanto; o `bit` busca 16× mais rápido e perde um quarto do top-10, então pode servir de primeira passada com os vetores guardados reordenando os candidatos, se a latência apertar antes de outra biblioteca.
 
 ### Binário para arm64
 

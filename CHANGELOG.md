@@ -16,6 +16,12 @@ What changed in each version, the schema migrations, and what each migration rew
 - An interrupted ingestion (Ctrl-C, `cade ingest stop`, an error) loses only the open batch, at most 200 events; the next run stores them again.
 - No schema change, and the stored data is the same.
 
+### Space plan (#40)
+
+- `go tool mage bench` reports bytes per event of each table (`BenchmarkTableSize`) and the size and search time of each vector format sqlite-vec offers (`BenchmarkVectorFormat`). Vectors are 82% of the synthetic database and 79% of the reference machine's real one.
+- Three levers became issues: compacting the empty slots of the vector table (#65, −21%), `int8` vectors scaled per vector (#66, keeps 99.4% of the exact top-10 on real vectors) and one set of chunks and vectors per text instead of per event (#67). Together they would take the real database from ~1.24 GB to ~0.35 GB. Numbers and the levers left out are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#space-levers-40).
+- No change to the database or to `cade` itself.
+
 ## v0.1.0 — 2026-09-30
 
 ### Upgrading from v0.0.0

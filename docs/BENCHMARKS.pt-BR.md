@@ -275,6 +275,27 @@ Azul: sem filtro. Laranja: só Teams. Verde: um dia.
 
 ## Tamanho por tabela (#40)
 
+### Histórico sintético
+
+> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compilado com `sqlite_dbstat`) · 2026-09-30 · `e616f06` · os mesmos eventos sintéticos de [Banco](#banco-de-dados).
+
+Bytes por evento de cada tabela, com suas tabelas internas e seus índices; a soma é o `bytes por evento` de [Banco](#banco-de-dados).
+
+| Tabela | O que guarda | 1 mil | 10 mil | 100 mil | % em 100 mil |
+|---|---|---:|---:|---:|---:|
+| `chunk_embeddings` | vetores dos pedaços (sqlite-vec) | 3.240 | 3.203 | 3.135 | 82,4 |
+| `events` | texto e metadados dos eventos | 549 | 526 | 531 | 14,0 |
+| `chunks_fts` | índice de palavras (FTS5) | 107 | 83 | 83 | 2,2 |
+| `chunks` | pedaços de texto de cada evento | 53 | 41 | 44 | 1,2 |
+| `event_people` | pessoas de cada evento | 20 | 13 | 12 | 0,3 |
+| `file_modifications` | data e tamanho de cada versão de arquivo | 8 | 0,8 | 0,1 | 0,0 |
+| outras | configurações, eventos esquecidos | 20 | 2 | 0,2 | 0,0 |
+
+- **Vetores:** ~3,1 KB dos ~3,8 KB por evento em todos os tamanhos; 768 dimensões em `float32` já ocupam 3.072 bytes.
+- **Custo fixo:** `file_modifications` e outras são uma ou duas páginas vazias, então diminuem por evento conforme o histórico cresce. O histórico sintético não tem arquivos; no histórico real abaixo, as duas somam 0,3 MB.
+
+### Histórico real
+
 > `sqlite3 -readonly ~/.local/share/cade/cade.db` com a consulta abaixo · 2026-09-30 · o histórico real da máquina de referência: 238.720 eventos, 246.488 pedaços, 1,26 GB.
 
 ```sql
@@ -302,6 +323,66 @@ Cada tabela inclui suas tabelas internas e seus índices.
 | outras | configurações, arquivos modificados, eventos esquecidos | 0,3 | 0,0 |
 
 Os vetores são 4/5 do banco: ~4,0 KB por pedaço, para 768 dimensões em `float32`, que já ocupam 3 KB.
+
+## Alavancas de espaço (#40)
+
+Cada jeito de guardar mais histórico em menos espaço, medido no histórico real da máquina de referência (1.242,4 MB de páginas, 238.834 eventos, 246.602 pedaços) e no sintético. 2026-09-30.
+
+### Formatos de vetor
+
+> `go tool mage bench` (`BenchmarkVectorFormat`: 100 mil vetores sintéticos, busca sem filtro, em memória) · `CADE_SPACE_DB=~/.local/share/cade/cade.db go test -tags sqlite_fts5 -run TestQuantizationOverlap -v ./internal/storage/sqlitestore` (61.706 vetores reais, 250 pedaços reais como consulta) · `internal/storage/sqlitestore`.
+
+| Formato | Bytes por vetor | Busca, 100 mil (ms) | Top-10 exato mantido |
+|---|---:|---:|---:|
+| `float32` (hoje) | 3.109 | 78 | 1,000 |
+| `int8`, escala do sqlite-vec (`unit`) | 794 | 72 | 0,955 |
+| `int8`, escala por vetor | 794 | 73 | 0,994 |
+| `bit` | 119 | 4,5 | 0,758 |
+| `bit`, top-100 reordenado em `float32` | 119 + 3.109 | — | 0,972 |
+
+- **`int8` escalado:** cada vetor é multiplicado por 127 dividido pelo seu maior componente antes de arredondar, e o cosseno não muda com a escala. A escala `unit` do sqlite-vec cobre [-1, 1], mas vetores normalizados de 768 dimensões quase nunca passam de ±0,2, então a maioria dos 256 níveis fica sem uso.
+- **`bit`:** 16× mais rápido, mas perde um quarto do top-10. Reordenar em `float32` recupera isso só se o `float32` continuar guardado, e aí não economiza espaço.
+- **Consultas:** pedaços reais, não embeddings de pergunta. A suíte de recuperação (`go tool mage evalRetrieval`) é o aceite da [#66](https://github.com/Chipskein/cade/issues/66).
+
+### Posições vazias, texto repetido e tamanho do texto
+
+> `sqlite3 -readonly ~/.local/share/cade/cade.db` com as consultas abaixo · zlib nível 6 por linha em Python, `zstd -19` sobre o dump inteiro.
+
+```sql
+-- posições do vec0 e vetores vivos
+SELECT count(*), sum(size) FROM chunk_embeddings_chunks;
+SELECT count(*) FROM chunk_embeddings_rowids;
+-- pedaços de eventos cujo texto outro evento já tem
+SELECT count(*) FROM chunks c JOIN events e ON e.id = c.event_id
+WHERE e.id NOT IN (SELECT min(id) FROM events GROUP BY content_hash);
+-- texto por fonte
+SELECT source, count(*), count(DISTINCT content_hash), sum(length(content)), sum(length(metadata))
+FROM events GROUP BY source;
+```
+
+| | Medido |
+|---|---|
+| posições do vec0 / vetores vivos | 335.872 / 246.602: 89.270 vazias (27%), deixadas por `reindex`, `forget` e pela migração de segredos. O vec0 nunca as reaproveita, e o `VACUUM` não chega dentro dos blobs dele |
+| eventos / textos distintos | 238.834 / 124.273; só o browser, 161.366 / 52.236 |
+| pedaços de texto repetido | 114.846 de 246.602 (47%): o vetor é reaproveitado na ingestão, mas gravado de novo |
+| `content` + `metadata` | 39,8 + 69,5 MB; zlib por linha, 26,4 + 48,2 MB (−31%); `zstd -19` sobre tudo, 7,0 MB |
+| texto de `file` + `git` | 16,5 MB de `content` (1,3% do banco) |
+| mais de 12 meses | 53.962 eventos (23%) |
+
+### Decisão
+
+Ganhos sobre o histórico real (1.242,4 MB). Cada linha supõe as de cima já feitas.
+
+| Alavanca | Espaço | Busca | Ingestão | Decisão |
+|---|---:|---|---|---|
+| Compactar a tabela de vetores (tirar as posições vazias) | −262 MB (−21%) | mesmos resultados; menos blocos para ler | nenhum | [#65](https://github.com/Chipskein/cade/issues/65) |
+| Um conjunto de pedaços e vetores por texto | −337 MB de vetores, ~−11 MB de FTS5 (−28%) | as cópias deixam de ocupar vagas do top-k; os filtros de fonte e período precisam de outro desenho | menos escrita | [#67](https://github.com/Chipskein/cade/issues/67) |
+| Vetores em `int8` escalado | −288 MB (−59% se feito sozinho: −734 MB) | 0,994 do top-10, mesma latência | uma passada em 768 valores por vetor | [#66](https://github.com/Chipskein/cade/issues/66) |
+| Comprimir o texto por linha | −33 MB (−3%) | FTS5 não muda (sem conteúdo); toda leitura descomprime, e os filtros SQL em `metadata` (pessoas, hash de imagem) param de funcionar | comprimir cada evento | não: medir de novo depois que os vetores diminuírem |
+| Guardar só uma referência para `file` e `git` | −16 MB (−1%) | a citação quebra se o repositório mudar de lugar ou o arquivo mudar | nenhum | não |
+| Vetores `bit` para eventos com mais de 12 meses | ~−19 MB depois do `int8` | perde um quarto do top-10 no histórico antigo | nenhum | não |
+
+Com as três escolhidas, os vetores vão de 985 MB para ~99 MB, e o banco de ~1,24 GB para ~0,35 GB, ~1,5 KB por evento. O texto (`events`, 157 MB) passa a ser a maior tabela, então a compressão é medida de novo depois delas.
 
 ## Escrita no disco na ingestão (#51)
 

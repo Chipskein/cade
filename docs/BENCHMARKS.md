@@ -275,6 +275,27 @@ Blue: no filter. Orange: Teams only. Green: one day.
 
 ## Size per table (#40)
 
+### Synthetic history
+
+> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compiled with `sqlite_dbstat`) · 2026-09-30 · `e616f06` · same synthetic events as [Database](#database).
+
+Bytes per event of each table, with its internal tables and its indexes; the sum is the `bytes per event` of [Database](#database).
+
+| Table | What it holds | 1 k | 10 k | 100 k | % at 100 k |
+|---|---|---:|---:|---:|---:|
+| `chunk_embeddings` | chunk vectors (sqlite-vec) | 3,240 | 3,203 | 3,135 | 82.4 |
+| `events` | event text and metadata | 549 | 526 | 531 | 14.0 |
+| `chunks_fts` | word index (FTS5) | 107 | 83 | 83 | 2.2 |
+| `chunks` | text chunks of each event | 53 | 41 | 44 | 1.2 |
+| `event_people` | people of each event | 20 | 13 | 12 | 0.3 |
+| `file_modifications` | date and size of each file version | 8 | 0.8 | 0.1 | 0.0 |
+| other | settings, forgotten events | 20 | 2 | 0.2 | 0.0 |
+
+- **Vectors:** ~3.1 KB of the ~3.8 KB per event at every size; 768 `float32` dimensions take 3,072 bytes on their own.
+- **Fixed cost:** `file_modifications` and other are one or two empty pages, so they shrink per event as the history grows. The synthetic history has no files; in the real history below they are 0.3 MB together.
+
+### Real history
+
 > `sqlite3 -readonly ~/.local/share/cade/cade.db` with the query below · 2026-09-30 · the reference machine's real history: 238,720 events, 246,488 chunks, 1.26 GB.
 
 ```sql
@@ -302,6 +323,66 @@ Each table includes its internal tables and its indexes.
 | other | settings, modified files, forgotten events | 0.3 | 0.0 |
 
 Vectors are 4/5 of the database: ~4.0 KB per chunk, for 768 `float32` dimensions that take 3 KB on their own.
+
+## Space levers (#40)
+
+Each way of keeping more history in less space, measured on the reference machine's real history (1,242.4 MB of pages, 238,834 events, 246,602 chunks) and on the synthetic one. 2026-09-30.
+
+### Vector formats
+
+> `go tool mage bench` (`BenchmarkVectorFormat`: 100 k synthetic vectors, unfiltered search, in memory) · `CADE_SPACE_DB=~/.local/share/cade/cade.db go test -tags sqlite_fts5 -run TestQuantizationOverlap -v ./internal/storage/sqlitestore` (61,706 real vectors, 250 real chunks as queries) · `internal/storage/sqlitestore`.
+
+| Format | Bytes per vector | Search, 100 k (ms) | Exact top-10 kept |
+|---|---:|---:|---:|
+| `float32` (today) | 3,109 | 78 | 1.000 |
+| `int8`, sqlite-vec scale (`unit`) | 794 | 72 | 0.955 |
+| `int8`, scaled per vector | 794 | 73 | 0.994 |
+| `bit` | 119 | 4.5 | 0.758 |
+| `bit`, top-100 rescored in `float32` | 119 + 3,109 | — | 0.972 |
+
+- **Scaled `int8`:** each vector is multiplied by 127 over its largest component before rounding; cosine ignores the scale. sqlite-vec's `unit` scale maps [-1, 1], but normalized 768-dim vectors rarely pass ±0.2, so most of the 256 levels go unused.
+- **`bit`:** 16× faster, but loses a quarter of the top-10; rescoring recovers it only by keeping the `float32` too, which saves no space.
+- **Queries:** real chunks, not question embeddings. The retrieval suite (`go tool mage evalRetrieval`) is the acceptance of [#66](https://github.com/Chipskein/cade/issues/66).
+
+### Empty slots, repeated text and text size
+
+> `sqlite3 -readonly ~/.local/share/cade/cade.db` with the queries below · zlib level 6 per row in Python, `zstd -19` over the whole dump.
+
+```sql
+-- vec0 slots and live vectors
+SELECT count(*), sum(size) FROM chunk_embeddings_chunks;
+SELECT count(*) FROM chunk_embeddings_rowids;
+-- chunks of events whose text another event already has
+SELECT count(*) FROM chunks c JOIN events e ON e.id = c.event_id
+WHERE e.id NOT IN (SELECT min(id) FROM events GROUP BY content_hash);
+-- text per source
+SELECT source, count(*), count(DISTINCT content_hash), sum(length(content)), sum(length(metadata))
+FROM events GROUP BY source;
+```
+
+| | Measured |
+|---|---|
+| vec0 slots / live vectors | 335,872 / 246,602: 89,270 empty (27%), left by `reindex`, `forget` and the secrets migration; vec0 never reuses them and `VACUUM` does not reach inside its blobs |
+| events / distinct texts | 238,834 / 124,273; browser alone 161,366 / 52,236 |
+| chunks of repeated text | 114,846 of 246,602 (47%): the vector is reused at ingestion, but stored again |
+| `content` + `metadata` | 39.8 + 69.5 MB; zlib per row 26.4 + 48.2 MB (−31%); `zstd -19` over everything 7.0 MB |
+| `file` + `git` text | 16.5 MB of `content` (1.3% of the database) |
+| older than 12 months | 53,962 events (23%) |
+
+### Verdict
+
+Gains are on the real history (1,242.4 MB); each row assumes the ones above it are done.
+
+| Lever | Space | Search | Ingestion | Decision |
+|---|---:|---|---|---|
+| Compact the vector table (drop empty slots) | −262 MB (−21%) | same results; fewer blocks to scan | none | [#65](https://github.com/Chipskein/cade/issues/65) |
+| One set of chunks and vectors per text | −337 MB of vectors, ~−11 MB of FTS5 (−28%) | copies stop taking top-k slots; the source and period filters need a new design | fewer writes | [#67](https://github.com/Chipskein/cade/issues/67) |
+| Scaled `int8` vectors | −288 MB (−59% if done alone: −734 MB) | 0.994 of the top-10, same latency | one pass over 768 values per vector | [#66](https://github.com/Chipskein/cade/issues/66) |
+| Compress text per row | −33 MB (−3%) | FTS5 unaffected (contentless); every read decompresses, and the SQL filters on `metadata` (people, image hash) stop working | compress per event | no: reassess once vectors shrink |
+| Keep only a reference for `file` and `git` | −16 MB (−1%) | a citation breaks if the repository moves or the file changes | none | no |
+| `bit` vectors for events older than 12 months | ~−19 MB after `int8` | loses a quarter of the top-10 in old history | none | no |
+
+With the three chosen, vectors go from 985 MB to ~99 MB and the database from ~1.24 GB to ~0.35 GB, ~1.5 KB per event. Text (`events`, 157 MB) then becomes the largest table, so compression is measured again after them.
 
 ## Disk writes during ingestion (#51)
 
