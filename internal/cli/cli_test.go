@@ -71,6 +71,16 @@ type fakeWorld struct {
 	describer                   *testfakes.FakeImageDescriber
 	describerLoads              int
 	describerOpenAtEmbedderLoad bool
+	// runState, runLock, processes and pacingClock back the ingest run
+	// tools; detached makes this process the one `ingest start` started.
+	runState    *testfakes.FakeRunStateFile
+	runLock     *testfakes.FakeIngestLock
+	processes   *testfakes.FakeProcesses
+	pacingClock *testfakes.FakePacingClock
+	detached    bool
+	// loadedEmbedding and loadedGeneration are the settings the models
+	// were last loaded with.
+	loadedEmbedding config.EmbeddingConfig
 }
 
 func newFakeWorld() *fakeWorld {
@@ -79,6 +89,8 @@ func newFakeWorld() *fakeWorld {
 	return &fakeWorld{
 		store: testfakes.NewFakeEventStore(), embedder: &testfakes.FakeEmbedder{},
 		generator: &testfakes.FakeGenerator{}, cfg: cfg, files: testfakes.NewFakeFileSystem(),
+		runState: &testfakes.FakeRunStateFile{}, runLock: &testfakes.FakeIngestLock{}, processes: &testfakes.FakeProcesses{StartedPID: 4321},
+		pacingClock: &testfakes.FakePacingClock{Current: cliNow},
 	}
 }
 
@@ -93,8 +105,9 @@ func (w *fakeWorld) toolkit() Toolkit {
 		HomeDir:           func() (string, error) { return "/home/ana", nil },
 		Stdin:             strings.NewReader(w.stdin),
 		Build:             w.build,
-		LoadEmbedder: func(config.EmbeddingConfig, *slog.Logger) (ClosableEmbedder, error) {
+		LoadEmbedder: func(settings config.EmbeddingConfig, _ *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
+			w.loadedEmbedding = settings
 			w.describerOpenAtEmbedderLoad = w.describerLoads > 0 && !w.describer.Closed
 			return w.embedder, nil
 		},
@@ -108,6 +121,8 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
 		DateOrder:     w.dateOrder,
+		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
+			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
 }
 

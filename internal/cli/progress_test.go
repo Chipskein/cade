@@ -19,7 +19,7 @@ func newTestProgress(interactive bool) (*ingestProgress, *FakeClock, *strings.Bu
 	clock := &FakeClock{Current: cliNow}
 	var out strings.Builder
 	env := commandEnv{stderr: &out, toolkit: Toolkit{Now: clock.Now, StderrIsTerminal: interactive}}
-	return newIngestProgress(env, "teams x"), clock, &out
+	return newIngestProgress(env, "teams x", 0), clock, &out
 }
 
 func TestProgressWaitsForInterval(t *testing.T) {

@@ -10,6 +10,16 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased (v0.1.0)
 
+### Background ingestion (#41)
+
+- **Problem:** a long ingestion (a first run, thousands of images) held a terminal for hours, stopped when it closed, and kept the CPU or GPU at their limit meanwhile.
+- **`cade ingest start`:** checks the arguments, then starts a detached `cade ingest` in its own session (no terminal, so closing it does not stop the run), writing its output to `~/.local/state/cade/ingest.log`. `cade ingest <source|all>` still runs in the terminal.
+- **Limits:** background runs use the new `ingest.background` section: 2 threads, GPU layers (`-1`; `0` keeps the GPU free), `busy_percent` 50 (the models rest after each call, so they work half the time: a GPU cannot be niced, and this is what caps its load) and 500 images per run. They also get nice 19 and the idle I/O class on every thread. `--gentle` applies the same limits in the foreground, and the systemd and cron examples now use it. [CONFIGURATION](docs/CONFIGURATION.md#how-the-limits-work) explains what each layer limits, and how to cap the GPU's power with `nvidia-smi`.
+- **`status`, `pause`, `resume`, `stop`:** every `ingest` records its arguments, stage, job and last progress line in `~/.local/state/cade/ingest-state.json`, about once a second, so `cade ingest status` shows it from any terminal, with a warning when its process vanished without recording the end. `pause` freezes the process (SIGSTOP: no CPU or GPU work, models kept in memory) and `resume` wakes it. `stop` sends SIGTERM, which ends the run like Ctrl-C and frees the memory, keeping what it stored; `resume` then runs it again with the same arguments and mode, skipping what is stored and reusing described images. A terminal closing (SIGHUP) now also counts as an interruption. `cade doctor` shows when the last ingestion ran and how it ended, with a warning when it did not finish.
+- **One at a time:** while an ingestion is running or paused, starting another is refused with its pid (an flock the kernel drops if the process dies). An interrupted or failed run does not block new ones, so a timer keeps ingesting.
+- **ETA:** the `file` and `git` jobs count their events up front (a walk without reading files, `git rev-list --count`), so their progress line shows "120 read of 500 (24%)" and an ETA over the last 500 events. `browser` and `teams` show the rate, as before. Elapsed times and ETAs past one hour show hours.
+- No schema change and no migration.
+
 ### Search by image description (phase 19, #7)
 
 - **Problem:** screenshots, whiteboard photos, diagrams and error screenshots in the configured folders were stored with their name only, though they are often the record of a decision or an error.

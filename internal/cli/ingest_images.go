@@ -12,6 +12,7 @@ import (
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/filesource"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
 )
@@ -65,13 +66,17 @@ func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Plan
 	}
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
-	tracker := newETATracker(env.toolkit.Now)
+	tracker := newETATracker(env.toolkit.Now, etaWindow)
 	planner.WithModelLoading(func() {
-		status.show(env.language.pick("Carregando modelo de visão…", "Loading vision model…"))
+		line := env.language.pick("Carregando modelo de visão…", "Loading vision model…")
+		status.show(line)
+		env.ingestRun.update(ingestrun.StageLoadingVisionModel, func() string { return line })
 	})
 	planner.WithProgress(func(tally imagecaption.Tally) {
 		tracker.advance()
-		status.show(imageProgressLine(tally, total, tracker, env.language))
+		line := imageProgressLine(tally, total, tracker, env.language)
+		status.show(line)
+		env.ingestRun.update(ingestrun.StageDescribingImages, func() string { return line })
 	})
 	for _, root := range roots {
 		files, err := fs.Sub(env.toolkit.RootFS, rootfs.Name(root))
@@ -114,7 +119,11 @@ func imageProgressLine(tally imagecaption.Tally, total int, tracker *etaTracker,
 
 func (env commandEnv) describerLoader(cfg config.Config) imagecaption.DescriberLoader {
 	return func() (imagecaption.ClosableDescriber, error) {
-		return env.toolkit.LoadImageDescriber(cfg.Generation, cfg.Vision, env.logger)
+		describer, err := env.toolkit.LoadImageDescriber(cfg.Generation, cfg.Vision, env.logger)
+		if err != nil {
+			return nil, err
+		}
+		return env.ingestRun.paceDescriber(cfg, describer), nil
 	}
 }
 

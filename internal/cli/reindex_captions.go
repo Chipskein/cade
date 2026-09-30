@@ -46,7 +46,7 @@ func (env commandEnv) recaptionInBatches(ctx context.Context, cfg config.Config,
 	var tally recaptionTally
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
-	tracker := newETATracker(env.toolkit.Now)
+	tracker := newETATracker(env.toolkit.Now, etaWindow)
 	batchSize := max(cfg.Ingest.MaxImagesPerRun, 1)
 	for start := 0; start < len(outdated); start += batchSize {
 		batch := outdated[start:min(start+batchSize, len(outdated))]

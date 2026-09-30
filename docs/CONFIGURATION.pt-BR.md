@@ -13,6 +13,10 @@
 | `ingest.redact` | Mascara segredos reconhecidos no texto (padrão `true`). Globs de arquivos e remoção de parâmetros de URL sempre valem. |
 | `ingest.max_image_bytes` | Imagens maiores que isso não são descritas (padrão 20 MiB); ficam só com o nome, como os outros binários. |
 | `ingest.max_images_per_run` | Imagens novas descritas por `ingest` (padrão 50, ~20 min numa CPU de 6 núcleos); as outras ficam para as próximas execuções. |
+| `ingest.background.threads` | Threads de CPU dos dois modelos nas execuções `ingest start` e `ingest --gentle` (padrão `2`; `0` = núcleos físicos). |
+| `ingest.background.gpu_layers` | Camadas na GPU dos dois modelos nessas execuções (padrão `-1` = todas); `0` deixa a GPU livre. |
+| `ingest.background.busy_percent` | Parte do tempo em que os modelos podem trabalhar nessas execuções (padrão `50`, de `1` a `100`); eles descansam depois de cada chamada, e é isso que limita a GPU. |
+| `ingest.background.max_images_per_run` | Substitui `ingest.max_images_per_run` nessas execuções (padrão `500`). |
 | `ingest.retention.max_age_days` | Limite opcional de idade, em dias, por fonte; vazio por padrão. Exemplo: `{ "teams": 365 }`. Aplicado depois de cada ingestão da fonte. |
 | `ingest.retention.max_age_days.git` | Defina uma idade positiva em dias para git; `0` desativa a retenção. |
 | `ingest.retention.max_age_days.browser` | Defina uma idade positiva em dias para browser; `0` desativa a retenção. |
@@ -90,6 +94,47 @@ Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22
 
 Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil Chromium do Teams (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`).
 
+## Ingestão em segundo plano
+
+Uma ingestão longa (a primeira, uma pasta com milhares de imagens) pode rodar por horas sem prender um terminal nem a máquina inteira:
+
+```sh
+cade ingest start all   # sai do terminal; continua depois de fechá-lo
+cade ingest status      # etapa, progresso, ETA, caminho do log
+cade ingest pause       # congela: sem uso de CPU nem GPU, modelos mantidos na memória
+cade ingest resume      # continua uma pausada, ou roda de novo a última não concluída
+cade ingest stop        # encerra e libera a memória; o que já foi gravado fica
+```
+
+- **Progresso:** a ingestão em andamento grava a etapa e a linha de progresso em `~/.local/state/cade/ingest-state.json` (ou em `$XDG_STATE_HOME`) cerca de uma vez por segundo; `status` lê de qualquer terminal, e o `cade doctor` mostra quando a última rodou e como terminou. Execuções em segundo plano escrevem a saída em `ingest.log`, na mesma pasta.
+- **ETA:** a descrição de imagens e as fontes `file` e `git` mostram um ETA, pelo tempo dos itens recentes; `browser` e `teams` não conseguem contar os eventos antes e mostram a taxa.
+- **Pausar ou parar:** `pause` congela o processo (SIGSTOP): ele não usa CPU nem GPU, mas os modelos ficam na memória (~2,5 GB de VRAM no padrão), e `resume` o continua na hora. `stop` o encerra (SIGTERM, como o Ctrl-C) e libera a memória; `resume` então roda de novo, pulando eventos gravados e imagens descritas sem usar os modelos, e continua de onde parou.
+- **Uma por vez:** enquanto uma ingestão está rodando ou pausada, iniciar outra (`cade ingest …` ou `start`) é recusado com o pid dela. Uma interrompida ou que falhou não bloqueia novas execuções, para que um timer nunca pare de ingerir por causa de uma falha antiga.
+
+### Como os limites funcionam
+
+`ingest start` e `ingest --gentle` aplicam `ingest.background`, em quatro camadas:
+
+| Camada | Campo | O que limita | O que não limita |
+|---|---|---|---|
+| Threads | `threads` (2) | núcleos de CPU que o llama.cpp usa; os outros programas ficam com o resto | o trabalho na GPU |
+| Camadas na GPU | `gpu_layers` (-1) | quanto de cada modelo roda na GPU: `0` deixa a GPU livre e roda na CPU | a carga da GPU enquanto trabalha |
+| Descanso entre chamadas | `busy_percent` (50) | a parte do tempo em que os modelos trabalham: depois de cada embedding ou imagem, a execução espera em proporção ao tempo do trabalho (com 50, 2 s de trabalho, 2 s de descanso), então a carga média de CPU/GPU, o consumo e o calor acompanham essa parte | o pico de consumo durante cada trabalho |
+| Prioridade | nenhum | CPU (nice 19) e disco (classe ociosa): qualquer outro programa vem antes | a GPU, que não tem prioridade entre processos |
+
+O descanso é a única alavanca que o cade tem sobre a GPU. Com imagens, cada descrição é ~1,7 s de GPU numa RTX 3060, então com 50 % a GPU alterna ~1,7 s em potência máxima e ~1,7 s parada; o consumo médio cai mais ou menos à metade e a temperatura se estabiliza mais baixa, porque o cooler tem o tempo parado para compensar. Os embeddings levam milissegundos cada, curtos demais para esquentar.
+
+**Um limite rígido de potência ou temperatura** é configurado na própria GPU, não pelo cade: precisa de root e vale para todos os programas que usam a GPU.
+
+```sh
+nvidia-smi -q -d POWER            # limite de potência padrão e mínimo
+sudo nvidia-smi -pl 110           # limita a 110 W até reiniciar (a RTX 3060 vem com 170 W)
+sudo nvidia-smi -lgc 300,1500     # ou limita o clock do núcleo (MHz)
+sudo nvidia-smi -rgc              # desfaz o limite de clock
+```
+
+Limitar a potência custa pouca velocidade: perto do topo da faixa, a GPU perde muito menos desempenho que consumo. Junto com o `busy_percent`, isso mantém baixos tanto o pico quanto a média.
+
 ## Ingestão agendada
 
 > **O Chrome apaga visitas com mais de ~90 dias e o cliente do Teams só guarda em cache o que você abriu — se você pular uma execução, essa janela fecha para sempre.**
@@ -102,7 +147,7 @@ Description=cade ingest
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/cade ingest all
+ExecStart=%h/.local/bin/cade ingest --gentle all
 ```
 
 `~/.config/systemd/user/cade-ingest.timer`:
@@ -126,5 +171,7 @@ systemctl --user enable --now cade-ingest.timer
 Ou com crontab:
 
 ```cron
-0 8 * * * ~/.local/bin/cade ingest all
+0 8 * * * ~/.local/bin/cade ingest --gentle all
 ```
+
+`--gentle` evita que uma execução agendada deixe lento o que você estiver fazendo na hora; tire-o para ingerir na velocidade máxima. Não use `ingest start` num timer: ele sai do terminal na hora, e o systemd tomaria a execução por concluída.

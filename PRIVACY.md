@@ -24,6 +24,8 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
+| `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
+| `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
 | `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | copies of the browser history and Teams IndexedDB while one ingestion runs; removed when it ends | `700` |
 
 Backups of your home directory include `cade.db`.
@@ -71,7 +73,7 @@ Both models run in-process through llama.cpp.
 
 ## Logs
 
-- Logs go to stderr only; nothing is written to a log file.
+- Logs go to stderr only. The exception is `ingest start`, which has no terminal: its stderr and stdout go to `~/.local/state/cade/ingest.log` (see above), with the same content a foreground run prints.
 - `--verbose` adds debug lines that include the model's reply, the titles of retrieved events and the resolved question. Do not paste them publicly.
 
 ## Deleting data

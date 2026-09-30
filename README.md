@@ -43,6 +43,8 @@ Linux x86-64 is the only CI and release target. macOS should work when built fro
 ```sh
 cade init
 cade ingest all
+cade ingest start all   # long runs: detached, with CPU/GPU limits
+cade ingest status      # also: pause, resume, stop
 cade timeline yesterday
 cade tasks today
 cade ask "what did I work on yesterday?"
@@ -80,7 +82,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, scheduled ingestion. |
+| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, background and scheduled ingestion. |
 | [Use cases](docs/USECASES.md) | Practical query patterns and workflows. |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organized and how components interact. |
 | [Benchmarks](docs/BENCHMARKS.md) | Search latency, retrieval quality and image description cost. |

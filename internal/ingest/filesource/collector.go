@@ -66,6 +66,17 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	})
 }
 
+// EstimateEvents counts the files CollectEvents will emit, one event each,
+// walking the tree without reading or stat-ing them.
+func (c *Collector) EstimateEvents(ctx context.Context) (int, error) {
+	count := 0
+	err := Walk(ctx, c.files, c.root, c.opts, func(string, fs.DirEntry) error {
+		count++
+		return nil
+	})
+	return count, err
+}
+
 // VisitFunc receives a regular file Walk kept, by its path relative to
 // the walked root.
 type VisitFunc func(path string, entry fs.DirEntry) error

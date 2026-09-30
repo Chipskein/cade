@@ -5,20 +5,26 @@ import (
 	"time"
 )
 
-// etaWindow bounds the moving average to recent items, so a slow start
-// (e.g. model loading) does not skew the estimate once the pace picks up.
-const etaWindow = 20
+// The ETA windows bound the moving average to recent items, so a slow
+// start (e.g. model loading) does not skew the estimate once the pace
+// picks up. Events take milliseconds and vary more (stored ones skip the
+// embedder), so their window is wider.
+const (
+	etaWindow      = 20
+	eventETAWindow = 500
+)
 
 // etaTracker estimates time remaining from a moving average of the
-// durations of the last etaWindow completed items.
+// durations of the last window completed items.
 type etaTracker struct {
 	now     func() time.Time
 	last    time.Time
+	window  int
 	samples []time.Duration
 }
 
-func newETATracker(now func() time.Time) *etaTracker {
-	return &etaTracker{now: now, last: now()}
+func newETATracker(now func() time.Time, window int) *etaTracker {
+	return &etaTracker{now: now, last: now(), window: window}
 }
 
 // advance records the duration since the previous advance (or since the
@@ -26,7 +32,7 @@ func newETATracker(now func() time.Time) *etaTracker {
 func (t *etaTracker) advance() {
 	now := t.now()
 	t.samples = append(t.samples, now.Sub(t.last))
-	if len(t.samples) > etaWindow {
+	if len(t.samples) > t.window {
 		t.samples = t.samples[1:]
 	}
 	t.last = now
@@ -44,11 +50,15 @@ func (t *etaTracker) remaining(pending int) time.Duration {
 	return (total / time.Duration(len(t.samples))) * time.Duration(pending)
 }
 
-// formatETA is "~45s" or "~2m30s"; callers skip it entirely for 0.
+// formatETA is "~45s", "~2m30s" or "~3h05m"; callers skip it for 0.
 func formatETA(d time.Duration) string {
 	d = d.Round(time.Second)
-	minutes := d / time.Minute
+	hours := d / time.Hour
+	minutes := (d % time.Hour) / time.Minute
 	seconds := (d % time.Minute) / time.Second
+	if hours > 0 {
+		return fmt.Sprintf("~%dh%02dm", hours, minutes)
+	}
 	if minutes == 0 {
 		return fmt.Sprintf("~%ds", seconds)
 	}

@@ -6,9 +6,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/doctor"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 )
@@ -136,5 +138,60 @@ func TestEveryProblemIsWorded(t *testing.T) {
 				t.Errorf("problem %d in language %d is worded %q", problem, language, text)
 			}
 		}
+	}
+}
+
+func TestDoctorShowsTheLastFinishedIngestion(t *testing.T) {
+	world := doctorWorld()
+	world.runState.State = ingestrun.State{PID: 7, Args: []string{"all"}, Status: ingestrun.StatusFinished,
+		StartedAt: cliNow.Add(-50 * time.Hour), FinishedAt: cliNow.Add(-49 * time.Hour)}
+	world.runState.Found = true
+	code, stdout, _ := world.run("doctor")
+	want := "ok     última ingestão        2026-09-24 11:00:00 (há 2 dias), concluída: cade ingest all\n"
+	if code != 0 || !strings.Contains(stdout, want) || !strings.Contains(stdout, "Tudo pronto (0 avisos)") {
+		t.Fatalf("expected %q and no warning, got %d:\n%s", want, code, stdout)
+	}
+}
+
+func TestDoctorWarnsAboutAnUnfinishedIngestion(t *testing.T) {
+	world := doctorWorld()
+	world.runState.State = ingestrun.State{PID: 7, Args: []string{"file"}, Status: ingestrun.StatusInterrupted,
+		StartedAt: cliNow.Add(-2 * time.Hour), FinishedAt: cliNow.Add(-time.Hour)}
+	world.runState.Found = true
+	code, stdout, _ := world.run("doctor")
+	if code != 0 || !strings.Contains(stdout, "aviso  última ingestão        2026-09-26 11:00:00 (há 1:00:00), interrompida: cade ingest file") ||
+		!strings.Contains(stdout, "cade ingest resume") || !strings.Contains(stdout, "Tudo pronto (1 aviso)") {
+		t.Fatalf("expected a warning with a resume hint, got %d:\n%s", code, stdout)
+	}
+}
+
+func TestDoctorSaysWhenNoIngestionWasRecorded(t *testing.T) {
+	world := doctorWorld()
+	world.language = English
+	_, stdout, _ := world.run("doctor")
+	if !strings.Contains(stdout, "—      last ingestion         none recorded\n") || !strings.Contains(stdout, "All set (0 warnings)") {
+		t.Fatalf("expected an informative line without a warning, got:\n%s", stdout)
+	}
+}
+
+func TestDoctorShowsAPausedIngestionWithoutWarning(t *testing.T) {
+	world := doctorWorld()
+	state := runningState(77)
+	state.Status = ingestrun.StatusPaused
+	world.runState.State, world.runState.Found = state, true
+	world.processes.AlivePIDs = []int{77}
+	_, stdout, _ := world.run("doctor")
+	if !strings.Contains(stdout, "ok     última ingestão        2026-09-26 11:59:58 (há 0:02), pausada: cade ingest file /notes") ||
+		!strings.Contains(stdout, "Tudo pronto (0 avisos)") {
+		t.Fatalf("expected a paused run shown without a warning, got:\n%s", stdout)
+	}
+}
+
+func TestDoctorWarnsAboutAVanishedIngestion(t *testing.T) {
+	world := doctorWorld()
+	world.runState.State, world.runState.Found = runningState(77), true
+	_, stdout, _ := world.run("doctor")
+	if !strings.Contains(stdout, "aviso  última ingestão") || !strings.Contains(stdout, "parou sem registrar o fim: cade ingest file /notes") {
+		t.Fatalf("expected a warning for a run whose process is gone, got:\n%s", stdout)
 	}
 }

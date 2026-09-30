@@ -20,13 +20,18 @@ import (
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
 	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
+	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/storage/sqlitestore"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// SIGHUP (the terminal closed) cancels like Ctrl-C, so a foreground
+	// ingest records that it was interrupted and can be resumed.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	code := cli.Run(ctx, os.Args[1:], os.Stdout, os.Stderr, productionToolkit())
 	stop()
 	os.Exit(code)
@@ -54,7 +59,31 @@ func productionToolkit() cli.Toolkit {
 		Language:           cli.LanguageFromEnv(os.Getenv),
 		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
 		Now:                time.Now,
+		IngestRuns:         ingestRunTools(),
 	}
+}
+
+func ingestRunTools() cli.IngestRunTools {
+	dir := ingestRunDir()
+	return cli.IngestRunTools{
+		State:     ingestrun.JSONStateFile{Dir: dir},
+		Lock:      ingestrun.FileLock{Dir: dir},
+		LogPath:   dir.LogPath(),
+		Processes: procctl.System{},
+		Clock:     pacing.SystemClock{},
+		Detached:  os.Getenv(cli.DetachedIngestVariable) == "1",
+		PID:       os.Getpid(),
+	}
+}
+
+// ingestRunDir falls back to the temporary directory without a home, where
+// the database path cannot be expanded either and ingest fails first.
+func ingestRunDir() ingestrun.Dir {
+	dir, err := ingestrun.DefaultDir(os.Getenv, os.UserHomeDir)
+	if err != nil {
+		return ingestrun.Dir(filepath.Join(os.TempDir(), "cade"))
+	}
+	return dir
 }
 
 func renderImagePreview(path string) string {

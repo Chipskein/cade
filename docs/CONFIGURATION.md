@@ -13,6 +13,10 @@
 | `ingest.redact` | Mask recognized secrets in event text (default `true`). File globs and URL parameter removal always apply. |
 | `ingest.max_image_bytes` | Images larger than this are not described (default 20 MiB); they keep their name only, like other binaries. |
 | `ingest.max_images_per_run` | New images described per `ingest` (default 50, ~20 min on a 6-core CPU); the rest wait for the next runs. |
+| `ingest.background.threads` | CPU threads for both models in `ingest start` and `ingest --gentle` runs (default `2`; `0` = physical cores). |
+| `ingest.background.gpu_layers` | GPU layers for both models in those runs (default `-1` = all); `0` keeps the GPU free. |
+| `ingest.background.busy_percent` | Share of the time the models may work in those runs (default `50`, from `1` to `100`); they rest after each call, which is what limits the GPU. |
+| `ingest.background.max_images_per_run` | Replaces `ingest.max_images_per_run` in those runs (default `500`). |
 | `ingest.retention.max_age_days` | Optional per-source age limit in days; empty by default. Example: `{ "teams": 365 }`. Applied after each source ingestion. |
 | `ingest.retention.max_age_days.git` | Set a positive age in days for git; `0` disables retention. |
 | `ingest.retention.max_age_days.browser` | Set a positive age in days for browser; `0` disables retention. |
@@ -90,6 +94,47 @@ With `sources.images` on, each image costs about 1.7 s on an RTX 3060 and 22 s o
 
 Point `sources.teams_indexeddb_dirs` at the IndexedDB directory of your Chromium-based Teams profile (e.g. `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`).
 
+## Background ingestion
+
+A long ingestion (a first run, a folder of thousands of images) can run for hours without holding a terminal or the whole machine:
+
+```sh
+cade ingest start all   # detaches; keeps going after the terminal closes
+cade ingest status      # stage, progress, ETA, log path
+cade ingest pause       # freezes it: no CPU or GPU work, models kept in memory
+cade ingest resume      # continues a paused run, or runs the last unfinished one again
+cade ingest stop        # ends it and frees the memory; what it stored so far stays
+```
+
+- **Progress:** the running ingestion records its stage and progress line in `~/.local/state/cade/ingest-state.json` (or under `$XDG_STATE_HOME`) about once a second; `status` reads it from any terminal, and `cade doctor` shows when the last one ran and how it ended. Background runs write their output to `ingest.log` in the same folder.
+- **ETA:** image descriptions and the `file` and `git` sources show an ETA, from how long the recent items took; `browser` and `teams` cannot count their events up front and show the rate instead.
+- **Pause or stop:** `pause` freezes the process (SIGSTOP): it uses no CPU or GPU, but its models stay in memory (~2.5 GB of VRAM with the defaults), and `resume` continues it at once. `stop` ends it (SIGTERM, like Ctrl-C) and frees the memory; `resume` then runs it again, skipping stored events and described images without touching the models, so it picks up where it was.
+- **One at a time:** while an ingestion is running or paused, starting another one (`cade ingest …` or `start`) is refused with its pid. An interrupted or failed one does not block new runs, so a timer never stops ingesting because of an old failure.
+
+### How the limits work
+
+`ingest start` and `ingest --gentle` apply `ingest.background`, in four layers:
+
+| Layer | Setting | What it limits | What it does not |
+|---|---|---|---|
+| Threads | `threads` (2) | CPU cores llama.cpp uses; other programs keep the rest | GPU work |
+| GPU layers | `gpu_layers` (-1) | how much of each model runs on the GPU: `0` keeps the GPU free and runs on the CPU | the GPU's load while it works |
+| Rest between calls | `busy_percent` (50) | the share of time the models work: after each embedding or image, the run waits in proportion to how long the work took (at 50, 2 s of work, 2 s of rest), so the average CPU/GPU load, power and heat follow that share | the peak power during each piece of work |
+| Priority | none | CPU (nice 19) and disk (idle class): any other program comes first | the GPU, which has no priority between processes |
+
+The rest is the only lever cade has on the GPU. With images, each description is ~1.7 s of GPU work on an RTX 3060, so at 50 % the GPU alternates ~1.7 s at full power and ~1.7 s idle; the average power roughly halves and the temperature settles lower, since the cooler has the idle time to catch up. Embeddings are milliseconds each, so their bursts are too short to heat anything.
+
+**A hard power or temperature cap** is set on the GPU itself, not by cade: it needs root and applies to every program using the GPU.
+
+```sh
+nvidia-smi -q -d POWER            # default and minimum power limit
+sudo nvidia-smi -pl 110           # cap at 110 W until reboot (an RTX 3060 defaults to 170 W)
+sudo nvidia-smi -lgc 300,1500     # or cap the core clock (MHz)
+sudo nvidia-smi -rgc              # undo the clock cap
+```
+
+A power cap costs little speed: GPUs lose much less performance than power near the top of their range. Combined with `busy_percent`, it keeps both the peak and the average down.
+
 ## Scheduled ingestion
 
 > **Chrome purges visits older than ~90 days and the Teams client only caches what you have opened — if you skip a run, that window closes for good.**
@@ -102,7 +147,7 @@ Description=cade ingest
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/cade ingest all
+ExecStart=%h/.local/bin/cade ingest --gentle all
 ```
 
 `~/.config/systemd/user/cade-ingest.timer`:
@@ -126,5 +171,7 @@ systemctl --user enable --now cade-ingest.timer
 Or with crontab:
 
 ```cron
-0 8 * * * ~/.local/bin/cade ingest all
+0 8 * * * ~/.local/bin/cade ingest --gentle all
 ```
+
+`--gentle` keeps a scheduled run from slowing down whatever you are doing when it fires; drop it to ingest at full speed. Do not use `ingest start` in a timer: it detaches at once, and systemd would take the run as finished.

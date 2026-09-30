@@ -84,6 +84,8 @@ flowchart TD
         indexeddb["indexeddb<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
         imagefile["imagefile<br/>png, jpeg, webp → RGB"]
+        ingestrun["ingestrun<br/>estado e trava do ingest (#41)"]
+        pacing["pacing<br/>descanso dos modelos (#41)"]
     end
 
     subgraph portas["Interfaces do núcleo"]
@@ -96,6 +98,7 @@ flowchart TD
         llamacpp["llm/llamacpp<br/>(cgo, llama.cpp)"]
         sqlitestore["storage/sqlitestore<br/>(SQLite, sqlite-vec, FTS5)"]
         imagepreview["imagepreview<br/>prévia de imagem citada<br/>(programa chafa, opcional)"]
+        procctl["procctl<br/>processo fora do terminal,<br/>parada e prioridade (#41)"]
     end
 
     main --> cli
@@ -104,6 +107,7 @@ flowchart TD
     main --> sqlitestore
     main --> config
     main --> imagepreview
+    main --> procctl
 
     cli --> doctor
     cli --> discovery
@@ -114,6 +118,8 @@ flowchart TD
     cli --> ingest
     cli --> imagecaption
     cli --> provenance
+    cli --> ingestrun
+    cli --> pacing
 
     queryplan --> llm
     queryplan --> listing
@@ -134,6 +140,7 @@ flowchart TD
     imagecaption --> imagefile
     imagecaption --> llm
     imagecaption --> storage
+    pacing --> llm
 
     storage --> listing
     storage --> event
@@ -267,6 +274,36 @@ flowchart LR
     v8 --> teams["teamssource.Collector<br/>mensagens, conversas, perfis"]
     teams -->|"emit(event.Event)"| pipeline["ingest.Pipeline"]
 ```
+
+### Em segundo plano (`ingest start`, `status`, `pause`, `resume`, `stop`, `--gentle`)
+
+O `cli` não faz nada disso direto: o `Toolkit.IngestRuns` traz o arquivo de estado e a trava (`ingestrun`), o controle de processos (`procctl`) e o relógio do `pacing`, e os testes trocam tudo por fakes.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as cade ingest start
+    participant PC as procctl.System
+    participant F as cade (filho, setsid)
+    participant L as ingestrun.FileLock
+    participant ST as ingestrun.JSONStateFile
+    participant M as modelos (pacing)
+
+    U->>U: planIngest (fonte errada falha aqui)
+    U->>L: Acquire + libera (outra ingestão? recusa com o pid)
+    U->>PC: StartDetached(--config C ingest -- ARGS, CADE_INGEST_DETACHED=1, ingest.log)
+    PC-->>F: novo processo, sem terminal, stdin /dev/null
+    F->>L: Acquire (até o processo acabar)
+    F->>PC: LowerPriority (nice 19, E/S ociosa, cada thread)
+    F->>ST: Write(running, args, modo)
+    loop cada imagem / evento
+        F->>M: DescribeImage / Embed, depois descansa (busy_percent)
+        F->>ST: etapa e linha de progresso (no máximo 1 vez por segundo)
+    end
+    F->>ST: finished · interrupted (SIGTERM, SIGHUP, Ctrl-C) · failed
+```
+
+O processo filho é um `cade ingest` comum com `config.WithBackgroundLimits()` (threads, `gpu_layers`, imagens por execução de `ingest.background`) e com o embedder e o descritor de imagens embrulhados em `pacing.PacedEmbedder` e `pacing.PacedDescriber`. `--gentle` faz o mesmo no próprio terminal. `status` lê o estado e confere se o pid ainda existe (o `doctor` mostra a mesma data); `pause` manda SIGSTOP e grava `paused`, já que o processo congelado não grava nada; `stop` manda SIGTERM e SIGCONT, que cancelam o contexto como o Ctrl-C mesmo numa execução pausada; `resume` manda SIGCONT a uma pausada ou roda de novo os argumentos gravados, no mesmo modo, e a deduplicação (RF1.5) pula o que já foi gravado.
 
 ---
 

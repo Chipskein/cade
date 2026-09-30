@@ -39,6 +39,14 @@ type SnapshotCollector interface {
 	SnapshotRoot() string
 }
 
+// EventEstimator knows cheaply, before collecting, about how many events
+// it will emit, so the progress can show an ETA (issue #41). Collectors
+// that can only tell by reading everything do not implement it.
+type EventEstimator interface {
+	EventCollector
+	EstimateEvents(ctx context.Context) (int, error)
+}
+
 // Report counts what one ingestion run did.
 type Report struct {
 	Collected int

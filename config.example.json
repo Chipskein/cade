@@ -4,7 +4,13 @@
     "redact": true,
     "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } },
     "max_image_bytes": 20971520,
-    "max_images_per_run": 50
+    "max_images_per_run": 50,
+    "background": {
+      "threads": 2,
+      "gpu_layers": -1,
+      "busy_percent": 50,
+      "max_images_per_run": 500
+    }
   },
   "embedding": {
     "model_path": "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
