@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -128,8 +129,24 @@ func TestVisionProjectorLoadsForGenerator(t *testing.T) {
 }
 
 func TestVisionProjectorRejectsMissingFile(t *testing.T) {
-	if _, err := LoadVisionProjector(loadTestGenerator(t, 1024), "/nonexistent/mmproj.gguf", false); err == nil {
+	_, err := LoadVisionProjector(loadTestGenerator(t, 1024), "/nonexistent/mmproj.gguf", false)
+	if err == nil {
 		t.Fatal("expected an error for a missing projector file")
+	}
+	if !strings.Contains(err.Error(), "file missing") {
+		t.Fatalf("expected error to report the file as missing, got: %v", err)
+	}
+}
+
+func TestVisionProjectorRejectsMismatchedModelNamingBoth(t *testing.T) {
+	generationPath := modelPathOrSkip(t, generationModelEnv)
+	generator := loadTestGenerator(t, 1024)
+	_, err := LoadVisionProjector(generator, generationPath, false)
+	if err == nil {
+		t.Fatal("expected an error when the projector path is not an mmproj GGUF")
+	}
+	if !strings.Contains(err.Error(), filepath.Base(generationPath)) {
+		t.Fatalf("expected error %q to name the generation model %q", err, generationPath)
 	}
 }
 

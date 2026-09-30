@@ -7,8 +7,14 @@ import (
 	"path"
 
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/gguf"
 	"github.com/chipskein/cade/internal/rootfs"
 )
+
+// sizeLabelKey is the GGUF metadata key naming a model's parameter-count
+// bucket (e.g. "4B"), set by the release's conversion for both a
+// generation model and the mmproj released with it.
+const sizeLabelKey = "general.size_label"
 
 // File signatures: only these few bytes are read, never the content.
 var (
@@ -34,6 +40,40 @@ func checkConfigFile(fsys fs.FS, configPath string) Finding {
 
 func checkModel(fsys fs.FS, subject Subject, setting, modelPath string) Finding {
 	return Finding{Subject: subject, Setting: setting, Path: modelPath, Problem: requireHeader(fsys, modelPath, ggufMagic, ProblemNotGGUF)}
+}
+
+// checkVisionPairing compares generationPath's and projectorPath's GGUF
+// "general.size_label" metadata; it stays quiet when either file lacks the
+// key, since older conversions never set it.
+func checkVisionPairing(fsys fs.FS, generationPath, projectorPath string) Finding {
+	finding := Finding{Subject: SubjectVisionProjector, Setting: "vision.projector_path", Path: projectorPath}
+	generationSize, ok := readSizeLabel(fsys, generationPath)
+	if !ok {
+		return finding
+	}
+	projectorSize, ok := readSizeLabel(fsys, projectorPath)
+	if !ok || generationSize == projectorSize {
+		return finding
+	}
+	finding.Problem = ProblemVisionModelMismatch
+	finding.PairedModelPath, finding.PairedModelSize, finding.ProjectorSize = generationPath, generationSize, projectorSize
+	return finding
+}
+
+// readSizeLabel reads target's "general.size_label" GGUF metadata; ok is
+// false when the file can't be opened, isn't a GGUF, or lacks the key.
+func readSizeLabel(fsys fs.FS, target string) (size string, ok bool) {
+	file, err := fsys.Open(rootfs.Name(target))
+	if err != nil {
+		return "", false
+	}
+	defer file.Close()
+	metadata, err := gguf.ReadStringMetadata(file, sizeLabelKey)
+	if err != nil {
+		return "", false
+	}
+	size, ok = metadata[sizeLabelKey]
+	return size, ok
 }
 
 func checkSources(fsys fs.FS, sources config.SourcesConfig) []Finding {

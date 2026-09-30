@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"path"
 	"slices"
 
 	"github.com/chipskein/cade/internal/doctor"
@@ -16,6 +17,7 @@ var problemWordings = map[doctor.Problem]problemWording{
 	doctor.ProblemNoSources:              fixed("nenhuma fonte configurada; rode `cade init` ou edite `sources`", "no source configured; run `cade init` or edit `sources`"),
 	doctor.ProblemNoDatabase:             fixed("ainda não existe; o primeiro `cade ingest` cria", "does not exist yet; the first `cade ingest` creates it"),
 	doctor.ProblemThresholdModelMismatch: thresholdModelWording,
+	doctor.ProblemVisionModelMismatch:    visionModelMismatchWording,
 	doctor.ProblemMissing:                missingWording,
 	doctor.ProblemNotAFile:               withSetting("é um diretório; `%s` espera um arquivo", "is a directory; `%s` expects a file"),
 	doctor.ProblemNotADirectory: withSetting("não é um diretório; `%s` espera um diretório",
@@ -72,6 +74,13 @@ func missingWording(finding doctor.Finding, language Language) string {
 func schemaTooNewWording(finding doctor.Finding, language Language) string {
 	return fmt.Sprintf(language.pick("esquema v%d, mais novo que este cade (v%d); atualize o cade", "schema v%d, newer than this cade (v%d); update cade"),
 		finding.Database.SchemaVersion, finding.Database.LatestSchemaVersion)
+}
+
+func visionModelMismatchWording(finding doctor.Finding, language Language) string {
+	return fmt.Sprintf(language.pick(
+		"tamanho %s, mas o modelo de geração %q é %s; use o mmproj lançado junto com ele",
+		"size %s, but the generation model %q is %s; use the mmproj released with it"),
+		finding.ProjectorSize, path.Base(finding.PairedModelPath), finding.PairedModelSize)
 }
 
 func embeddingMismatchWording(finding doctor.Finding, language Language) string {

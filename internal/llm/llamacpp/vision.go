@@ -25,6 +25,8 @@ import "C"
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"unsafe"
 )
@@ -50,7 +52,13 @@ func LoadVisionProjector(generator *Generator, path string, useGPU bool) (*Visio
 	threads := C.int(threadCount(0, runtime.NumCPU()))
 	ctx := C.cade_load_projector(cPath, generator.loaded.model, C.bool(useGPU), threads)
 	if ctx == nil {
-		return nil, fmt.Errorf("load vision projector %q: file missing, not an mmproj GGUF, or made for another model", path)
+		if _, statErr := os.Stat(path); statErr != nil {
+			return nil, fmt.Errorf("load vision projector %q: file missing: %w", path, statErr)
+		}
+		return nil, fmt.Errorf(
+			"load vision projector %q: not an mmproj GGUF, or made for another model (generation model %q; the mmproj must come from the same release)",
+			path, filepath.Base(generator.modelPath),
+		)
 	}
 	return &VisionProjector{ctx: ctx}, nil
 }

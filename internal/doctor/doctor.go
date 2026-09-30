@@ -45,6 +45,13 @@ type Finding struct {
 	// Database and ConfiguredModel detail a SubjectDatabase finding.
 	Database        storage.DatabaseState
 	ConfiguredModel string
+	// PairedModelPath, PairedModelSize and ProjectorSize detail a
+	// SubjectVisionProjector pairing-mismatch finding: the generation
+	// model's path and its GGUF "general.size_label" (e.g. "4B"), and
+	// the projector's own size_label (e.g. "2B").
+	PairedModelPath string
+	PairedModelSize string
+	ProjectorSize   string
 }
 
 // Severity is the finding's problem's severity.
@@ -58,10 +65,11 @@ func (f Finding) Severity() Severity {
 //
 //	findings := doctor.Diagnose(os.DirFS("/"), configPath, cfg, state)
 func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage.DatabaseState) []Finding {
+	generation := checkModel(fsys, SubjectGenerationModel, "generation.model_path", cfg.Generation.ModelPath)
 	findings := []Finding{
 		checkConfigFile(fsys, configPath),
 		checkModel(fsys, SubjectEmbeddingModel, "embedding.model_path", cfg.Embedding.ModelPath),
-		checkModel(fsys, SubjectGenerationModel, "generation.model_path", cfg.Generation.ModelPath),
+		generation,
 		checkKeywordSearch(database),
 		checkDatabase(cfg, database),
 	}
@@ -71,9 +79,23 @@ func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage
 	// Only `ingest` with images on loads the projector; without them a
 	// missing file is not a problem.
 	if cfg.Sources.Images {
-		findings = append(findings, checkModel(fsys, SubjectVisionProjector, "vision.projector_path", cfg.Vision.ProjectorPath))
+		findings = append(findings, checkVisionProjector(fsys, cfg, generation)...)
 	}
 	return append(findings, checkSources(fsys, cfg.Sources)...)
+}
+
+// checkVisionProjector reports the projector file itself, and, once it and
+// the generation model both exist and are GGUFs, whether the two were
+// released together.
+func checkVisionProjector(fsys fs.FS, cfg config.Config, generation Finding) []Finding {
+	projector := checkModel(fsys, SubjectVisionProjector, "vision.projector_path", cfg.Vision.ProjectorPath)
+	if generation.Problem != ProblemNone || projector.Problem != ProblemNone {
+		return []Finding{projector}
+	}
+	if mismatch := checkVisionPairing(fsys, cfg.Generation.ModelPath, cfg.Vision.ProjectorPath); mismatch.Problem != ProblemNone {
+		return []Finding{projector, mismatch}
+	}
+	return []Finding{projector}
 }
 
 // ConfiguredCalibration is the gates cfg searches with, for its embedding
