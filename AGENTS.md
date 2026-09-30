@@ -47,3 +47,11 @@
 
 - Structured JSON when logging for debugging / observability.
 - Plain text only for user-facing CLI output.
+
+## Documentation
+
+- READMEs contain only: description, install, supported platforms, examples, and a "More information" table linking to the docs.
+- Implementation details (config fields, internals, benchmarks, setup) go in `docs/`, not in the README.
+- Each `docs/` file has a single responsibility: `CONFIGURATION.md` for config and setup, `ARCHITECTURE.md` for code structure, `BENCHMARKS.md` for measurements, `DEVELOPMENT.md` for build and CI, `USECASES.md` for query patterns.
+- Every README section that moved to `docs/` must be referenced in the "More information" table with a one-line description of what the reader will find there.
+- Bilingual rule: README.md + docs with no `.pt-BR` suffix are in English; README.pt-BR.md + `docs/*.pt-BR.md` are in Portuguese. Keep both in sync.

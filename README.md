@@ -21,67 +21,9 @@ go tool mage models    # downloads the models to ~/.local/share/cade/models
 go tool mage install   # installs to ~/.local/bin
 ```
 
-Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chipskein/cade/releases); see [Development](docs/DEVELOPMENT.md) for the checksum and model steps.
-
-## Usage
-
-```sh
-cade init
-cade ingest all
-cade timeline yesterday
-cade tasks today
-cade ask "what did I work on yesterday?"
-```
-
-## Scheduled ingestion
-
-> **Chrome purges visits older than ~90 days and the Teams client only caches what you have opened — if you skip a run, that window closes for good.**
-
-`~/.config/systemd/user/cade-ingest.service`:
-
-```ini
-[Unit]
-Description=cade ingest
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/cade ingest all
-```
-
-`~/.config/systemd/user/cade-ingest.timer`:
-
-```ini
-[Unit]
-Description=Run cade ingest daily
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```sh
-systemctl --user enable --now cade-ingest.timer
-```
-
-Or with crontab:
-
-```cron
-0 8 * * * ~/.local/bin/cade ingest all
-```
-
-## Teams *(experimental)*
-
-> - Depends on the internal IndexedDB format the Teams web client writes to a Chromium profile — the format can change without notice.
-> - Only sees what the client has cached. A conversation you never opened has no messages here.
-> - Messages deleted at the source after ingestion remain in cade until `cade forget`.
-> - Ingests only chat messages — not calendar events or call history.
+Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chipskein/cade/releases).
 
 ## Platform support
-
-Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
 
 | Source | Linux | macOS | Windows |
 |--------|-------|-------|---------|
@@ -91,19 +33,22 @@ Linux x86-64 is the only CI and release target. macOS should work when built fro
 | teams | ✓ tested | should work | not supported |
 | images | ✓ tested | should work | not supported |
 
-## Images (optional)
+Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
 
-Enable `sources.images` (`cade init` asks) and `ingest` describes your png, jpeg and webp files with a local vision model, so you can find them by what they show and the text in them. Only the description is stored, never the pixels.
+## Examples
 
-- **Cost:** ~1.7 s per image on an RTX 3060, ~22 s on a 6-core CPU.
-- **Batches:** each `ingest` describes up to `ingest.max_images_per_run` (default 50); the rest wait for the next run.
-- **Redo:** `cade reindex --captions` after changing the model or prompt.
+```sh
+cade init
+cade ingest all
+cade timeline yesterday
+cade tasks today
+cade ask "what did I work on yesterday?"
+```
 
-Example: finding an image by its text ("images where the characters say …"):
+Finding an image by its text:
 
 ```console
-$ cade ask "Imagens em que o personagens falam 'help me pay for divorce papers' "
-Understood: answer · file · topic: personagens falam 'help me pay for divorce papers'
+$ cade ask "images where the characters say 'help me pay for divorce papers'"
 A imagem em que o personagem diz "help me pay for divorce papers" é a [1].
 
 Cited sources:
@@ -114,11 +59,10 @@ Cited sources:
   <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-example.jpg" alt="HRrl-KYbIAAINeq.jpg: a game screenshot with the caption 'help me pay for divorce papers'" width="320">
 </p>
 
-Example: finding an image by what it shows ("album cover with a blonde woman"):
+Finding an image by what it shows:
 
 ```console
-$ cade ask "Imagem Albúm com mulher loira na capa"
-Understood: answer · topic: Imagem Albúm com mulher loira na capa
+$ cade ask "album cover with a blonde woman"
 A imagem de capa de álbum com uma mulher loira foi encontrada em um arquivo acessado em 15 de setembro de 2026 [1].
 
 Cited sources:
@@ -129,17 +73,15 @@ Cited sources:
   <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-album-example.jpg" alt="maxresdefault.jpg: a parody album cover showing a blonde woman" width="320">
 </p>
 
-## Development
+## More information
 
-```sh
-go tool mage -l      # lists the targets
-go tool mage check   # what CI runs: fmtCheck, vet, lint and test
-```
-
-Targets, environment variables and build details: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-
-## Documentation
-
-[Architecture](docs/ARCHITECTURE.md) · [Use cases](docs/USECASES.md) · [Configuration](docs/CONFIGURATION.md) · [Development](docs/DEVELOPMENT.md) · [Benchmarks](docs/BENCHMARKS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md)
+| | |
+|---|---|
+| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, scheduled ingestion. |
+| [Use cases](docs/USECASES.md) | Practical query patterns and workflows. |
+| [Architecture](docs/ARCHITECTURE.md) | How the code is organized and how components interact. |
+| [Benchmarks](docs/BENCHMARKS.md) | Search latency, retrieval quality and image description cost. |
+| [Development](docs/DEVELOPMENT.md) | Build targets, environment variables, CI. |
+| [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) | What's planned and what changed. |
 
 Licensed GPL-3.0-or-later ([LICENSE](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md), [details](docs/LICENSING.md)).

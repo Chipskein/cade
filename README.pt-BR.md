@@ -21,67 +21,9 @@ go tool mage models    # baixa os modelos em ~/.local/share/cade/models
 go tool mage install   # instala em ~/.local/bin
 ```
 
-Binários prontos para Linux x86-64 estão na [página de releases](https://github.com/Chipskein/cade/releases); veja [Desenvolvimento](docs/DEVELOPMENT.pt-BR.md) para a verificação do checksum e os modelos.
+Binários prontos para Linux x86-64 estão na [página de releases](https://github.com/Chipskein/cade/releases).
 
-## Uso
-
-```sh
-cade init
-cade ingest all
-cade timeline ontem
-cade tasks hoje
-cade ask "o que eu fiz ontem?"
-```
-
-## Ingestão agendada
-
-> **O Chrome apaga visitas com mais de ~90 dias e o cliente do Teams só guarda em cache o que você abriu — se você pular uma execução, essa janela fecha para sempre.**
-
-`~/.config/systemd/user/cade-ingest.service`:
-
-```ini
-[Unit]
-Description=cade ingest
-
-[Service]
-Type=oneshot
-ExecStart=%h/.local/bin/cade ingest all
-```
-
-`~/.config/systemd/user/cade-ingest.timer`:
-
-```ini
-[Unit]
-Description=Executa cade ingest diariamente
-
-[Timer]
-OnCalendar=daily
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```sh
-systemctl --user enable --now cade-ingest.timer
-```
-
-Ou com crontab:
-
-```cron
-0 8 * * * ~/.local/bin/cade ingest all
-```
-
-## Teams *(experimental)*
-
-> - Depende do formato interno do IndexedDB que o cliente web do Teams grava num perfil Chromium — o formato pode mudar sem aviso.
-> - Só enxerga o que o cliente tem em cache. Uma conversa que você nunca abriu não tem mensagens aqui.
-> - Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
-> - Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
-
-## Suporte por plataforma
-
-Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando a partir do código-fonte. Windows não é suportado.
+## Plataformas suportadas
 
 | Fonte | Linux | macOS | Windows |
 |-------|-------|-------|---------|
@@ -91,19 +33,22 @@ Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando 
 | teams | ✓ testado | deve funcionar | não suportado |
 | imagens | ✓ testado | deve funcionar | não suportado |
 
-## Imagens (opcional)
+Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando a partir do código-fonte. Windows não é suportado.
 
-Ligue `sources.images` (o `cade init` pergunta) e o `ingest` descreve seus arquivos png, jpeg e webp com um modelo de visão local, para você encontrá-los pelo que mostram e pelo texto que têm. Só a descrição fica guardada, nunca os pixels.
+## Exemplos
 
-- **Custo:** ~1,7 s por imagem numa RTX 3060, ~22 s numa CPU de 6 núcleos.
-- **Lotes:** cada `ingest` descreve até `ingest.max_images_per_run` (padrão 50); o resto fica para a próxima execução.
-- **Refazer:** `cade reindex --captions` depois de trocar o modelo ou o prompt.
+```sh
+cade init
+cade ingest all
+cade timeline ontem
+cade tasks hoje
+cade ask "o que eu fiz ontem?"
+```
 
-Exemplo: encontrando uma imagem pelo texto dela:
+Encontrando uma imagem pelo texto dela:
 
 ```console
-$ cade ask "Imagens em que o personagens falam 'help me pay for divorce papers' "
-Understood: answer · file · topic: personagens falam 'help me pay for divorce papers'
+$ cade ask "imagens em que os personagens falam 'help me pay for divorce papers'"
 A imagem em que o personagem diz "help me pay for divorce papers" é a [1].
 
 Cited sources:
@@ -114,11 +59,10 @@ Cited sources:
   <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-example.jpg" alt="HRrl-KYbIAAINeq.jpg: captura de jogo com a legenda 'help me pay for divorce papers'" width="320">
 </p>
 
-Exemplo: encontrando uma imagem pelo que ela mostra:
+Encontrando uma imagem pelo que ela mostra:
 
 ```console
-$ cade ask "Imagem Albúm com mulher loira na capa"
-Understood: answer · topic: Imagem Albúm com mulher loira na capa
+$ cade ask "álbum com mulher loira na capa"
 A imagem de capa de álbum com uma mulher loira foi encontrada em um arquivo acessado em 15 de setembro de 2026 [1].
 
 Cited sources:
@@ -129,17 +73,15 @@ Cited sources:
   <img src="https://raw.githubusercontent.com/Chipskein/cade/dev/assets/ask-images-album-example.jpg" alt="maxresdefault.jpg: paródia de capa de álbum com uma mulher loira" width="320">
 </p>
 
-## Desenvolvimento
+## Mais informações
 
-```sh
-go tool mage -l      # lista os alvos
-go tool mage check   # o que a CI roda: fmtCheck, vet, lint e test
-```
-
-Alvos, variáveis de ambiente e detalhes de build: [docs/DEVELOPMENT.pt-BR.md](docs/DEVELOPMENT.pt-BR.md).
-
-## Documentação
-
-[Arquitetura](docs/ARCHITECTURE.md) · [Casos de uso](docs/USECASES.md) · [Configuração](docs/CONFIGURATION.pt-BR.md) · [Desenvolvimento](docs/DEVELOPMENT.pt-BR.md) · [Benchmarks](docs/BENCHMARKS.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.pt-BR.md)
+| | |
+|---|---|
+| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, ingestão agendada. |
+| [Casos de uso](docs/USECASES.md) | Padrões de consulta e fluxos de trabalho práticos. |
+| [Arquitetura](docs/ARCHITECTURE.md) | Como o código está organizado e como os componentes interagem. |
+| [Benchmarks](docs/BENCHMARKS.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |
+| [Desenvolvimento](docs/DEVELOPMENT.pt-BR.md) | Alvos de build, variáveis de ambiente, CI. |
+| [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.pt-BR.md) | O que está planejado e o que mudou. |
 
 Licença GPL-3.0-or-later ([LICENSE](LICENSE), [avisos de terceiros](THIRD_PARTY_NOTICES.md), [detalhes](docs/LICENSING.pt-BR.md)).

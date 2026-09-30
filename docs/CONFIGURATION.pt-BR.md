@@ -80,3 +80,51 @@ A busca vetorial percorre todos os pedaços de forma linear (sem índice aproxim
 ## Custo da descrição de imagens
 
 Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.md](BENCHMARKS.md).
+
+## Fonte Teams *(experimental)*
+
+- Depende do formato interno do IndexedDB que o cliente web do Teams grava num perfil Chromium — o formato pode mudar sem aviso.
+- Só enxerga o que o cliente tem em cache. Uma conversa que você nunca abriu não tem mensagens aqui.
+- Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
+- Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
+
+Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil Chromium do Teams (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`).
+
+## Ingestão agendada
+
+> **O Chrome apaga visitas com mais de ~90 dias e o cliente do Teams só guarda em cache o que você abriu — se você pular uma execução, essa janela fecha para sempre.**
+
+`~/.config/systemd/user/cade-ingest.service`:
+
+```ini
+[Unit]
+Description=cade ingest
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/cade ingest all
+```
+
+`~/.config/systemd/user/cade-ingest.timer`:
+
+```ini
+[Unit]
+Description=Executa cade ingest diariamente
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+```sh
+systemctl --user enable --now cade-ingest.timer
+```
+
+Ou com crontab:
+
+```cron
+0 8 * * * ~/.local/bin/cade ingest all
+```
