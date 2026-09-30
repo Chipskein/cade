@@ -101,13 +101,38 @@ func (env commandEnv) forgetMatch(ctx context.Context, text, source, from, to st
 				return nil
 			}
 		}
-		for _, ev := range matches {
-			if _, err := store.DeleteEvent(ctx, ev.UID); err != nil {
-				return err
-			}
-		}
-		return nil
+		return env.deleteMatches(ctx, store, matches)
 	})
+}
+
+// deleteMatches removes the matched events, one store call each — the part
+// of `forget --match` that can take a while on a large match set — showing
+// a throttled "done/total (%) · ETA" line while it runs.
+func (env commandEnv) deleteMatches(ctx context.Context, store storage.EventStore, matches []event.Event) error {
+	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
+	defer status.clear()
+	tracker := newETATracker(env.toolkit.Now)
+	lastShown := env.toolkit.Now()
+	for i, ev := range matches {
+		if _, err := store.DeleteEvent(ctx, ev.UID); err != nil {
+			return err
+		}
+		tracker.advance()
+		done := i + 1
+		if now := env.toolkit.Now(); done == len(matches) || now.Sub(lastShown) >= progressInterval(status.interactive) {
+			lastShown = now
+			status.show(deleteMatchesLine(done, len(matches), tracker, env.language))
+		}
+	}
+	status.clear()
+	fmt.Fprintln(env.stdout, env.language.count(len(matches), removedEventNoun)+".")
+	return nil
+}
+
+// deleteMatchesLine is "Apagando eventos: 12/50 (24%) · ETA ~5s".
+func deleteMatchesLine(done, total int, tracker *etaTracker, language Language) string {
+	prefix := language.pick("Apagando eventos: ", "Deleting events: ")
+	return prefix + progressBar(done, total) + etaSuffix(tracker, total-done)
 }
 
 func parseForgetDate(value string) (time.Time, error) {

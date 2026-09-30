@@ -46,10 +46,11 @@ func (env commandEnv) recaptionInBatches(ctx context.Context, cfg config.Config,
 	var tally recaptionTally
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
+	tracker := newETATracker(env.toolkit.Now)
 	batchSize := max(cfg.Ingest.MaxImagesPerRun, 1)
 	for start := 0; start < len(outdated); start += batchSize {
 		batch := outdated[start:min(start+batchSize, len(outdated))]
-		updated, err := env.recaptionBatch(ctx, cfg, batch, recaptionProgress(&status, start, len(outdated), env.language))
+		updated, err := env.recaptionBatch(ctx, cfg, batch, &status, recaptionProgress(&status, tracker, start, len(outdated), env.language))
 		tally.skipped += len(batch) - len(updated)
 		if err != nil {
 			return tally, err
@@ -62,17 +63,24 @@ func (env commandEnv) recaptionInBatches(ctx context.Context, cfg config.Config,
 	return tally, nil
 }
 
-// recaptionProgress shows "Descrevendo de novo: 3/120 imagens" for a batch
-// starting at offset.
-func recaptionProgress(status *statusLine, offset, total int, language Language) func(done int) {
+// recaptionProgress shows "Descrevendo de novo: 3/120 (2%) imagens · ETA
+// ~1m40s" for a batch starting at offset; tracker spans the whole run so its
+// moving average is not reset at each batch boundary.
+func recaptionProgress(status *statusLine, tracker *etaTracker, offset, total int, language Language) func(done int) {
 	return func(done int) {
-		status.show(fmt.Sprintf(language.pick("Descrevendo de novo: %d/%d imagens", "Describing again: %d/%d images"), offset+done, total))
+		tracker.advance()
+		done += offset
+		line := fmt.Sprintf(language.pick("Descrevendo de novo: %s imagens", "Describing again: %s images"), progressBar(done, total))
+		status.show(line + etaSuffix(tracker, total-done))
 	}
 }
 
 // recaptionBatch describes batch with the vision model, freed on return.
-func (env commandEnv) recaptionBatch(ctx context.Context, cfg config.Config, batch []event.Event, progress func(done int)) ([]event.Event, error) {
+func (env commandEnv) recaptionBatch(ctx context.Context, cfg config.Config, batch []event.Event, status *statusLine, progress func(done int)) ([]event.Event, error) {
 	recaptioner := imagecaption.NewRecaptioner(env.toolkit.RootFS, env.describerLoader(cfg), cfg.Generation.ModelName(), env.logger)
+	recaptioner.WithModelLoading(func() {
+		status.show(env.language.pick("Carregando modelo de visão…", "Loading vision model…"))
+	})
 	defer recaptioner.Close()
 	var updated []event.Event
 	for i, stored := range batch {
