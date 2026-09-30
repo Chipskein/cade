@@ -9,7 +9,7 @@ import (
 // formattedDirs are the Go sources gofmt checks.
 var formattedDirs = []string{"cmd", "internal", "magefiles"}
 
-// Build compiles the CPU binary into bin/cade.
+// Build compiles binary into bin/cade.
 func (t *Tasks) Build() error {
 	return t.BuildCUDA()
 }
