@@ -148,7 +148,7 @@ func renderIngestCounts(n int, language Language) string {
 }
 
 func renderIngestProgress(n int, language Language) string {
-	progress := ingestProgress{label: "git", language: language, started: cliNow}
+	progress := ingestProgress{label: "git", language: language, started: cliNow, tracker: newETATracker(func() time.Time { return cliNow }, eventETAWindow)}
 	return progress.line(ingest.Report{Collected: n, Inserted: n, Updated: n, AlreadyStored: n}, cliNow.Add(time.Second))
 }
 

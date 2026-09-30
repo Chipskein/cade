@@ -17,7 +17,10 @@ import (
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
 )
@@ -77,6 +80,27 @@ type Toolkit struct {
 	// DateOrder reads numeric dates in questions (from the locale).
 	DateOrder timeline.DateOrder
 	Now       func() time.Time
+	// IngestRuns follows, stops and detaches `ingest` runs.
+	IngestRuns IngestRunTools
+}
+
+// DetachedIngestVariable is set in the environment of the process that
+// `ingest start` starts, which then runs as a background run.
+const DetachedIngestVariable = "CADE_INGEST_DETACHED"
+
+// IngestRunTools lets an `ingest` be followed, stopped and resumed from
+// another terminal, and run in the background (issue #41).
+type IngestRunTools struct {
+	State ingestrun.StateFile
+	Lock  ingestrun.Lock
+	// LogPath receives the output of background runs.
+	LogPath   string
+	Processes procctl.Processes
+	// Clock paces the models of background and gentle runs.
+	Clock pacing.Clock
+	// Detached is set in the process `ingest start` started.
+	Detached bool
+	PID      int
 }
 
 // commandEnv is what every subcommand receives after global flags are
@@ -91,6 +115,8 @@ type commandEnv struct {
 	stdout     io.Writer
 	stderr     io.Writer
 	logger     *slog.Logger
+	// ingestRun is the `ingest` being recorded; nil for other commands.
+	ingestRun *ingestRun
 }
 
 type subcommand func(ctx context.Context, env commandEnv, args []string) error
@@ -252,6 +278,12 @@ func exitCode(err error, stderr io.Writer, language Language) int {
 	return 1
 }
 
+// loadConfig reads the config, with the background limits during a
+// background or gentle ingestion.
 func (env commandEnv) loadConfig() (config.Config, error) {
-	return env.toolkit.LoadConfig(env.configPath)
+	cfg, err := env.toolkit.LoadConfig(env.configPath)
+	if err != nil || !env.ingestRun.isGentle() {
+		return cfg, err
+	}
+	return cfg.WithBackgroundLimits(), nil
 }

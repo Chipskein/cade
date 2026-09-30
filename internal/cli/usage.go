@@ -15,8 +15,14 @@ Comandos:
                                         pergunta o que incluir e cria a configuração
   doctor                                confere modelos, FTS5, banco e caminhos, e diz
                                         o que corrigir (não altera o banco)
-  ingest <fonte|all> [ALVO...]          ingere uma fonte (git, browser, file, teams);
-                                        sem ALVO usa os alvos configurados
+  ingest [--gentle] <fonte|all> [ALVO...]
+                                        ingere uma fonte (git, browser, file, teams);
+                                        sem ALVO usa os alvos configurados; --gentle
+                                        usa os limites de CPU/GPU de ingest.background
+  ingest start <fonte|all> [ALVO...]    o mesmo em segundo plano, com esses limites;
+                                        continua depois de fechar o terminal
+  ingest status|pause|resume|stop       acompanha, pausa (modelos na memória),
+                                        continua ou para a ingestão
   timeline [--source F] [--all-authors] DATA [DATA_FIM]
                                         eventos de um dia ou intervalo (DATA: AAAA-MM-DD,
                                         hoje, ontem); commits de outros autores só com
@@ -44,6 +50,7 @@ Exemplos:
   cade ingest git ~/src/meu-projeto
   cade ingest browser ~/.mozilla/firefox/xyz.default/places.sqlite
   cade ingest all
+  cade ingest start file
   cade timeline ontem
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "o que pesquisei sobre sqlite?"
@@ -61,8 +68,14 @@ Commands:
                                         asks what to include and writes the config
   doctor                                checks models, FTS5, database and paths, and
                                         says what to fix (does not change the database)
-  ingest <source|all> [TARGET...]       ingests a source (git, browser, file, teams);
-                                        without TARGET uses the configured targets
+  ingest [--gentle] <source|all> [TARGET...]
+                                        ingests a source (git, browser, file, teams);
+                                        without TARGET uses the configured targets;
+                                        --gentle uses the ingest.background CPU/GPU limits
+  ingest start <source|all> [TARGET...] the same in the background, with those limits;
+                                        keeps going after the terminal closes
+  ingest status|pause|resume|stop       follows, pauses (models kept in memory),
+                                        continues or stops the ingestion
   timeline [--source S] [--all-authors] DATE [END_DATE]
                                         events of a day or range (DATE: YYYY-MM-DD,
                                         hoje, ontem); other authors' commits only with
@@ -90,6 +103,7 @@ Examples:
   cade ingest git ~/src/my-project
   cade ingest browser ~/.mozilla/firefox/xyz.default/places.sqlite
   cade ingest all
+  cade ingest start file
   cade timeline ontem
   cade timeline 2026-09-01 2026-09-07
   cade ask --source browser --from 2026-09-19 "what did I search about sqlite?"

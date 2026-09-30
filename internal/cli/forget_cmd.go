@@ -111,7 +111,7 @@ func (env commandEnv) forgetMatch(ctx context.Context, text, source, from, to st
 func (env commandEnv) deleteMatches(ctx context.Context, store storage.EventStore, matches []event.Event) error {
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
-	tracker := newETATracker(env.toolkit.Now)
+	tracker := newETATracker(env.toolkit.Now, etaWindow)
 	lastShown := env.toolkit.Now()
 	for i, ev := range matches {
 		if _, err := store.DeleteEvent(ctx, ev.UID); err != nil {

@@ -7,7 +7,7 @@ import (
 
 func TestETATrackerNeedsASampleBeforeEstimating(t *testing.T) {
 	clock := &FakeClock{Current: cliNow}
-	tracker := newETATracker(clock.Now)
+	tracker := newETATracker(clock.Now, etaWindow)
 	if tracker.remaining(10) != 0 {
 		t.Fatalf("expected 0 without samples, got %v", tracker.remaining(10))
 	}
@@ -15,7 +15,7 @@ func TestETATrackerNeedsASampleBeforeEstimating(t *testing.T) {
 
 func TestETATrackerAveragesRecentSamples(t *testing.T) {
 	clock := &FakeClock{Current: cliNow}
-	tracker := newETATracker(clock.Now)
+	tracker := newETATracker(clock.Now, etaWindow)
 	clock.Current = clock.Current.Add(2 * time.Second)
 	tracker.advance()
 	clock.Current = clock.Current.Add(4 * time.Second)
@@ -27,7 +27,7 @@ func TestETATrackerAveragesRecentSamples(t *testing.T) {
 
 func TestETATrackerKeepsOnlyTheRecentWindow(t *testing.T) {
 	clock := &FakeClock{Current: cliNow}
-	tracker := newETATracker(clock.Now)
+	tracker := newETATracker(clock.Now, etaWindow)
 	clock.Current = clock.Current.Add(time.Hour)
 	tracker.advance()
 	for i := 0; i < etaWindow; i++ {
@@ -40,7 +40,7 @@ func TestETATrackerKeepsOnlyTheRecentWindow(t *testing.T) {
 }
 
 func TestFormatETA(t *testing.T) {
-	cases := map[time.Duration]string{45 * time.Second: "~45s", 150 * time.Second: "~2m30s"}
+	cases := map[time.Duration]string{45 * time.Second: "~45s", 150 * time.Second: "~2m30s", 3*time.Hour + 5*time.Minute: "~3h05m"}
 	for d, want := range cases {
 		if got := formatETA(d); got != want {
 			t.Fatalf("formatETA(%v) = %q, want %q", d, got, want)
@@ -62,7 +62,7 @@ func TestProgressBar(t *testing.T) {
 
 func TestETASuffixIsEmptyWithNothingLeft(t *testing.T) {
 	clock := &FakeClock{Current: cliNow}
-	tracker := newETATracker(clock.Now)
+	tracker := newETATracker(clock.Now, etaWindow)
 	clock.Current = clock.Current.Add(time.Second)
 	tracker.advance()
 	if got := etaSuffix(tracker, 0); got != "" {

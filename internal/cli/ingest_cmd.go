@@ -8,6 +8,7 @@ import (
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/storage"
 )
 
@@ -19,26 +20,69 @@ type ingestJob struct {
 	target string
 }
 
+// runIngest runs `cade ingest <fonte|all>` in this terminal, or one of
+// the subcommands that control a run from any terminal (issue #41).
 func runIngest(ctx context.Context, env commandEnv, args []string) error {
+	if len(args) > 0 {
+		if control, found := ingestSubcommands()[args[0]]; found {
+			return control(ctx, env, args[1:])
+		}
+	}
+	gentle, targets, err := parseForegroundIngestFlags(env, args)
+	if err != nil {
+		return err
+	}
+	detached := env.toolkit.IngestRuns.Detached
+	return runRecordedIngest(ctx, env, targets, ingestrun.Mode{Background: detached, Gentle: gentle || detached})
+}
+
+// ingestPlan is what one run ingests, resolved before any model loads.
+type ingestPlan struct {
+	jobs []ingestJob
+	// The file collectors read captions when created, after
+	// describeImages has filled it.
+	captions ingest.ImageCaptions
+}
+
+func (env commandEnv) planIngest(args []string) (ingestPlan, error) {
 	if len(args) == 0 {
-		return errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|all> [TARGET...]"))
+		return ingestPlan{}, errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|all> [TARGET...]"))
 	}
 	cfg, err := env.loadConfig()
 	if err != nil {
-		return err
+		return ingestPlan{}, err
 	}
-	// The file collectors read captions when created, after
-	// describeImages has filled it.
 	captions := ingest.ImageCaptions{}
 	jobs, err := planIngestJobs(env.toolkit.Sources(cfg, captions), args[0], args[1:], env.language)
+	return ingestPlan{jobs: jobs, captions: captions}, err
+}
+
+// runRecordedIngest runs args in this process, recorded in the state file
+// once planned, so a typo never replaces the last run's state.
+func runRecordedIngest(ctx context.Context, env commandEnv, args []string, mode ingestrun.Mode) error {
+	plan, err := env.planIngest(args)
 	if err != nil {
 		return err
 	}
+	release, err := env.acquireIngestLock()
+	if err != nil {
+		return err
+	}
+	defer release()
+	env.ingestRun = newIngestRun(env, args, mode)
+	env.ingestRun.start()
+	env.lowerPriorityIfGentle()
+	err = env.executeIngest(ctx, plan)
+	env.ingestRun.finish(err)
+	return err
+}
+
+func (env commandEnv) executeIngest(ctx context.Context, plan ingestPlan) error {
 	describe := func(cfg config.Config, store storage.EventStore) error {
-		return env.describeImages(ctx, cfg, store, jobs, captions)
+		return env.describeImages(ctx, cfg, store, plan.jobs, plan.captions)
 	}
 	return env.withIngestPipeline(ctx, describe, func(pipeline *ingest.Pipeline) error {
-		return runIngestJobs(ctx, env, pipeline, jobs)
+		return runIngestJobs(ctx, env, pipeline, plan.jobs)
 	})
 }
 
@@ -96,7 +140,7 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, prepare func(confi
 		if err := prepare(cfg, store); err != nil {
 			return err
 		}
-		embedder, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)
+		embedder, err := env.loadIngestEmbedder(ctx, cfg)
 		if err != nil {
 			return err
 		}
@@ -109,13 +153,27 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, prepare func(confi
 	})
 }
 
+// loadIngestEmbedder loads the embedder, paced in gentle runs.
+func (env commandEnv) loadIngestEmbedder(ctx context.Context, cfg config.Config) (ClosableEmbedder, error) {
+	env.ingestRun.update(ingestrun.StageLoadingEmbedder, func() string {
+		return env.language.pick("Carregando modelo de embedding…", "Loading embedding model…")
+	})
+	loaded, err := env.toolkit.LoadEmbedder(cfg.Embedding, env.logger)
+	if err != nil {
+		return nil, err
+	}
+	return env.ingestRun.paceEmbedder(ctx, cfg, loaded), nil
+}
+
 func runIngestJobs(ctx context.Context, env commandEnv, pipeline *ingest.Pipeline, jobs []ingestJob) error {
-	for _, job := range jobs {
+	for i, job := range jobs {
 		collector, err := job.spec.NewCollector(job.target)
 		if err != nil {
 			return err
 		}
-		progress := newIngestProgress(env, job.spec.Name+" "+job.target)
+		label := job.spec.Name + " " + job.target
+		env.ingestRun.enterJob(i+1, len(jobs), label)
+		progress := newIngestProgress(env, label, estimateEvents(ctx, env, collector))
 		report, err := pipeline.Run(ctx, collector, progress.update)
 		progress.finish()
 		printIngestReport(env, job, report)
@@ -125,6 +183,21 @@ func runIngestJobs(ctx context.Context, env commandEnv, pipeline *ingest.Pipelin
 		}
 	}
 	return nil
+}
+
+// estimateEvents is the collector's event count for the ETA, 0 when it
+// cannot tell cheaply; a failed estimate only costs the ETA.
+func estimateEvents(ctx context.Context, env commandEnv, collector ingest.EventCollector) int {
+	estimator, estimates := collector.(ingest.EventEstimator)
+	if !estimates {
+		return 0
+	}
+	total, err := estimator.EstimateEvents(ctx)
+	if err != nil {
+		env.logger.Debug("no event estimate for the ETA", "error", err.Error())
+		return 0
+	}
+	return total
 }
 
 // Counted phrases of the ingestion report; the noun, "eventos", is implied.
