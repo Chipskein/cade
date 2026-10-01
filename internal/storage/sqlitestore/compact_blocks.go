@@ -12,8 +12,12 @@ import (
 // (sqlite-vec v0.1.6 layout) and slicing the live vectors out avoids that;
 // TestCompactVectorsKeepsTheSameNearest fails if the layout changes.
 
-// float32Bytes is the width of one vector component in the blocks.
-const float32Bytes = 4
+// Widths of one vector component in the blocks: int8 since schema version
+// 11, float32 before it.
+const (
+	int8Bytes    = 1
+	float32Bytes = 4
+)
 
 // vectorSlot is where a live vector sits: chunk_embeddings_rowids maps the
 // vec0 primary key to a block (its chunk_id) and a position in it.

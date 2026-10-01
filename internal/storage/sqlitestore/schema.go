@@ -24,8 +24,20 @@ CREATE TABLE IF NOT EXISTS store_settings (
 
 // source and occurred_at are vec0 metadata columns so the KNN search itself
 // applies the filters (CA9.1); filtering after the top-k cut would silently
-// drop matching events that ranked below k.
+// drop matching events that ranked below k. The embedding is int8, scaled
+// per vector (embeddings.go).
 const createVectorTableTemplate = `
+CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
+	chunk_id    INTEGER PRIMARY KEY,
+	embedding   int8[%d] distance_metric=cosine,
+	source      TEXT,
+	occurred_at INTEGER
+)`
+
+// createFloat32VectorTableTemplate is the vector table before schema
+// version 11, which migration 5 still creates so version 11 has one format
+// to convert.
+const createFloat32VectorTableTemplate = `
 CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
 	chunk_id    INTEGER PRIMARY KEY,
 	embedding   float[%d] distance_metric=cosine,

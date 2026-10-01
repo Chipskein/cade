@@ -19,6 +19,10 @@ const (
 
 const vectorColumns = `chunk_id, embedding, source, occurred_at`
 
+// stagedVectorColumns reads the staged blobs back as int8; vec0 reads a
+// bare blob as float32.
+const stagedVectorColumns = `chunk_id, vec_int8(embedding), source, occurred_at`
+
 // vectorRewrite is how rewriteVectorTable carries each live vector over:
 // a compaction copies it as stored, a format migration converts it.
 type vectorRewrite struct {
@@ -29,7 +33,7 @@ type vectorRewrite struct {
 }
 
 // compactionRewrite keeps every vector exactly as stored.
-var compactionRewrite = vectorRewrite{componentBytes: float32Bytes, convert: keepVectorBlob}
+var compactionRewrite = vectorRewrite{componentBytes: int8Bytes, convert: keepVectorBlob}
 
 func keepVectorBlob(stored []byte) ([]byte, error) {
 	return stored, nil
@@ -91,17 +95,21 @@ func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int, rewrite
 	return execEach(ctx, tx, dimensions,
 		`DROP TABLE chunk_embeddings`,
 		fmt.Sprintf(createVectorTableTemplate, dimensions),
-		`INSERT INTO chunk_embeddings (`+vectorColumns+`) SELECT `+vectorColumns+` FROM `+metadataStagingTable+
+		`INSERT INTO chunk_embeddings (`+vectorColumns+`) SELECT `+stagedVectorColumns+` FROM `+metadataStagingTable+
 			` JOIN `+vectorStagingTable+` USING (chunk_id) ORDER BY chunk_id`,
 		`DROP TABLE `+vectorStagingTable,
 		`DROP TABLE `+metadataStagingTable)
 }
 
 // stageVectors reads the metadata columns through vec0, which is fast,
-// and the vectors from its blocks (compact_blocks.go), which is not.
+// and the vectors from its blocks (compact_blocks.go), which is not. Both
+// staging tables are keyed by chunk_id, so the copy back is ordered by a
+// rowid scan: a sort would drop the subtype vec_int8 marks its result with,
+// and vec0 would read the blob as float32.
 func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int, rewrite vectorRewrite) error {
 	err := execEach(ctx, tx, dimensions,
-		`CREATE TABLE `+metadataStagingTable+` AS SELECT chunk_id, source, occurred_at FROM chunk_embeddings`,
+		`CREATE TABLE `+metadataStagingTable+` (chunk_id INTEGER PRIMARY KEY, source TEXT, occurred_at INTEGER)`,
+		`INSERT INTO `+metadataStagingTable+` SELECT chunk_id, source, occurred_at FROM chunk_embeddings`,
 		`CREATE TABLE `+vectorStagingTable+` (chunk_id INTEGER PRIMARY KEY, embedding BLOB NOT NULL)`)
 	if err != nil {
 		return err

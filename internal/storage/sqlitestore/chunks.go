@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 
-	sqlitevec "github.com/asg017/sqlite-vec-go-bindings/cgo"
-
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
 )
@@ -50,12 +48,8 @@ func insertChunks(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event
 }
 
 func insertVector(ctx context.Context, tx *sql.Tx, chunkID int64, ev event.Event, vector []float32) error {
-	blob, err := sqlitevec.SerializeFloat32(vector)
-	if err != nil {
-		return fmt.Errorf("serialize embedding of event %q: %w", ev.UID, err)
-	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO chunk_embeddings (chunk_id, embedding, source, occurred_at) VALUES (?, ?, ?, ?)`,
-		chunkID, blob, string(ev.Source), toUnixMillis(ev.Timestamp))
+	_, err := tx.ExecContext(ctx, `INSERT INTO chunk_embeddings (chunk_id, embedding, source, occurred_at) VALUES (?, `+int8VectorValue+`, ?, ?)`,
+		chunkID, encodeInt8Vector(vector), string(ev.Source), toUnixMillis(ev.Timestamp))
 	if err != nil {
 		return fmt.Errorf("insert embedding of event %q: %w", ev.UID, err)
 	}
@@ -138,7 +132,7 @@ func chunkVector(ctx context.Context, querier queryer, chunkID int64) ([]float32
 	if err := querier.QueryRowContext(ctx, `SELECT embedding FROM chunk_embeddings WHERE chunk_id = ?`, chunkID).Scan(&blob); err != nil {
 		return nil, fmt.Errorf("read vector of chunk %d: %w", chunkID, err)
 	}
-	return decodeFloat32s(blob)
+	return decodeInt8Vector(blob), nil
 }
 
 // queryer is satisfied by both *sql.DB and *sql.Tx, so a read works alone

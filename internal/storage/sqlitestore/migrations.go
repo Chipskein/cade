@@ -39,6 +39,7 @@ var schemaMigrations = []migration{
 	{version: 8, description: "redact known secrets and remove credential files", backup: true, compact: true, apply: redactStoredEvents},
 	{version: 9, description: "remember individually forgotten event UIDs", apply: createForgottenEvents},
 	{version: 10, description: "index image hashes, to reuse descriptions", apply: indexImageHashes},
+	{version: 11, description: "vectors in int8 scaled per vector", backup: true, compact: true, apply: convertVectorsToInt8},
 }
 
 func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {
