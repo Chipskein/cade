@@ -18,6 +18,7 @@ var problemWordings = map[doctor.Problem]problemWording{
 	doctor.ProblemNoDatabase:             fixed("ainda não existe; o primeiro `cade ingest` cria", "does not exist yet; the first `cade ingest` creates it"),
 	doctor.ProblemThresholdModelMismatch: thresholdModelWording,
 	doctor.ProblemVisionModelMismatch:    visionModelMismatchWording,
+	doctor.ProblemEmptyVectorSlots:       emptyVectorSlotsWording,
 	doctor.ProblemMissing:                missingWording,
 	doctor.ProblemNotAFile:               withSetting("é um diretório; `%s` espera um arquivo", "is a directory; `%s` expects a file"),
 	doctor.ProblemNotADirectory: withSetting("não é um diretório; `%s` espera um diretório",
@@ -99,4 +100,9 @@ func migrationWording(finding doctor.Finding, language Language) string {
 	}
 	megabytes := (database.SizeBytes + 1<<20 - 1) >> 20
 	return text + fmt.Sprintf(language.pick(", antes gravando uma cópia (~%d MB)", ", first writing a copy (~%d MB)"), megabytes)
+}
+
+func emptyVectorSlotsWording(finding doctor.Finding, language Language) string {
+	return fmt.Sprintf(language.pick("%.0f%% das posições de vetores estão vazias; rode `cade compact`", "%.0f%% of the vector positions are empty; run `cade compact`"),
+		emptyPercent(finding.Database.VectorSlots.EmptyShare()))
 }

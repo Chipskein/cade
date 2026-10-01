@@ -223,6 +223,8 @@ type DatabaseState struct {
 	SizeBytes       int64
 	EmbeddingModel  string
 	ReindexPending  bool
+	// VectorSlots measures the vector blocks, for `cade compact`.
+	VectorSlots VectorSlots
 }
 
 // ThresholdCalibration pairs the retrieval distance gates with the

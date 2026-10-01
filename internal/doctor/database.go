@@ -5,6 +5,11 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 )
 
+// CompactWorthEmptyShare is where doctor suggests `cade compact`: at 27%
+// empty positions the reference machine's database shrank 21% (#65);
+// below 20% a rewrite of the whole file buys little.
+const CompactWorthEmptyShare = 0.2
+
 func checkKeywordSearch(database storage.DatabaseState) Finding {
 	finding := Finding{Subject: SubjectKeywordSearch}
 	if !database.FTS5 {
@@ -35,6 +40,8 @@ func databaseProblem(database storage.DatabaseState, configuredModel string) Pro
 		return ProblemReindexPending
 	case database.SchemaVersion < database.LatestSchemaVersion:
 		return ProblemMigrationPending
+	case database.VectorSlots.EmptyShare() >= CompactWorthEmptyShare:
+		return ProblemEmptyVectorSlots
 	}
 	return ProblemNone
 }
