@@ -38,9 +38,9 @@ func liveVectorSlots(ctx context.Context, tx *sql.Tx) ([]vectorSlot, error) {
 	return slots, rows.Err()
 }
 
-// copyLiveVectors stages each slot's vector; slots come sorted by block,
-// so each block is read once.
-func copyLiveVectors(ctx context.Context, tx *sql.Tx, slots []vectorSlot, width int) error {
+// copyLiveVectors stages each slot's vector, converted; slots come sorted
+// by block, so each block is read once.
+func copyLiveVectors(ctx context.Context, tx *sql.Tx, slots []vectorSlot, dimensions int, rewrite vectorRewrite) error {
 	insert, err := tx.PrepareContext(ctx, `INSERT INTO `+vectorStagingTable+` (chunk_id, embedding) VALUES (?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare vector staging: %w", err)
@@ -48,13 +48,24 @@ func copyLiveVectors(ctx context.Context, tx *sql.Tx, slots []vectorSlot, width 
 	defer insert.Close()
 	blocks := vectorBlockReader{tx: tx, block: -1}
 	for _, slot := range slots {
-		vector, err := blocks.vector(ctx, slot, width)
+		vector, err := blocks.vector(ctx, slot, dimensions*rewrite.componentBytes)
 		if err != nil {
 			return err
 		}
-		if _, err := insert.ExecContext(ctx, slot.chunkID, vector); err != nil {
-			return fmt.Errorf("stage vector of chunk %d: %w", slot.chunkID, err)
+		if err := stageVector(ctx, insert, slot, vector, rewrite); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func stageVector(ctx context.Context, insert *sql.Stmt, slot vectorSlot, stored []byte, rewrite vectorRewrite) error {
+	converted, err := rewrite.convert(stored)
+	if err != nil {
+		return fmt.Errorf("convert vector of chunk %d: %w", slot.chunkID, err)
+	}
+	if _, err := insert.ExecContext(ctx, slot.chunkID, converted); err != nil {
+		return fmt.Errorf("stage vector of chunk %d: %w", slot.chunkID, err)
 	}
 	return nil
 }

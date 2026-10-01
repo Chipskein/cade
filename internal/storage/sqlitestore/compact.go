@@ -19,6 +19,22 @@ const (
 
 const vectorColumns = `chunk_id, embedding, source, occurred_at`
 
+// vectorRewrite is how rewriteVectorTable carries each live vector over:
+// a compaction copies it as stored, a format migration converts it.
+type vectorRewrite struct {
+	// componentBytes is the width of one stored component in the blocks.
+	componentBytes int
+	// convert turns a stored blob into the one written back.
+	convert func(stored []byte) ([]byte, error)
+}
+
+// compactionRewrite keeps every vector exactly as stored.
+var compactionRewrite = vectorRewrite{componentBytes: float32Bytes, convert: keepVectorBlob}
+
+func keepVectorBlob(stored []byte) ([]byte, error) {
+	return stored, nil
+}
+
 // vectorSlotsQuery reads vec0's shadow tables: each block row records its
 // size in positions, and each live vector has one rowids row.
 const vectorSlotsQuery = `SELECT
@@ -56,7 +72,7 @@ func (s *Store) CompactVectors(ctx context.Context) (storage.VectorSlots, error)
 	if err != nil || !found {
 		return storage.VectorSlots{}, err
 	}
-	err = s.inTransaction(ctx, func(tx *sql.Tx) error { return rewriteVectorTable(ctx, tx, dimensions) })
+	err = s.inTransaction(ctx, func(tx *sql.Tx) error { return rewriteVectorTable(ctx, tx, dimensions, compactionRewrite) })
 	if err != nil {
 		return storage.VectorSlots{}, err
 	}
@@ -68,8 +84,8 @@ func (s *Store) CompactVectors(ctx context.Context) (storage.VectorSlots, error)
 
 // rewriteVectorTable runs in one transaction, so an interruption leaves
 // the old table intact.
-func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int) error {
-	if err := stageVectors(ctx, tx, dimensions); err != nil {
+func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int, rewrite vectorRewrite) error {
+	if err := stageVectors(ctx, tx, dimensions, rewrite); err != nil {
 		return err
 	}
 	return execEach(ctx, tx, dimensions,
@@ -83,7 +99,7 @@ func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int) error {
 
 // stageVectors reads the metadata columns through vec0, which is fast,
 // and the vectors from its blocks (compact_blocks.go), which is not.
-func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int) error {
+func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int, rewrite vectorRewrite) error {
 	err := execEach(ctx, tx, dimensions,
 		`CREATE TABLE `+metadataStagingTable+` AS SELECT chunk_id, source, occurred_at FROM chunk_embeddings`,
 		`CREATE TABLE `+vectorStagingTable+` (chunk_id INTEGER PRIMARY KEY, embedding BLOB NOT NULL)`)
@@ -94,7 +110,7 @@ func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int) error {
 	if err != nil {
 		return err
 	}
-	return copyLiveVectors(ctx, tx, slots, dimensions*float32Bytes)
+	return copyLiveVectors(ctx, tx, slots, dimensions, rewrite)
 }
 
 func execEach(ctx context.Context, tx *sql.Tx, dimensions int, statements ...string) error {
