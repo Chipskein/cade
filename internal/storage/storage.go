@@ -87,7 +87,18 @@ type EventStore interface {
 	DeleteEvent(ctx context.Context, uid string) (bool, error)
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
+	VectorCompactor
 	Close() error
+}
+
+// VectorCompactor returns to the disk the vector positions deletions left
+// empty (`cade compact`, #65).
+type VectorCompactor interface {
+	// VectorSlots measures the blocks; zero before the first vector.
+	VectorSlots(ctx context.Context) (VectorSlots, error)
+	// CompactVectors rewrites the blocks with only the live vectors and
+	// returns them as they are afterwards; the vectors stay the same.
+	CompactVectors(ctx context.Context) (VectorSlots, error)
 }
 
 // SimilarityQuery describes a filtered nearest-neighbour search.
@@ -212,6 +223,8 @@ type DatabaseState struct {
 	SizeBytes       int64
 	EmbeddingModel  string
 	ReindexPending  bool
+	// VectorSlots measures the vector blocks, for `cade compact`.
+	VectorSlots VectorSlots
 }
 
 // ThresholdCalibration pairs the retrieval distance gates with the
@@ -240,6 +253,26 @@ func (c ThresholdCalibration) OrIndexedWith(indexedModel string, current Thresho
 func (c ThresholdCalibration) OutdatedFor(current ThresholdCalibration) bool {
 	sameGates := c.MaxDistance == current.MaxDistance && c.MaxBestDistance == current.MaxBestDistance
 	return c.Model != "" && c.Model != current.Model && sameGates
+}
+
+// VectorSlots measures the vector blocks: Slots is every position they
+// hold, Vectors the live ones. sqlite-vec never reuses a deleted position
+// and VACUUM cannot reach inside its blocks (#65), so the difference is
+// space the search still reads until the vectors are compacted.
+type VectorSlots struct {
+	Slots   int
+	Vectors int
+}
+
+// EmptyShare is the fraction of positions without a vector, 0 when the
+// blocks are full or there are none.
+//
+//	storage.VectorSlots{Slots: 2048, Vectors: 1024}.EmptyShare() // 0.5
+func (v VectorSlots) EmptyShare() float64 {
+	if v.Slots == 0 {
+		return 0
+	}
+	return float64(v.Slots-v.Vectors) / float64(v.Slots)
 }
 
 // ImageCaptionIndex finds a description by the image's content (phase 19):

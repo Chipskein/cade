@@ -375,7 +375,7 @@ Ganhos sobre o histórico real (1.242,4 MB). Cada linha supõe as de cima já fe
 
 | Alavanca | Espaço | Busca | Ingestão | Decisão |
 |---|---:|---|---|---|
-| Compactar a tabela de vetores (tirar as posições vazias) | −262 MB (−21%) | mesmos resultados; menos blocos para ler | nenhum | [#65](https://github.com/Chipskein/cade/issues/65) |
+| Compactar a tabela de vetores (tirar as posições vazias) | −262 MB (−21%) | mesmos resultados; menos blocos para ler | nenhum | feito: [#65](https://github.com/Chipskein/cade/issues/65), [medido](#compactação-dos-vetores-65) |
 | Um conjunto de pedaços e vetores por texto | −337 MB de vetores, ~−11 MB de FTS5 (−28%) | as cópias deixam de ocupar vagas do top-k; os filtros de fonte e período precisam de outro desenho | menos escrita | [#67](https://github.com/Chipskein/cade/issues/67) |
 | Vetores em `int8` escalado | −288 MB (−59% se feito sozinho: −734 MB) | 0,994 do top-10, mesma latência | uma passada em 768 valores por vetor | [#66](https://github.com/Chipskein/cade/issues/66) |
 | Comprimir o texto por linha | −33 MB (−3%) | FTS5 não muda (sem conteúdo); toda leitura descomprime, e os filtros SQL em `metadata` (pessoas, hash de imagem) param de funcionar | comprimir cada evento | não: medir de novo depois que os vetores diminuírem |
@@ -383,6 +383,28 @@ Ganhos sobre o histórico real (1.242,4 MB). Cada linha supõe as de cima já fe
 | Vetores `bit` para eventos com mais de 12 meses | ~−19 MB depois do `int8` | perde um quarto do top-10 no histórico antigo | nenhum | não |
 
 Com as três escolhidas, os vetores vão de 985 MB para ~99 MB, e o banco de ~1,24 GB para ~0,35 GB, ~1,5 KB por evento. O texto (`events`, 157 MB) passa a ser a maior tabela, então a compressão é medida de novo depois delas.
+
+## Compactação dos vetores (#65)
+
+> `cade compact` numa cópia do histórico real da máquina de referência (`sqlite3 .backup`, NVMe) · 2026-10-01 · commit `372d390` · build de CPU, sem modelo carregado · blocos e arquivo lidos com as consultas de [Alavancas de espaço](#alavancas-de-espaço-40), mais `PRAGMA freelist_count` · busca: 54 vetores guardados como consultas, top-6, sem filtro, 3 rodadas, mediana.
+
+Desde o reindex daquela manhã, a ingestão já tinha deixado 15% das posições vazias, e o próprio reindex tinha deixado a tabela apagada como páginas livres, porque na época não rodava `VACUUM`.
+
+| | Antes | Depois do `cade compact` |
+|---|---:|---:|
+| blocos / posições do vec0 | 480 / 491.520 | 407 / 416.768 |
+| vetores vivos | 415.963 | 415.963 |
+| posições vazias | 75.557 (15%, 221,4 MB) | 805 (0,2%), o fim do último bloco |
+| páginas livres | 256.645 (1.002,5 MB) | 0 |
+| arquivo | 2.949,5 MB | 1.715,7 MB (−42%) |
+| busca sem filtro, mediana | 507–516 ms | 466 ms (−9%) |
+| tempo | — | 91 s |
+
+- **Blocos:** 407 = ceil(415.963 / 1.024), o aceite da #65. O `PRAGMA integrity_check` dá `ok`.
+- **Mesma busca:** as 54 consultas devolvem as mesmas distâncias, na mesma ordem. Onde um UID mudou, ele está numa distância empatada, quase sempre 0: uma cópia de um texto repetido, cuja ordem entre os empatados segue a posição nos blocos.
+- **De onde veio o espaço:** a maior parte, 1.002,5 MB, eram as páginas livres; o reindex agora termina com `VACUUM`, então só os 221,4 MB dentro dos blocos ficam para o `cade compact`.
+- **Tempo:** 91 s. Ler a coluna `embedding` pelo vec0 abre o bloco inteiro de 3 MB a cada linha, e isso levava 174 s dos 258 s da primeira versão; a compactação agora lê cada bloco uma vez das tabelas-sombra do vec0. O que sobra: reinserir no vec0 (~54 s) e o `VACUUM` (~28 s). Um reindex dos mesmos vetores leva horas de GPU.
+- **Disco:** a reescrita guarda uma cópia dos vetores (~1,3 GB aqui) até o `VACUUM`.
 
 ## Escrita no disco na ingestão (#51)
 

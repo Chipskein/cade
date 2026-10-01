@@ -51,6 +51,11 @@ type FakeEventStore struct {
 	BatchesBegun int
 	Commits      int
 	Rollbacks    int
+	// Slots backs VectorSlots; CompactVectors counts itself in Compactions
+	// and replaces Slots with CompactedSlots.
+	Slots          storage.VectorSlots
+	CompactedSlots storage.VectorSlots
+	Compactions    int
 }
 
 // NewFakeEventStore returns an empty store.
@@ -369,4 +374,17 @@ func (f *FakeEventStore) OutdatedImages(_ context.Context, model string, promptV
 		}
 	}
 	return outdated, f.FailWith
+}
+
+func (f *FakeEventStore) VectorSlots(context.Context) (storage.VectorSlots, error) {
+	return f.Slots, f.FailWith
+}
+
+func (f *FakeEventStore) CompactVectors(context.Context) (storage.VectorSlots, error) {
+	if f.FailWith != nil {
+		return storage.VectorSlots{}, f.FailWith
+	}
+	f.Compactions++
+	f.Slots = f.CompactedSlots
+	return f.Slots, nil
 }

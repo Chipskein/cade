@@ -48,6 +48,7 @@ cade ingest status      # também: pause, resume, stop
 cade timeline ontem
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
+cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados
 ```
 
 Encontrando uma imagem pelo texto dela:

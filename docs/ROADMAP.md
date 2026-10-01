@@ -33,7 +33,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | a fazer | médio | baixo |
 | 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | a fazer | médio | baixo |
 | 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | feito | médio | médio |
-| 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | a fazer | médio | baixo |
+| 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | a fazer | alto | médio |
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | a fazer | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
@@ -163,6 +163,7 @@ flowchart LR
 - **Problema:** o vec0 não reaproveita as posições apagadas; no banco real, 89.270 de 335.872 (27%, ~262 MB) estão vazias.
 - **Mudança:** reescrever `chunk_embeddings` só com os vetores vivos no fim do `reindex` e num comando explícito.
 - **Aceite:** `ceil(vetores / 1024)` blocos depois de compactar; o mesmo top-k antes e depois.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#compactação-dos-vetores-65)): `cade compact`, sem gerar embedding, e `VACUUM` no fim do `reindex`. Numa cópia do banco real, 480 → 407 blocos (= ceil(415.963 / 1.024)) e 2.949,5 → 1.715,7 MB em 91 s, com as mesmas distâncias nas 54 consultas medidas. O `cade doctor` sugere compactar a partir de 20% de posições vazias.
 
 ---
 

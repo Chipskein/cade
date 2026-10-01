@@ -81,10 +81,14 @@ func (s *Store) ReindexPending(ctx context.Context) (bool, error) {
 	return value != "", err
 }
 
-// FinishReindex clears the pending mark.
+// FinishReindex clears the pending mark and VACUUMs: the rebuilt vector
+// table is already compact, but the dropped one left its pages free in
+// the file, 1.2 GB of a 2.9 GB database on the reference machine (#65).
 func (s *Store) FinishReindex(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM store_settings WHERE key = ?`, reindexPendingSettingKey)
-	return err
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM store_settings WHERE key = ?`, reindexPendingSettingKey); err != nil {
+		return fmt.Errorf("clear setting %q: %w", reindexPendingSettingKey, err)
+	}
+	return s.compact(ctx)
 }
 
 // missingChunks selects events with text and no chunks: chunks and
