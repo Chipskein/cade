@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Um conjunto de pedaços e vetores por texto (#67)
+
+- Uma página visitada 15 vezes, ou uma mensagem que aparece duas vezes no cache, agora é um conjunto de pedaços, vetores e entradas de palavras, e não um por evento; os eventos chegam a ele pelo texto. Na busca, o `top_k` conta textos, então as cópias de uma página não empurram mais as outras evidências para fora, e um texto encontrado traz todos os eventos que o têm na fonte e no período. Os filtros de fonte e período continuam exatos (CA9.1): cada vetor guarda a primeira e a última data dos eventos do seu texto, e os eventos decidem. Numa cópia do banco real: 415.963 → 295.350 pedaços e vetores (um conjunto para cada um dos 152.504 textos), 837,5 MB → 767,4 MB, e a busca 19–29% mais rápida. A suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#um-conjunto-de-pedaços-por-texto-67).
+- O hash de um commit e o caminho de um arquivo, que são do evento e não do texto, têm um índice de palavras próprio: dois commits com a mesma mensagem continuam sendo achados cada um pelo seu hash.
+- O `forget` e as edições apagam os pedaços de um texto só com o último evento dele; as datas do vetor dos outros são recalculadas, então a data de um evento esquecido não fica no índice. O `cade reindex` gera o embedding de cada texto uma vez.
+- **Atualizar:** a migração 12 indexa hashes e caminhos por evento (dado derivado, sem cópia). As migrações 13 e 14 reescrevem os vetores, então o primeiro comando que abrir um banco anterior grava antes uma cópia `cade.db.before-v13-<data>` (permissão `600`), fica com os pedaços do primeiro evento de cada texto, apaga as cópias e roda `VACUUM`. Nos 416 mil vetores da máquina de referência levou 53 s, com a cópia; precisa de espaço livre para a cópia (do tamanho do banco) mais os vetores enquanto são reescritos. Sem `reindex` e sem gerar embedding.
+
 ### Vetores em `int8` (#66)
 
 - Os vetores são guardados em `int8`, cada um escalado pelo seu maior componente para que ±127 cubra o intervalo que ele usa: 1/4 do espaço do `float32`. A busca compara as mesmas direções, e a suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Numa cópia do banco real: 1.799,0 MB → 837,5 MB, 305 de 306 resultados do top-6 mantidos, distâncias mudando no máximo 0,0005, e a busca sem filtro 25% mais rápida (433 → 324 ms). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#vetores-em-int8-66).

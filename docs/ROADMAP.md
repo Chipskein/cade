@@ -35,7 +35,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | feito | médio | médio |
 | 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | feito | alto | médio |
-| 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | a fazer | médio | alto |
+| 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | feito | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
@@ -187,6 +187,7 @@ flowchart LR
 - **Problema:** 47% dos pedaços são de texto que outro evento já tem (uma página visitada várias vezes). O vetor é reaproveitado na ingestão, mas gravado de novo, e as cópias disputam o top-k.
 - **Mudança:** pedaços, vetores e FTS5 por `content_hash`, com os eventos apontando para eles; os filtros de fonte e período (CA9.1) ganham outro desenho.
 - **Aceite:** um pedaço por texto distinto; recall e MRR iguais ou melhores; filtros e `forget` com o mesmo resultado de hoje.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#um-conjunto-de-pedaços-por-texto-67)): migrações 12 (hash e caminho indexados por evento), 13 (primeira e última data por vetor) e 14 (pedaços por texto), com cópia. O filtro de período vai no vec0 como intervalo de datas e os eventos decidem: exato e o mais rápido dos três desenhos medidos. Recall, MRR e rejeição iguais (1,00 / 0,87 / 1,00). Numa cópia do banco real, 415.963 → 295.350 pedaços e vetores (um conjunto por texto), 837,5 → 767,4 MB em 53 s, e a busca 19–29% mais rápida; a chave do texto em `chunks` custa +30,5 MB.
 
 ---
 

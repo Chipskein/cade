@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### One set of chunks and vectors per text (#67)
+
+- A page visited 15 times, or a message cached twice, is now one set of chunks, vectors and keyword entries instead of one per event; its events find it by their text. In the search, `top_k` counts texts, so copies of one page no longer push other evidence out, and a text found brings every event with it in the source and period. The source and period filters stay exact (CA9.1): each vector keeps the first and last dates of its text's events, and the events decide. On a copy of the real database: 415,963 → 295,350 chunks and vectors (one set per each of the 152,504 texts), 837.5 MB → 767.4 MB, and the search 19–29% faster. The retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#one-set-of-chunks-per-text-67).
+- A commit's hash and a file's path, which belong to the event and not to its text, have their own keyword index: two commits with the same message are still found by their own hash.
+- `forget` and edits delete a text's chunks only with its last event; the dates of the others' vector are recomputed, so a forgotten event's date does not stay in the index. `cade reindex` embeds each text once.
+- **Upgrading:** migration 12 indexes hashes and paths by event (derived data, no copy). Migrations 13 and 14 rewrite the vectors, so the first command that opens an older database writes one `cade.db.before-v13-<date>` copy (mode `600`) first, then keeps the chunks of the first event of each text, deletes the copies and runs `VACUUM`. On the reference machine's 416 k vectors it took 53 s, with the copy; it needs free disk for the copy (as large as the database) plus the vectors while they are rewritten. No `reindex` and no new embedding.
+
 ### `int8` vectors (#66)
 
 - Vectors are stored as `int8`, each scaled by its own largest component so ±127 covers its range: a quarter of the space of `float32`. The search compares the same directions, and the retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). On a copy of the real database: 1,799.0 MB → 837.5 MB, 305 of 306 top-6 results kept, distances moved by at most 0.0005, and the unfiltered search 25% faster (433 → 324 ms). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vectors-in-int8-66).

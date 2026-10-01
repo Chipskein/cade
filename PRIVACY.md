@@ -20,7 +20,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 | Path | Contents | Mode |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text), embeddings, a keyword index of the words of each chunk (plus commit hashes and file paths), file edit history | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text, one set per distinct text), embeddings, a keyword index of the words of each chunk, a keyword index of commit hashes and file paths, file edit history | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories and Teams profiles to read | `600` |
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
@@ -88,6 +88,7 @@ Both models run in-process through llama.cpp.
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
+- Events with the same text (a page visited several times) share one set of chunks, embeddings and keyword entries. `forget` of one of them deletes that event, its hash or path entry and its date from the embedding; the shared chunks stay while another event has the text, and go with the last one.
 - The people index (`event_people`) holds the names in each message and commit (sender or author, conversation title, first names after "@"), so a question about a person is filtered in the database. It follows the events: an edit replaces an event's names, and `forget` deletes them with the events.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`. For an image, that includes its description, which a copy of the same image found later reuses.

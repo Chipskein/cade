@@ -463,16 +463,22 @@ Um arquivo SQLite (`~/.local/share/cade/cade.db`), com as extensões sqlite-vec 
 ```mermaid
 flowchart LR
     events["events<br/>uid, fonte, data, título,<br/>texto, metadado, content_hash,<br/>direction; índice do image_sha256"]
-    chunks["chunks<br/>posições no texto"]
-    vec["chunk_embeddings<br/>(sqlite-vec, int8)"]
+    chunks["chunks<br/>por texto: fonte, content_hash,<br/>posições no texto"]
+    vec["chunk_embeddings<br/>(sqlite-vec, int8)<br/>fonte, first_at, last_at"]
     fts["chunks_fts<br/>(FTS5)"]
+    ids["event_identifiers_fts<br/>(FTS5) hash do commit,<br/>caminho do arquivo"]
     people["event_people<br/>nomes por evento"]
     files["file_modifications<br/>versões anteriores<br/>(data, tamanho)"]
     settings["store_settings<br/>embedding_model,<br/>embedding_dimensions"]
 
-    events --> chunks
+    events -->|"fonte + content_hash"| chunks
     chunks --> vec
     chunks --> fts
+    events --> ids
     events --> people
     events --> files
 ```
+
+- **Pedaços por texto (#67):** eventos com o mesmo texto e a mesma fonte dividem um conjunto de `chunks`, vetores e entradas no `chunks_fts`; o evento chega a ele pelo `content_hash`. O conjunto é gravado com o primeiro evento do texto e apagado com o último (`releaseText` em `chunks.go`).
+- **Filtros na busca vetorial (CA9.1):** a fonte é uma coluna do vec0. A data não pode ser, porque os eventos de um texto podem estar anos distantes: o vec0 guarda a primeira e a última data deles (`first_at`, `last_at`), o KNN fica com os textos cujo intervalo cruza o período, e os eventos decidem. Se menos de k textos têm evento no período, o k aumenta até o limite do sqlite-vec (`search.go`). Cada texto achado vira um resultado por evento dele que passa nos filtros.
+- **Identificadores por evento:** o hash de um commit e o caminho de um arquivo ficam no `event_identifiers_fts`, por evento; a busca por palavras junta os dois índices pelo BM25.

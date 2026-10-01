@@ -434,6 +434,50 @@ Each vector is stored as 768 `int8` values, scaled by its own largest component 
 - **Migrated = ingested again:** the migration encodes each stored `float32` vector exactly as ingestion encodes a new one, so a migrated v0.1.0 database holds the same vectors as one ingested from scratch, and the suite above covers it.
 - **Disk during the migration:** the backup copy (as large as the database, 1.8 GB here) plus the staged `int8` vectors until the `VACUUM`.
 
+## One set of chunks per text (#67)
+
+> Filters: `go tool mage bench` (`BenchmarkSharedChunkFilters`, synthetic, in memory, 768 dimensions, k = 24, `f5e3915`) · quality: `go tool mage evalRetrieval` (`ba2c39d`, CUDA) · real history: migrations 12–14 on a copy of the file measured in [Vectors in `int8`](#vectors-in-int8-66) (version 11, 837.5 MB), NVMe, tables measured with `dbstat` · search: 38 stored vectors as queries (each `chunk_id` that is a multiple of 7,717 and is still there after the migration), the same on both files, top-6, 3 runs, median · 2026-10-01.
+
+A text's chunks, vectors and keyword entries are stored once, keyed by its source and `content_hash`; its events find them through `events.content_hash`. A commit's hash and a file's path, which belong to the event and not to its text, have their own keyword index.
+
+### Where the period filter goes
+
+A text's events may be years apart (0.4 days at the median, 133 at p90 and 613 at p99 in the real history), so its vector has no single date. No text of the real history is in two sources, so the source stays a vec0 column. Synthetic history with that shape, 50 k texts:
+
+| Filter | After the KNN | First and last date in vec0 | `text_id IN (…)` | Per event (before) |
+|---|---:|---:|---:|---:|
+| none | 37.6 ms | 38.1 ms | 66.2 ms | 62.3 ms |
+| Teams only | 12.6 ms | 11.6 ms | 39.2 ms | 18.1 ms |
+| one day | 346.8 ms, 1.1 of 21 texts | 4.4 ms | 5.4 ms | 6.3 ms |
+| one month | 236.0 ms | 8.6 ms | 9.8 ms | 14.8 ms |
+| one year | 76.8 ms | 23.3 ms | 36.5 ms | 37.7 ms |
+
+- **Chosen: first and last date in vec0.** The KNN keeps the texts whose range overlaps the period, the events decide, and k widens (×4, up to sqlite-vec's 4,096) until k texts have an event inside it. Exact (CA9.1) and the fastest for every filter.
+- **After the KNN** loses texts: in a one-day period, k reaches 4,096 before 21 texts with an event that day show up.
+- `TestSharedChunkDesignsMatchTheScan` checks that the three designs return the exact top-k of a full scan.
+
+### Real history
+
+| | Before (version 11) | After migrations 12–14 |
+|---|---:|---:|
+| events / distinct texts | 269,999 / 152,504 | 269,999 / 152,504 |
+| chunks / vectors | 415,963 / 415,963 | 295,350 / 295,350 |
+| vec0 blocks | 407 | 289 |
+| file | 837.5 MB | 767.4 MB (−8%) |
+| vector blocks | 305.6 MB | 217.0 MB |
+| keyword index (`chunks_fts`) | 63.7 MB | 54.3 MB |
+| `chunks` and its indexes | 17.0 MB | 47.5 MB |
+| hash and path index (`event_identifiers_fts`) | — | 5.2 MB |
+| search, no filter | 334 ms | 238 ms (−29%) |
+| search, one day | 74 ms | 60 ms (−19%) |
+| search, one month | 159 ms | 124 ms (−22%) |
+| time | — | 53 s, with the backup copy |
+
+- **One set per text:** the 152,504 texts have 152,504 sets of chunks, no event with text is left without them, and `PRAGMA integrity_check` gives `ok`.
+- **Retrieval suite:** recall 1.00, MRR 0.87, rejection 1.00, redundancy 0.00, 32 of 32 correct, the same as before; the `top_k` sweep gives the same table.
+- **Less than the estimate:** #40 estimated −337 MB on the `float32` database; with `int8` (#66) the vectors removed weigh a quarter of that, 88.6 MB. And `chunks` now carries each text's key (source and the 64-character `content_hash`) and a unique index on it: +30.5 MB, plus 5.2 MB for the hash and path index. A table of texts with an integer id would take part of it back; not measured.
+- **Hits:** k counts texts, and a text found becomes one hit per event with it in the source and period (7.3 hits per query with no filter). With the three texts that have the most events as queries, a query returns ~4,900 hits: 266 ms with no filter (before: 336 ms) and 87 ms for one day (before: 74 ms).
+
 ## Disk writes during ingestion (#51)
 
 > Manual measurement, no mage target · 2026-09-30 · commits `d963b97`–`11020d0` · CUDA · Kingston A400 with ext4 (not tmpfs)
