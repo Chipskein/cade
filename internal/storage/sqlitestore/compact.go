@@ -10,8 +10,12 @@ import (
 
 // vec0 has no xRename (sqlite-vec#43), so a compaction cannot build the
 // new table beside the old one and swap names: it parks the live vectors
-// in this plain table, recreates chunk_embeddings and copies them back.
-const vectorStagingTable = "chunk_embeddings_staging"
+// and their metadata in these plain tables, recreates chunk_embeddings and
+// copies them back.
+const (
+	vectorStagingTable   = "chunk_embeddings_staging"
+	metadataStagingTable = "chunk_embeddings_staging_metadata"
+)
 
 const vectorColumns = `chunk_id, embedding, source, occurred_at`
 
@@ -65,13 +69,35 @@ func (s *Store) CompactVectors(ctx context.Context) (storage.VectorSlots, error)
 // rewriteVectorTable runs in one transaction, so an interruption leaves
 // the old table intact.
 func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int) error {
-	statements := []string{
-		`CREATE TABLE ` + vectorStagingTable + ` AS SELECT ` + vectorColumns + ` FROM chunk_embeddings`,
+	if err := stageVectors(ctx, tx, dimensions); err != nil {
+		return err
+	}
+	return execEach(ctx, tx, dimensions,
 		`DROP TABLE chunk_embeddings`,
 		fmt.Sprintf(createVectorTableTemplate, dimensions),
-		`INSERT INTO chunk_embeddings (` + vectorColumns + `) SELECT ` + vectorColumns + ` FROM ` + vectorStagingTable + ` ORDER BY chunk_id`,
-		`DROP TABLE ` + vectorStagingTable,
+		`INSERT INTO chunk_embeddings (`+vectorColumns+`) SELECT `+vectorColumns+` FROM `+metadataStagingTable+
+			` JOIN `+vectorStagingTable+` USING (chunk_id) ORDER BY chunk_id`,
+		`DROP TABLE `+vectorStagingTable,
+		`DROP TABLE `+metadataStagingTable)
+}
+
+// stageVectors reads the metadata columns through vec0, which is fast,
+// and the vectors from its blocks (compact_blocks.go), which is not.
+func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int) error {
+	err := execEach(ctx, tx, dimensions,
+		`CREATE TABLE `+metadataStagingTable+` AS SELECT chunk_id, source, occurred_at FROM chunk_embeddings`,
+		`CREATE TABLE `+vectorStagingTable+` (chunk_id INTEGER PRIMARY KEY, embedding BLOB NOT NULL)`)
+	if err != nil {
+		return err
 	}
+	slots, err := liveVectorSlots(ctx, tx)
+	if err != nil {
+		return err
+	}
+	return copyLiveVectors(ctx, tx, slots, dimensions*float32Bytes)
+}
+
+func execEach(ctx context.Context, tx *sql.Tx, dimensions int, statements ...string) error {
 	for _, statement := range statements {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
 			return fmt.Errorf("compact vectors (%d dimensions), at %q: %w", dimensions, statement, err)

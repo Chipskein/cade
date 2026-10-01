@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,5 +92,15 @@ func TestVectorSlotsCountsPositionsAndVectors(t *testing.T) {
 	slots, err := store.VectorSlots(context.Background())
 	if err != nil || slots != (storage.VectorSlots{Slots: vec0BlockSize, Vectors: 3}) {
 		t.Fatalf("expected one block holding 3 vectors, got %+v: %v", slots, err)
+	}
+}
+
+// A block shorter than its positions say means another sqlite-vec layout;
+// the compaction must stop instead of staging garbage.
+func TestVectorBlockReaderRejectsAShortBlock(t *testing.T) {
+	blocks := vectorBlockReader{block: 7, blob: make([]byte, 8)}
+	_, err := blocks.vector(context.Background(), vectorSlot{chunkID: 3, block: 7, offset: 1}, 8)
+	if err == nil || !strings.Contains(err.Error(), "block has 8 bytes, expected at least 16") {
+		t.Fatalf("expected an error naming the sizes, got %v", err)
 	}
 }
