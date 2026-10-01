@@ -24,6 +24,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
 - Sem mudança no esquema, e os dados gravados são os mesmos.
 
+### Benchmarks reproduzíveis (#14)
+
+- Cada seção de [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md) diz o comando, a data, o commit e o build que a reproduzem, com o limite de 120 W da GPU anotado; números medidos de novo em 2026-09-30 (`f4e5379`). O que nenhum comando de hoje reproduz foi para a seção "Histórico", e um glossário explica cada métrica em linguagem simples.
+- O `docs/BENCHMARKS.md` agora é em inglês, e o `docs/BENCHMARKS.pt-BR.md` em português.
+
 ### Plano de espaço (#40)
 
 - O `go tool mage bench` mostra os bytes por evento de cada tabela (`BenchmarkTableSize`) e o tamanho e o tempo de busca de cada formato de vetor do sqlite-vec (`BenchmarkVectorFormat`). Os vetores são 82% da base sintética e 79% do banco real da máquina de referência.

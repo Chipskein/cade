@@ -24,6 +24,11 @@ What changed in each version, the schema migrations, and what each migration rew
 - An interrupted ingestion (Ctrl-C, `cade ingest stop`, an error) loses only the open batch, at most 200 events; the next run stores them again.
 - No schema change, and the stored data is the same.
 
+### Reproducible benchmarks (#14)
+
+- Every section of [docs/BENCHMARKS.md](docs/BENCHMARKS.md) names the command, date, commit and build that reproduce it, with the GPU's 120 W limit recorded; numbers re-measured on 2026-09-30 (`f4e5379`). Numbers no current command reproduces moved to a "History" section, and a glossary explains each metric in plain language.
+- `docs/BENCHMARKS.md` is now in English, with `docs/BENCHMARKS.pt-BR.md` in Portuguese.
+
 ### Space plan (#40)
 
 - `go tool mage bench` reports bytes per event of each table (`BenchmarkTableSize`) and the size and search time of each vector format sqlite-vec offers (`BenchmarkVectorFormat`). Vectors are 82% of the synthetic database and 79% of the reference machine's real one.

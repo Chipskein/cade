@@ -30,8 +30,8 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 
 | Fase | Tema | Issue | Situação | Impacto | Esforço |
 | ---- | ---- | ----- | -------- | ------- | ------- |
-| 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | a fazer | médio | baixo |
-| 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | a fazer | médio | baixo |
+| 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | feito | médio | baixo |
+| 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | feito | médio | baixo |
 | 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | feito | médio | médio |
 | 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | a fazer | alto | médio |
@@ -129,6 +129,7 @@ flowchart LR
 - **Problema:** cada evento é uma transação (`SaveEvent`, `UpdateEvent`). Na primeira ingestão de 3.620 eventos, o `cade` escreveu 485 MB no disco para um banco de 17 MB.
 - **Mudança:** o `ingest.Pipeline` grava em transações de N eventos (N numa constante, escolhido medindo 50, 200 e 1.000). Uma interrupção perde no máximo o lote aberto, e a deduplicação (RF1.5) o recupera. Avaliar também `synchronous=NORMAL`. O `secure_delete=on` fica.
 - **Aceite:** bytes escritos por evento caem, medidos em `/proc/PID/io` num banco em disco; o tempo da primeira ingestão não piora; interromper e rodar de novo dá os mesmos eventos (teste de regressão); `go tool mage eval` sem mudança.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#escrita-no-disco-na-ingestão-51)): lotes de 200 eventos (`eventsPerCommit`), gravados também depois de 2 s abertos (`batchMaxAge`). Na primeira ingestão de 2.287 eventos num SSD, 357 → 99 MB escritos (156 → 43 KB por evento), sem piorar o tempo (59 → 56 s). O `synchronous=NORMAL` já era o modo em uso (`go-sqlite3` com WAL).
 
 ---
 
@@ -139,6 +140,7 @@ flowchart LR
 - **Problema:** o BENCHMARKS junta números de `bench/*.txt` e do CHANGELOG, com gráficos atualizados à mão, sem dizer com que comando, data e build cada um foi medido. Também existe só em português, sem o sufixo `.pt-BR`.
 - **Mudança:** cada seção com o comando, a data, a máquina e o build; os números de hoje medidos de novo; seções sem comando reproduzível removidas ou marcadas como históricas; bytes escritos na ingestão (fase 22) incluídos; `BENCHMARKS.md` em inglês e `BENCHMARKS.pt-BR.md` em português.
 - **Aceite:** todo número do BENCHMARKS pode ser reproduzido pelo comando ao lado dele; EN e PT com os links atualizados.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#máquina-e-builds)): cada seção com o comando, a data, o commit e o build; os números medidos de novo em 2026-09-30 (`f4e5379`), com a GPU a 120 W anotada; o que nenhum comando reproduz foi para [Histórico](BENCHMARKS.pt-BR.md#histórico); um glossário das métricas em linguagem simples; `BENCHMARKS.md` em inglês e `BENCHMARKS.pt-BR.md` em português.
 
 ---
 
