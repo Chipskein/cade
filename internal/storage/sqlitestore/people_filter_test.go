@@ -3,7 +3,6 @@ package sqlitestore
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -171,21 +170,16 @@ func TestDeleteSourceRemovesPeopleIndex(t *testing.T) {
 	}
 }
 
-// A database from before the index (version 6) gets it built from the
-// stored events on open, without re-ingesting.
+// A database from before the index gets it built from the stored events
+// on open, without re-ingesting. It starts at version 4, so every later
+// step runs on the schema it was written for.
 func TestPeopleIndexMigrationIndexesStoredEvents(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cade.db")
-	store, err := Open(context.Background(), path)
-	testcheck.NoError(t, err)
+	legacy := newLegacyDatabase(t, 4)
 	for _, ev := range filterCorpus() {
-		mustSave(t, store, ev, nil)
+		legacy.add(ev, nil)
 	}
-	for _, statement := range []string{`DROP TABLE event_people`, `ALTER TABLE events DROP COLUMN direction`, `PRAGMA user_version = 6`} {
-		_, err := store.db.Exec(statement)
-		testcheck.NoError(t, err)
-	}
-	store.Close()
-	reopened, err := Open(context.Background(), path)
+	legacy.close()
+	reopened, err := Open(context.Background(), legacy.Path)
 	testcheck.NoError(t, err)
 	defer reopened.Close()
 	scope := storage.EventFilter{From: time.Unix(0, 0), To: baseTime.AddDate(1, 0, 0)}
