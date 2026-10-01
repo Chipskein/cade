@@ -46,6 +46,9 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM chunks_fts WHERE rowid IN (SELECT chunks.id FROM chunks JOIN events ON events.id=chunks.event_id WHERE events.uid=?)`, uid); err != nil {
 		return false, err
 	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_identifiers_fts WHERE rowid IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
+		return false, err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_people WHERE event_id IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
 		return false, err
 	}
@@ -134,6 +137,9 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 		return 0, err
 	}
 	if err := unindexSource(ctx, tx, source); err != nil {
+		return 0, err
+	}
+	if err := unindexSourceIdentifiers(ctx, tx, source); err != nil {
 		return 0, err
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE source = ?`, string(source))

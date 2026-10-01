@@ -43,6 +43,9 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 	if err := reindexPeople(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
+	if err := reindexEventIdentifier(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
 	if err := deleteChunks(ctx, tx, eventID); err != nil {
 		return err
 	}
@@ -50,6 +53,15 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 		return err
 	}
 	return recordFileModification(ctx, tx, ev)
+}
+
+// reindexEventIdentifier replaces the event's identifier entry, as an edit
+// replaces its chunks' entries.
+func reindexEventIdentifier(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event) error {
+	if err := unindexEventIdentifier(ctx, tx, eventID); err != nil {
+		return err
+	}
+	return indexEventIdentifier(ctx, tx, eventID, ev)
 }
 
 func updateEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, error) {

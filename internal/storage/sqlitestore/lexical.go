@@ -1,9 +1,11 @@
 package sqlitestore
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/chipskein/cade/internal/event"
@@ -19,24 +21,10 @@ CREATE VIRTUAL TABLE chunks_fts USING fts5(
 	text, content='', contentless_delete=1, tokenize='unicode61 remove_diacritics 2'
 )`
 
-// ftsText is what a chunk is found by: its text and, on the first chunk,
-// identifiers the text does not carry (a commit's hash, a file's path).
-func ftsText(ev event.Event, chunk storage.Chunk) string {
-	text := chunk.Text(ev.Content)
-	if chunk.Ordinal != 0 {
-		return text
-	}
-	switch ev.Source {
-	case event.SourceGit:
-		return text + "\n" + ev.Commit().Hash
-	case event.SourceFile:
-		return text + "\n" + ev.File().Path
-	}
-	return text
-}
-
+// indexChunk indexes the chunk by its text alone: what identifies the
+// event goes to event_identifiers_fts.
 func indexChunk(ctx context.Context, tx *sql.Tx, chunkID int64, ev event.Event, chunk storage.Chunk) error {
-	if _, err := tx.ExecContext(ctx, `INSERT INTO chunks_fts (rowid, text) VALUES (?, ?)`, chunkID, ftsText(ev, chunk)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO chunks_fts (rowid, text) VALUES (?, ?)`, chunkID, chunk.Text(ev.Content)); err != nil {
 		return fmt.Errorf("index chunk %d of event %q: %w", chunk.Ordinal, ev.UID, err)
 	}
 	return nil
@@ -60,15 +48,30 @@ func unindexSource(ctx context.Context, tx *sql.Tx, source event.Source) error {
 	return nil
 }
 
-const lexicalQuery = `
+// lexicalQueryTemplate selects a keyword index's hits with their BM25
+// score; %[1]s is the index and %[2]s joins its rowid to a chunk and an
+// event.
+const lexicalQueryTemplate = `
 SELECT ` + eventColumns + `, chunks.ordinal, chunks.char_start, chunks.char_end,
-	(SELECT COUNT(*) FROM chunks AS siblings WHERE siblings.event_id = chunks.event_id)
-FROM chunks_fts
-JOIN chunks ON chunks.id = chunks_fts.rowid
-JOIN events ON events.id = chunks.event_id
-WHERE chunks_fts MATCH ? AND events.occurred_at >= ? AND events.occurred_at < ? AND (? = '' OR events.source = ?)
-ORDER BY bm25(chunks_fts)
+	(SELECT COUNT(*) FROM chunks AS siblings WHERE siblings.event_id = chunks.event_id), bm25(%[1]s)
+FROM %[1]s %[2]s
+WHERE %[1]s MATCH ? AND events.occurred_at >= ? AND events.occurred_at < ? AND (? = '' OR events.source = ?)
+ORDER BY bm25(%[1]s)
 LIMIT ?`
+
+// lexicalQueries search the chunks' text and the events' identifiers; an
+// identifier hit is a hit on the event's first chunk.
+var lexicalQueries = []string{
+	fmt.Sprintf(lexicalQueryTemplate, "chunks_fts", `JOIN chunks ON chunks.id = chunks_fts.rowid JOIN events ON events.id = chunks.event_id`),
+	fmt.Sprintf(lexicalQueryTemplate, "event_identifiers_fts",
+		`JOIN events ON events.id = event_identifiers_fts.rowid JOIN chunks ON chunks.event_id = events.id AND chunks.ordinal = 0`),
+}
+
+// scoredLexicalHit is a hit with its BM25 score, lower is better.
+type scoredLexicalHit struct {
+	hit   storage.ScoredEvent
+	score float64
+}
 
 // SearchLexical returns the chunks matching query.Match (an FTS5
 // expression) that satisfy the source and time filters, best BM25 first.
@@ -77,21 +80,44 @@ func (s *Store) SearchLexical(ctx context.Context, query storage.LexicalQuery) (
 	if strings.TrimSpace(query.Match) == "" {
 		return nil, nil
 	}
+	var scored []scoredLexicalHit
+	for _, statement := range lexicalQueries {
+		found, err := s.searchLexicalIndex(ctx, statement, query)
+		if err != nil {
+			return nil, err
+		}
+		scored = append(scored, found...)
+	}
+	return bestLexicalHits(scored, query.Limit), nil
+}
+
+func (s *Store) searchLexicalIndex(ctx context.Context, statement string, query storage.LexicalQuery) ([]scoredLexicalHit, error) {
 	from, to := timeBounds(query.From, query.To)
-	rows, err := s.db.QueryContext(ctx, lexicalQuery, query.Match, from, to, string(query.Source), string(query.Source), query.Limit)
+	rows, err := s.db.QueryContext(ctx, statement, query.Match, from, to, string(query.Source), string(query.Source), query.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("keyword search %q: %w", query.Match, err)
 	}
 	defer rows.Close()
-	var hits []storage.ScoredEvent
+	var scored []scoredLexicalHit
 	for rows.Next() {
-		var hit storage.ScoredEvent
-		if hit.Event, err = scanEvent(rows, &hit.Chunk.Ordinal, &hit.Chunk.Start, &hit.Chunk.End, &hit.ChunkCount); err != nil {
+		var item scoredLexicalHit
+		hit := &item.hit
+		if hit.Event, err = scanEvent(rows, &hit.Chunk.Ordinal, &hit.Chunk.Start, &hit.Chunk.End, &hit.ChunkCount, &item.score); err != nil {
 			return nil, err
 		}
-		hits = append(hits, hit)
+		scored = append(scored, item)
 	}
-	return hits, rows.Err()
+	return scored, rows.Err()
+}
+
+// bestLexicalHits merges the indexes' hits by score and keeps limit.
+func bestLexicalHits(scored []scoredLexicalHit, limit int) []storage.ScoredEvent {
+	slices.SortStableFunc(scored, func(a, b scoredLexicalHit) int { return cmp.Compare(a.score, b.score) })
+	hits := make([]storage.ScoredEvent, 0, min(len(scored), limit))
+	for _, item := range scored[:min(len(scored), limit)] {
+		hits = append(hits, item.hit)
+	}
+	return hits
 }
 
 // indexExistingChunks (schema version 6) creates chunks_fts and indexes
