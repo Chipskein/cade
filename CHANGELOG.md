@@ -10,6 +10,14 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Vector compaction (#65)
+
+- `cade compact` rewrites the vector table without the positions that `forget`, updated events and the secrets migration left empty; sqlite-vec never reuses them and `VACUUM` alone does not reach inside its blocks. It computes no embedding and needs no model: 91 s on the reference machine's 416 k vectors, where a reindex takes hours of GPU. It needs free disk for a copy of the vectors while it runs.
+- `cade reindex` now ends with a `VACUUM`: the vector table it drops stayed in the file as free pages, 1.0 GB of a 2.9 GB database.
+- `cade doctor` warns when 20% or more of the vector positions are empty.
+- On a copy of the real database: 2,949.5 MB → 1,715.7 MB, the same distances for every query measured, and the unfiltered search 9% faster. Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vector-compaction-65).
+- No schema change.
+
 ### Fewer disk writes on ingestion (#51)
 
 - Ingestion stores events in transactions of 200 instead of one per event; a transaction also commits once it has been open for 2 s, checked between events, so a `cade forget` run meanwhile usually waits for it (up to 5 s) instead of failing. On the first ingestion of 2,287 events (`git` + `file`, on an SSD), writes fell from 357 MB to 99 MB, or from 156 KB to 43 KB per new event, and the time did not get worse (59 s → 56 s). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).

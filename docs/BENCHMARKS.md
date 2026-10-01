@@ -375,7 +375,7 @@ Gains are on the real history (1,242.4 MB); each row assumes the ones above it a
 
 | Lever | Space | Search | Ingestion | Decision |
 |---|---:|---|---|---|
-| Compact the vector table (drop empty slots) | −262 MB (−21%) | same results; fewer blocks to scan | none | [#65](https://github.com/Chipskein/cade/issues/65) |
+| Compact the vector table (drop empty slots) | −262 MB (−21%) | same results; fewer blocks to scan | none | done: [#65](https://github.com/Chipskein/cade/issues/65), [measured](#vector-compaction-65) |
 | One set of chunks and vectors per text | −337 MB of vectors, ~−11 MB of FTS5 (−28%) | copies stop taking top-k slots; the source and period filters need a new design | fewer writes | [#67](https://github.com/Chipskein/cade/issues/67) |
 | Scaled `int8` vectors | −288 MB (−59% if done alone: −734 MB) | 0.994 of the top-10, same latency | one pass over 768 values per vector | [#66](https://github.com/Chipskein/cade/issues/66) |
 | Compress text per row | −33 MB (−3%) | FTS5 unaffected (contentless); every read decompresses, and the SQL filters on `metadata` (people, image hash) stop working | compress per event | no: reassess once vectors shrink |
@@ -383,6 +383,28 @@ Gains are on the real history (1,242.4 MB); each row assumes the ones above it a
 | `bit` vectors for events older than 12 months | ~−19 MB after `int8` | loses a quarter of the top-10 in old history | none | no |
 
 With the three chosen, vectors go from 985 MB to ~99 MB and the database from ~1.24 GB to ~0.35 GB, ~1.5 KB per event. Text (`events`, 157 MB) then becomes the largest table, so compression is measured again after them.
+
+## Vector compaction (#65)
+
+> `cade compact` on a copy of the reference machine's real history (`sqlite3 .backup`, NVMe) · 2026-10-01 · commit `372d390` · CPU build, no model loaded · blocks and file read with the queries of [Space levers](#space-levers-40), plus `PRAGMA freelist_count` · search: 54 stored vectors as queries, top-6, no filter, 3 rounds, median.
+
+Since the reindex of that morning, ingestion had already left 15% of the positions empty, and the reindex itself had left its dropped table as free pages, because it did not `VACUUM` then.
+
+| | Before | After `cade compact` |
+|---|---:|---:|
+| vec0 blocks / positions | 480 / 491,520 | 407 / 416,768 |
+| live vectors | 415,963 | 415,963 |
+| empty positions | 75,557 (15%, 221.4 MB) | 805 (0.2%), the last block's tail |
+| free pages | 256,645 (1,002.5 MB) | 0 |
+| file | 2,949.5 MB | 1,715.7 MB (−42%) |
+| unfiltered search, median | 507–516 ms | 466 ms (−9%) |
+| time | — | 91 s |
+
+- **Blocks:** 407 = ceil(415,963 / 1,024), the acceptance of #65. `PRAGMA integrity_check` is `ok`.
+- **Same search:** the 54 queries return the same distances in the same order. Where a UID changed, it sits at a tied distance, almost always 0: a copy of a repeated text, whose order among the ties follows its position in the blocks.
+- **Where the space came from:** most of it, 1,002.5 MB, was the free pages; the reindex now ends with a `VACUUM`, so only the 221.4 MB inside the blocks are left for `cade compact`.
+- **Time:** 91 s. Reading the `embedding` column through vec0 opens the whole 3 MB block once per row and took 174 s of the first version's 258 s; the compaction now reads each block once from vec0's shadow tables. What is left: reinserting into vec0 (~54 s) and `VACUUM` (~28 s). A reindex of the same vectors takes hours of GPU.
+- **Disk:** the rewrite holds a copy of the vectors (~1.3 GB here) until the `VACUUM`.
 
 ## Disk writes during ingestion (#51)
 

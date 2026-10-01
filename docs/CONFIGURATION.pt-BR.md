@@ -81,6 +81,10 @@ O `cade ask` executa uma **busca híbrida**: similaridade vetorial (embedding co
 
 A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~114 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).
 
+## Espaço em disco
+
+Os vetores são a maior parte do banco. O sqlite-vec os guarda em blocos de 1.024 posições e nunca reaproveita uma posição apagada, então o `cade forget`, os eventos atualizados e as migrações deixam posições vazias que a busca continua lendo. O `cade doctor` avisa quando 20% delas estão vazias; o `cade compact` então reescreve os blocos só com os vetores vivos e diminui o arquivo. Não carrega modelo e mantém os mesmos resultados, mas precisa de espaço livre para uma cópia dos vetores (~3 KB por pedaço) enquanto roda. O `cade reindex` deixa os blocos cheios e compacta o arquivo sozinho. Medições em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md#compactação-dos-vetores-65).
+
 ## Custo da descrição de imagens
 
 Com `sources.images` ligado, cada imagem custa cerca de 1,8 s numa RTX 3060 e 21 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).

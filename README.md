@@ -48,6 +48,7 @@ cade ingest status      # also: pause, resume, stop
 cade timeline yesterday
 cade tasks today
 cade ask "what did I work on yesterday?"
+cade compact            # after a large forget: returns the deleted vectors' space
 ```
 
 Finding an image by its text:

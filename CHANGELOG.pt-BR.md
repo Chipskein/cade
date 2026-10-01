@@ -10,6 +10,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Compactação dos vetores (#65)
+
+- O `cade compact` reescreve a tabela de vetores sem as posições que o `forget`, os eventos atualizados e a migração dos segredos deixaram vazias; o sqlite-vec nunca as reaproveita, e o `VACUUM` sozinho não chega dentro dos blocos dele. Não gera embedding e não carrega modelo: 91 s nos 416 mil vetores da máquina de referência, onde um reindex leva horas de GPU. Precisa de espaço livre para uma cópia dos vetores enquanto roda.
+- O `cade reindex` agora termina com `VACUUM`: a tabela de vetores que ele apaga ficava no arquivo como páginas livres, 1,0 GB de um banco de 2,9 GB.
+- O `cade doctor` avisa quando 20% ou mais das posições de vetores estão vazias.
+- Numa cópia do banco real: 2.949,5 MB → 1.715,7 MB, as mesmas distâncias em todas as consultas medidas, e a busca sem filtro 9% mais rápida. Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#compactação-dos-vetores-65).
+- Sem mudança no esquema.
+
 ### Menos escrita no disco na ingestão (#51)
 
 - A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).

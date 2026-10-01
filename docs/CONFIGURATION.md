@@ -81,6 +81,10 @@
 
 Vector search scans all chunks linearly (no approximate index). On a 6-core CPU this costs ~114 ms at 100 k events (unfiltered; see [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). A date or source filter reduces it proportionally. Detailed measurements in [BENCHMARKS.md](BENCHMARKS.md).
 
+## Disk space
+
+Vectors are most of the database. sqlite-vec stores them in blocks of 1,024 positions and never reuses a deleted one, so `cade forget`, updated events and migrations leave empty positions that the search still reads. `cade doctor` warns once 20% of them are empty; `cade compact` then rewrites the blocks with only the live vectors and shrinks the file. It loads no model and keeps the same results, but needs free disk for a copy of the vectors (~3 KB per chunk) while it runs. `cade reindex` leaves the blocks full and compacts the file by itself. Measurements in [BENCHMARKS.md](BENCHMARKS.md#vector-compaction-65).
+
 ## Image description cost
 
 With `sources.images` on, each image costs about 1.8 s on an RTX 3060 and 21 s on a 6-core CPU: a folder of 1,000 screenshots takes ~30 min on a GPU and ~6 h on a CPU, spread over runs by `ingest.max_images_per_run`. Measurements in [BENCHMARKS.md](BENCHMARKS.md).
