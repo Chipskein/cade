@@ -10,6 +10,11 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### `int8` vectors (#66)
+
+- Vectors are stored as `int8`, each scaled by its own largest component so ±127 covers its range: a quarter of the space of `float32`. The search compares the same directions, and the retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). On a copy of the real database: 1,799.0 MB → 837.5 MB, 305 of 306 top-6 results kept, distances moved by at most 0.0005, and the unfiltered search 25% faster (433 → 324 ms). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vectors-in-int8-66).
+- **Upgrading:** migration 11 rewrites the vectors, so the first command that opens an older database writes a `cade.db.before-v11-<date>` copy (mode `600`) first, then converts and runs `VACUUM`. On the reference machine's 416 k vectors it took 28 s, 4 s of them the copy; it needs free disk for the copy (as large as the database) plus the new vectors. `cade doctor` says, without changing anything, that the migration is pending and will copy. No `reindex` and no new embedding.
+
 ### Vector compaction (#65)
 
 - `cade compact` rewrites the vector table without the positions that `forget`, updated events and the secrets migration left empty; sqlite-vec never reuses them and `VACUUM` alone does not reach inside its blocks. It computes no embedding and needs no model: 91 s on the reference machine's 416 k vectors, where a reindex takes hours of GPU. It needs free disk for a copy of the vectors while it runs.

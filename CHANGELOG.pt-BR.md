@@ -10,6 +10,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Vetores em `int8` (#66)
+
+- Os vetores são guardados em `int8`, cada um escalado pelo seu maior componente para que ±127 cubra o intervalo que ele usa: 1/4 do espaço do `float32`. A busca compara as mesmas direções, e a suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Numa cópia do banco real: 1.799,0 MB → 837,5 MB, 305 de 306 resultados do top-6 mantidos, distâncias mudando no máximo 0,0005, e a busca sem filtro 25% mais rápida (433 → 324 ms). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#vetores-em-int8-66).
+- **Atualizar:** a migração 11 reescreve os vetores, então o primeiro comando que abrir um banco anterior grava antes uma cópia `cade.db.before-v11-<data>` (permissão `600`), converte e roda `VACUUM`. Nos 416 mil vetores da máquina de referência levou 28 s, 4 s deles na cópia; precisa de espaço livre para a cópia (do tamanho do banco) mais os vetores novos. O `cade doctor` diz, sem mudar nada, que a migração está pendente e vai copiar. Sem `reindex` e sem gerar embedding.
+
 ### Compactação dos vetores (#65)
 
 - O `cade compact` reescreve a tabela de vetores sem as posições que o `forget`, os eventos atualizados e a migração dos segredos deixaram vazias; o sqlite-vec nunca as reaproveita, e o `VACUUM` sozinho não chega dentro dos blocos dele. Não gera embedding e não carrega modelo: 91 s nos 416 mil vetores da máquina de referência, onde um reindex leva horas de GPU. Precisa de espaço livre para uma cópia dos vetores enquanto roda.
