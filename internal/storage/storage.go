@@ -87,7 +87,18 @@ type EventStore interface {
 	DeleteEvent(ctx context.Context, uid string) (bool, error)
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
+	VectorCompactor
 	Close() error
+}
+
+// VectorCompactor returns to the disk the vector positions deletions left
+// empty (`cade compact`, #65).
+type VectorCompactor interface {
+	// VectorSlots measures the blocks; zero before the first vector.
+	VectorSlots(ctx context.Context) (VectorSlots, error)
+	// CompactVectors rewrites the blocks with only the live vectors and
+	// returns them as they are afterwards; the vectors stay the same.
+	CompactVectors(ctx context.Context) (VectorSlots, error)
 }
 
 // SimilarityQuery describes a filtered nearest-neighbour search.

@@ -184,6 +184,7 @@ func subcommands() map[string]subcommand {
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,
+		"compact":      runCompact,
 		"version":      runVersion,
 	}
 }
