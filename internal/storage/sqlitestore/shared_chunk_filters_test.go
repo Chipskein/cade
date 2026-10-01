@@ -26,10 +26,6 @@ import (
 //   - chunkIDs: the KNN gets `text_id IN (texts with an event in the
 //     period)`, which sqlite-vec 0.1.6 applies inside the scan.
 
-// sqliteVecMaxK is sqlite-vec's largest k: a widening that reaches it
-// without k texts passing has lost texts (CA9.1).
-const sqliteVecMaxK = 4096
-
 // Repetition measured on the reference machine's history, 2026-10-01: 9%
 // of the texts repeat, and a repeated text's events are 0.4 days apart at
 // the median, 133 at p90, 613 at p99.
@@ -201,16 +197,16 @@ func searchDateRange(db *sql.DB, query sharedChunkQuery) ([]int64, error) {
 }
 
 // widenUntilK runs the KNN with k, 4k, 16k... until k of the neighbours
-// pass the period, the table has no more, or k reaches sqliteVecMaxK. Each
+// pass the period, the table has no more, or k reaches maxNeighbours. Each
 // row is a text id and whether it passed.
 func widenUntilK(query sharedChunkQuery, nearest func(limit int) (*sql.Rows, error)) ([]int64, error) {
-	for limit := query.k; ; limit = min(limit*4, sqliteVecMaxK) {
+	for limit := query.k; ; limit = min(limit*4, maxNeighbours) {
 		rows, err := nearest(limit)
 		if err != nil {
 			return nil, err
 		}
 		passed, seen, err := scanPassedTexts(rows)
-		if err != nil || len(passed) >= query.k || seen < limit || limit == sqliteVecMaxK {
+		if err != nil || len(passed) >= query.k || seen < limit || limit == maxNeighbours {
 			return passed[:min(len(passed), query.k)], err
 		}
 	}

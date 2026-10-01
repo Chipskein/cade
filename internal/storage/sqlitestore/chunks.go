@@ -23,6 +23,13 @@ CREATE TABLE chunks (
 	UNIQUE (event_id, ordinal)
 )`
 
+// chunkEvents joins chunks to the events they belong to, and
+// chunkSiblings counts the chunks of the same text as chunks.
+const (
+	chunkEvents   = `events.id = chunks.event_id`
+	chunkSiblings = `(SELECT COUNT(*) FROM chunks AS siblings WHERE siblings.event_id = chunks.event_id)`
+)
+
 func insertChunks(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event, chunks []storage.Chunk) error {
 	for _, chunk := range chunks {
 		if len(chunk.Vector) == 0 {
@@ -47,9 +54,12 @@ func insertChunks(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event
 	return nil
 }
 
+// insertVector dates the vector by its event: a chunk has one event, so
+// it is both the first and the last date.
 func insertVector(ctx context.Context, tx *sql.Tx, chunkID int64, ev event.Event, vector []float32) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO chunk_embeddings (chunk_id, embedding, source, occurred_at) VALUES (?, `+int8VectorValue+`, ?, ?)`,
-		chunkID, encodeInt8Vector(vector), string(ev.Source), toUnixMillis(ev.Timestamp))
+	at := toUnixMillis(ev.Timestamp)
+	_, err := tx.ExecContext(ctx, `INSERT INTO chunk_embeddings (chunk_id, embedding, source, first_at, last_at) VALUES (?, `+int8VectorValue+`, ?, ?, ?)`,
+		chunkID, encodeInt8Vector(vector), string(ev.Source), at, at)
 	if err != nil {
 		return fmt.Errorf("insert embedding of event %q: %w", ev.UID, err)
 	}

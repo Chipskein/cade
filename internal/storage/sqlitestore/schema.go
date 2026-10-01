@@ -22,11 +22,25 @@ CREATE TABLE IF NOT EXISTS store_settings (
 	value TEXT NOT NULL
 );`
 
-// source and occurred_at are vec0 metadata columns so the KNN search itself
-// applies the filters (CA9.1); filtering after the top-k cut would silently
-// drop matching events that ranked below k. The embedding is int8, scaled
-// per vector (embeddings.go).
+// source, first_at and last_at are vec0 metadata columns so the KNN search
+// itself applies the filters (CA9.1); filtering after the top-k cut lost
+// most matches of a one-day period (#67, shared_chunk_filters_test.go). A
+// chunk's events may be months apart, so it keeps the first and the last
+// of their dates, and search.go checks the events in between. The
+// embedding is int8, scaled per vector (embeddings.go).
 const createVectorTableTemplate = `
+CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
+	chunk_id  INTEGER PRIMARY KEY,
+	embedding int8[%d] distance_metric=cosine,
+	source    TEXT,
+	first_at  INTEGER,
+	last_at   INTEGER
+)`
+
+// createOccurredAtVectorTableTemplate is the vector table of schema
+// versions 11 and 12, one date per chunk, which migration 11 still creates
+// so version 13 has one layout to convert.
+const createOccurredAtVectorTableTemplate = `
 CREATE VIRTUAL TABLE IF NOT EXISTS chunk_embeddings USING vec0(
 	chunk_id    INTEGER PRIMARY KEY,
 	embedding   int8[%d] distance_metric=cosine,

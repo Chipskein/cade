@@ -15,11 +15,15 @@ func convertVectorsToInt8(ctx context.Context, tx *sql.Tx) error {
 	if err != nil || !found {
 		return err
 	}
+	if converted, err := vectorTableLacks(ctx, tx, `float[`); err != nil || converted {
+		return err
+	}
 	return rewriteVectorTable(ctx, tx, dimensions, int8Conversion)
 }
 
 // int8Conversion reads the float32 blocks and stages each vector as int8.
-var int8Conversion = vectorRewrite{componentBytes: float32Bytes, convert: float32BlobToInt8}
+var int8Conversion = vectorRewrite{componentBytes: float32Bytes, convert: float32BlobToInt8,
+	readMetadata: occurredAtLayout.metadata, layout: occurredAtLayout}
 
 func float32BlobToInt8(stored []byte) ([]byte, error) {
 	vector, err := decodeFloat32s(stored)
