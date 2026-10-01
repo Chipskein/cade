@@ -42,6 +42,7 @@ var schemaMigrations = []migration{
 	{version: 11, description: "vectors in int8 scaled per vector", backup: true, compact: true, apply: convertVectorsToInt8},
 	{version: 12, description: "commit hashes and file paths indexed by event", apply: moveIdentifiersToEvents},
 	{version: 13, description: "first and last date per vector", backup: true, compact: true, apply: spreadVectorDates},
+	{version: 14, description: "one set of chunks and vectors per text", backup: true, compact: true, apply: shareChunksByText},
 }
 
 func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {

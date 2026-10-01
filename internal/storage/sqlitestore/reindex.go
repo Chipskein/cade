@@ -93,7 +93,7 @@ func (s *Store) FinishReindex(ctx context.Context) error {
 
 // missingChunks selects events with text and no chunks: chunks and
 // vectors are written together, so these are the ones to embed.
-const missingChunks = `content != '' AND NOT EXISTS (SELECT 1 FROM chunks WHERE chunks.event_id = events.id)`
+const missingChunks = `content != '' AND NOT EXISTS (SELECT 1 FROM chunks WHERE ` + chunkEvents + `)`
 
 // EventsWithoutEmbedding returns the next events a reindex must embed.
 func (s *Store) EventsWithoutEmbedding(ctx context.Context, limit int) ([]event.Event, error) {

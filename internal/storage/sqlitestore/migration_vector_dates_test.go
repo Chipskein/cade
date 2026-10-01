@@ -43,7 +43,7 @@ func TestSpreadVectorDatesKeepsVectorsAndDatesEachOne(t *testing.T) {
 	}
 	var mismatched int
 	testcheck.NoError(t, store.db.QueryRow(`SELECT COUNT(*) FROM chunk_embeddings JOIN chunks ON chunks.id = chunk_embeddings.chunk_id
-		JOIN events ON events.id = chunks.event_id WHERE first_at != events.occurred_at OR last_at != events.occurred_at`).Scan(&mismatched))
+		JOIN events ON `+chunkEvents+` WHERE first_at != events.occurred_at OR last_at != events.occurred_at`).Scan(&mismatched))
 	if mismatched != 0 {
 		t.Fatalf("expected first_at and last_at to be each event's date, got %d mismatched", mismatched)
 	}

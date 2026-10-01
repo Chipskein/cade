@@ -38,10 +38,9 @@ func unindexChunk(ctx context.Context, tx *sql.Tx, chunkID int64) error {
 }
 
 // unindexSource removes the terms of every chunk of source, before its
-// events (and, by cascade, chunks) are deleted.
+// chunks are deleted.
 func unindexSource(ctx context.Context, tx *sql.Tx, source event.Source) error {
-	_, err := tx.ExecContext(ctx, `DELETE FROM chunks_fts WHERE rowid IN
-		(SELECT chunks.id FROM chunks JOIN events ON events.id = chunks.event_id WHERE events.source = ?)`, string(source))
+	_, err := tx.ExecContext(ctx, `DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE source = ?)`, string(source))
 	if err != nil {
 		return fmt.Errorf("unindex %s chunks: %w", source, err)
 	}
@@ -53,7 +52,7 @@ func unindexSource(ctx context.Context, tx *sql.Tx, source event.Source) error {
 // event.
 const lexicalQueryTemplate = `
 SELECT ` + eventColumns + `, chunks.ordinal, chunks.char_start, chunks.char_end,
-	(SELECT COUNT(*) FROM chunks AS siblings WHERE siblings.event_id = chunks.event_id), bm25(%[1]s)
+	` + chunkSiblings + `, bm25(%[1]s)
 FROM %[1]s %[2]s
 WHERE %[1]s MATCH ? AND events.occurred_at >= ? AND events.occurred_at < ? AND (? = '' OR events.source = ?)
 ORDER BY bm25(%[1]s)
@@ -62,9 +61,9 @@ LIMIT ?`
 // lexicalQueries search the chunks' text and the events' identifiers; an
 // identifier hit is a hit on the event's first chunk.
 var lexicalQueries = []string{
-	fmt.Sprintf(lexicalQueryTemplate, "chunks_fts", `JOIN chunks ON chunks.id = chunks_fts.rowid JOIN events ON events.id = chunks.event_id`),
+	fmt.Sprintf(lexicalQueryTemplate, "chunks_fts", `JOIN chunks ON chunks.id = chunks_fts.rowid JOIN events ON `+chunkEvents),
 	fmt.Sprintf(lexicalQueryTemplate, "event_identifiers_fts",
-		`JOIN events ON events.id = event_identifiers_fts.rowid JOIN chunks ON chunks.event_id = events.id AND chunks.ordinal = 0`),
+		`JOIN events ON events.id = event_identifiers_fts.rowid JOIN chunks ON `+chunkEvents+` AND chunks.ordinal = 0`),
 }
 
 // scoredLexicalHit is a hit with its BM25 score, lower is better.

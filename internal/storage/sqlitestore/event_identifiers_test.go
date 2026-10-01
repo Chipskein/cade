@@ -2,7 +2,7 @@ package sqlitestore
 
 import (
 	"context"
-	"path/filepath"
+	"database/sql"
 	"slices"
 	"testing"
 
@@ -86,21 +86,29 @@ func TestForgetRemovesIdentifiers(t *testing.T) {
 	}
 }
 
+// migrateTo applies the migrations up to version, and no further, to the
+// database at path: a later step then meets the schema of its time.
+func migrateTo(t *testing.T, path string, version int) *sql.DB {
+	t.Helper()
+	db := openRaw(t, path)
+	testcheck.NoError(t, migrate(context.Background(), db, path, schemaMigrations[:version], Hooks{}))
+	return db
+}
+
 // A database at version 11 has the hash in its first chunk's entry;
 // migration 12 moves it to the event.
 func TestMoveIdentifiersToEventsMigration(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cade.db")
-	store, err := Open(context.Background(), path)
-	testcheck.NoError(t, err)
-	commit := commitEvent("a", "corrige retry", "e5f6a7b8c9")
-	mustSave(t, store, commit, []float32{1, 0})
-	for _, statement := range []string{`DROP TABLE event_identifiers_fts`, `DELETE FROM chunks_fts WHERE rowid = 1`,
-		`INSERT INTO chunks_fts (rowid, text) VALUES (1, 'corrige retry` + "\n" + `e5f6a7b8c9')`, `PRAGMA user_version = 11`} {
-		_, err := store.db.Exec(statement)
+	legacy := newLegacyDatabase(t, 4)
+	legacy.add(commitEvent("a", "corrige retry", "e5f6a7b8c9"), []float32{1, 0})
+	legacy.close()
+	db := migrateTo(t, legacy.Path, 11)
+	for _, statement := range []string{`DELETE FROM chunks_fts WHERE rowid = 1`,
+		`INSERT INTO chunks_fts (rowid, text) VALUES (1, 'corrige retry` + "\n" + `e5f6a7b8c9')`} {
+		_, err := db.Exec(statement)
 		testcheck.NoError(t, err)
 	}
-	store.Close()
-	migrated, err := Open(context.Background(), path)
+	db.Close()
+	migrated, err := Open(context.Background(), legacy.Path)
 	testcheck.NoError(t, err)
 	defer migrated.Close()
 	if got := lexicalUIDs(t, migrated, `e5f6a7*`); !slices.Equal(got, []string{"a"}) || ftsRows(t, migrated, `chunks_fts`, `e5f6a7*`) != 0 {

@@ -36,6 +36,10 @@ func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, chunks []storag
 }
 
 func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []storage.Chunk) error {
+	old, err := storedTextKeyOfUID(ctx, tx, ev.UID)
+	if err != nil {
+		return err
+	}
 	eventID, err := updateEventRow(ctx, tx, ev)
 	if err != nil {
 		return err
@@ -46,13 +50,20 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 	if err := reindexEventIdentifier(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
-	if err := deleteChunks(ctx, tx, eventID); err != nil {
-		return err
-	}
-	if err := insertChunks(ctx, tx, eventID, ev, chunks); err != nil {
+	if err := replaceEventChunks(ctx, tx, eventID, old, ev, chunks); err != nil {
 		return err
 	}
 	return recordFileModification(ctx, tx, ev)
+}
+
+// storedTextKeyOfUID is the text key uid has before an edit or a forget.
+func storedTextKeyOfUID(ctx context.Context, tx *sql.Tx, uid string) (textKey, error) {
+	var key textKey
+	err := tx.QueryRowContext(ctx, `SELECT source, content_hash FROM events WHERE uid = ?`, uid).Scan(&key.source, &key.contentHash)
+	if err != nil {
+		return key, fmt.Errorf("read the text key of event %q, expected it to be stored: %w", uid, err)
+	}
+	return key, nil
 }
 
 // reindexEventIdentifier replaces the event's identifier entry, as an edit

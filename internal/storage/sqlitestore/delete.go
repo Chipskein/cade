@@ -36,14 +36,8 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if _, found, err := storedDimensions(ctx, tx); err != nil {
-		return false, err
-	} else if found {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM chunk_embeddings WHERE chunk_id IN (SELECT chunks.id FROM chunks JOIN events ON events.id=chunks.event_id WHERE events.uid=?)`, uid); err != nil {
-			return false, err
-		}
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM chunks_fts WHERE rowid IN (SELECT chunks.id FROM chunks JOIN events ON events.id=chunks.event_id WHERE events.uid=?)`, uid); err != nil {
+	key, err := storedTextKeyOfUID(ctx, tx, uid)
+	if err != nil {
 		return false, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_identifiers_fts WHERE rowid IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
@@ -61,6 +55,9 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 		}
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM events WHERE uid=?`, uid); err != nil {
+		return false, err
+	}
+	if err := releaseText(ctx, tx, key); err != nil {
 		return false, err
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO forgotten_events(uid, forgotten_at) VALUES (?, ?)`, uid, time.Now().UnixMilli()); err != nil {
@@ -140,6 +137,9 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 		return 0, err
 	}
 	if err := unindexSourceIdentifiers(ctx, tx, source); err != nil {
+		return 0, err
+	}
+	if err := deleteSourceChunks(ctx, tx, source); err != nil {
 		return 0, err
 	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE source = ?`, string(source))
