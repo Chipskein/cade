@@ -53,9 +53,10 @@ type EventStore interface {
 	BeginBatch(ctx context.Context) (EventBatch, error)
 	// EventsBetween returns events with from <= timestamp < to, oldest first.
 	EventsBetween(ctx context.Context, from, to time.Time) ([]event.Event, error)
-	// SearchSimilar returns the nearest chunks to the query embedding that
-	// also satisfy the query's source and time filters, one hit per chunk
-	// (an event can appear more than once), closest first.
+	// SearchSimilar returns the query.Limit nearest chunks to the query
+	// embedding that have an event in the query's source and period, one
+	// hit per such event (a text's events share its chunks, and an event
+	// can appear once per chunk), closest first.
 	SearchSimilar(ctx context.Context, query SimilarityQuery) ([]ScoredEvent, error)
 	// SearchLexical returns the chunks matching a keyword query that also
 	// satisfy its source and time filters, best match first; hits carry
@@ -111,7 +112,8 @@ type SimilarityQuery struct {
 	From time.Time
 	To   time.Time
 	// Among, when set, keeps only hits satisfying it. It applies after the
-	// k nearest are found: k counts every chunk of the source and period.
+	// k nearest are found: k counts every chunk with an event in the
+	// source and period.
 	Among *EventFilter
 }
 

@@ -20,7 +20,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 
 | Caminho | Conteúdo | Permissão |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto), embeddings, índice das palavras de cada pedaço (mais hashes de commit e caminhos de arquivo), histórico de edição de arquivos | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto, um conjunto por texto distinto), embeddings, índice das palavras de cada pedaço, índice de hashes de commit e caminhos de arquivo, histórico de edição de arquivos | `600` |
 | `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
 | `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
@@ -88,6 +88,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
 - O índice de palavras acompanha o texto: uma edição, o `reindex` e o `forget` também tiram dele as palavras antigas.
+- Eventos com o mesmo texto (uma página visitada várias vezes) dividem um conjunto de pedaços, embeddings e entradas de palavras. O `forget` de um deles apaga esse evento, a entrada do hash ou caminho dele e a data dele no embedding; os pedaços compartilhados ficam enquanto outro evento tiver o texto e saem com o último.
 - O índice de pessoas (`event_people`) guarda os nomes de cada mensagem e commit (remetente ou autor, título da conversa, primeiros nomes depois de "@"), para que uma pergunta sobre uma pessoa seja filtrada no banco. Ele acompanha os eventos: uma edição troca os nomes do evento, e o `forget` os apaga junto com os eventos.
 - Texto substituído, como o de uma mensagem editada ou de uma versão antiga de um arquivo, também é zerado (`secure_delete` do SQLite). Só a versão atual de cada arquivo fica guardada; `file_modifications` guarda a data e o tamanho de cada versão anterior, sem o texto, e o `forget file` a apaga.
 - Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`. Para uma imagem, isso inclui a descrição, que uma cópia da mesma imagem encontrada depois reaproveita.

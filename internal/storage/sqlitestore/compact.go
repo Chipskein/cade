@@ -17,11 +17,19 @@ const (
 	metadataStagingTable = "chunk_embeddings_staging_metadata"
 )
 
-const vectorColumns = `chunk_id, embedding, source, occurred_at`
+// vectorLayout is one definition of chunk_embeddings: its CREATE template
+// (%d is the dimension count) and its metadata columns.
+type vectorLayout struct {
+	create   string
+	metadata string
+}
 
-// stagedVectorColumns reads the staged blobs back as int8; vec0 reads a
-// bare blob as float32.
-const stagedVectorColumns = `chunk_id, vec_int8(embedding), source, occurred_at`
+var (
+	// occurredAtLayout is schema versions 11 and 12: one date per chunk.
+	occurredAtLayout = vectorLayout{create: createOccurredAtVectorTableTemplate, metadata: `source, occurred_at`}
+	// dateRangeLayout is the layout since version 13.
+	dateRangeLayout = vectorLayout{create: createVectorTableTemplate, metadata: `source, first_at, last_at`}
+)
 
 // vectorRewrite is how rewriteVectorTable carries each live vector over:
 // a compaction copies it as stored, a format migration converts it.
@@ -30,10 +38,14 @@ type vectorRewrite struct {
 	componentBytes int
 	// convert turns a stored blob into the one written back.
 	convert func(stored []byte) ([]byte, error)
+	// readMetadata selects, from the old table, the new layout's metadata.
+	readMetadata string
+	layout       vectorLayout
 }
 
-// compactionRewrite keeps every vector exactly as stored.
-var compactionRewrite = vectorRewrite{componentBytes: int8Bytes, convert: keepVectorBlob}
+// compactionRewrite keeps every vector and its metadata exactly as stored.
+var compactionRewrite = vectorRewrite{componentBytes: int8Bytes, convert: keepVectorBlob,
+	readMetadata: dateRangeLayout.metadata, layout: dateRangeLayout}
 
 func keepVectorBlob(stored []byte) ([]byte, error) {
 	return stored, nil
@@ -92,11 +104,13 @@ func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int, rewrite
 	if err := stageVectors(ctx, tx, dimensions, rewrite); err != nil {
 		return err
 	}
+	// vec_int8 reads the staged blobs back as int8; vec0 reads a bare blob
+	// as float32.
 	return execEach(ctx, tx, dimensions,
 		`DROP TABLE chunk_embeddings`,
-		fmt.Sprintf(createVectorTableTemplate, dimensions),
-		`INSERT INTO chunk_embeddings (`+vectorColumns+`) SELECT `+stagedVectorColumns+` FROM `+metadataStagingTable+
-			` JOIN `+vectorStagingTable+` USING (chunk_id) ORDER BY chunk_id`,
+		fmt.Sprintf(rewrite.layout.create, dimensions),
+		`INSERT INTO chunk_embeddings (chunk_id, embedding, `+rewrite.layout.metadata+`) SELECT chunk_id, vec_int8(embedding), `+
+			rewrite.layout.metadata+` FROM `+metadataStagingTable+` JOIN `+vectorStagingTable+` USING (chunk_id) ORDER BY chunk_id`,
 		`DROP TABLE `+vectorStagingTable,
 		`DROP TABLE `+metadataStagingTable)
 }
@@ -108,8 +122,8 @@ func rewriteVectorTable(ctx context.Context, tx *sql.Tx, dimensions int, rewrite
 // and vec0 would read the blob as float32.
 func stageVectors(ctx context.Context, tx *sql.Tx, dimensions int, rewrite vectorRewrite) error {
 	err := execEach(ctx, tx, dimensions,
-		`CREATE TABLE `+metadataStagingTable+` (chunk_id INTEGER PRIMARY KEY, source TEXT, occurred_at INTEGER)`,
-		`INSERT INTO `+metadataStagingTable+` SELECT chunk_id, source, occurred_at FROM chunk_embeddings`,
+		`CREATE TABLE `+metadataStagingTable+` (chunk_id INTEGER PRIMARY KEY, `+rewrite.layout.metadata+`)`,
+		`INSERT INTO `+metadataStagingTable+` SELECT chunk_id, `+rewrite.readMetadata+` FROM chunk_embeddings`,
 		`CREATE TABLE `+vectorStagingTable+` (chunk_id INTEGER PRIMARY KEY, embedding BLOB NOT NULL)`)
 	if err != nil {
 		return err

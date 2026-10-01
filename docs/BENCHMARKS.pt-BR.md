@@ -434,6 +434,50 @@ Cada vetor é guardado como 768 valores `int8`, escalado pelo seu maior componen
 - **Migrado = ingerido de novo:** a migração codifica cada vetor `float32` guardado do mesmo jeito que a ingestão codifica um novo, então um banco da v0.1.0 migrado tem os mesmos vetores que um ingerido do zero, e a suíte acima vale para ele.
 - **Disco durante a migração:** a cópia de segurança (do tamanho do banco, 1,8 GB aqui) mais os vetores `int8` em espera até o `VACUUM`.
 
+## Um conjunto de pedaços por texto (#67)
+
+> Filtros: `go tool mage bench` (`BenchmarkSharedChunkFilters`, sintético, em memória, 768 dimensões, k = 24, `f5e3915`) · qualidade: `go tool mage evalRetrieval` (`ba2c39d`, CUDA) · histórico real: migrações 12–14 numa cópia do arquivo medido em [Vetores em `int8`](#vetores-em-int8-66) (versão 11, 837,5 MB), NVMe, tabelas medidas com `dbstat` · busca: 38 vetores guardados como consultas (cada `chunk_id` múltiplo de 7.717 que continua lá depois da migração), as mesmas nos dois arquivos, top-6, 3 rodadas, mediana · 2026-10-01.
+
+Os pedaços, vetores e entradas de palavras de um texto são guardados uma vez, com a fonte e o `content_hash` como chave; os eventos chegam a eles pelo `events.content_hash`. O hash de um commit e o caminho de um arquivo, que são do evento e não do texto, têm um índice de palavras próprio.
+
+### Onde fica o filtro de período
+
+Os eventos de um texto podem estar anos distantes (0,4 dia na mediana, 133 no p90 e 613 no p99 no histórico real), então o vetor dele não tem uma data só. Nenhum texto do histórico real está em duas fontes, então a fonte continua uma coluna do vec0. Histórico sintético com essa forma, 50 mil textos:
+
+| Filtro | Depois do KNN | Primeira e última data no vec0 | `text_id IN (…)` | Por evento (antes) |
+|---|---:|---:|---:|---:|
+| nenhum | 37,6 ms | 38,1 ms | 66,2 ms | 62,3 ms |
+| só Teams | 12,6 ms | 11,6 ms | 39,2 ms | 18,1 ms |
+| um dia | 346,8 ms, 1,1 de 21 textos | 4,4 ms | 5,4 ms | 6,3 ms |
+| um mês | 236,0 ms | 8,6 ms | 9,8 ms | 14,8 ms |
+| um ano | 76,8 ms | 23,3 ms | 36,5 ms | 37,7 ms |
+
+- **Escolhido: primeira e última data no vec0.** O KNN fica com os textos cujo intervalo cruza o período, os eventos decidem, e o k aumenta (×4, até o 4.096 do sqlite-vec) até k textos terem um evento dentro dele. Exato (CA9.1) e o mais rápido em todos os filtros.
+- **Depois do KNN** perde textos: num período de um dia, o k chega a 4.096 antes de aparecerem 21 textos com evento naquele dia.
+- O `TestSharedChunkDesignsMatchTheScan` confere que os três desenhos devolvem o top-k exato de uma varredura completa.
+
+### Histórico real
+
+| | Antes (versão 11) | Depois das migrações 12–14 |
+|---|---:|---:|
+| eventos / textos distintos | 269.999 / 152.504 | 269.999 / 152.504 |
+| pedaços / vetores | 415.963 / 415.963 | 295.350 / 295.350 |
+| blocos do vec0 | 407 | 289 |
+| arquivo | 837,5 MB | 767,4 MB (−8%) |
+| blocos de vetores | 305,6 MB | 217,0 MB |
+| índice de palavras (`chunks_fts`) | 63,7 MB | 54,3 MB |
+| `chunks` e os índices dela | 17,0 MB | 47,5 MB |
+| índice de hash e caminho (`event_identifiers_fts`) | — | 5,2 MB |
+| busca, sem filtro | 334 ms | 238 ms (−29%) |
+| busca, um dia | 74 ms | 60 ms (−19%) |
+| busca, um mês | 159 ms | 124 ms (−22%) |
+| tempo | — | 53 s, com a cópia de segurança |
+
+- **Um conjunto por texto:** os 152.504 textos têm 152.504 conjuntos de pedaços, nenhum evento com texto fica sem eles, e o `PRAGMA integrity_check` dá `ok`.
+- **Suíte de recuperação:** recall 1,00, MRR 0,87, rejeição 1,00, redundância 0,00, 32 de 32 corretas, igual a antes; a varredura de `top_k` dá a mesma tabela.
+- **Menos que a estimativa:** a #40 estimou −337 MB no banco em `float32`; com `int8` (#66), os vetores removidos pesam 1/4 disso, 88,6 MB. E `chunks` agora guarda a chave de cada texto (a fonte e o `content_hash` de 64 caracteres) e um índice único nela: +30,5 MB, mais 5,2 MB do índice de hash e caminho. Uma tabela de textos com id inteiro recuperaria parte disso; não medido.
+- **Resultados:** o k conta textos, e um texto encontrado vira um resultado por evento com ele na fonte e no período (7,3 resultados por consulta sem filtro). Com os três textos que têm mais eventos como consultas, uma consulta devolve ~4.900 resultados: 266 ms sem filtro (antes: 336 ms) e 87 ms para um dia (antes: 74 ms).
+
 ## Escrita no disco na ingestão (#51)
 
 > Medição manual, sem alvo do mage · 2026-09-30 · commits `d963b97`–`11020d0` · CUDA · Kingston A400 com ext4 (não tmpfs)

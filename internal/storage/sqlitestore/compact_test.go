@@ -115,10 +115,12 @@ type countingConversion struct {
 }
 
 func (c *countingConversion) rewrite() vectorRewrite {
-	return vectorRewrite{componentBytes: compactionRewrite.componentBytes, convert: func(stored []byte) ([]byte, error) {
+	rewrite := compactionRewrite
+	rewrite.convert = func(stored []byte) ([]byte, error) {
 		c.calls++
 		return stored, c.fail
-	}}
+	}
+	return rewrite
 }
 
 func rewriteStoredVectors(t *testing.T, store *Store, rewrite vectorRewrite) error {
