@@ -30,11 +30,11 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 
 | Fase | Tema | Issue | Situação | Impacto | Esforço |
 | ---- | ---- | ----- | -------- | ------- | ------- |
-| 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | a fazer | médio | baixo |
-| 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | a fazer | médio | baixo |
+| 22 | [Transações em lote na ingestão](#fase-22--transações-em-lote-na-ingestão) | [#51](https://github.com/Chipskein/cade/issues/51) | feito | médio | baixo |
+| 23 | [Benchmarks reproduzíveis](#fase-23--benchmarks-reproduzíveis) | [#14](https://github.com/Chipskein/cade/issues/14) | feito | médio | baixo |
 | 24 | [Plano de espaço](#fase-24--plano-de-espaço) | [#40](https://github.com/Chipskein/cade/issues/40) | feito | médio | médio |
 | 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
-| 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | a fazer | alto | médio |
+| 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | feito | alto | médio |
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | a fazer | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
@@ -129,6 +129,7 @@ flowchart LR
 - **Problema:** cada evento é uma transação (`SaveEvent`, `UpdateEvent`). Na primeira ingestão de 3.620 eventos, o `cade` escreveu 485 MB no disco para um banco de 17 MB.
 - **Mudança:** o `ingest.Pipeline` grava em transações de N eventos (N numa constante, escolhido medindo 50, 200 e 1.000). Uma interrupção perde no máximo o lote aberto, e a deduplicação (RF1.5) o recupera. Avaliar também `synchronous=NORMAL`. O `secure_delete=on` fica.
 - **Aceite:** bytes escritos por evento caem, medidos em `/proc/PID/io` num banco em disco; o tempo da primeira ingestão não piora; interromper e rodar de novo dá os mesmos eventos (teste de regressão); `go tool mage eval` sem mudança.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#escrita-no-disco-na-ingestão-51)): lotes de 200 eventos (`eventsPerCommit`), gravados também depois de 2 s abertos (`batchMaxAge`). Na primeira ingestão de 2.287 eventos num SSD, 357 → 99 MB escritos (156 → 43 KB por evento), sem piorar o tempo (59 → 56 s). O `synchronous=NORMAL` já era o modo em uso (`go-sqlite3` com WAL).
 
 ---
 
@@ -139,6 +140,7 @@ flowchart LR
 - **Problema:** o BENCHMARKS junta números de `bench/*.txt` e do CHANGELOG, com gráficos atualizados à mão, sem dizer com que comando, data e build cada um foi medido. Também existe só em português, sem o sufixo `.pt-BR`.
 - **Mudança:** cada seção com o comando, a data, a máquina e o build; os números de hoje medidos de novo; seções sem comando reproduzível removidas ou marcadas como históricas; bytes escritos na ingestão (fase 22) incluídos; `BENCHMARKS.md` em inglês e `BENCHMARKS.pt-BR.md` em português.
 - **Aceite:** todo número do BENCHMARKS pode ser reproduzido pelo comando ao lado dele; EN e PT com os links atualizados.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#máquina-e-builds)): cada seção com o comando, a data, o commit e o build; os números medidos de novo em 2026-09-30 (`f4e5379`), com a GPU a 120 W anotada; o que nenhum comando reproduz foi para [Histórico](BENCHMARKS.pt-BR.md#histórico); um glossário das métricas em linguagem simples; `BENCHMARKS.md` em inglês e `BENCHMARKS.pt-BR.md` em português.
 
 ---
 
@@ -174,6 +176,7 @@ flowchart LR
 - **Problema:** cada vetor ocupa 3.072 bytes em `float32`.
 - **Mudança:** `int8[768]` com cada vetor escalado pelo seu maior componente, numa migração com cópia. Nos vetores reais, mantém 99,4% do top-10 exato (a escala `unit` do sqlite-vec mantém 95,5%), com a mesma latência e 1/4 do espaço.
 - **Aceite:** recall e MRR do `go tool mage evalRetrieval` iguais aos de hoje; `bytes/event` cai ~2,3 KB.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#vetores-em-int8-66)): migração 11, com cópia. Recall, MRR e rejeição iguais (1,00 / 0,87 / 1,00), e a calibração dos limiares também; `bytes/event` de 3.805 para 1.490 (−2,3 KB) em 100 mil eventos. Numa cópia do banco real, 1.799 → 837 MB em 28 s, 305 de 306 do top-6 mantidos e a busca sem filtro 25% mais rápida.
 
 ---
 
@@ -332,7 +335,7 @@ Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve
 
 ### Índice vetorial aproximado
 
-Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. A quantização no próprio sqlite-vec foi medida na [fase 24](#fase-24--plano-de-espaço): o `int8` ([fase 24b](#fase-24b--vetores-em-int8)) guarda 1/4 do espaço, mas a busca continua tão lenta quanto; o `bit` busca 16× mais rápido e perde um quarto do top-10, então pode servir de primeira passada com os vetores guardados reordenando os candidatos, se a latência apertar antes de outra biblioteca.
+Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca passar de ~500 ms em CPU. A quantização no próprio sqlite-vec foi medida na [fase 24](#fase-24--plano-de-espaço): o `int8` ([fase 24b](#fase-24b--vetores-em-int8), já em uso) guarda 1/4 do espaço e deixou a busca ~25% mais rápida, o que não muda a escala linear; o `bit` busca 16× mais rápido e perde um quarto do top-10, então pode servir de primeira passada com os vetores guardados reordenando os candidatos, se a latência apertar antes de outra biblioteca.
 
 ### Binário para arm64
 

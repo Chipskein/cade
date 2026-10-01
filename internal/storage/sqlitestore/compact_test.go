@@ -2,6 +2,8 @@ package sqlitestore
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"reflect"
@@ -102,5 +104,52 @@ func TestVectorBlockReaderRejectsAShortBlock(t *testing.T) {
 	_, err := blocks.vector(context.Background(), vectorSlot{chunkID: 3, block: 7, offset: 1}, 8)
 	if err == nil || !strings.Contains(err.Error(), "block has 8 bytes, expected at least 16") {
 		t.Fatalf("expected an error naming the sizes, got %v", err)
+	}
+}
+
+// countingConversion stands in for a format conversion: it keeps each
+// vector as stored, counts the calls and can fail.
+type countingConversion struct {
+	calls int
+	fail  error
+}
+
+func (c *countingConversion) rewrite() vectorRewrite {
+	return vectorRewrite{componentBytes: compactionRewrite.componentBytes, convert: func(stored []byte) ([]byte, error) {
+		c.calls++
+		return stored, c.fail
+	}}
+}
+
+func rewriteStoredVectors(t *testing.T, store *Store, rewrite vectorRewrite) error {
+	t.Helper()
+	ctx := context.Background()
+	return store.inTransaction(ctx, func(tx *sql.Tx) error { return rewriteVectorTable(ctx, tx, 2, rewrite) })
+}
+
+func TestRewriteVectorTableConvertsEachLiveVector(t *testing.T) {
+	store := openTestStore(t)
+	saveVectorEvents(t, store, 6)
+	if _, err := store.DeleteSource(context.Background(), event.SourceGit); err != nil {
+		t.Fatal(err)
+	}
+	conversion := &countingConversion{}
+	testcheck.NoError(t, rewriteStoredVectors(t, store, conversion.rewrite()))
+	if conversion.calls != 3 {
+		t.Fatalf("expected the 3 live vectors converted, got %d conversions", conversion.calls)
+	}
+}
+
+func TestRewriteVectorTableKeepsTheOldTableWhenAConversionFails(t *testing.T) {
+	store := openTestStore(t)
+	saveVectorEvents(t, store, 2)
+	before := nearestHits(t, store)
+	conversion := &countingConversion{fail: errors.New("bad vector")}
+	err := rewriteStoredVectors(t, store, conversion.rewrite())
+	if err == nil || !strings.Contains(err.Error(), "convert vector of chunk") {
+		t.Fatalf("expected the conversion error, got %v", err)
+	}
+	if after := nearestHits(t, store); !reflect.DeepEqual(before, after) {
+		t.Fatalf("expected the vectors untouched, got %+v then %+v", before, after)
 	}
 }

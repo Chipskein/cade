@@ -233,22 +233,22 @@ Grey: model, whole prompt decoded. Blue: model with saved state. Green: rules.
 
 ## Database
 
-> `go tool mage bench` (`internal/storage/sqlitestore`) · 2026-09-30 · `f4e5379` · database on tmpfs, synthetic events. These numbers do not depend on CPU or GPU build.
+> `go tool mage bench` (`internal/storage/sqlitestore`) · 2026-10-01 · `1cce1cd` · database on tmpfs, synthetic events, `int8` vectors (#66). These numbers do not depend on CPU or GPU build.
 
 | Measure | 1 k | 10 k | 100 k |
 |---|---:|---:|---:|
-| vector search, no filter (ms) | 2.2 | 12.7 | 113.4 |
-| vector search, Teams only (ms) | 1.5 | 8.2 | 70.1 |
-| vector search, one day (ms) | 0.9 | 6.8 | 57.3 |
-| search for common words, FTS5 (ms) | 1.5 | 9.0 | 78.0 |
-| search for a hash prefix (ms) | 0.10 | 0.10 | 0.11 |
-| read one day (ms) | 0.04 | 0.15 | 0.68 |
-| read everything (ms) | 2.0 | 27.6 | 346.0 |
-| person with no period, read everything and filter in Go (ms) | 3.8 | 44.5 | 469.5 |
-| person with no period, filter in SQL (ms) | 0.35 | 0.89 | 8.5 |
-| direction with no period, count + vector search (ms) | 2.7 | 16.1 | 122.8 |
-| chunk vectors of 1,000 events (ms) | 202 | 177 | 201 |
-| bytes per event | 4,010 | 3,867 | 3,805 |
+| vector search, no filter (ms) | 1.1 | 8.9 | 84.2 |
+| vector search, Teams only (ms) | 0.45 | 3.5 | 31.6 |
+| vector search, one day (ms) | 0.25 | 2.0 | 19.4 |
+| search for common words, FTS5 (ms) | 1.5 | 9.0 | 76.4 |
+| search for a hash prefix (ms) | 0.10 | 0.08 | 0.11 |
+| read one day (ms) | 0.05 | 0.16 | 0.71 |
+| read everything (ms) | 2.5 | 32.5 | 378.3 |
+| person with no period, read everything and filter in Go (ms) | 3.6 | 39.1 | 452.8 |
+| person with no period, filter in SQL (ms) | 0.28 | 0.91 | 8.6 |
+| direction with no period, count + vector search (ms) | 2.0 | 12.5 | 91.5 |
+| chunk vectors of 1,000 events (ms) | 33 | 40 | 56 |
+| bytes per event | 1,651 | 1,507 | 1,490 |
 
 ```mermaid
 ---
@@ -260,38 +260,38 @@ config:
 xychart-beta
   title "Vector search (ms)"
   x-axis ["1 k events", "10 k", "100 k"]
-  y-axis "ms" 0 --> 120
-  line [2.2, 12.7, 113.4]
-  line [1.5, 8.2, 70.1]
-  line [0.9, 6.8, 57.3]
+  y-axis "ms" 0 --> 90
+  line [1.1, 8.9, 84.2]
+  line [0.45, 3.5, 31.6]
+  line [0.25, 2.0, 19.4]
 ```
 
 Blue: no filter. Orange: Teams only. Green: one day.
 
-- **Vector search:** grows linearly with the history, because sqlite-vec compares against every vector; filters reduce the work.
+- **Vector search:** grows linearly with the history, because sqlite-vec compares against every vector; filters reduce the work. The same day in `float32`, before #66, it was 114, 70 and 58 ms at 100 k events ([Vectors in `int8`](#vectors-in-int8-66)).
 - **Word search:** the synthetic corpus repeats the same few words in almost every event, so this is the worst case.
-- **Person with no period:** the question used to load the whole history and filter in Go (469 ms and 187 MB allocated at 100 k events). With the filter in SQL it takes 8.5 ms and 0.7 MB.
-- **Saving an event:** 0.69 ms in its own transaction (`BenchmarkSaveEvent`) and 0.50 ms in a batch of 200 (`BenchmarkSaveEventInBatch`). On tmpfs `fsync` costs nothing; the effect of batches on disk is under [Disk writes during ingestion](#disk-writes-during-ingestion-51).
+- **Person with no period:** the question used to load the whole history and filter in Go (453 ms and 187 MB allocated at 100 k events). With the filter in SQL it takes 8.6 ms and 0.7 MB.
+- **Saving an event:** 0.28 ms in its own transaction (`BenchmarkSaveEvent`) and 0.14 ms in a batch of 200 (`BenchmarkSaveEventInBatch`). On tmpfs `fsync` costs nothing; the effect of batches on disk is under [Disk writes during ingestion](#disk-writes-during-ingestion-51).
 
 ## Size per table (#40)
 
 ### Synthetic history
 
-> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compiled with `sqlite_dbstat`) · 2026-09-30 · `e616f06` · same synthetic events as [Database](#database).
+> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compiled with `sqlite_dbstat`) · 2026-10-01 · `1cce1cd` · same synthetic events as [Database](#database).
 
 Bytes per event of each table, with its internal tables and its indexes; the sum is the `bytes per event` of [Database](#database).
 
 | Table | What it holds | 1 k | 10 k | 100 k | % at 100 k |
 |---|---|---:|---:|---:|---:|
-| `chunk_embeddings` | chunk vectors (sqlite-vec) | 3,240 | 3,203 | 3,135 | 82.4 |
-| `events` | event text and metadata | 549 | 526 | 531 | 14.0 |
-| `chunks_fts` | word index (FTS5) | 107 | 83 | 83 | 2.2 |
-| `chunks` | text chunks of each event | 53 | 41 | 44 | 1.2 |
-| `event_people` | people of each event | 20 | 13 | 12 | 0.3 |
+| `chunk_embeddings` | chunk vectors (sqlite-vec) | 881 | 840 | 820 | 55.0 |
+| `events` | event text and metadata | 549 | 526 | 531 | 35.7 |
+| `chunks_fts` | word index (FTS5) | 107 | 83 | 83 | 5.6 |
+| `chunks` | text chunks of each event | 53 | 41 | 44 | 2.9 |
+| `event_people` | people of each event | 20 | 13 | 12 | 0.8 |
 | `file_modifications` | date and size of each file version | 8 | 0.8 | 0.1 | 0.0 |
 | other | settings, forgotten events | 20 | 2 | 0.2 | 0.0 |
 
-- **Vectors:** ~3.1 KB of the ~3.8 KB per event at every size; 768 `float32` dimensions take 3,072 bytes on their own.
+- **Vectors:** ~0.8 KB of the ~1.5 KB per event at every size; 768 `int8` dimensions take 768 bytes on their own. In `float32`, before #66, they were ~3.1 KB of ~3.8 KB (82%).
 - **Fixed cost:** `file_modifications` and other are one or two empty pages, so they shrink per event as the history grows. The synthetic history has no files; in the real history below they are 0.3 MB together.
 
 ### Real history
@@ -334,9 +334,9 @@ Each way of keeping more history in less space, measured on the reference machin
 
 | Format | Bytes per vector | Search, 100 k (ms) | Exact top-10 kept |
 |---|---:|---:|---:|
-| `float32` (today) | 3,109 | 78 | 1.000 |
+| `float32` (until #66) | 3,109 | 78 | 1.000 |
 | `int8`, sqlite-vec scale (`unit`) | 794 | 72 | 0.955 |
-| `int8`, scaled per vector | 794 | 73 | 0.994 |
+| `int8`, scaled per vector (since #66) | 794 | 73 | 0.994 |
 | `bit` | 119 | 4.5 | 0.758 |
 | `bit`, top-100 rescored in `float32` | 119 + 3,109 | — | 0.972 |
 
@@ -377,7 +377,7 @@ Gains are on the real history (1,242.4 MB); each row assumes the ones above it a
 |---|---:|---|---|---|
 | Compact the vector table (drop empty slots) | −262 MB (−21%) | same results; fewer blocks to scan | none | done: [#65](https://github.com/Chipskein/cade/issues/65), [measured](#vector-compaction-65) |
 | One set of chunks and vectors per text | −337 MB of vectors, ~−11 MB of FTS5 (−28%) | copies stop taking top-k slots; the source and period filters need a new design | fewer writes | [#67](https://github.com/Chipskein/cade/issues/67) |
-| Scaled `int8` vectors | −288 MB (−59% if done alone: −734 MB) | 0.994 of the top-10, same latency | one pass over 768 values per vector | [#66](https://github.com/Chipskein/cade/issues/66) |
+| Scaled `int8` vectors | −288 MB (−59% if done alone: −734 MB) | 0.994 of the top-10, same latency | one pass over 768 values per vector | done: [#66](https://github.com/Chipskein/cade/issues/66), [measured](#vectors-in-int8-66) |
 | Compress text per row | −33 MB (−3%) | FTS5 unaffected (contentless); every read decompresses, and the SQL filters on `metadata` (people, image hash) stop working | compress per event | no: reassess once vectors shrink |
 | Keep only a reference for `file` and `git` | −16 MB (−1%) | a citation breaks if the repository moves or the file changes | none | no |
 | `bit` vectors for events older than 12 months | ~−19 MB after `int8` | loses a quarter of the top-10 in old history | none | no |
@@ -405,6 +405,34 @@ Since the reindex of that morning, ingestion had already left 15% of the positio
 - **Where the space came from:** most of it, 1,002.5 MB, was the free pages; the reindex now ends with a `VACUUM`, so only the 221.4 MB inside the blocks are left for `cade compact`.
 - **Time:** 91 s. Reading the `embedding` column through vec0 opens the whole 3 MB block once per row and took 174 s of the first version's 258 s; the compaction now reads each block once from vec0's shadow tables. What is left: reinserting into vec0 (~54 s) and `VACUUM` (~28 s). A reindex of the same vectors takes hours of GPU.
 - **Disk:** the rewrite holds a copy of the vectors (~1.3 GB here) until the `VACUUM`.
+
+## Vectors in `int8` (#66)
+
+> Synthetic: `go tool mage bench` (`internal/storage/sqlitestore`), `float32` on `f84b170` and `int8` on `1cce1cd`, the same day · quality: `go tool mage evalRetrieval` · real history: migration 11 on a copy of the reference machine's compacted history (the file measured in [Vector compaction](#vector-compaction-65)), NVMe, blocks and file read with the queries of [Space levers](#space-levers-40) · search: 51 stored vectors as queries (each `chunk_id` that is a multiple of 7,717), top-6, no filter, 3 runs, median · 2026-10-01.
+
+Each vector is stored as 768 `int8` values, scaled by its own largest component so that ±127 covers its range; the query is quantized the same way.
+
+| Synthetic, 100 k events | `float32` | `int8` |
+|---|---:|---:|
+| bytes per event | 3,805 | 1,490 (−2,315) |
+| vector search, no filter (ms) | 113.8 | 84.2 |
+| vector search, Teams only (ms) | 70.4 | 31.6 |
+| vector search, one day (ms) | 58.3 | 19.4 |
+| chunk vectors of 1,000 events (ms) | 202 | 56 |
+
+| Real history | Before (`float32`) | After migration 11 |
+|---|---:|---:|
+| file | 1,799.0 MB | 837.5 MB (−53%) |
+| vec0 blocks / live vectors | 407 / 415,963 | 407 / 415,963 |
+| search with no filter, median | 433 ms | 324 ms (−25%) |
+| top-6 kept | — | 305 of 306 (0.997) |
+| time | — | 28 s, 4 s of them the backup copy |
+
+- **Retrieval suite:** recall 1.00, MRR 0.87, rejection 1.00, 32 of 32 correct, the same as in `float32`; the `top_k` sweep gives the same table as in [`top_k` and thresholds](#top_k-and-thresholds), and the calibration the same 0.596 / 0.624, so `max_best_distance` 0.61 stays.
+- **Same search on the real history:** 49 of the 51 queries return the same chunks in the same order; each distance moves by at most 0.0005 (0.0001 on average). `PRAGMA integrity_check` gives `ok`.
+- **Faster:** probably because the blocks are a quarter of the size, so the scan reads a quarter of the memory; in memory, with no I/O, `BenchmarkVectorFormat` gains less (78 → 73 ms).
+- **Migrated = ingested again:** the migration encodes each stored `float32` vector exactly as ingestion encodes a new one, so a migrated v0.1.0 database holds the same vectors as one ingested from scratch, and the suite above covers it.
+- **Disk during the migration:** the backup copy (as large as the database, 1.8 GB here) plus the staged `int8` vectors until the `VACUUM`.
 
 ## Disk writes during ingestion (#51)
 

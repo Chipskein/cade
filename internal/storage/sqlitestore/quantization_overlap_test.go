@@ -1,6 +1,7 @@
 package sqlitestore
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"testing"
@@ -34,6 +35,7 @@ func TestQuantizationOverlap(t *testing.T) {
 	if path == "" {
 		t.Skipf("%s is not set", realVectorsVar)
 	}
+	skipUnlessFloat32Vectors(t, path)
 	corpus := loadRealVectors(t, path, corpusStride, 0)
 	queries := loadRealVectors(t, path, queryStride, queryOffset)
 	exact := topKPerQuery(t, float32Format, corpus, queries, overlapK)
@@ -44,6 +46,19 @@ func TestQuantizationOverlap(t *testing.T) {
 	}
 	rescored := rescoreEach(topKPerQuery(t, bitFormat, corpus, queries, bitCandidates), corpus, queries)
 	t.Logf("%-12s %5d bytes/vector  top-%d overlap %.3f (top-%d rescored in float32)", "bit+rescore", bitFormat.bytesPerVector(len(corpus[0])), overlapK, meanOverlap(exact, rescored), bitCandidates)
+}
+
+// skipUnlessFloat32Vectors skips a database past schema version 10: its
+// vectors are already int8, and 768 int8 bytes would decode as 192
+// meaningless float32 values instead of failing.
+func skipUnlessFloat32Vectors(t *testing.T, path string) {
+	t.Helper()
+	db, err := sql.Open(DriverName, "file:"+path+"?mode=ro")
+	testcheck.NoError(t, err)
+	defer db.Close()
+	if version, err := schemaVersion(context.Background(), db); err != nil || version > float32SchemaVersion {
+		t.Skipf("%s is at schema version %d (err %v); the float32 baseline needs version %d or older", path, version, err, float32SchemaVersion)
+	}
 }
 
 // loadRealVectors reads the vectors whose chunk_id % stride == offset.

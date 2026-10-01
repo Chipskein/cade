@@ -464,7 +464,7 @@ Um arquivo SQLite (`~/.local/share/cade/cade.db`), com as extensões sqlite-vec 
 flowchart LR
     events["events<br/>uid, fonte, data, título,<br/>texto, metadado, content_hash,<br/>direction; índice do image_sha256"]
     chunks["chunks<br/>posições no texto"]
-    vec["chunk_embeddings<br/>(sqlite-vec)"]
+    vec["chunk_embeddings<br/>(sqlite-vec, int8)"]
     fts["chunks_fts<br/>(FTS5)"]
     people["event_people<br/>nomes por evento"]
     files["file_modifications<br/>versões anteriores<br/>(data, tamanho)"]

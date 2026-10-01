@@ -10,6 +10,11 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### `int8` vectors (#66)
+
+- Vectors are stored as `int8`, each scaled by its own largest component so ±127 covers its range: a quarter of the space of `float32`. The search compares the same directions, and the retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). On a copy of the real database: 1,799.0 MB → 837.5 MB, 305 of 306 top-6 results kept, distances moved by at most 0.0005, and the unfiltered search 25% faster (433 → 324 ms). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vectors-in-int8-66).
+- **Upgrading:** migration 11 rewrites the vectors, so the first command that opens an older database writes a `cade.db.before-v11-<date>` copy (mode `600`) first, then converts and runs `VACUUM`. On the reference machine's 416 k vectors it took 28 s, 4 s of them the copy; it needs free disk for the copy (as large as the database) plus the new vectors. `cade doctor` says, without changing anything, that the migration is pending and will copy. No `reindex` and no new embedding.
+
 ### Vector compaction (#65)
 
 - `cade compact` rewrites the vector table without the positions that `forget`, updated events and the secrets migration left empty; sqlite-vec never reuses them and `VACUUM` alone does not reach inside its blocks. It computes no embedding and needs no model: 91 s on the reference machine's 416 k vectors, where a reindex takes hours of GPU. It needs free disk for a copy of the vectors while it runs.
@@ -23,6 +28,11 @@ What changed in each version, the schema migrations, and what each migration rew
 - Ingestion stores events in transactions of 200 instead of one per event; a transaction also commits once it has been open for 2 s, checked between events, so a `cade forget` run meanwhile usually waits for it (up to 5 s) instead of failing. On the first ingestion of 2,287 events (`git` + `file`, on an SSD), writes fell from 357 MB to 99 MB, or from 156 KB to 43 KB per new event, and the time did not get worse (59 s → 56 s). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 - An interrupted ingestion (Ctrl-C, `cade ingest stop`, an error) loses only the open batch, at most 200 events; the next run stores them again.
 - No schema change, and the stored data is the same.
+
+### Reproducible benchmarks (#14)
+
+- Every section of [docs/BENCHMARKS.md](docs/BENCHMARKS.md) names the command, date, commit and build that reproduce it, with the GPU's 120 W limit recorded; numbers re-measured on 2026-09-30 (`f4e5379`). Numbers no current command reproduces moved to a "History" section, and a glossary explains each metric in plain language.
+- `docs/BENCHMARKS.md` is now in English, with `docs/BENCHMARKS.pt-BR.md` in Portuguese.
 
 ### Space plan (#40)
 

@@ -3,7 +3,6 @@ package sqlitestore
 import (
 	"database/sql"
 	"fmt"
-	"math"
 	"slices"
 	"testing"
 
@@ -31,10 +30,8 @@ var (
 	float32Format = vectorFormat{"float32", "float[%d] distance_metric=cosine", "?", float32Blob, 32}
 	// int8Unit is sqlite-vec's own quantization: [-1, 1] onto [-128, 127].
 	int8UnitFormat = vectorFormat{"int8 unit", "int8[%d] distance_metric=cosine", "vec_quantize_int8(?, 'unit')", float32Blob, 8}
-	// int8Scaled scales each vector by its own largest component, which
-	// cosine ignores; normalized 768-dim vectors rarely pass ±0.2, so the
-	// unit scale leaves most of the 256 levels unused.
-	int8ScaledFormat = vectorFormat{"int8 scaled", "int8[%d] distance_metric=cosine", "vec_int8(?)", int8ScaledBlob, 8}
+	// int8Scaled is the stored format since #66 (embeddings.go).
+	int8ScaledFormat = vectorFormat{"int8 scaled", "int8[%d] distance_metric=cosine", int8VectorValue, encodeInt8Vector, 8}
 	bitFormat        = vectorFormat{"bit", "bit[%d]", "vec_quantize_binary(?)", float32Blob, 1}
 	vectorFormats    = []vectorFormat{float32Format, int8UnitFormat, int8ScaledFormat, bitFormat}
 )
@@ -47,21 +44,6 @@ func (f vectorFormat) bytesPerVector(dimensions int) int {
 // in-memory write could return.
 func float32Blob(vector []float32) []byte {
 	blob, _ := sqlitevec.SerializeFloat32(vector)
-	return blob
-}
-
-func int8ScaledBlob(vector []float32) []byte {
-	var largest float64
-	for _, value := range vector {
-		largest = math.Max(largest, math.Abs(float64(value)))
-	}
-	blob := make([]byte, len(vector))
-	if largest == 0 {
-		return blob
-	}
-	for i, value := range vector {
-		blob[i] = byte(int8(math.Round(float64(value) * math.MaxInt8 / largest)))
-	}
 	return blob
 }
 
@@ -154,17 +136,6 @@ func TestFloat32BlobIsLittleEndian(t *testing.T) {
 	want := []byte{0x00, 0x00, 0x80, 0x3f, 0x00, 0x00, 0x00, 0xc0}
 	if !slices.Equal(got, want) {
 		t.Errorf("float32Blob([1 -2]) = %x, want %x", got, want)
-	}
-}
-
-func TestInt8ScaledBlobUsesTheWholeRange(t *testing.T) {
-	got := int8ScaledBlob([]float32{0.1, -0.05, 0})
-	want := []byte{127, 0xc0 /* int8(-64) */, 0}
-	if !slices.Equal(got, want) {
-		t.Errorf("int8ScaledBlob([0.1 -0.05 0]) = %v, want %v", got, want)
-	}
-	if zero := int8ScaledBlob([]float32{0, 0}); !slices.Equal(zero, []byte{0, 0}) {
-		t.Errorf("int8ScaledBlob of a zero vector = %v, want zeros", zero)
 	}
 }
 

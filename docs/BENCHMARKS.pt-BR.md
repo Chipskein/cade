@@ -233,22 +233,22 @@ Cinza: modelo, prompt decodificado inteiro. Azul: modelo com o estado salvo. Ver
 
 ## Banco de dados
 
-> `go tool mage bench` (`internal/storage/sqlitestore`) · 2026-09-30 · `f4e5379` · banco em tmpfs, com eventos sintéticos. Estes números não dependem de CPU ou GPU.
+> `go tool mage bench` (`internal/storage/sqlitestore`) · 2026-10-01 · `1cce1cd` · banco em tmpfs, com eventos sintéticos, vetores `int8` (#66). Estes números não dependem de CPU ou GPU.
 
 | Medida | 1 mil | 10 mil | 100 mil |
 |---|---:|---:|---:|
-| busca vetorial, sem filtro (ms) | 2,2 | 12,7 | 113,4 |
-| busca vetorial, só Teams (ms) | 1,5 | 8,2 | 70,1 |
-| busca vetorial, um dia (ms) | 0,9 | 6,8 | 57,3 |
-| busca por palavras comuns, FTS5 (ms) | 1,5 | 9,0 | 78,0 |
-| busca por prefixo de hash (ms) | 0,10 | 0,10 | 0,11 |
-| ler um dia (ms) | 0,04 | 0,15 | 0,68 |
-| ler tudo (ms) | 2,0 | 27,6 | 346,0 |
-| pessoa sem período, lendo tudo e filtrando em Go (ms) | 3,8 | 44,5 | 469,5 |
-| pessoa sem período, filtro no SQL (ms) | 0,35 | 0,89 | 8,5 |
-| direção sem período, contagem + busca vetorial (ms) | 2,7 | 16,1 | 122,8 |
-| vetores dos pedaços de 1.000 eventos (ms) | 202 | 177 | 201 |
-| bytes por evento | 4.010 | 3.867 | 3.805 |
+| busca vetorial, sem filtro (ms) | 1,1 | 8,9 | 84,2 |
+| busca vetorial, só Teams (ms) | 0,45 | 3,5 | 31,6 |
+| busca vetorial, um dia (ms) | 0,25 | 2,0 | 19,4 |
+| busca por palavras comuns, FTS5 (ms) | 1,5 | 9,0 | 76,4 |
+| busca por prefixo de hash (ms) | 0,10 | 0,08 | 0,11 |
+| ler um dia (ms) | 0,05 | 0,16 | 0,71 |
+| ler tudo (ms) | 2,5 | 32,5 | 378,3 |
+| pessoa sem período, lendo tudo e filtrando em Go (ms) | 3,6 | 39,1 | 452,8 |
+| pessoa sem período, filtro no SQL (ms) | 0,28 | 0,91 | 8,6 |
+| direção sem período, contagem + busca vetorial (ms) | 2,0 | 12,5 | 91,5 |
+| vetores dos pedaços de 1.000 eventos (ms) | 33 | 40 | 56 |
+| bytes por evento | 1.651 | 1.507 | 1.490 |
 
 ```mermaid
 ---
@@ -260,38 +260,38 @@ config:
 xychart-beta
   title "Busca vetorial (ms)"
   x-axis ["1 mil eventos", "10 mil", "100 mil"]
-  y-axis "ms" 0 --> 120
-  line [2.2, 12.7, 113.4]
-  line [1.5, 8.2, 70.1]
-  line [0.9, 6.8, 57.3]
+  y-axis "ms" 0 --> 90
+  line [1.1, 8.9, 84.2]
+  line [0.45, 3.5, 31.6]
+  line [0.25, 2.0, 19.4]
 ```
 
 Azul: sem filtro. Laranja: só Teams. Verde: um dia.
 
-- **Busca vetorial:** cresce de forma linear com o histórico, porque o sqlite-vec compara com todos os vetores; filtros reduzem o trabalho.
+- **Busca vetorial:** cresce de forma linear com o histórico, porque o sqlite-vec compara com todos os vetores; filtros reduzem o trabalho. No mesmo dia, em `float32`, antes da #66, eram 114, 70 e 58 ms em 100 mil eventos ([Vetores em `int8`](#vetores-em-int8-66)).
 - **Busca por palavras:** o corpus sintético repete as mesmas poucas palavras em quase todos os eventos, então é o pior caso.
-- **Pessoa sem período:** antes, a pergunta carregava o histórico inteiro e filtrava em Go (469 ms e 187 MB alocados em 100 mil eventos). Com o filtro no SQL, são 8,5 ms e 0,7 MB.
-- **Gravar um evento:** 0,69 ms na própria transação (`BenchmarkSaveEvent`) e 0,50 ms num lote de 200 (`BenchmarkSaveEventInBatch`). Em tmpfs o `fsync` não custa; o efeito dos lotes no disco está em [Escrita no disco na ingestão](#escrita-no-disco-na-ingestão-51).
+- **Pessoa sem período:** antes, a pergunta carregava o histórico inteiro e filtrava em Go (453 ms e 187 MB alocados em 100 mil eventos). Com o filtro no SQL, são 8,6 ms e 0,7 MB.
+- **Gravar um evento:** 0,28 ms na própria transação (`BenchmarkSaveEvent`) e 0,14 ms num lote de 200 (`BenchmarkSaveEventInBatch`). Em tmpfs o `fsync` não custa; o efeito dos lotes no disco está em [Escrita no disco na ingestão](#escrita-no-disco-na-ingestão-51).
 
 ## Tamanho por tabela (#40)
 
 ### Histórico sintético
 
-> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compilado com `sqlite_dbstat`) · 2026-09-30 · `e616f06` · os mesmos eventos sintéticos de [Banco](#banco-de-dados).
+> `go tool mage bench` (`BenchmarkTableSize`, `internal/storage/sqlitestore`, compilado com `sqlite_dbstat`) · 2026-10-01 · `1cce1cd` · os mesmos eventos sintéticos de [Banco](#banco-de-dados).
 
 Bytes por evento de cada tabela, com suas tabelas internas e seus índices; a soma é o `bytes por evento` de [Banco](#banco-de-dados).
 
 | Tabela | O que guarda | 1 mil | 10 mil | 100 mil | % em 100 mil |
 |---|---|---:|---:|---:|---:|
-| `chunk_embeddings` | vetores dos pedaços (sqlite-vec) | 3.240 | 3.203 | 3.135 | 82,4 |
-| `events` | texto e metadados dos eventos | 549 | 526 | 531 | 14,0 |
-| `chunks_fts` | índice de palavras (FTS5) | 107 | 83 | 83 | 2,2 |
-| `chunks` | pedaços de texto de cada evento | 53 | 41 | 44 | 1,2 |
-| `event_people` | pessoas de cada evento | 20 | 13 | 12 | 0,3 |
+| `chunk_embeddings` | vetores dos pedaços (sqlite-vec) | 881 | 840 | 820 | 55,0 |
+| `events` | texto e metadados dos eventos | 549 | 526 | 531 | 35,7 |
+| `chunks_fts` | índice de palavras (FTS5) | 107 | 83 | 83 | 5,6 |
+| `chunks` | pedaços de texto de cada evento | 53 | 41 | 44 | 2,9 |
+| `event_people` | pessoas de cada evento | 20 | 13 | 12 | 0,8 |
 | `file_modifications` | data e tamanho de cada versão de arquivo | 8 | 0,8 | 0,1 | 0,0 |
 | outras | configurações, eventos esquecidos | 20 | 2 | 0,2 | 0,0 |
 
-- **Vetores:** ~3,1 KB dos ~3,8 KB por evento em todos os tamanhos; 768 dimensões em `float32` já ocupam 3.072 bytes.
+- **Vetores:** ~0,8 KB dos ~1,5 KB por evento em todos os tamanhos; 768 dimensões em `int8` já ocupam 768 bytes. Em `float32`, antes da #66, eram ~3,1 KB dos ~3,8 KB (82%).
 - **Custo fixo:** `file_modifications` e outras são uma ou duas páginas vazias, então diminuem por evento conforme o histórico cresce. O histórico sintético não tem arquivos; no histórico real abaixo, as duas somam 0,3 MB.
 
 ### Histórico real
@@ -334,9 +334,9 @@ Cada jeito de guardar mais histórico em menos espaço, medido no histórico rea
 
 | Formato | Bytes por vetor | Busca, 100 mil (ms) | Top-10 exato mantido |
 |---|---:|---:|---:|
-| `float32` (hoje) | 3.109 | 78 | 1,000 |
+| `float32` (até a #66) | 3.109 | 78 | 1,000 |
 | `int8`, escala do sqlite-vec (`unit`) | 794 | 72 | 0,955 |
-| `int8`, escala por vetor | 794 | 73 | 0,994 |
+| `int8`, escala por vetor (desde a #66) | 794 | 73 | 0,994 |
 | `bit` | 119 | 4,5 | 0,758 |
 | `bit`, top-100 reordenado em `float32` | 119 + 3.109 | — | 0,972 |
 
@@ -377,7 +377,7 @@ Ganhos sobre o histórico real (1.242,4 MB). Cada linha supõe as de cima já fe
 |---|---:|---|---|---|
 | Compactar a tabela de vetores (tirar as posições vazias) | −262 MB (−21%) | mesmos resultados; menos blocos para ler | nenhum | feito: [#65](https://github.com/Chipskein/cade/issues/65), [medido](#compactação-dos-vetores-65) |
 | Um conjunto de pedaços e vetores por texto | −337 MB de vetores, ~−11 MB de FTS5 (−28%) | as cópias deixam de ocupar vagas do top-k; os filtros de fonte e período precisam de outro desenho | menos escrita | [#67](https://github.com/Chipskein/cade/issues/67) |
-| Vetores em `int8` escalado | −288 MB (−59% se feito sozinho: −734 MB) | 0,994 do top-10, mesma latência | uma passada em 768 valores por vetor | [#66](https://github.com/Chipskein/cade/issues/66) |
+| Vetores em `int8` escalado | −288 MB (−59% se feito sozinho: −734 MB) | 0,994 do top-10, mesma latência | uma passada em 768 valores por vetor | feito: [#66](https://github.com/Chipskein/cade/issues/66), [medido](#vetores-em-int8-66) |
 | Comprimir o texto por linha | −33 MB (−3%) | FTS5 não muda (sem conteúdo); toda leitura descomprime, e os filtros SQL em `metadata` (pessoas, hash de imagem) param de funcionar | comprimir cada evento | não: medir de novo depois que os vetores diminuírem |
 | Guardar só uma referência para `file` e `git` | −16 MB (−1%) | a citação quebra se o repositório mudar de lugar ou o arquivo mudar | nenhum | não |
 | Vetores `bit` para eventos com mais de 12 meses | ~−19 MB depois do `int8` | perde um quarto do top-10 no histórico antigo | nenhum | não |
@@ -405,6 +405,34 @@ Desde o reindex daquela manhã, a ingestão já tinha deixado 15% das posições
 - **De onde veio o espaço:** a maior parte, 1.002,5 MB, eram as páginas livres; o reindex agora termina com `VACUUM`, então só os 221,4 MB dentro dos blocos ficam para o `cade compact`.
 - **Tempo:** 91 s. Ler a coluna `embedding` pelo vec0 abre o bloco inteiro de 3 MB a cada linha, e isso levava 174 s dos 258 s da primeira versão; a compactação agora lê cada bloco uma vez das tabelas-sombra do vec0. O que sobra: reinserir no vec0 (~54 s) e o `VACUUM` (~28 s). Um reindex dos mesmos vetores leva horas de GPU.
 - **Disco:** a reescrita guarda uma cópia dos vetores (~1,3 GB aqui) até o `VACUUM`.
+
+## Vetores em `int8` (#66)
+
+> Sintético: `go tool mage bench` (`internal/storage/sqlitestore`), `float32` em `f84b170` e `int8` em `1cce1cd`, no mesmo dia · qualidade: `go tool mage evalRetrieval` · histórico real: migração 11 numa cópia do histórico compactado da máquina de referência (o arquivo medido em [Compactação dos vetores](#compactação-dos-vetores-65)), NVMe, blocos e arquivo lidos com as consultas de [Alavancas de espaço](#alavancas-de-espaço-40) · busca: 51 vetores guardados como consultas (cada `chunk_id` múltiplo de 7.717), top-6, sem filtro, 3 rodadas, mediana · 2026-10-01.
+
+Cada vetor é guardado como 768 valores `int8`, escalado pelo seu maior componente para que ±127 cubra o intervalo que ele usa; a pergunta é quantizada do mesmo jeito.
+
+| Sintético, 100 mil eventos | `float32` | `int8` |
+|---|---:|---:|
+| bytes por evento | 3.805 | 1.490 (−2.315) |
+| busca vetorial, sem filtro (ms) | 113,8 | 84,2 |
+| busca vetorial, só Teams (ms) | 70,4 | 31,6 |
+| busca vetorial, um dia (ms) | 58,3 | 19,4 |
+| vetores dos pedaços de 1.000 eventos (ms) | 202 | 56 |
+
+| Histórico real | Antes (`float32`) | Depois da migração 11 |
+|---|---:|---:|
+| arquivo | 1.799,0 MB | 837,5 MB (−53%) |
+| blocos do vec0 / vetores vivos | 407 / 415.963 | 407 / 415.963 |
+| busca sem filtro, mediana | 433 ms | 324 ms (−25%) |
+| top-6 mantido | — | 305 de 306 (0,997) |
+| tempo | — | 28 s, 4 s deles na cópia de segurança |
+
+- **Suíte de recuperação:** recall 1,00, MRR 0,87, rejeição 1,00, 32 de 32 corretas, igual ao `float32`; a varredura de `top_k` dá a mesma tabela de [`top_k` e limiares](#top_k-e-limiares), e a calibração os mesmos 0,596 / 0,624, então o `max_best_distance` 0,61 fica.
+- **Mesma busca no histórico real:** 49 das 51 consultas devolvem os mesmos pedaços na mesma ordem; cada distância muda no máximo 0,0005 (0,0001 em média). O `PRAGMA integrity_check` dá `ok`.
+- **Mais rápida:** provavelmente porque os blocos têm 1/4 do tamanho, então a varredura lê 1/4 da memória; em memória, sem E/S, o `BenchmarkVectorFormat` ganha menos (78 → 73 ms).
+- **Migrado = ingerido de novo:** a migração codifica cada vetor `float32` guardado do mesmo jeito que a ingestão codifica um novo, então um banco da v0.1.0 migrado tem os mesmos vetores que um ingerido do zero, e a suíte acima vale para ele.
+- **Disco durante a migração:** a cópia de segurança (do tamanho do banco, 1,8 GB aqui) mais os vetores `int8` em espera até o `VACUUM`.
 
 ## Escrita no disco na ingestão (#51)
 

@@ -7,8 +7,6 @@ import (
 	"math"
 	"time"
 
-	sqlitevec "github.com/asg017/sqlite-vec-go-bindings/cgo"
-
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/storage"
 )
@@ -20,7 +18,7 @@ import (
 const similarityQuery = `
 WITH nearest AS (
 	SELECT chunk_id, distance FROM chunk_embeddings
-	WHERE embedding MATCH ? AND k = ?
+	WHERE embedding MATCH ` + int8VectorValue + ` AND k = ?
 	  AND occurred_at >= ? AND occurred_at < ?
 	  AND source %s ?
 )
@@ -43,10 +41,7 @@ func (s *Store) SearchSimilar(ctx context.Context, query storage.SimilarityQuery
 	if err != nil || !ready {
 		return nil, err
 	}
-	blob, err := sqlitevec.SerializeFloat32(query.Embedding)
-	if err != nil {
-		return nil, fmt.Errorf("serialize query embedding: %w", err)
-	}
+	blob := encodeInt8Vector(query.Embedding)
 	operator, source := sourceFilter(query.Source)
 	from, to := timeBounds(query.From, query.To)
 	among := amongCondition(query.Among)

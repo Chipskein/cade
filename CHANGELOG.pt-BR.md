@@ -10,6 +10,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Vetores em `int8` (#66)
+
+- Os vetores são guardados em `int8`, cada um escalado pelo seu maior componente para que ±127 cubra o intervalo que ele usa: 1/4 do espaço do `float32`. A busca compara as mesmas direções, e a suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Numa cópia do banco real: 1.799,0 MB → 837,5 MB, 305 de 306 resultados do top-6 mantidos, distâncias mudando no máximo 0,0005, e a busca sem filtro 25% mais rápida (433 → 324 ms). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#vetores-em-int8-66).
+- **Atualizar:** a migração 11 reescreve os vetores, então o primeiro comando que abrir um banco anterior grava antes uma cópia `cade.db.before-v11-<data>` (permissão `600`), converte e roda `VACUUM`. Nos 416 mil vetores da máquina de referência levou 28 s, 4 s deles na cópia; precisa de espaço livre para a cópia (do tamanho do banco) mais os vetores novos. O `cade doctor` diz, sem mudar nada, que a migração está pendente e vai copiar. Sem `reindex` e sem gerar embedding.
+
 ### Compactação dos vetores (#65)
 
 - O `cade compact` reescreve a tabela de vetores sem as posições que o `forget`, os eventos atualizados e a migração dos segredos deixaram vazias; o sqlite-vec nunca as reaproveita, e o `VACUUM` sozinho não chega dentro dos blocos dele. Não gera embedding e não carrega modelo: 91 s nos 416 mil vetores da máquina de referência, onde um reindex leva horas de GPU. Precisa de espaço livre para uma cópia dos vetores enquanto roda.
@@ -23,6 +28,11 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 - Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
 - Sem mudança no esquema, e os dados gravados são os mesmos.
+
+### Benchmarks reproduzíveis (#14)
+
+- Cada seção de [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md) diz o comando, a data, o commit e o build que a reproduzem, com o limite de 120 W da GPU anotado; números medidos de novo em 2026-09-30 (`f4e5379`). O que nenhum comando de hoje reproduz foi para a seção "Histórico", e um glossário explica cada métrica em linguagem simples.
+- O `docs/BENCHMARKS.md` agora é em inglês, e o `docs/BENCHMARKS.pt-BR.md` em português.
 
 ### Plano de espaço (#40)
 
