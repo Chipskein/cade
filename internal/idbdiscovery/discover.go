@@ -46,23 +46,34 @@ type Discovery struct {
 // Discover proposes a schema called name, whose events get source, from
 // records. The model runs twice: to pick the store, then to fill fields.
 func (d Discoverer) Discover(ctx context.Context, records []indexeddb.Record, name, source string) (Discovery, error) {
+	return d.discover(ctx, records, schemaTarget{name: name, source: source}, "")
+}
+
+// Regenerate proposes a replacement for current after the application
+// changed: the model also reads the current mapping and what drifted, so
+// it keeps what still exists. The caller decides with CompareSchemas.
+func (d Discoverer) Regenerate(ctx context.Context, records []indexeddb.Record, current idbmap.Schema, drift idbmap.Drift) (Discovery, error) {
+	return d.discover(ctx, records, schemaTarget{name: current.Name, source: current.Source}, regenerationNote(current, drift))
+}
+
+func (d Discoverer) discover(ctx context.Context, records []indexeddb.Record, target schemaTarget, note string) (Discovery, error) {
 	catalog := BuildCatalog(records, d.limits)
 	if len(catalog.Stores) == 0 {
 		return Discovery{}, fmt.Errorf("none of the %d records decoded to a store with values, expected an IndexedDB the application has written", len(records))
 	}
-	store, each, err := d.chooseStore(ctx, catalog)
+	store, each, err := d.chooseStore(ctx, catalog, note)
 	if err != nil {
 		return Discovery{}, err
 	}
-	schema, err := d.fillFields(ctx, catalog, store, each, schemaTarget{name: name, source: source})
+	schema, err := d.fillFields(ctx, catalog, store, each, target, note)
 	if err != nil {
 		return Discovery{}, err
 	}
 	return try(schema, records)
 }
 
-func (d Discoverer) chooseStore(ctx context.Context, catalog Catalog) (StoreView, idbmap.Path, error) {
-	raw, err := d.generator.GenerateStructured(ctx, storeMessages(catalog), maxStoreTokens, storeGrammar(catalog))
+func (d Discoverer) chooseStore(ctx context.Context, catalog Catalog, note string) (StoreView, idbmap.Path, error) {
+	raw, err := d.generator.GenerateStructured(ctx, storeMessages(catalog, note), maxStoreTokens, storeGrammar(catalog))
 	if err != nil {
 		return StoreView{}, "", fmt.Errorf("ask the model for the message store: %w", err)
 	}
@@ -77,12 +88,12 @@ func (d Discoverer) chooseStore(ctx context.Context, catalog Catalog) (StoreView
 	return store, *reply.Each, err
 }
 
-func (d Discoverer) fillFields(ctx context.Context, catalog Catalog, store StoreView, each idbmap.Path, target schemaTarget) (idbmap.Schema, error) {
+func (d Discoverer) fillFields(ctx context.Context, catalog Catalog, store StoreView, each idbmap.Path, target schemaTarget, note string) (idbmap.Schema, error) {
 	grammar, err := fieldsGrammar(catalog, store, each)
 	if err != nil {
 		return idbmap.Schema{}, err
 	}
-	raw, err := d.generator.GenerateStructured(ctx, fieldsMessages(catalog, store, each), maxFieldsTokens, grammar)
+	raw, err := d.generator.GenerateStructured(ctx, fieldsMessages(catalog, store, each, note), maxFieldsTokens, grammar)
 	if err != nil {
 		return idbmap.Schema{}, fmt.Errorf("ask the model for the message fields: %w", err)
 	}

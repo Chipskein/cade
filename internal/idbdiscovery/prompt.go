@@ -67,18 +67,27 @@ S3 — banco "chat-app:<guid>" · store "people" · 9 registros
 	exampleFieldsReply = `{"message_id": ["$.postId"], "conversation_id": ["$.thread"], "sent_at": ["$.at"], "time_format": "iso8601", "sender": [], "sender_id": ["$.author"], "conversation": [], "text": ["$.html"], "text_format": "html_text", "sent_by_me": [], "keep": {"path": "$.kind", "in": ["post"]}, "sender_lookup": {"store": "S3", "key": "$.author", "match": "$.uid", "value": "$.fullName"}}`
 )
 
-func storeMessages(catalog Catalog) []llm.ChatMessage {
+// storeMessages asks for the store; note, when not empty, tells the model
+// about the schema being regenerated.
+func storeMessages(catalog Catalog, note string) []llm.ChatMessage {
 	return []llm.ChatMessage{
 		{Role: llm.RoleSystem, Content: storeInstructions},
 		{Role: llm.RoleUser, Content: exampleStoreCatalog},
 		{Role: llm.RoleAssistant, Content: exampleStoreReply},
-		{Role: llm.RoleUser, Content: renderCatalog(catalog.Stores)},
+		{Role: llm.RoleUser, Content: withNote(renderCatalog(catalog.Stores), note)},
 	}
+}
+
+func withNote(question, note string) string {
+	if note == "" {
+		return question
+	}
+	return question + "\n\n" + note
 }
 
 // fieldsMessages shows the chosen store's item paths first, then the other
 // stores for the sender lookup.
-func fieldsMessages(catalog Catalog, store StoreView, each idbmap.Path) []llm.ChatMessage {
+func fieldsMessages(catalog Catalog, store StoreView, each idbmap.Path, note string) []llm.ChatMessage {
 	chosen := store
 	chosen.Paths = store.Under(each)
 	var others []StoreView
@@ -92,7 +101,7 @@ func fieldsMessages(catalog Catalog, store StoreView, each idbmap.Path) []llm.Ch
 		{Role: llm.RoleSystem, Content: fieldsInstructions},
 		{Role: llm.RoleUser, Content: exampleFieldsQuestion},
 		{Role: llm.RoleAssistant, Content: exampleFieldsReply},
-		{Role: llm.RoleUser, Content: question},
+		{Role: llm.RoleUser, Content: withNote(question, note)},
 	}
 }
 
