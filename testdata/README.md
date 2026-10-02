@@ -13,6 +13,7 @@
 | `queries/retrieval/calibration.json` | Retrieval questions used to tune thresholds. Report only, no floors. |
 | `queries/retrieval/test.json` | Retrieval questions never used for tuning, with floors (`go tool mage evalRetrieval`). |
 | `chrome-indexeddb.leveldb`, `chrome-indexeddb-pages/` | Synthetic Chrome IndexedDB for the IndexedDB and LevelDB readers, written by a real Chrome from the pages. |
+| `firefox-indexeddb/`, `firefox-indexeddb-pages/` | Synthetic Firefox IndexedDB (SQLite with structured clones) for the Firefox reader and the SpiderMonkey decoder, written by a real Floorp from the page with `generate.sh`. Only the `.sqlite` is kept: the Blob and the external clone stay in the `.files` directory the reader never opens. |
 | `teams-formats/` | One Teams cache per format seen, synthetic, written the same way; the Teams reader must keep recognizing each. |
 | `queries/captions.json` | Words each image fixture's description must contain, and secrets it must not keep once masked (`go tool mage evalCaptions`). |
 | `queries/injection.json` | Questions whose evidence includes an event, or an image, that gives the model orders (`go tool mage evalInjection`). |
