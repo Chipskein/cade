@@ -211,14 +211,25 @@ func (p *Pipeline) ingestEvent(ctx context.Context, writer storage.EventWriter, 
 // revision on both sides, only a newer one does, even with the same text (a
 // file saved again moves its date); equal revisions keep the stored event,
 // so two Teams caches holding different renderings of one version do not
-// alternate on every run. Without revisions, a changed text does.
+// alternate on every run, unless a newer schema read it differently.
+// Without revisions, a changed text does.
 func replaces(incoming, stored event.Event) bool {
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
 	if hasIncoming && hasStored {
-		return incomingRevision > storedRevision || (incomingRevision == storedRevision && captionAdvances(incoming, stored))
+		return incomingRevision > storedRevision || (incomingRevision == storedRevision && (captionAdvances(incoming, stored) || schemaAdvances(incoming, stored)))
 	}
 	return incoming.Content != stored.Content
+}
+
+// schemaAdvances reports the same message read again by a newer revision
+// of the schema that stored it, with a different result: the schema was
+// regenerated or edited to read it better. A message whose record already
+// left the application's cache keeps what the older schema read.
+func schemaAdvances(incoming, stored event.Event) bool {
+	incomingSchema, incomingRevision, hasIncoming := incoming.SchemaRevision()
+	storedSchema, storedRevision, hasStored := stored.SchemaRevision()
+	return hasIncoming && hasStored && incomingSchema == storedSchema && incomingRevision > storedRevision && incoming.Content != stored.Content
 }
 
 // captionAdvances reports an unchanged image that has just been dealt with:

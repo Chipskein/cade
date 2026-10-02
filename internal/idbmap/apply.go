@@ -2,6 +2,7 @@ package idbmap
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
@@ -145,12 +146,14 @@ func (m Mapper) mapItem(item *v8value.Value, lookups map[Field]lookupIndex, orig
 		return event.Event{}, false
 	}
 	source := event.Source(m.schema.Source)
+	metadata := message.Metadata()
+	metadata[event.SchemaKey], metadata[event.SchemaRevisionKey] = m.schema.Name, strconv.Itoa(m.schema.Revision)
 	return event.Event{
 		UID:       event.StableID(source, message.ConversationID, message.MessageID),
 		Timestamp: sentAt,
 		Source:    source,
 		Content:   message.Content(),
-		Metadata:  message.Metadata(),
+		Metadata:  metadata,
 	}, true
 }
 

@@ -209,6 +209,34 @@ func TestReplaces(t *testing.T) {
 	}
 }
 
+// schemaVersion is one Teams message version as a schema revision read it.
+func schemaVersion(content, schemaRevision string) event.Event {
+	ev := teamsVersion(content, "100")
+	ev.Metadata[event.SchemaKey], ev.Metadata[event.SchemaRevisionKey] = "teams-web", schemaRevision
+	return ev
+}
+
+func TestReplacesWhenANewerSchemaReadsTheMessageDifferently(t *testing.T) {
+	otherSchema := schemaVersion("melhor", "2")
+	otherSchema.Metadata[event.SchemaKey] = "outro"
+	cases := []struct {
+		name             string
+		incoming, stored event.Event
+		expected         bool
+	}{
+		{"newer schema, new text", schemaVersion("melhor", "2"), schemaVersion("pior", "1"), true},
+		{"newer schema, same text", schemaVersion("igual", "2"), schemaVersion("igual", "1"), false},
+		{"older schema", schemaVersion("pior", "1"), schemaVersion("melhor", "2"), false},
+		{"another schema", otherSchema, schemaVersion("pior", "1"), false},
+		{"stored without schema", schemaVersion("melhor", "2"), teamsVersion("pior", "100"), false},
+	}
+	for _, c := range cases {
+		if got := replaces(c.incoming, c.stored); got != c.expected {
+			t.Errorf("%s: expected %v, got %v", c.name, c.expected, got)
+		}
+	}
+}
+
 // imageVersion is the same file (revision 1) at a given caption status.
 func imageVersion(status event.CaptionStatus) event.Event {
 	metadata := event.Metadata{event.RevisionKey: "1"}

@@ -60,6 +60,22 @@ func (e Event) Revision() (int64, bool) {
 	return revision, err == nil
 }
 
+// SchemaKey and SchemaRevisionKey record which IndexedDB schema, at which
+// revision, mapped an event. A regenerated schema that reads the same
+// message better replaces it on the next ingest, even at the same message
+// revision (see ingest's replaces).
+const (
+	SchemaKey         = "schema"
+	SchemaRevisionKey = "schema_revision"
+)
+
+// SchemaRevision returns the schema and revision that mapped the event, if
+// a schema did.
+func (e Event) SchemaRevision() (string, int64, bool) {
+	revision, err := strconv.ParseInt(e.Metadata[SchemaRevisionKey], 10, 64)
+	return e.Metadata[SchemaKey], revision, err == nil && e.Metadata[SchemaKey] != ""
+}
+
 // Headline returns the first non-empty line of the content, for one-line
 // terminal rendering.
 func (e Event) Headline() string {

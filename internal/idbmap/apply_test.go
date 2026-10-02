@@ -96,6 +96,9 @@ func TestApplyFillsTheMessage(t *testing.T) {
 	if !events[0].Timestamp.Equal(time.UnixMilli(1727280000000)) || events[0].Source != "chat-app" {
 		t.Fatalf("unexpected timestamp %v / source %q", events[0].Timestamp, events[0].Source)
 	}
+	if schema, revision, ok := events[0].SchemaRevision(); !ok || schema != "chat-app" || revision != 1 {
+		t.Fatalf("expected the event marked with schema chat-app revision 1, got %q %d %v", schema, revision, ok)
+	}
 }
 
 func TestApplyFallsBackToLookupThenDefault(t *testing.T) {
