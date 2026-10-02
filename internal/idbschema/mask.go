@@ -20,8 +20,9 @@ var (
 // short, long keys are almost always ids or tokens.
 const maxPlainKeyLen = 32
 
-// maskKey keeps field-name-like keys and replaces data-like ones.
-func maskKey(key string) string {
+// MaskKey keeps field-name-like keys and replaces data-like ones with
+// "<id>" or "<text>"; idbmap paths match masked keys with the same rule.
+func MaskKey(key string) string {
 	switch {
 	case strings.ContainsAny(key, " \t\n"):
 		return "<text>"

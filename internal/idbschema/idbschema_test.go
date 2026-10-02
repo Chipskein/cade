@@ -107,8 +107,8 @@ func TestMaskKey(t *testing.T) {
 		"0b0e1f2a-1111-2222-3333-444455556666": "<id>", "deadbeefdeadbeef00": "<id>",
 	}
 	for key, expected := range cases {
-		if got := maskKey(key); got != expected {
-			t.Errorf("maskKey(%q) = %q, expected %q", key, got, expected)
+		if got := MaskKey(key); got != expected {
+			t.Errorf("MaskKey(%q) = %q, expected %q", key, got, expected)
 		}
 	}
 }
