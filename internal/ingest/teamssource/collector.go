@@ -1,13 +1,11 @@
 // Package teamssource ingests Microsoft Teams chat messages from the
-// IndexedDB the Teams web client keeps in a Chromium profile (RF1.4, best
-// effort: only what the client has cached is available).
+// IndexedDB the Teams web client keeps in a Chromium or Firefox profile
+// (RF1.4, best effort: only what the client has cached is available).
 package teamssource
 
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/indexeddb"
@@ -40,7 +38,7 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	messages := messageContext{
 		conversations: conversationInfos(records),
 		senders:       profileNames(records),
-		origin:        originName(c.dir),
+		origin:        indexeddb.OriginName(c.dir),
 	}
 	tally := formatTally{records: len(records)}
 	for _, record := range records {
@@ -85,22 +83,4 @@ func conversationFor(messages messageContext, conversationID string) conversatio
 		return info
 	}
 	return conversationInfo{kind: event.KindOther}
-}
-
-// Chromium names the directory after the origin; Firefox names its
-// parent and calls the directory itself "idb".
-const (
-	chromiumIndexedDBSuffix = ".indexeddb.leveldb"
-	firefoxIndexedDBDirName = "idb"
-)
-
-// originName names the origin a cache came from, e.g.
-// "https_teams.cloud.microsoft_0" (Chromium) or
-// "https+++teams.microsoft.com" (Firefox).
-func originName(dir string) string {
-	clean := filepath.Clean(dir)
-	if filepath.Base(clean) == firefoxIndexedDBDirName {
-		return filepath.Base(filepath.Dir(clean))
-	}
-	return strings.TrimSuffix(filepath.Base(clean), chromiumIndexedDBSuffix)
 }

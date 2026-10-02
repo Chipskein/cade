@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/idbschema"
+	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 )
 
@@ -27,19 +28,12 @@ func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(env.stdout, "# %s\n", maskedDirName(dir))
+		fmt.Fprintf(env.stdout, "# %s\n", indexeddb.OriginName(dir))
 		for _, summary := range idbschema.Summarize(records) {
 			renderStoreSummary(env.stdout, summary, env.language)
 		}
 	}
 	return nil
-}
-
-// maskedDirName keeps only the directory's base name (the origin), not the
-// home path.
-func maskedDirName(dir string) string {
-	trimmed := strings.TrimRight(dir, "/")
-	return trimmed[strings.LastIndex(trimmed, "/")+1:]
 }
 
 var (

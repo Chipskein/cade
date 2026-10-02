@@ -35,6 +35,13 @@ func TestTeamsSchemaPrintsStructureOnly(t *testing.T) {
 	}
 }
 
+func TestTeamsSchemaNamesFirefoxOrigins(t *testing.T) {
+	code, stdout, _ := newFakeWorld().run("teams-schema", "/home/me/.floorp/p/storage/default/https+++web.whatsapp.com/idb")
+	if code != 0 || !strings.HasPrefix(stdout, "# https+++web.whatsapp.com\n") {
+		t.Fatalf("expected the origin as header, got %d:\n%s", code, stdout)
+	}
+}
+
 func TestTeamsSchemaRequiresDirectory(t *testing.T) {
 	if code, _, _ := newFakeWorld().run("teams-schema"); code != 1 {
 		t.Fatalf("expected exit 1, got %d", code)
@@ -45,12 +52,6 @@ func TestTeamsSchemaReportsReadError(t *testing.T) {
 	code, _, stderr := newFakeWorld().run("teams-schema", "/missing")
 	if code != 1 || !strings.Contains(stderr, "no such directory") {
 		t.Fatalf("expected the read error, got %d %q", code, stderr)
-	}
-}
-
-func TestMaskedDirName(t *testing.T) {
-	if got := maskedDirName("/home/me/x.leveldb/"); got != "x.leveldb" {
-		t.Fatalf("expected x.leveldb, got %q", got)
 	}
 }
 
