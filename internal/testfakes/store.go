@@ -29,6 +29,8 @@ type FakeEventStore struct {
 	FailWith  error
 	Closed    bool
 	Forgotten map[string]bool
+	// Rekeyed is the last change set given to RekeyEvents.
+	Rekeyed map[string]string
 	// EmbeddingModelName, Pending and ReindexStarted back the
 	// storage.EmbeddingIndex methods.
 	EmbeddingModelName string
@@ -147,6 +149,23 @@ func (f *FakeEventStore) DeleteEvent(_ context.Context, uid string) (bool, error
 	}
 	f.Forgotten[uid] = true
 	return true, f.FailWith
+}
+
+// RekeyEvents renames stored UIDs and carries forgotten marks, like the
+// real store, and records the changes it was given.
+func (f *FakeEventStore) RekeyEvents(_ context.Context, changes map[string]string) (storage.RekeyReport, error) {
+	f.Rekeyed = changes
+	report := storage.RekeyReport{BackupPath: "/data/cade.db.before-rekey"}
+	for oldUID, newUID := range changes {
+		if f.Forgotten[oldUID] {
+			f.Forgotten[newUID] = true
+		}
+		if index := f.indexOf(oldUID); index >= 0 && f.indexOf(newUID) < 0 {
+			f.Events[index].UID = newUID
+			report.Rekeyed++
+		}
+	}
+	return report, f.FailWith
 }
 
 func (f *FakeEventStore) IsForgotten(_ context.Context, uid string) (bool, error) {

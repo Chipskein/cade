@@ -88,6 +88,22 @@ func TestIDBCheckUpdateKeepsARefusedSchemaAsCandidate(t *testing.T) {
 	}
 }
 
+func TestIDBCheckUpdateRekeysWhenAsked(t *testing.T) {
+	world := checkWorld(t)
+	world.indexedDBRecords = renameField([]indexeddb.Record{chatRecord("A"), chatRecord("B")}, "body", "texto")
+	for _, record := range world.indexedDBRecords {
+		record.Value.Properties = append(record.Value.Properties, v8value.Property{Key: "chat", Value: &v8value.Value{Kind: v8value.KindString, Text: "outro@c.us"}})
+	}
+	world.generator.StructuredReplies = []string{discoverStoreReply, strings.Replace(discoverFieldsReply, `["$.from"]`, `["$.chat"]`, 1)}
+	code, stdout, stderr := world.run("idb-check", "--update", "--rekey", "whatsapp")
+	if code != 0 || !strings.Contains(stdout, "substituído pela revisão 2 com UIDs novos") || !strings.Contains(stdout, "before-rekey") {
+		t.Fatalf("expected the rekey and the replacement, got %d:\n%s%s", code, stdout, stderr)
+	}
+	if len(world.store.Rekeyed) != 2 {
+		t.Fatalf("expected both messages rekeyed, got %v", world.store.Rekeyed)
+	}
+}
+
 func TestIDBCheckWithoutDirectories(t *testing.T) {
 	world := checkWorld(t)
 	world.cfg.Sources.IndexedDBDirs = nil

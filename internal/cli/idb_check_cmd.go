@@ -9,6 +9,7 @@ import (
 	"github.com/chipskein/cade/internal/idbdiscovery"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/storage"
 )
 
 // percentScale turns an overlap ratio into the percentage printed.
@@ -27,6 +28,7 @@ type schemaChecker struct {
 	cfg       config.Config
 	dir       idbmap.SchemaDir
 	update    bool
+	rekey     bool
 	generator ClosableGenerator
 }
 
@@ -36,6 +38,8 @@ type schemaChecker struct {
 func runIDBCheck(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("idb-check", env.stderr, env.language)
 	update := flags.Bool("update", false, env.language.pick("regenera com o modelo local os schemas que mudaram", "regenerates with the local model the schemas that drifted"))
+	rekey := flags.Bool("rekey", false, env.language.pick("com --update, aceita um schema que muda a identidade das mensagens e dá o UID novo às já indexadas (copia o banco antes)",
+		"with --update, accepts a schema that changes the messages' identity and gives the indexed ones their new UID (copies the database first)"))
 	names, err := parseCommandFlags(flags, args)
 	if err != nil {
 		return err
@@ -44,7 +48,7 @@ func runIDBCheck(ctx context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return err
 	}
-	checker := &schemaChecker{env: env, cfg: cfg, dir: idbmap.NewSchemaDir(env.toolkit.SchemaFiles, cfg.Sources.IndexedDBSchemaDir), update: *update}
+	checker := &schemaChecker{env: env, cfg: cfg, dir: idbmap.NewSchemaDir(env.toolkit.SchemaFiles, cfg.Sources.IndexedDBSchemaDir), update: *update, rekey: *rekey}
 	defer checker.close()
 	return checker.checkAll(ctx, names)
 }
@@ -143,6 +147,9 @@ func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, r
 	if err != nil {
 		return false, err
 	}
+	if !comparison.Accepted() && c.rekey && identityOnly(comparison) {
+		return true, c.rekeyAndReplace(ctx, current, found.Schema, records)
+	}
 	if !comparison.Accepted() {
 		return false, c.keepCandidate(found.Schema, comparison)
 	}
@@ -153,6 +160,36 @@ func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, r
 	fmt.Fprintf(c.env.stdout, c.env.language.pick("  substituído pela revisão %d: %s, %.0f%% dos UIDs mantidos\n", "  replaced by revision %d: %s, %.0f%% of UIDs kept\n"),
 		saved.Revision, c.env.language.count(comparison.NextEvents, discoveredMessageNoun), comparison.Overlap()*percentScale)
 	return true, nil
+}
+
+// identityOnly reports a replacement refused only for changing UIDs: it
+// maps at least as much, so a rekey resolves the refusal.
+func identityOnly(comparison idbmap.Comparison) bool {
+	return comparison.NextEvents > 0 && comparison.NextEvents >= comparison.CurrentEvents
+}
+
+// rekeyAndReplace gives the indexed messages the UIDs next assigns them,
+// then replaces the schema; the store copies the database first.
+func (c *schemaChecker) rekeyAndReplace(ctx context.Context, current, next idbmap.Schema, records []indexeddb.Record) error {
+	changes, err := idbmap.UIDChanges(current, next, records)
+	if err != nil {
+		return err
+	}
+	var report storage.RekeyReport
+	err = c.env.withStore(ctx, func(_ config.Config, store storage.EventStore) error {
+		report, err = store.RekeyEvents(ctx, changes)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	saved, err := c.dir.Replace(next)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(c.env.stdout, c.env.language.pick("  substituído pela revisão %d com UIDs novos: %d eventos, %d conflitos (cópia do banco em %s)\n", "  replaced by revision %d with new UIDs: %d events, %d conflicts (database copy at %s)\n"),
+		saved.Revision, report.Rekeyed, report.Conflicts, report.BackupPath)
+	return nil
 }
 
 func (c *schemaChecker) keepCandidate(candidate idbmap.Schema, comparison idbmap.Comparison) error {
