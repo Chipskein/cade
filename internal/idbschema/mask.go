@@ -33,10 +33,27 @@ func MaskKey(key string) string {
 	return key
 }
 
-// maskName keeps the structure of database and store names (e.g.
+// MaskName keeps the structure of database and store names (e.g.
 // "Teams:replychain-manager:react-web-client:<guid>") while hiding ids.
-func maskName(name string) string {
+// Also used on the samples idbdiscovery shows the local model.
+func MaskName(name string) string {
 	masked := guidPattern.ReplaceAllString(name, "<guid>")
 	masked = emailPattern.ReplaceAllString(masked, "<email>")
 	return digitsPattern.ReplaceAllString(masked, "<n>")
+}
+
+// StablePrefix is name up to the first part MaskName would hide: the part
+// shared by every user and session, usable to match the database again
+// ("Teams:replychain-manager:react-web-client:<guid>" keeps everything
+// before the guid).
+//
+//	idbschema.StablePrefix("Teams:conv:ana@corp.com:v2") == "Teams:conv:"
+func StablePrefix(name string) string {
+	end := len(name)
+	for _, pattern := range []*regexp.Regexp{guidPattern, emailPattern, digitsPattern} {
+		if found := pattern.FindStringIndex(name); found != nil && found[0] < end {
+			end = found[0]
+		}
+	}
+	return name[:end]
 }

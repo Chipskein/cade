@@ -114,8 +114,22 @@ func TestMaskKey(t *testing.T) {
 }
 
 func TestMaskName(t *testing.T) {
-	got := maskName("Teams:conv:ana@corp.com:1234567:v2")
+	got := MaskName("Teams:conv:ana@corp.com:1234567:v2")
 	if got != "Teams:conv:<email>:<n>:v2" {
 		t.Fatalf("unexpected masked name %q", got)
+	}
+}
+
+func TestStablePrefix(t *testing.T) {
+	cases := map[string]string{
+		"Teams:replychain-manager:react-web-client:0b1c2d3e-0000-1111-2222-333344445555": "Teams:replychain-manager:react-web-client:",
+		"Teams:conv:ana@corp.com:v2": "Teams:conv:",
+		"model-storage":              "model-storage",
+		"cache-1727280000":           "cache-",
+	}
+	for name, want := range cases {
+		if got := StablePrefix(name); got != want {
+			t.Errorf("StablePrefix(%q) = %q, want %q", name, got, want)
+		}
 	}
 }
