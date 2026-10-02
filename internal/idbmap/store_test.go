@@ -74,6 +74,15 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 	}
 }
 
+func TestEncodeSchemaKeepsMaskedKeysReadable(t *testing.T) {
+	schema := savedSchema(t)
+	schema.Records.Each = "$.messageMap.<id>"
+	encoded, err := EncodeSchema(schema)
+	if err != nil || !strings.Contains(string(encoded), `"each": "$.messageMap.<id>"`) {
+		t.Fatalf("expected <id> unescaped, got %s (err %v)", encoded, err)
+	}
+}
+
 func TestSaveRefusesToReplaceUnlessAsked(t *testing.T) {
 	dir := NewSchemaDir(NewFakeSchemaFiles(), schemaDirPath)
 	schema := savedSchema(t)

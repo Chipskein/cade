@@ -1,6 +1,7 @@
 package idbmap
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -139,11 +140,26 @@ func (d SchemaDir) Save(schema Schema, overwrite bool) error {
 	if !overwrite && d.files.Exists(path) {
 		return fmt.Errorf("%w: %q", ErrSchemaExists, path)
 	}
-	encoded, err := json.MarshalIndent(schema, "", "  ")
+	encoded, err := EncodeSchema(schema)
 	if err != nil {
-		return fmt.Errorf("encode schema %q: %w", schema.Name, err)
+		return err
 	}
-	return d.files.WriteFile(path, append(encoded, '\n'))
+	return d.files.WriteFile(path, encoded)
+}
+
+// EncodeSchema writes schema as indented JSON for hand editing, with "<"
+// and ">" kept as is: masked path keys like "<id>" must stay readable.
+//
+//	encoded, err := idbmap.EncodeSchema(schema)
+func EncodeSchema(schema Schema) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(schema); err != nil {
+		return nil, fmt.Errorf("encode schema %q: %w", schema.Name, err)
+	}
+	return buffer.Bytes(), nil
 }
 
 // FilePath is where the schema called name lives.

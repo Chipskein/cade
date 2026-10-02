@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
@@ -67,6 +68,8 @@ type Toolkit struct {
 	// the first stage of `ingest` fills.
 	Sources       func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
 	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
+	// SchemaFiles stores the IndexedDB schemas `idb-discover` writes.
+	SchemaFiles idbmap.SchemaFiles
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
 	// StdoutIsTerminal allows image previews, which are terminal art that
@@ -181,6 +184,7 @@ func subcommands() map[string]subcommand {
 		"timeline":     runTimeline,
 		"ask":          runAsk,
 		"teams-schema": runTeamsSchema,
+		"idb-discover": runIDBDiscover,
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,

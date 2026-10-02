@@ -46,6 +46,9 @@ Comandos:
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
+  idb-discover --name N [--force] [--print] DIR
+                                        gera com o modelo local um schema para
+                                        ingerir o IndexedDB de um aplicativo
   version                               versão, commit, data e tipo de build (CPU/CUDA)
   help                                  mostra esta ajuda
 
@@ -102,6 +105,9 @@ Commands:
                                         cache) does not come back
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
                                         to design the Teams ingestor
+  idb-discover --name N [--force] [--print] DIR
+                                        generates with the local model a schema to
+                                        ingest an application's IndexedDB
   version                               version, commit, date and build type (CPU/CUDA)
   help                                  shows this help
 

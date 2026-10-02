@@ -16,6 +16,9 @@ func (w *fakeWorld) readIndexedDB(dir string) ([]indexeddb.Record, error) {
 	if strings.Contains(dir, "missing") {
 		return nil, errors.New("no such directory")
 	}
+	if w.indexedDBRecords != nil {
+		return w.indexedDBRecords, nil
+	}
 	message := &v8value.Value{Kind: v8value.KindObject, Properties: []v8value.Property{
 		{Key: "content", Value: &v8value.Value{Kind: v8value.KindString, Text: "conteúdo privado"}},
 	}}

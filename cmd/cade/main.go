@@ -18,6 +18,7 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
 	"github.com/chipskein/cade/internal/ingestrun"
@@ -53,6 +54,7 @@ func productionToolkit() cli.Toolkit {
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
 		ReadIndexedDB:      readIndexedDB,
+		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),
 		StdoutIsTerminal:   isTerminal(os.Stdout),
 		RenderImagePreview: renderImagePreview,
