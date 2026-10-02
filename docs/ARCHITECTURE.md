@@ -79,9 +79,11 @@ flowchart TD
 
     subgraph ingestao["Ingestão"]
         ingest["ingest<br/>Pipeline, SourceSpec"]
-        sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource"]
+        sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource<br/>ingest/idbsource"]
         chunking["chunking"]
-        indexeddb["indexeddb<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy"]
+        indexeddb["indexeddb (Chromium)<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy<br/>firefoxidb + smclone (Firefox)"]
+        idbmap["idbmap<br/>schema de IndexedDB,<br/>aplicação, deriva, histórico"]
+        idbdiscovery["idbdiscovery<br/>schema pelo modelo local"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
         imagefile["imagefile<br/>png, jpeg, webp → RGB"]
         ingestrun["ingestrun<br/>estado e trava do ingest (#41)"]
@@ -120,6 +122,9 @@ flowchart TD
     cli --> provenance
     cli --> ingestrun
     cli --> pacing
+    cli --> idbdiscovery
+    idbdiscovery --> idbmap
+    idbdiscovery --> llm
 
     queryplan --> llm
     queryplan --> listing
@@ -133,6 +138,8 @@ flowchart TD
 
     sources --> ingest
     sources --> indexeddb
+    sources --> idbmap
+    idbmap --> indexeddb
     ingest --> chunking
     ingest --> llm
     ingest --> storage
@@ -152,7 +159,7 @@ flowchart TD
     sqlitestore -. implementa .-> storage
 ```
 
-Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (`cade teams-schema`), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`, `syntheticimage`, que desenha as imagens de teste, e `evalimages`, que abre o cache das descrições delas).
+Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (o resumo sem valores do `cade teams-schema`, que a descoberta e a deriva também usam), `htmltext` (HTML de mensagem para texto, do Teams e do `html_text` dos schemas), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`, `syntheticimage`, que desenha as imagens de teste, e `evalimages`, que abre o cache das descrições delas).
 
 ---
 
@@ -170,13 +177,14 @@ flowchart LR
         loadEmbedder["LoadEmbedder → llamacpp embedder"]
         loadGenerator["LoadGenerator → llamacpp generator<br/>(estado do prompt salvo)"]
         loadDescriber["LoadImageDescriber → llamacpp gerador + mmproj<br/>(só o ingest com imagens)"]
-        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams"]
+        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams<br/>+ uma fonte por schema de IndexedDB salvo"]
         loadConfig["LoadConfig / WriteConfig"]
-        readIDB["ReadIndexedDB → indexeddb.ReadDirectory"]
+        readIDB["ReadIndexedDB → readIndexedDB<br/>indexeddb (Chromium) ou firefoxidb (Firefox)"]
+        schemaFiles["SchemaFiles → idbmap.OSSchemaFiles"]
     end
 
     toolkit --- toolkitfns
-    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runVersion"]
+    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runIDBDiscover · runIDBCheck · runVersion"]
 ```
 
 ---
@@ -263,17 +271,26 @@ sequenceDiagram
     end
 ```
 
-O coletor do Teams tem um caminho próprio até o evento:
+Os coletores de IndexedDB têm um caminho próprio até o evento. O Chromium e o Firefox guardam o IndexedDB em formatos diferentes, mas os dois leitores entregam a mesma árvore `v8value.Value`, então o resto não sabe de que navegador o dado veio:
 
 ```mermaid
 flowchart LR
-    dir["pasta *.indexeddb.leveldb"] --> copy["filecopy<br/>cópia em /tmp (arquivos travados)"]
+    dir["pasta *.indexeddb.leveldb<br/>(Chromium)"] --> copy["filecopy<br/>cópia em /tmp (arquivos travados)"]
+    fdir["pasta idb/*.sqlite<br/>(Firefox, Floorp)"] --> copy
     copy --> ldb["leveldbraw + snappyblock<br/>registros brutos"]
     ldb --> idb["indexeddb.ReadDirectory<br/>stores e registros"]
     idb --> v8["v8value<br/>valores serializados do V8"]
+    copy --> fidb["firefoxidb<br/>SQLite + snappyblock"]
+    fidb --> sm["smclone<br/>structured clone do SpiderMonkey"]
     v8 --> teams["teamssource.Collector<br/>mensagens, conversas, perfis"]
+    v8 --> idbsrc["idbsource.Collector<br/>idbmap.Mapper + schema salvo"]
+    sm --> teams
+    sm --> idbsrc
     teams -->|"emit(event.Event)"| pipeline["ingest.Pipeline"]
+    idbsrc -->|"emit(event.Event)"| pipeline
 ```
+
+O schema de um aplicativo sai do `cade idb-discover`: o `idbdiscovery` monta um catálogo dos stores (caminhos, tipos e amostras mascaradas), pergunta ao modelo duas vezes sob gramáticas geradas a partir desses caminhos e aplica o schema proposto aos próprios registros antes de salvá-lo. O `cade idb-check` mede a deriva contra a impressão digital do schema e, com `--update`, regenera, compara (`idbmap.CompareSchemas`) e troca guardando a revisão anterior; com `--rekey`, renomeia os UIDs já indexados (`storage.EventStore.RekeyEvents`, com cópia do banco).
 
 ### Em segundo plano (`ingest start`, `status`, `pause`, `resume`, `stop`, `--gentle`)
 
