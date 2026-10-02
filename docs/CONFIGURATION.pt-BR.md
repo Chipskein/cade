@@ -45,6 +45,8 @@
 | `sources.git_identities` | Identidades tratadas como "você". |
 | `sources.browser_histories` | Arquivos de histórico usados no `ingest browser`. |
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
+| `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade idb-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
+| `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
 | `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
@@ -96,7 +98,7 @@ Com `sources.images` ligado, cada imagem custa cerca de 1,8 s numa RTX 3060 e 21
 - Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
 - Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
 
-Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil Chromium do Teams (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`).
+Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil do Teams: um diretório `*.indexeddb.leveldb` no Chromium (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) ou o diretório `idb` da origem do Teams no Firefox e no Floorp (ex.: `~/.floorp/<perfil>/storage/default/https+++teams.microsoft.com/idb`).
 
 ## Ingestão em segundo plano
 

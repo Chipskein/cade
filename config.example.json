@@ -54,6 +54,8 @@
       "~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb",
       "~/.config/google-chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"
     ],
+    "indexeddb_schema_dir": "~/.config/cade/idb-schemas",
+    "indexeddb_dirs": {},
     "directories": [
       "~/notes"
     ],

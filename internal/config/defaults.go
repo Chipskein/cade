@@ -97,6 +97,9 @@ func defaultEmbedding() EmbeddingConfig {
 	}
 }
 
+// defaultIndexedDBSchemaDir sits beside the default config file.
+const defaultIndexedDBSchemaDir = "~/.config/cade/idb-schemas"
+
 func defaultSources() SourcesConfig {
 	return SourcesConfig{
 		GitRepositories:    []string{},
@@ -104,6 +107,8 @@ func defaultSources() SourcesConfig {
 		GitIdentities:      []string{"auto"},
 		BrowserHistories:   []string{},
 		TeamsIndexedDBDirs: []string{},
+		IndexedDBSchemaDir: defaultIndexedDBSchemaDir,
+		IndexedDBDirs:      map[string][]string{},
 		Directories:        []string{},
 		IgnoredDirNames:    []string{".git", "node_modules", "vendor", "__pycache__", ".venv", "target"},
 		IgnoredFileGlobs:   defaultIgnoredFileGlobs,
