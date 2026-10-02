@@ -87,8 +87,20 @@ func conversationFor(messages messageContext, conversationID string) conversatio
 	return conversationInfo{kind: event.KindOther}
 }
 
-// originName is the directory's base name without the IndexedDB suffix,
-// e.g. "https_teams.cloud.microsoft_0".
+// Chromium names the directory after the origin; Firefox names its
+// parent and calls the directory itself "idb".
+const (
+	chromiumIndexedDBSuffix = ".indexeddb.leveldb"
+	firefoxIndexedDBDirName = "idb"
+)
+
+// originName names the origin a cache came from, e.g.
+// "https_teams.cloud.microsoft_0" (Chromium) or
+// "https+++teams.microsoft.com" (Firefox).
 func originName(dir string) string {
-	return strings.TrimSuffix(filepath.Base(filepath.Clean(dir)), ".indexeddb.leveldb")
+	clean := filepath.Clean(dir)
+	if filepath.Base(clean) == firefoxIndexedDBDirName {
+		return filepath.Base(filepath.Dir(clean))
+	}
+	return strings.TrimSuffix(filepath.Base(clean), chromiumIndexedDBSuffix)
 }

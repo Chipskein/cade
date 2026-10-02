@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/chipskein/cade/internal/config"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/browsersource"
 	"github.com/chipskein/cade/internal/ingest/filesource"
@@ -26,7 +25,7 @@ func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.Sour
 }
 
 func newTeamsCollector(indexedDBDir string) (ingest.EventCollector, error) {
-	return teamssource.NewCollector(indexeddb.ReadDirectory, indexedDBDir), nil
+	return teamssource.NewCollector(readIndexedDB, indexedDBDir), nil
 }
 
 func gitCollectorFactory(sources config.SourcesConfig) func(string) (ingest.EventCollector, error) {

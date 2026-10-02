@@ -188,6 +188,9 @@ func TestOriginName(t *testing.T) {
 	if got := originName("/x/https_teams.microsoft.com_0.indexeddb.leveldb/"); got != "https_teams.microsoft.com_0" {
 		t.Fatalf("unexpected origin %q", got)
 	}
+	if got := originName("/p/storage/default/https+++teams.microsoft.com/idb"); got != "https+++teams.microsoft.com" {
+		t.Fatalf("expected the Firefox origin directory, got %q", got)
+	}
 }
 
 // Regression: the activity feed re-posts channel messages, which showed up
