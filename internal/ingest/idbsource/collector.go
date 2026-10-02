@@ -5,6 +5,7 @@ package idbsource
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
@@ -54,5 +55,8 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 			return err
 		}
 	}
-	return tally.Check(c.schema)
+	if err := tally.Check(c.schema); err != nil {
+		return fmt.Errorf("%w; run `cade idb-check --update %s`", err, c.schema.Name)
+	}
+	return nil
 }

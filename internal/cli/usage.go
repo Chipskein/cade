@@ -48,7 +48,10 @@ Comandos:
                                         do Chrome, p/ desenhar o ingestor do Teams
   idb-discover --name N [--force] [--print] DIR
                                         gera com o modelo local um schema para
-                                        ingerir o IndexedDB de um aplicativo
+                                        ingerir o IndexedDB de um aplicativo;
+                                        --rollback --name N volta à revisão anterior
+  idb-check [--update] [N...]           confere se os aplicativos ainda batem com
+                                        os schemas; --update regenera o que mudou
   version                               versão, commit, data e tipo de build (CPU/CUDA)
   help                                  mostra esta ajuda
 
@@ -107,7 +110,10 @@ Commands:
                                         to design the Teams ingestor
   idb-discover --name N [--force] [--print] DIR
                                         generates with the local model a schema to
-                                        ingest an application's IndexedDB
+                                        ingest an application's IndexedDB;
+                                        --rollback --name N restores the previous revision
+  idb-check [--update] [N...]           checks the applications still match their
+                                        schemas; --update regenerates what changed
   version                               version, commit, date and build type (CPU/CUDA)
   help                                  shows this help
 

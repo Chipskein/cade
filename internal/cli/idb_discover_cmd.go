@@ -16,8 +16,8 @@ var discoveredMessageNoun = nounForms{"mensagem", "mensagens", "message", "messa
 
 // idbDiscoverRequest is what the command line asked for.
 type idbDiscoverRequest struct {
-	dir, name, source string
-	force, printOnly  bool
+	dir, name, source          string
+	force, printOnly, rollback bool
 }
 
 // runIDBDiscover asks the local model for a schema of an application's
@@ -31,6 +31,9 @@ func runIDBDiscover(ctx context.Context, env commandEnv, args []string) error {
 	cfg, err := env.loadConfig()
 	if err != nil {
 		return err
+	}
+	if request.rollback {
+		return env.rollbackSchema(cfg, request.name)
 	}
 	found, err := env.discoverSchema(ctx, cfg, request)
 	if errors.Is(err, idbdiscovery.ErrNoMessages) || request.printOnly {
@@ -47,10 +50,14 @@ func parseIDBDiscover(env commandEnv, args []string) (idbDiscoverRequest, error)
 	name := flags.String("name", "", env.language.pick("nome do schema e da fonte (ex.: whatsapp)", "schema and source name (e.g. whatsapp)"))
 	source := flags.String("source", "", env.language.pick("fonte dos eventos, se diferente do nome", "event source, if not the name"))
 	force := flags.Bool("force", false, env.language.pick("substitui um schema já salvo", "replaces a saved schema"))
+	rollback := flags.Bool("rollback", false, env.language.pick("volta o schema --name à revisão anterior", "brings schema --name back to its previous revision"))
 	printOnly := flags.Bool("print", false, env.language.pick("só mostra o schema, sem salvar", "only prints the schema, without saving"))
 	positional, err := parseCommandFlags(flags, args)
 	if err != nil {
 		return idbDiscoverRequest{}, err
+	}
+	if *rollback && *name != "" && len(positional) == 0 {
+		return idbDiscoverRequest{name: *name, rollback: true}, nil
 	}
 	if len(positional) != 1 || *name == "" {
 		return idbDiscoverRequest{}, fmt.Errorf("%s: cade idb-discover --name whatsapp ~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb",
@@ -81,6 +88,17 @@ func printSchema(env commandEnv, schema idbmap.Schema) error {
 	}
 	_, err = env.stdout.Write(encoded)
 	return err
+}
+
+// rollbackSchema undoes the last replacement of a schema, by hand or by
+// `idb-check --update`.
+func (env commandEnv) rollbackSchema(cfg config.Config, name string) error {
+	restored, err := idbmap.NewSchemaDir(env.toolkit.SchemaFiles, cfg.Sources.IndexedDBSchemaDir).Rollback(name)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(env.stdout, env.language.pick("schema %q voltou à revisão %d.\n", "schema %q is back at revision %d.\n"), name, restored.Revision)
+	return nil
 }
 
 // saveDiscovered writes the schema and says how to point ingest at it.

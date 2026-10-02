@@ -185,6 +185,7 @@ func subcommands() map[string]subcommand {
 		"ask":          runAsk,
 		"teams-schema": runTeamsSchema,
 		"idb-discover": runIDBDiscover,
+		"idb-check":    runIDBCheck,
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,
