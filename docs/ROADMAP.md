@@ -41,7 +41,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
-| 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
+| 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | em andamento | médio | alto |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
 | — | [v0.3.0](#v030) | várias | depois | — | — |
@@ -250,6 +250,15 @@ flowchart LR
 - **Mudança:** o modelo local atua como tradutor. Ele recebe o resumo do `idbschema` e poucas amostras e preenche um mapeamento declarativo para o evento do `cade`, com a saída restrita por gramática GBNF. O mapeamento é gerado uma vez por aplicação, salvo fora do código e editável. A indexação usa o schema salvo sem rodar o modelo. O decodificador do Chromium (`indexeddb`, `v8value`) não muda; um leitor do Firefox é acrescentado.
 - **Aceite:** o schema do Teams produz os mesmos UID, hora, remetente e texto do `teamssource` de hoje (teste; o título e o tipo da conversa podem divergir); uma segunda aplicação é indexada sem código específico; o PRIVACY diz o que o modelo vê na descoberta.
 - **Resultado:** `cade idb-discover`, `cade idb-check [--update] [--rekey]` e uma fonte do `ingest` por schema salvo, com leitor de IndexedDB do Firefox e do Floorp (`firefoxidb`, `smclone`). Com o Qwen3.5-2B na GPU (120 W), o rascunho do Teams sai em 6,4 s e acerta store, ids, remetente com lookup, texto e hora; o do WhatsApp Web, em 10,5 s, erra os campos que a cifragem confunde. Os dois foram revisados à mão (`testdata/idb-schemas/`). O do Teams bate com o `teamssource` em 3 mensagens reais e 5 de borda. O WhatsApp Web, cujo texto é cifrado, entra só por metadados: 9.633 mensagens numa cópia da base real, 85% com nome. A linguagem cresceu com casos reais: `required` (o Teams descarta corpo só de tags), `split`, `key_field` e `values` (chaves compostas do WhatsApp). Pendente: filtros de pessoa e direção do `ask` para fontes além do Teams.
+- **Próximas tarefas** (mesma issue e branch, cada uma com até 10 arquivos):
+  - O Discord não guarda mensagens no IndexedDB, mas o cache HTTP do navegador guarda as últimas respostas de `GET /api/v9/channels/<id>/messages`, só dos canais abertos e até o navegador descartá-las.
+  - O texto do WhatsApp Web é cifrado no IndexedDB e não passa pelo cache HTTP; a fonte legítima é a exportação oficial de conversa (`.txt`).
+  1. Leitor do cache HTTP do Firefox/Floorp (`cache2`): só origens e padrões de URL configurados; corpos JSON viram registros, com a URL no papel do store.
+  2. Leitor do cache HTTP do Chrome (`Cache/Cache_Data`).
+  3. Integração: schema com `records.url`, descoberta e `idb-check` sobre esses registros, e o schema revisado do Discord.
+  4. Importação do `.txt` exportado do WhatsApp, com o mesmo UID do evento do IndexedDB, para completar o texto sem duplicar.
+  5. Caminhos que leem o registro de dentro do item (`^.id`, `^.updateTime`), para mensagens aninhadas na conversa, como o cache do ChatGPT.
+  6. Docs e PRIVACY (EN e PT).
 
 ---
 
