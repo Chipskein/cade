@@ -168,16 +168,27 @@ func (m Mapper) message(item *v8value.Value, lookups map[Field]lookupIndex, orig
 func (m Mapper) text(field Field, item *v8value.Value, lookups map[Field]lookupIndex) string {
 	rule := m.rules[field]
 	for _, path := range rule.paths {
-		if text := readText(path.First(item), rule.rule.Transform); text != "" {
+		if text := ruleText(path.First(item), rule.rule); text != "" {
 			return text
 		}
 	}
-	if index, ok := lookups[field]; ok {
-		if found := index.find(item); found != "" {
-			return found
-		}
+	if found := m.lookedUp(field, item, lookups); found != "" {
+		return found
 	}
 	return rule.rule.Default
+}
+
+// lookedUp finds field's value in its lookup store, keyed by a path of the
+// item or by another field's value (validated not to loop).
+func (m Mapper) lookedUp(field Field, item *v8value.Value, lookups map[Field]lookupIndex) string {
+	index, ok := lookups[field]
+	if !ok {
+		return ""
+	}
+	if index.keyField == "" {
+		return index.findByPath(item)
+	}
+	return index.values[m.text(index.keyField, item, lookups)]
 }
 
 // missesRequired reports a required text field left empty.
@@ -201,8 +212,9 @@ func (m Mapper) time(item *v8value.Value) (time.Time, bool) {
 }
 
 func (m Mapper) flag(field Field, item *v8value.Value) bool {
-	for _, path := range m.rules[field].paths {
-		if readFlag(path.First(item)) {
+	rule := m.rules[field]
+	for _, path := range rule.paths {
+		if ruleFlag(path.First(item), rule.rule) {
 			return true
 		}
 	}

@@ -46,7 +46,15 @@ const numberFormatPrecision = -1
 
 // readText turns a value into a field string, or "" when it holds none.
 func readText(value *v8value.Value, transform Transform) string {
-	text := scalarText(value)
+	return transformText(scalarText(value), transform)
+}
+
+// ruleText reads a value the way rule says: split, then transform.
+func ruleText(value *v8value.Value, rule FieldRule) string {
+	return transformText(rule.Split.segment(scalarText(value)), rule.Transform)
+}
+
+func transformText(text string, transform Transform) string {
 	switch transform {
 	case TransformHTMLText:
 		return htmltext.ToText(text)
@@ -111,4 +119,25 @@ func positiveMillis(millis float64) (time.Time, bool) {
 // readFlag reads a boolean field: only a true boolean counts.
 func readFlag(value *v8value.Value) bool {
 	return value.IsTrue()
+}
+
+// flagTrueText is how a flag reads in a composite text ("true_<chat>_<id>").
+const flagTrueText = "true"
+
+// ruleFlag also accepts a split segment reading "true".
+func ruleFlag(value *v8value.Value, rule FieldRule) bool {
+	return readFlag(value) || rule.Split != nil && rule.Split.segment(scalarText(value)) == flagTrueText
+}
+
+// segment returns the Index-th part of text; a nil Split keeps text whole
+// and a missing part is "".
+func (s *Split) segment(text string) string {
+	if s == nil {
+		return text
+	}
+	parts := strings.Split(text, s.Separator)
+	if s.Index >= len(parts) {
+		return ""
+	}
+	return parts[s.Index]
 }

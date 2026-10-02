@@ -38,7 +38,7 @@
         "store": "profiles",
         "key_path": "$.creator",
         "match": "$.mri",
-        "value": "$.displayName"
+        "values": ["$.displayName"]
       },
       "default": "desconhecido"
     },

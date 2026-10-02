@@ -20,7 +20,7 @@ const chainSchema = `{
     "message_id": {"paths": ["$.id"]},
     "conversation_id": {"paths": ["$.conversationId"]},
     "sender": {"paths": ["$.imDisplayName"],
-      "lookup": {"database_prefix": "app:profiles", "store": "profiles", "key_path": "$.creator", "match": "$.mri", "value": "$.displayName"},
+      "lookup": {"database_prefix": "app:profiles", "store": "profiles", "key_path": "$.creator", "match": "$.mri", "values": ["$.displayName"]},
       "default": "desconhecido"},
     "sender_id": {"paths": ["$.creator"]},
     "text": {"paths": ["$.content"], "transform": "html_text"},
@@ -174,5 +174,61 @@ func TestApplyDropsItemsMissingARequiredField(t *testing.T) {
 	events, tally, _ := mustMapper(t, raw).Apply(records, "o")
 	if len(events) != 1 || tally.Kept != 2 || tally.Mapped != 1 || events[0].Message().MessageID != "1" {
 		t.Fatalf("expected the tags-only message dropped, got %d events, %+v", len(events), tally)
+	}
+}
+
+// compositeSchema reads WhatsApp-like composite keys: the chat and whether
+// the user sent it are parts of the id, and the chat name is looked up by
+// the chat id cut out of it.
+const compositeSchema = `{
+  "version": 1, "target": "message/1", "name": "zap", "source": "zap",
+  "records": {"database_prefix": "model-storage", "store": "message"},
+  "fields": {
+    "message_id": {"paths": ["$.id"], "split": {"separator": "_", "index": 2}},
+    "conversation_id": {"paths": ["$.id"], "split": {"separator": "_", "index": 1}},
+    "conversation": {"lookup": {"database_prefix": "model-storage", "store": "chat", "key_field": "conversation_id", "match": "$.id", "values": ["$.name"]}},
+    "sent_by_me": {"paths": ["$.id"], "split": {"separator": "_", "index": 0}},
+    "sent_at": {"paths": ["$.t"], "transform": "unix_s"}
+  }
+}`
+
+func TestApplySplitsCompositeKeysAndLooksUpByField(t *testing.T) {
+	records := []indexeddb.Record{
+		record("model-storage", "message", obj("id", str("true_55@g.us_3EB0"), "t", num(1727280000))),
+		record("model-storage", "message", obj("id", str("false_55@g.us_3EB1"), "t", num(1727280001))),
+		record("model-storage", "chat", obj("id", str("55@g.us"), "name", str("Família"))),
+	}
+	events, _, err := mustMapper(t, compositeSchema).Apply(records, "o")
+	if err != nil || len(events) != 2 {
+		t.Fatalf("expected two events, got %d (err %v)", len(events), err)
+	}
+	first, second := events[0].Message(), events[1].Message()
+	if first.MessageID != "3EB0" || first.ConversationID != "55@g.us" || first.Conversation != "Família" || !first.SentByMe || second.SentByMe {
+		t.Fatalf("unexpected messages %+v / %+v", first, second)
+	}
+}
+
+func TestParseRejectsBadSplitsAndKeyFields(t *testing.T) {
+	cases := map[string]struct{ old, new, mention string }{
+		"empty separator":       {`"separator": "_", "index": 2`, `"separator": "", "index": 2`, "split"},
+		"negative index":        {`"separator": "_", "index": 2`, `"separator": "_", "index": -1`, "split"},
+		"key_field and path":    {`"key_field": "conversation_id"`, `"key_field": "conversation_id", "key_path": "$.x"`, "one of key_path or key_field"},
+		"unknown key_field":     {`"key_field": "conversation_id"`, `"key_field": "chat_id"`, "chat_id"},
+		"self key_field":        {`"key_field": "conversation_id"`, `"key_field": "conversation"`, "another text field"},
+		"time key_field":        {`"key_field": "conversation_id"`, `"key_field": "sent_at"`, "another text field"},
+		"lookup without values": {`"values": ["$.name"]`, `"values": []`, "values"},
+	}
+	for name, tc := range cases {
+		_, err := Parse([]byte(strings.Replace(compositeSchema, tc.old, tc.new, 1)))
+		if err == nil || !strings.Contains(err.Error(), tc.mention) {
+			t.Errorf("%s: expected an error mentioning %q, got %v", name, tc.mention, err)
+		}
+	}
+}
+
+func TestParseRejectsChainedKeyFields(t *testing.T) {
+	chained := strings.Replace(compositeSchema, `"sent_by_me"`, `"sender": {"lookup": {"store": "contact", "key_field": "conversation", "match": "$.id", "values": ["$.name"]}}, "sent_by_me"`, 1)
+	if _, err := Parse([]byte(chained)); err == nil || !strings.Contains(err.Error(), "itself looked up") {
+		t.Fatalf("expected a chained key_field error, got %v", err)
 	}
 }

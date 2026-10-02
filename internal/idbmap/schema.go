@@ -96,20 +96,32 @@ type Condition struct {
 // tags becomes empty text after html_text).
 type FieldRule struct {
 	Paths     []Path    `json:"paths,omitempty"`
+	Split     *Split    `json:"split,omitempty"`
 	Transform Transform `json:"transform,omitempty"`
 	Lookup    *Lookup   `json:"lookup,omitempty"`
 	Default   string    `json:"default,omitempty"`
 	Required  bool      `json:"required,omitempty"`
 }
 
-// Lookup reads Value from the record of another store whose Match equals
-// the item's KeyPath (a sender id resolved to a contact name).
+// Split keeps one segment of a composite value, before the transform:
+// WhatsApp's message id "false_<chat>_<id>" split on "_" at 0 says
+// whether the user sent it, at 1 which chat it belongs to.
+type Split struct {
+	Separator string `json:"separator"`
+	Index     int    `json:"index"`
+}
+
+// Lookup reads the first of Values with a value from the record of another
+// store whose Match equals the item's key: the text at KeyPath, or the
+// value already computed for KeyField (a chat id cut out of a composite
+// key with Split). A sender id becomes a contact name this way.
 type Lookup struct {
 	DatabasePrefix string `json:"database_prefix"`
 	Store          string `json:"store"`
-	KeyPath        Path   `json:"key_path"`
+	KeyPath        Path   `json:"key_path,omitempty"`
+	KeyField       Field  `json:"key_field,omitempty"`
 	Match          Path   `json:"match"`
-	Value          Path   `json:"value"`
+	Values         []Path `json:"values"`
 }
 
 // namePattern keeps schema names and sources usable as file names and
@@ -181,14 +193,14 @@ func (s Schema) validateFields() error {
 		}
 	}
 	for field, rule := range s.Fields {
-		if err := validateRule(field, rule); err != nil {
+		if err := validateRule(field, rule, s.Fields); err != nil {
 			return fmt.Errorf("field %q: %w", field, err)
 		}
 	}
 	return nil
 }
 
-func validateRule(field Field, rule FieldRule) error {
+func validateRule(field Field, rule FieldRule, fields map[Field]FieldRule) error {
 	shape, known := fieldShapes[field]
 	if !known {
 		return fmt.Errorf("unknown field, expected one of %s", joinFields(sortedFields()))
@@ -202,17 +214,39 @@ func validateRule(field Field, rule FieldRule) error {
 	if err := validatePaths(rule.Paths...); err != nil {
 		return err
 	}
-	return validateLookup(rule.Lookup)
+	if rule.Split != nil && (rule.Split.Separator == "" || rule.Split.Index < 0) {
+		return fmt.Errorf("split %+v, expected a separator and an index of 0 or more", *rule.Split)
+	}
+	return validateLookup(field, rule.Lookup, fields)
 }
 
-func validateLookup(lookup *Lookup) error {
+func validateLookup(field Field, lookup *Lookup, fields map[Field]FieldRule) error {
 	if lookup == nil {
 		return nil
 	}
-	if lookup.Store == "" || lookup.KeyPath == "" || lookup.Match == "" || lookup.Value == "" {
-		return fmt.Errorf("lookup %+v, expected store, key_path, match and value", *lookup)
+	if lookup.Store == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
+		return fmt.Errorf("lookup %+v, expected store, match, values and one of key_path or key_field", *lookup)
 	}
-	return validatePaths(lookup.KeyPath, lookup.Match, lookup.Value)
+	if err := validateKeyField(field, lookup.KeyField, fields); err != nil {
+		return err
+	}
+	return validatePaths(append([]Path{lookup.KeyPath, lookup.Match}, lookup.Values...)...)
+}
+
+// validateKeyField allows one level of lookup by field: the key field must
+// exist and not be looked up by field itself, so values never loop.
+func validateKeyField(field, keyField Field, fields map[Field]FieldRule) error {
+	if keyField == "" {
+		return nil
+	}
+	keyRule, exists := fields[keyField]
+	if !exists || keyField == field || fieldShapes[keyField] != shapeText {
+		return fmt.Errorf("lookup key_field %q, expected another text field of the schema", keyField)
+	}
+	if keyRule.Lookup != nil && keyRule.Lookup.KeyField != "" {
+		return fmt.Errorf("lookup key_field %q is itself looked up by field, expected a field read from paths", keyField)
+	}
+	return nil
 }
 
 func validatePaths(paths ...Path) error {

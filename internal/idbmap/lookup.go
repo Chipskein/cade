@@ -7,33 +7,50 @@ import (
 	"github.com/chipskein/cade/internal/v8value"
 )
 
-// lookupIndex answers one Lookup: the Value of each record of its store,
-// by that record's Match.
+// lookupIndex answers one Lookup: the first value of each record of its
+// store, by that record's Match.
 type lookupIndex struct {
-	keyPath CompiledPath
-	values  map[string]string
+	keyPath  *CompiledPath
+	keyField Field
+	values   map[string]string
 }
 
 func buildLookup(lookup Lookup, records []indexeddb.Record) (lookupIndex, error) {
-	paths, err := compilePaths(lookup.KeyPath, lookup.Match, lookup.Value)
+	index := lookupIndex{keyField: lookup.KeyField, values: map[string]string{}}
+	var err error
+	if index.keyPath, err = compileEach(lookup.KeyPath); err != nil {
+		return lookupIndex{}, err
+	}
+	paths, err := compilePaths(append([]Path{lookup.Match}, lookup.Values...)...)
 	if err != nil {
 		return lookupIndex{}, err
 	}
-	index := lookupIndex{keyPath: paths[0], values: map[string]string{}}
 	for _, record := range records {
 		if !inStore(record, lookup.DatabasePrefix, lookup.Store) {
 			continue
 		}
-		key, value := readText(paths[1].First(record.Value), TransformNone), readText(paths[2].First(record.Value), TransformTrim)
-		if key != "" && value != "" {
+		if key, value := readText(paths[0].First(record.Value), TransformNone), firstText(paths[1:], record.Value); key != "" && value != "" {
 			index.values[key] = value
 		}
 	}
 	return index, nil
 }
 
-// find returns the looked-up value for item, or "".
-func (l lookupIndex) find(item *v8value.Value) string {
+// firstText is the first of paths with a value under root, trimmed.
+func firstText(paths []CompiledPath, root *v8value.Value) string {
+	for _, path := range paths {
+		if text := readText(path.First(root), TransformTrim); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+// findByPath returns the looked-up value for item's KeyPath, or "".
+func (l lookupIndex) findByPath(item *v8value.Value) string {
+	if l.keyPath == nil {
+		return ""
+	}
 	return l.values[readText(l.keyPath.First(item), TransformNone)]
 }
 

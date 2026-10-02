@@ -15,7 +15,7 @@ const metadataOnlySchema = `{
     "message_id": {"paths": ["$.id"]},
     "conversation_id": {"paths": ["$.from"]},
     "sender": {"paths": ["$.author._serialized"],
-      "lookup": {"database_prefix": "model-storage", "store": "contact", "key_path": "$.author._serialized", "match": "$.id", "value": "$.name"},
+      "lookup": {"database_prefix": "model-storage", "store": "contact", "key_path": "$.author._serialized", "match": "$.id", "values": ["$.name"]},
       "default": "desconhecido"},
     "sent_at": {"paths": ["$.t"], "transform": "unix_s"}
   }

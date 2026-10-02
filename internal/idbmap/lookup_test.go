@@ -9,27 +9,31 @@ import (
 )
 
 func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
-	lookup := Lookup{DatabasePrefix: "model-storage", Store: "contact", KeyPath: "$.author", Match: "$.id", Value: "$.name"}
+	lookup := Lookup{DatabasePrefix: "model-storage", Store: "contact", KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
 	records := []indexeddb.Record{
 		record("model-storage", "contact", obj("id", str("1@c.us"), "name", str("Ana"))),
 		record("model-storage", "contact", obj("id", str("2@c.us"))),
+		record("model-storage", "contact", obj("id", str("4@c.us"), "pushname", str(" Bia "))),
 		record("model-storage", "chat", obj("id", str("3@c.us"), "name", str("Grupo"))),
 		{Database: "model-storage", Store: "contact", DecodeErr: errors.New("corrupt")},
 	}
 	index, err := buildLookup(lookup, records)
-	if err != nil || len(index.values) != 1 {
-		t.Fatalf("expected only Ana indexed, got %v (err %v)", index.values, err)
+	if err != nil || len(index.values) != 2 {
+		t.Fatalf("expected Ana and Bia indexed, got %v (err %v)", index.values, err)
 	}
-	if got := index.find(obj("author", str("1@c.us"))); got != "Ana" {
+	if got := index.findByPath(obj("author", str("1@c.us"))); got != "Ana" {
 		t.Errorf("expected Ana, got %q", got)
 	}
-	if got := index.find(obj("author", str("3@c.us"))); got != "" {
+	if got := index.findByPath(obj("author", str("4@c.us"))); got != "Bia" {
+		t.Errorf("expected the trimmed second value, got %q", got)
+	}
+	if got := index.findByPath(obj("author", str("3@c.us"))); got != "" {
 		t.Errorf("expected nothing from another store, got %q", got)
 	}
 }
 
 func TestBuildLookupRejectsBadPaths(t *testing.T) {
-	if _, err := buildLookup(Lookup{Store: "s", KeyPath: "x", Match: "$.id", Value: "$.name"}, nil); err == nil {
+	if _, err := buildLookup(Lookup{Store: "s", KeyPath: "x", Match: "$.id", Values: []Path{"$.name"}}, nil); err == nil {
 		t.Fatal("expected an error for a relative key path")
 	}
 }
