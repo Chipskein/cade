@@ -71,6 +71,9 @@ func TestDiscoverBuildsASchemaThatMapsTheRecords(t *testing.T) {
 	if !strings.HasPrefix(schema.Records.DatabasePrefix, "Teams:replychain-manager:") || schema.Fields[idbmap.FieldSentAt].Transform != idbmap.TransformUnixMS {
 		t.Fatalf("unexpected records %+v / sent_at %+v", schema.Records, schema.Fields[idbmap.FieldSentAt])
 	}
+	if len(schema.Fingerprint) == 0 || schema.Fingerprint[0].Path != "$.messageMap.<id>" || schema.Fingerprint[0].Kinds[0] != "object" {
+		t.Fatalf("expected a fingerprint starting at the message items, got %+v", schema.Fingerprint)
+	}
 	sender := schema.Fields[idbmap.FieldSender]
 	if sender.Lookup == nil || sender.Lookup.Store != "profiles" || sender.Default != unknownSender || schema.Fields[idbmap.FieldText].Transform != idbmap.TransformHTMLText {
 		t.Fatalf("unexpected sender %+v / text %+v", sender, schema.Fields[idbmap.FieldText])

@@ -69,6 +69,9 @@ type Schema struct {
 	Records  RecordSelector      `json:"records"`
 	Require  []Condition         `json:"require,omitempty"`
 	Fields   map[Field]FieldRule `json:"fields"`
+	// Fingerprint is the shape of what the schema reads when it was made;
+	// MeasureDrift compares it with the application's IndexedDB now.
+	Fingerprint []PathShape `json:"fingerprint,omitempty"`
 }
 
 // RecordSelector picks the records that hold messages: those of Store in a

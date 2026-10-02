@@ -129,6 +129,18 @@ func (d SchemaDir) Load(name string) (Schema, error) {
 }
 
 func (d SchemaDir) load(path string) (Schema, error) {
+	schema, err := d.readFile(path)
+	if err != nil {
+		return Schema{}, err
+	}
+	if want := strings.TrimSuffix(filepath.Base(path), schemaFileSuffix); schema.Name != want {
+		return Schema{}, fmt.Errorf("%s: schema named %q, expected %q like its file", path, schema.Name, want)
+	}
+	return schema, nil
+}
+
+// readFile parses the schema at path, whatever the file is called.
+func (d SchemaDir) readFile(path string) (Schema, error) {
 	raw, err := d.files.ReadFile(path)
 	if err != nil {
 		return Schema{}, fmt.Errorf("read schema %q: %w", path, err)
@@ -136,9 +148,6 @@ func (d SchemaDir) load(path string) (Schema, error) {
 	schema, err := Parse(raw)
 	if err != nil {
 		return Schema{}, fmt.Errorf("%s: %w", path, err)
-	}
-	if want := strings.TrimSuffix(filepath.Base(path), schemaFileSuffix); schema.Name != want {
-		return Schema{}, fmt.Errorf("%s: schema named %q, expected %q like its file", path, schema.Name, want)
 	}
 	return schema, nil
 }

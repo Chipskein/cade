@@ -94,8 +94,10 @@ func (d Discoverer) fillFields(ctx context.Context, catalog Catalog, store Store
 }
 
 // try applies the schema to the records it came from: a schema that maps
-// nothing is returned with ErrNoMessages, for the user to review.
+// nothing is returned with ErrNoMessages, for the user to review. The
+// schema keeps the shape of what it reads, to measure drift later.
 func try(schema idbmap.Schema, records []indexeddb.Record) (Discovery, error) {
+	schema.Fingerprint = idbmap.TakeFingerprint(schema, records)
 	mapper, err := idbmap.NewMapper(schema)
 	if err != nil {
 		return Discovery{Schema: schema}, fmt.Errorf("the proposed schema is invalid: %w", err)
