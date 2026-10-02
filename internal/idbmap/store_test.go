@@ -119,6 +119,17 @@ func TestListSkipsCandidatesAndOtherFiles(t *testing.T) {
 	}
 }
 
+func TestNamesListsSchemasWithoutReadingThem(t *testing.T) {
+	files := NewFakeSchemaFiles()
+	files.Files[schemaDirPath+"/zap.json"] = []byte(`{"broken`)
+	files.Files[schemaDirPath+"/teams-web.json"] = []byte(`{}`)
+	files.Files[schemaDirPath+"/zap.candidate.json"] = []byte(`{}`)
+	names, err := NewSchemaDir(files, schemaDirPath).Names()
+	if err != nil || len(names) != 2 || names[0] != "teams-web" || names[1] != "zap" {
+		t.Fatalf("expected [teams-web zap], got %v (err %v)", names, err)
+	}
+}
+
 func TestListNamesTheBrokenFile(t *testing.T) {
 	files := NewFakeSchemaFiles()
 	files.Files[schemaDirPath+"/quebrado.json"] = []byte(`{"version": 1`)

@@ -91,23 +91,36 @@ var ErrSchemaExists = errors.New("schema already exists")
 // List loads every saved schema, sorted by name. One broken file fails
 // the whole list, naming the file, so a hand edit gone wrong is noticed.
 func (d SchemaDir) List() ([]Schema, error) {
-	names, err := d.files.ListFiles(d.path)
+	names, err := d.Names()
 	if err != nil {
 		return nil, err
 	}
-	slices.Sort(names)
 	var schemas []Schema
 	for _, name := range names {
-		if !strings.HasSuffix(name, schemaFileSuffix) || strings.HasSuffix(name, candidateSuffix) {
-			continue
-		}
-		schema, err := d.load(filepath.Join(d.path, name))
+		schema, err := d.Load(name)
 		if err != nil {
 			return nil, err
 		}
 		schemas = append(schemas, schema)
 	}
 	return schemas, nil
+}
+
+// Names lists the saved schemas without reading them, so a broken file is
+// reported when its schema is used, not when any other one is.
+func (d SchemaDir) Names() ([]string, error) {
+	files, err := d.files.ListFiles(d.path)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, file := range files {
+		if strings.HasSuffix(file, schemaFileSuffix) && !strings.HasSuffix(file, candidateSuffix) {
+			names = append(names, strings.TrimSuffix(file, schemaFileSuffix))
+		}
+	}
+	slices.Sort(names)
+	return names, nil
 }
 
 // Load reads the schema called name.

@@ -141,7 +141,7 @@ func (m Mapper) items(root *v8value.Value) []*v8value.Value {
 func (m Mapper) mapItem(item *v8value.Value, lookups map[Field]lookupIndex, origin string) (event.Event, bool) {
 	message := m.message(item, lookups, origin)
 	sentAt, hasTime := m.time(item)
-	if message.MessageID == "" || message.ConversationID == "" || !hasTime {
+	if message.MessageID == "" || message.ConversationID == "" || !hasTime || m.missesRequired(item, lookups) {
 		return event.Event{}, false
 	}
 	source := event.Source(m.schema.Source)
@@ -178,6 +178,16 @@ func (m Mapper) text(field Field, item *v8value.Value, lookups map[Field]lookupI
 		}
 	}
 	return rule.rule.Default
+}
+
+// missesRequired reports a required text field left empty.
+func (m Mapper) missesRequired(item *v8value.Value, lookups map[Field]lookupIndex) bool {
+	for field, rule := range m.rules {
+		if rule.rule.Required && fieldShapes[field] == shapeText && m.text(field, item, lookups) == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func (m Mapper) time(item *v8value.Value) (time.Time, bool) {

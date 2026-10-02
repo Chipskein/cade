@@ -91,12 +91,15 @@ type Condition struct {
 }
 
 // FieldRule fills a field from the first of Paths that has a value, then
-// from Lookup, then Default.
+// from Lookup, then Default. A Required field left empty drops the item,
+// which conditions on raw values cannot do (an HTML body that is only
+// tags becomes empty text after html_text).
 type FieldRule struct {
 	Paths     []Path    `json:"paths,omitempty"`
 	Transform Transform `json:"transform,omitempty"`
 	Lookup    *Lookup   `json:"lookup,omitempty"`
 	Default   string    `json:"default,omitempty"`
+	Required  bool      `json:"required,omitempty"`
 }
 
 // Lookup reads Value from the record of another store whose Match equals

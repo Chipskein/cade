@@ -166,3 +166,13 @@ func TestNewMapperRejectsInvalidSchemas(t *testing.T) {
 		t.Fatal("expected an error for an empty schema")
 	}
 }
+
+func TestApplyDropsItemsMissingARequiredField(t *testing.T) {
+	raw := strings.Replace(chainSchema, `"transform": "html_text"}`, `"transform": "html_text", "required": true}`, 1)
+	records := chainRecords()
+	records[0].Value.Get("messageMap").Get("2").Properties[3].Value = str("<p> </p>")
+	events, tally, _ := mustMapper(t, raw).Apply(records, "o")
+	if len(events) != 1 || tally.Kept != 2 || tally.Mapped != 1 || events[0].Message().MessageID != "1" {
+		t.Fatalf("expected the tags-only message dropped, got %d events, %+v", len(events), tally)
+	}
+}
