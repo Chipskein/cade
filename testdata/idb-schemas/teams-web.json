@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "target": "message/1",
+  "name": "teams-web",
+  "source": "teams",
+  "revision": 1,
+  "records": {
+    "database_prefix": "Teams:replychain-manager:",
+    "store": "replychains",
+    "each": "$.messageMap.<id>"
+  },
+  "require": [
+    {
+      "path": "$.messageType",
+      "in": ["RichText/Html", "Text"]
+    },
+    {
+      "path": "$.threadType",
+      "not_in": ["streamofnotifications", "streamofcalllogs"]
+    },
+    {
+      "path": "$.deletionInfo",
+      "kind_not": "object"
+    }
+  ],
+  "fields": {
+    "message_id": {
+      "paths": ["$.id"]
+    },
+    "conversation_id": {
+      "paths": ["$.conversationId"]
+    },
+    "sender": {
+      "paths": ["$.imDisplayName", "$.fromDisplayNameInToken"],
+      "transform": "trim",
+      "lookup": {
+        "database_prefix": "Teams:profiles:",
+        "store": "profiles",
+        "key_path": "$.creator",
+        "match": "$.mri",
+        "value": "$.displayName"
+      },
+      "default": "desconhecido"
+    },
+    "sender_id": {
+      "paths": ["$.creator"]
+    },
+    "text": {
+      "paths": ["$.content"],
+      "transform": "html_text",
+      "required": true
+    },
+    "sent_at": {
+      "paths": ["$.originalArrivalTime", "$.clientArrivalTime"],
+      "transform": "unix_ms"
+    },
+    "sent_by_me": {
+      "paths": ["$.isSentByCurrentUser"]
+    },
+    "revision": {
+      "paths": ["$.version"]
+    }
+  }
+}
