@@ -125,7 +125,7 @@ func (c *schemaChecker) printDrift(name, dir string, drift idbmap.Drift) {
 	fmt.Fprintf(c.env.stdout, language.pick("%smudou: %s, %s, %s\n", "%schanged: %s, %s, %s\n"), prefix,
 		language.count(len(drift.Missing), missingPathNoun), language.count(len(drift.Changed), changedPathNoun), language.count(drift.Tally.Mapped, discoveredMessageNoun))
 	for _, shape := range append(drift.Missing, drift.Changed...) {
-		fmt.Fprintf(c.env.stdout, "  %s %s\n", shape.Store, shape.Path)
+		fmt.Fprintf(c.env.stdout, "  %s %s\n", shape.Container, shape.Path)
 	}
 	if drift.Format != nil {
 		fmt.Fprintf(c.env.stdout, "  %v\n", drift.Format)

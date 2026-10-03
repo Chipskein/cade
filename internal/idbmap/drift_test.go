@@ -16,7 +16,7 @@ func chainSchemaWithFingerprint(t *testing.T) Schema {
 }
 
 func shapeOf(shapes []PathShape, store string, path Path) (PathShape, bool) {
-	index := slices.IndexFunc(shapes, func(shape PathShape) bool { return shape.Store == store && shape.Path == path })
+	index := slices.IndexFunc(shapes, func(shape PathShape) bool { return shape.Container == store && shape.Path == path })
 	if index < 0 {
 		return PathShape{}, false
 	}

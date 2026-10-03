@@ -9,13 +9,12 @@ import (
 	"github.com/chipskein/cade/internal/v8value"
 )
 
-// PathShape is one path a schema reads, in its store, with the kinds it
-// held when the schema was made: the structure, never a value.
+// PathShape is one path a schema reads, at its location, with the kinds
+// it held when the schema was made: the structure, never a value.
 type PathShape struct {
-	DatabasePrefix string   `json:"database_prefix"`
-	Store          string   `json:"store"`
-	Path           Path     `json:"path"`
-	Kinds          []string `json:"kinds"`
+	Location
+	Path  Path     `json:"path"`
+	Kinds []string `json:"kinds"`
 }
 
 // TakeFingerprint records the shape of every path schema reads, as found in
@@ -32,19 +31,19 @@ func TakeFingerprint(schema Schema, records []indexeddb.Record) []PathShape {
 	return shapes
 }
 
-// shapeKey names one path of one store, the way the schema selects it.
+// shapeKey names one path at one location, the way the schema selects it.
 type shapeKey struct {
-	databasePrefix, store string
-	path                  Path
+	location Location
+	path     Path
 }
 
 func (s PathShape) key() shapeKey {
-	return shapeKey{s.DatabasePrefix, s.Store, s.Path}
+	return shapeKey{s.Location, s.Path}
 }
 
 // usedPaths lists the store and record path of everything schema reads.
 func usedPaths(schema Schema) []PathShape {
-	store := storeRef{schema.Records.DatabasePrefix, schema.Records.Store}
+	store := Location{NamespacePrefix: schema.Records.DatabasePrefix, Container: schema.Records.Store}
 	each := schema.Records.Each
 	var used usedPathList
 	used.add(store, "", each)
@@ -59,26 +58,21 @@ func usedPaths(schema Schema) []PathShape {
 	return used
 }
 
-// storeRef is a store as a schema selects it.
-type storeRef struct {
-	databasePrefix, store string
-}
-
 // usedPathList keeps each store path once, in first-use order.
 type usedPathList []PathShape
 
-func (u *usedPathList) addRule(store storeRef, each Path, rule FieldRule) {
+func (u *usedPathList) addRule(store Location, each Path, rule FieldRule) {
 	u.add(store, each, rule.Paths...)
 	if rule.Lookup == nil {
 		return
 	}
 	u.add(store, each, rule.Lookup.KeyPath)
-	u.add(storeRef{rule.Lookup.DatabasePrefix, rule.Lookup.Store}, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
+	u.add(Location{NamespacePrefix: rule.Lookup.DatabasePrefix, Container: rule.Lookup.Store}, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
 }
 
-func (u *usedPathList) add(store storeRef, root Path, paths ...Path) {
+func (u *usedPathList) add(store Location, root Path, paths ...Path) {
 	for _, path := range paths {
-		shape := PathShape{DatabasePrefix: store.databasePrefix, Store: store.store, Path: underRoot(root, path)}
+		shape := PathShape{Location: store, Path: underRoot(root, path)}
 		if path != "" && !slices.ContainsFunc(*u, func(used PathShape) bool { return used.key() == shape.key() }) {
 			*u = append(*u, shape)
 		}
@@ -105,28 +99,28 @@ func observedKinds(shapes []PathShape, records []indexeddb.Record) map[shapeKey]
 	return kinds
 }
 
-func recordsOf(records []indexeddb.Record, store storeRef) []indexeddb.Record {
+func recordsOf(records []indexeddb.Record, store Location) []indexeddb.Record {
 	var selected []indexeddb.Record
 	for _, record := range records {
-		if inStore(record, store.databasePrefix, store.store) {
+		if store.selects(record) {
 			selected = append(selected, record)
 		}
 	}
 	return selected
 }
 
-func storesOf(shapes []PathShape) map[storeRef]bool {
-	stores := map[storeRef]bool{}
+func storesOf(shapes []PathShape) map[Location]bool {
+	stores := map[Location]bool{}
 	for _, shape := range shapes {
-		stores[storeRef{shape.DatabasePrefix, shape.Store}] = true
+		stores[shape.Location] = true
 	}
 	return stores
 }
 
-func addKinds(kinds map[shapeKey][]string, store storeRef, summaries []idbschema.StoreSummary) {
+func addKinds(kinds map[shapeKey][]string, store Location, summaries []idbschema.StoreSummary) {
 	for _, summary := range summaries {
 		for _, field := range summary.Fields {
-			key := shapeKey{store.databasePrefix, store.store, Path(field.Path)}
+			key := shapeKey{store, Path(field.Path)}
 			kinds[key] = mergeKinds(kinds[key], field.Kinds)
 		}
 	}
