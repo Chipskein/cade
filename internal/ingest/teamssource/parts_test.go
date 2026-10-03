@@ -8,22 +8,6 @@ import (
 	"github.com/chipskein/cade/internal/v8value"
 )
 
-func TestHTMLToText(t *testing.T) {
-	cases := map[string]string{
-		"<p>Olá <b>time</b></p>":                   "Olá time",
-		"linha 1<br>linha 2<br/>":                  "linha 1\nlinha 2",
-		"<p>a</p><p></p><p>b</p>":                  "a\nb",
-		"R&amp;D &lt;3 &quot;ok&quot;&nbsp;fim":    `R&D <3 "ok" fim`,
-		"<style>.x{}</style><div>visível</div>":    "visível",
-		"<span itemtype=\"x\">@Bruno</span>, veja": "@Bruno, veja",
-	}
-	for input, expected := range cases {
-		if got := htmlToText(input); got != expected {
-			t.Errorf("htmlToText(%q) = %q, expected %q", input, got, expected)
-		}
-	}
-}
-
 func TestParseMessageRequiresTimestamp(t *testing.T) {
 	value := obj("id", str("1"), "conversationId", str("c"), "messageType", str("Text"), "content", str("oi"))
 	if _, ok := parseMessage(value, nil); ok {
@@ -102,23 +86,5 @@ func TestParticipantNamesCapsList(t *testing.T) {
 	}
 	if got := participantNames(users); got != "a, b, c, d" {
 		t.Fatalf("expected four names, got %q", got)
-	}
-}
-
-// Regression: quote authors and mentions were glued to the following text
-// ("Marcos Lima - Atlasmas é estranho").
-func TestHTMLToTextSeparatesQuotesAndMentions(t *testing.T) {
-	body := `<blockquote itemscope="" itemtype="http://schema.skype.com/Reply"><strong itemprop="mri" itemid="8:orgid:x">Marcos Lima - Atlas</strong><span itemprop="time"></span><p itemprop="preview">mas é estranho</p></blockquote>` +
-		`<p><span itemtype="http://schema.skype.com/Mention" itemscope="" itemid="0">Vitor Alves</span>, veja isso</p>`
-	expected := "@Vitor Alves, veja isso\n↪ em resposta a Marcos Lima - Atlas: mas é estranho"
-	if got := htmlToText(body); got != expected {
-		t.Fatalf("expected %q, got %q", expected, got)
-	}
-}
-
-func TestExtractQuotesWithoutQuote(t *testing.T) {
-	remaining, quotes := extractQuotes("<p>oi</p>")
-	if remaining != "<p>oi</p>" || quotes != nil {
-		t.Fatalf("expected no quotes, got %q / %v", remaining, quotes)
 	}
 }

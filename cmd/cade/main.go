@@ -11,15 +11,16 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/pacing"
@@ -52,7 +53,8 @@ func productionToolkit() cli.Toolkit {
 		LoadGenerator:      loadGenerator,
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
-		ReadIndexedDB:      indexeddb.ReadDirectory,
+		ReadIndexedDB:      readIndexedDB,
+		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),
 		StdoutIsTerminal:   isTerminal(os.Stdout),
 		RenderImagePreview: renderImagePreview,
@@ -151,8 +153,13 @@ func isTerminal(file *os.File) bool {
 	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
-// openSQLiteFile opens a foreign SQLite file (browser history) with the
-// same driver the store registers.
+// sqliteURIEscaper escapes what a file: URI would otherwise read as an
+// escape, the query or the fragment: Firefox names IndexedDB files like
+// "2838935879%e2gFawrao_tvso_ip.sqlite".
+var sqliteURIEscaper = strings.NewReplacer("%", "%25", "?", "%3f", "#", "%23")
+
+// openSQLiteFile opens a foreign SQLite file (a snapshot of a browser
+// history or IndexedDB) with the same driver the store registers.
 func openSQLiteFile(path string) (*sql.DB, error) {
-	return sql.Open(sqlitestore.DriverName, "file:"+path)
+	return sql.Open(sqlitestore.DriverName, "file:"+sqliteURIEscaper.Replace(path))
 }

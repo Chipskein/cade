@@ -20,16 +20,23 @@ var chromiumRoots = []string{
 	"snap/chromium/common/chromium",
 }
 
-// firefoxRoots hold Firefox profiles: the usual install, snap and flatpak.
+// firefoxRoots hold Firefox profiles (the usual install, snap and
+// flatpak) and those of Floorp, a Firefox fork with the same layout.
 var firefoxRoots = []string{
 	".mozilla/firefox", "snap/firefox/common/.mozilla/firefox", ".var/app/org.mozilla.firefox/.mozilla/firefox",
+	".floorp", ".var/app/one.ablaze.floorp/.floorp",
 }
 
 // Teams on the web keeps its cache in one IndexedDB per origin
 // (teams.microsoft.com, teams.cloud.microsoft).
+// Firefox keeps it under storage/default/<origin>/idb, the origin
+// spelled with "+++" for "://".
 const (
-	teamsIndexedDBPrefix = "https_teams."
-	teamsIndexedDBSuffix = ".indexeddb.leveldb"
+	teamsIndexedDBPrefix      = "https_teams."
+	teamsIndexedDBSuffix      = ".indexeddb.leveldb"
+	firefoxOriginStorage      = "storage/default"
+	firefoxTeamsOriginPrefix  = "https+++teams."
+	firefoxIndexedDBDirectory = "idb"
 )
 
 // BrowserHistories returns the Chromium History and Firefox places.sqlite
@@ -44,26 +51,37 @@ func BrowserHistories(fsys fs.FS, home string) []string {
 }
 
 // TeamsCaches returns the Teams IndexedDB directories of every Chromium
-// profile under home, sorted.
+// and Firefox profile under home, sorted.
 func TeamsCaches(fsys fs.FS, home string) []string {
 	var caches []string
 	for _, indexedDB := range filesInProfiles(fsys, home, chromiumRoots, "IndexedDB") {
 		caches = append(caches, teamsDirsIn(fsys, indexedDB)...)
+	}
+	for _, storage := range filesInProfiles(fsys, home, firefoxRoots, firefoxOriginStorage) {
+		caches = append(caches, firefoxTeamsDirsIn(fsys, storage)...)
 	}
 	sort.Strings(caches)
 	return caches
 }
 
 func teamsDirsIn(fsys fs.FS, indexedDB string) []string {
-	entries, err := fs.ReadDir(fsys, rootfs.Name(indexedDB))
-	if err != nil {
-		return nil
-	}
 	var dirs []string
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() && strings.HasPrefix(name, teamsIndexedDBPrefix) && strings.HasSuffix(name, teamsIndexedDBSuffix) {
+	for _, name := range subdirectories(fsys, indexedDB) {
+		if strings.HasPrefix(name, teamsIndexedDBPrefix) && strings.HasSuffix(name, teamsIndexedDBSuffix) {
 			dirs = append(dirs, path.Join(indexedDB, name))
+		}
+	}
+	return dirs
+}
+
+// firefoxTeamsDirsIn returns the idb directory of each Teams origin; an
+// origin without one has stored nothing in IndexedDB.
+func firefoxTeamsDirsIn(fsys fs.FS, storage string) []string {
+	var dirs []string
+	for _, name := range subdirectories(fsys, storage) {
+		idb := path.Join(storage, name, firefoxIndexedDBDirectory)
+		if _, err := fs.Stat(fsys, rootfs.Name(idb)); err == nil && strings.HasPrefix(name, firefoxTeamsOriginPrefix) {
+			dirs = append(dirs, idb)
 		}
 	}
 	return dirs
@@ -85,15 +103,25 @@ func filesInProfiles(fsys fs.FS, home string, roots []string, marker string) []s
 }
 
 func profileDirs(fsys fs.FS, root string) []string {
-	entries, err := fs.ReadDir(fsys, rootfs.Name(root))
+	var dirs []string
+	for _, name := range subdirectories(fsys, root) {
+		dirs = append(dirs, path.Join(root, name))
+	}
+	return dirs
+}
+
+// subdirectories returns the names of dir's direct subdirectories; a
+// missing or unreadable dir has none.
+func subdirectories(fsys fs.FS, dir string) []string {
+	entries, err := fs.ReadDir(fsys, rootfs.Name(dir))
 	if err != nil {
 		return nil
 	}
-	var dirs []string
+	var names []string
 	for _, entry := range entries {
 		if entry.IsDir() {
-			dirs = append(dirs, path.Join(root, entry.Name()))
+			names = append(names, entry.Name())
 		}
 	}
-	return dirs
+	return names
 }

@@ -184,12 +184,6 @@ func TestCollectHonoursCancellation(t *testing.T) {
 	}
 }
 
-func TestOriginName(t *testing.T) {
-	if got := originName("/x/https_teams.microsoft.com_0.indexeddb.leveldb/"); got != "https_teams.microsoft.com_0" {
-		t.Fatalf("unexpected origin %q", got)
-	}
-}
-
 // Regression: the activity feed re-posts channel messages, which showed up
 // as duplicate "messages I received" from an unknown sender.
 func TestCollectSkipsNotificationStreams(t *testing.T) {

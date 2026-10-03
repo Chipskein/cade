@@ -51,6 +51,14 @@ cade ask "o que eu fiz ontem?"
 cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados
 ```
 
+Qualquer outro aplicativo que guarda os dados no IndexedDB do navegador (Chrome, Firefox, Floorp), sem código próprio: o modelo local escreve um schema uma vez, e a ingestão lê com ele.
+
+```sh
+cade idb-discover --name whatsapp ~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb
+cade ingest whatsapp
+cade idb-check --update  # quando o aplicativo muda o jeito de guardar os dados
+```
+
 Encontrando uma imagem pelo texto dela:
 
 ```console
@@ -83,7 +91,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, ingestão em segundo plano e agendada. |
+| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, outros aplicativos por schemas de IndexedDB, ingestão em segundo plano e agendada. |
 | [Casos de uso](docs/USECASES.md) | Padrões de consulta e fluxos de trabalho práticos. |
 | [Arquitetura](docs/ARCHITECTURE.md) | Como o código está organizado e como os componentes interagem. |
 | [Benchmarks](docs/BENCHMARKS.pt-BR.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |

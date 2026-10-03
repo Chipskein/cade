@@ -13,7 +13,9 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
+	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/filesource"
 	"github.com/chipskein/cade/internal/listing"
@@ -81,6 +83,9 @@ type fakeWorld struct {
 	// loadedEmbedding and loadedGeneration are the settings the models
 	// were last loaded with.
 	loadedEmbedding config.EmbeddingConfig
+	// indexedDBRecords, when set, are what the fake IndexedDB reader
+	// returns instead of its Teams-like record.
+	indexedDBRecords []indexeddb.Record
 }
 
 func newFakeWorld() *fakeWorld {
@@ -118,6 +123,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
 		ReadIndexedDB: w.readIndexedDB,
+		SchemaFiles:   idbmap.OSSchemaFiles{},
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
 		DateOrder:     w.dateOrder,

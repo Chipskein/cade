@@ -61,7 +61,7 @@ type storeBuilder struct {
 
 func newStoreBuilder(record indexeddb.Record) *storeBuilder {
 	return &storeBuilder{
-		result: StoreSummary{Database: maskName(record.Database), Store: maskName(record.Store)},
+		result: StoreSummary{Database: MaskName(record.Database), Store: MaskName(record.Store)},
 		fields: map[string]*FieldStat{},
 	}
 }

@@ -1,13 +1,11 @@
 // Package teamssource ingests Microsoft Teams chat messages from the
-// IndexedDB the Teams web client keeps in a Chromium profile (RF1.4, best
-// effort: only what the client has cached is available).
+// IndexedDB the Teams web client keeps in a Chromium or Firefox profile
+// (RF1.4, best effort: only what the client has cached is available).
 package teamssource
 
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"strings"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/indexeddb"
@@ -40,7 +38,7 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	messages := messageContext{
 		conversations: conversationInfos(records),
 		senders:       profileNames(records),
-		origin:        originName(c.dir),
+		origin:        indexeddb.OriginName(c.dir),
 	}
 	tally := formatTally{records: len(records)}
 	for _, record := range records {
@@ -85,10 +83,4 @@ func conversationFor(messages messageContext, conversationID string) conversatio
 		return info
 	}
 	return conversationInfo{kind: event.KindOther}
-}
-
-// originName is the directory's base name without the IndexedDB suffix,
-// e.g. "https_teams.cloud.microsoft_0".
-func originName(dir string) string {
-	return strings.TrimSuffix(filepath.Base(filepath.Clean(dir)), ".indexeddb.leveldb")
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/htmltext"
 	"github.com/chipskein/cade/internal/v8value"
 )
 
@@ -49,7 +50,7 @@ func parseMessage(value *v8value.Value, senders map[string]string) (teamsMessage
 		conversationID: value.Get("conversationId").String(),
 		sender:         senderName(value, senders),
 		senderMRI:      value.Get("creator").String(),
-		text:           htmlToText(value.Get("content").String()),
+		text:           htmltext.ToText(value.Get("content").String()),
 		sentAt:         arrivalTime(value),
 		sentByMe:       value.Get("isSentByCurrentUser").IsTrue(),
 		version:        value.Get("version").String(),

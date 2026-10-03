@@ -10,6 +10,16 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Other apps through IndexedDB schemas (#19)
+
+- **Any app that keeps its data in the browser's IndexedDB** can be ingested without code of its own. `cade idb-discover --name N DIR` has the local model write a schema once: which store holds the messages and where each field comes from. The model fills a fixed target (the message cade already stores) under a grammar built from the paths the IndexedDB really has, so it cannot invent one; the proposed schema is tried on the same records before it is saved. Every schema in `sources.indexeddb_schema_dir` is an `ingest` source, with `sources.indexeddb_dirs` as its targets. Ingestion never runs the model. Format and options in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#other-applications-through-indexeddb-schemas-experimental).
+- **Firefox and Floorp profiles are read too**, for these schemas and for Teams: their IndexedDB is SQLite with SpiderMonkey structured clones, decoded into the same values as Chromium's. `cade init` also finds Floorp's browser history.
+- **Teams through a schema gives the same messages as the Teams collector:** the reviewed `testdata/idb-schemas/teams-web.json` produces the same UID, time, sender and text on the real sample and on one message per rule the collector applies (a test).
+- **WhatsApp Web** (in Floorp) is indexed with no code of its own, by metadata only, since it encrypts message bodies in IndexedDB: on a real base, 9,633 messages, 85% with the sender's name.
+- **Apps change how they store data**, so a schema keeps a fingerprint (the paths it reads and their types, no values). `cade idb-check` reports what changed and fails while it is unresolved, so it can run on a timer. `--update` regenerates with the model and replaces the schema only when the new one maps as much and keeps 90% of the UIDs; the old one goes to `history/`, a refused one to `<name>.candidate.json`. `--rekey` accepts a change of identity and renames the indexed events' UIDs after a `cade.db.before-rekey-<date>` copy. `cade idb-discover --rollback` brings back the previous revision. A schema change never deletes events; a newer revision rereads messages the app still has.
+- [PRIVACY.md](PRIVACY.md#what-the-local-model-sees) says what the model sees during discovery: masked store names, paths, types and up to two samples per path, text masked and cut at 40 characters, numbers only as digit counts.
+- No schema migration.
+
 ### One set of chunks and vectors per text (#67)
 
 - A page visited 15 times, or a message cached twice, is now one set of chunks, vectors and keyword entries instead of one per event; its events find it by their text. In the search, `top_k` counts texts, so copies of one page no longer push other evidence out, and a text found brings every event with it in the source and period. The source and period filters stay exact (CA9.1): each vector keeps the first and last dates of its text's events, and the events decide. On a copy of the real database: 415,963 → 295,350 chunks and vectors (one set per each of the 152,504 texts), 837.5 MB → 767.4 MB, and the search 19–29% faster. The retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#one-set-of-chunks-per-text-67).

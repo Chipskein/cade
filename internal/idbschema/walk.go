@@ -31,7 +31,7 @@ func walkValue(path string, value *v8value.Value, depth int, visiting map[*v8val
 
 func walkChildren(path string, value *v8value.Value, depth int, visiting map[*v8value.Value]bool, observe observeFunc) {
 	for _, property := range value.Properties {
-		walkValue(path+propertyOp+maskKey(property.Key), property.Value, depth, visiting, observe)
+		walkValue(path+propertyOp+MaskKey(property.Key), property.Value, depth, visiting, observe)
 	}
 	step := arrayStep
 	if value.Kind == v8value.KindSet {

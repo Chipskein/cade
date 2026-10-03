@@ -45,6 +45,14 @@ type EventBatch interface {
 	Rollback() error
 }
 
+// RekeyReport is what RekeyEvents changed, and where the copy taken
+// before it is.
+type RekeyReport struct {
+	Rekeyed    int
+	Conflicts  int
+	BackupPath string
+}
+
 // EventStore persists events and their embeddings.
 type EventStore interface {
 	EventWriter
@@ -86,6 +94,11 @@ type EventStore interface {
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
 	DeleteEvent(ctx context.Context, uid string) (bool, error)
+	// RekeyEvents gives stored events new UIDs (old to new), keeping their
+	// content, vectors and forgotten marks; an event whose new UID is
+	// already stored is left as is and counted as a conflict. The
+	// database is copied first.
+	RekeyEvents(ctx context.Context, changes map[string]string) (RekeyReport, error)
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	VectorCompactor

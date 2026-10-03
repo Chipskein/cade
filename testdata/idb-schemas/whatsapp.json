@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "target": "message/1",
+  "name": "whatsapp",
+  "source": "whatsapp",
+  "revision": 1,
+  "records": {
+    "database_prefix": "model-storage",
+    "store": "message"
+  },
+  "require": [
+    {
+      "path": "$.type",
+      "in": ["chat", "image", "video", "ptt", "audio", "document", "sticker", "vcard", "location", "poll_creation", "album"]
+    }
+  ],
+  "fields": {
+    "message_id": {
+      "paths": ["$.id"]
+    },
+    "conversation_id": {
+      "paths": ["$.id"],
+      "split": {"separator": "_", "index": 1}
+    },
+    "conversation": {
+      "lookup": {
+        "database_prefix": "model-storage",
+        "store": "chat",
+        "key_field": "conversation_id",
+        "match": "$.id",
+        "values": ["$.name"]
+      }
+    },
+    "sender_id": {
+      "paths": ["$.author._serialized", "$.from"]
+    },
+    "sender": {
+      "lookup": {
+        "database_prefix": "model-storage",
+        "store": "contact",
+        "key_field": "sender_id",
+        "match": "$.id",
+        "values": ["$.name", "$.pushname"]
+      },
+      "default": "desconhecido"
+    },
+    "sent_by_me": {
+      "paths": ["$.id"],
+      "split": {"separator": "_", "index": 0}
+    },
+    "sent_at": {
+      "paths": ["$.t"],
+      "transform": "unix_s"
+    }
+  }
+}
