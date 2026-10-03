@@ -62,3 +62,16 @@ func TestTextValueKeepsOtherTextAsAString(t *testing.T) {
 		t.Fatalf("TextValue(text) = %+v; want the string itself", value)
 	}
 }
+
+func TestUTF16LEDecodesSurrogatePairs(t *testing.T) {
+	text, err := UTF16LE([]byte{'o', 0, 'i', 0, 0x3d, 0xd8, 0x00, 0xde})
+	if err != nil || text != "oi😀" {
+		t.Fatalf("UTF16LE = %q, %v; want oi😀", text, err)
+	}
+}
+
+func TestUTF16LERejectsAnOddLength(t *testing.T) {
+	if _, err := UTF16LE([]byte{'o', 0, 'i'}); err == nil || !strings.Contains(err.Error(), "3 bytes") {
+		t.Fatalf("UTF16LE error = %v; want the length named", err)
+	}
+}

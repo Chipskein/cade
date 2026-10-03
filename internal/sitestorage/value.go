@@ -1,6 +1,10 @@
 package sitestorage
 
 import (
+	"encoding/binary"
+	"fmt"
+	"unicode/utf16"
+
 	"github.com/chipskein/cade/internal/jsonvalue"
 	"github.com/chipskein/cade/internal/v8value"
 )
@@ -16,4 +20,18 @@ func TextValue(text string) *v8value.Value {
 		return value
 	}
 	return &v8value.Value{Kind: v8value.KindString, Text: text}
+}
+
+// UTF16LE decodes text a browser stored as UTF-16 little-endian.
+//
+//	text, err := sitestorage.UTF16LE([]byte{'o', 0, 'i', 0}) // "oi"
+func UTF16LE(raw []byte) (string, error) {
+	if len(raw)%2 != 0 {
+		return "", fmt.Errorf("UTF-16 string of %d bytes, expected an even length", len(raw))
+	}
+	units := make([]uint16, len(raw)/2)
+	for i := range units {
+		units[i] = binary.LittleEndian.Uint16(raw[2*i:])
+	}
+	return string(utf16.Decode(units)), nil
 }

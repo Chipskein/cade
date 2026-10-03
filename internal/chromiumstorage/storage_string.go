@@ -1,9 +1,9 @@
 package chromiumstorage
 
 import (
-	"encoding/binary"
 	"fmt"
-	"unicode/utf16"
+
+	"github.com/chipskein/cade/internal/sitestorage"
 )
 
 // Chromium's localStorage writes a string as one format byte and its
@@ -23,7 +23,7 @@ func decodeStorageString(stored []byte) (string, error) {
 	case formatLatin1:
 		return latin1(stored[1:]), nil
 	case formatUTF16:
-		return utf16LE(stored[1:])
+		return sitestorage.UTF16LE(stored[1:])
 	}
 	return "", fmt.Errorf("localStorage string format %d, expected %d (UTF-16) or %d (Latin-1)", stored[0], formatUTF16, formatLatin1)
 }
@@ -34,15 +34,4 @@ func latin1(raw []byte) string {
 		runes[i] = rune(b)
 	}
 	return string(runes)
-}
-
-func utf16LE(raw []byte) (string, error) {
-	if len(raw)%2 != 0 {
-		return "", fmt.Errorf("UTF-16 localStorage string of %d bytes, expected an even length", len(raw))
-	}
-	units := make([]uint16, len(raw)/2)
-	for i := range units {
-		units[i] = binary.LittleEndian.Uint16(raw[2*i:])
-	}
-	return string(utf16.Decode(units)), nil
 }
