@@ -28,7 +28,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
 | `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
 | `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox) and of Firefox's Cache API database while one command reads it; removed when it ends | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox), of Firefox's Cache API database and of a Firefox localStorage or OPFS database while one command reads it; removed when it ends | `700` |
 
 Backups of your home directory include `cade.db`.
 
@@ -69,6 +69,7 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 - **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only.
 - A message deleted in the app after ingestion **stays** in cade until `cade forget <source>`. A schema change never deletes events.
 - **The browser's HTTP cache and Cache API hold the responses of every site you visit,** not only the app's. cade reads from them only the URLs you name in `sources.request_cache_urls`, which is empty by default; a pattern's origin cannot have a wildcard, so it never reaches another site. For every other entry cade reads only its key (the URL) and never its body; Firefox's Cache API database is copied to a temporary folder and deleted, the bodies are read in place, and nothing in these caches is changed.
+- **localStorage and the Origin Private File System hold every site's state,** session tokens and logins among them. cade reads only the origins you name in `sources.storage_origins`, which is empty by default; a partitioned origin or one in a Firefox container is never read. In Chromium, where one database holds every origin, the items of other origins are skipped by their key and never decoded. All items and JSON files of a configured origin are read, but only those a schema selects become events. Firefox's databases are copied to a temporary folder and deleted, OPFS files are read in place, and nothing is changed.
 
 ## What the local model sees
 

@@ -106,7 +106,7 @@ Point `sources.teams_indexeddb_dirs` at the IndexedDB directory of your Teams pr
 
 Apps that keep their data in the browser's IndexedDB can be ingested without code of their own. The local model writes a **schema** once per app: a JSON file saying which store holds the messages and where each field comes from. Ingestion reads with the schema and never runs the model. Chromium profiles (`*.indexeddb.leveldb`) and Firefox and Floorp profiles (`storage/default/<origin>/idb`) are both read.
 
-A schema names the browser storage it reads (`records.kind`). cade reads IndexedDB (`indexeddb`), the HTTP cache (`http_cache`) and the Cache API (`cache_api`); `local_storage` and `opfs` are accepted in a schema and will be read as their readers arrive. The commands find which storage a directory holds by its layout.
+A schema names the browser storage it reads (`records.kind`). cade reads IndexedDB (`indexeddb`), localStorage (`local_storage`), the Origin Private File System (`opfs`), the HTTP cache (`http_cache`) and the Cache API (`cache_api`). The commands find which storage a directory holds by its layout.
 
 **Request caches (HTTP cache and Cache API).** Some apps keep no messages in IndexedDB, but the browser caches the API responses that carry them: Discord's last messages of each channel you opened, for instance, until the browser evicts them. A request cache holds the responses of every site, so cade reads only the URLs you name in `sources.request_cache_urls`; with none, it reads nothing from these caches. Each name is what a schema's `records.container` selects, whatever ids the URL carries; the body must be JSON (gzip, deflate, br and zstd are decoded).
 
@@ -129,6 +129,20 @@ For Discord, with the reviewed schema in `testdata/idb-schemas/discord.json` cop
 
 Then `cade ingest discord`. Only what is still in the cache is read: the channels you opened, until the browser drops them; a message in a response cached twice is one event.
 
+**Site storages (localStorage and OPFS).** Sites keep state in localStorage and in the Origin Private File System. A profile's localStorage holds every site, session tokens among them, so cade reads only the origins you name in `sources.storage_origins` (`scheme://host[:port]`); with none, it reads nothing from these storages, and a configured directory of another origin is an error naming it. Each localStorage item is a record whose `records.container` is the item's key, its value a tree when it is JSON and a string otherwise. Each OPFS file is a record whose `namespace_prefix` is matched against its directory and whose container is its name; only JSON files under 16 MiB decode (a SQLite database in OPFS, as Notion keeps, is not read).
+
+| Storage | Chromium and Electron apps | Firefox and Floorp |
+|---|---|---|
+| localStorage | `Local Storage/leveldb` (every origin of the profile) | `storage/default/<origin>/ls` |
+| OPFS | `File System/<number>`, the number the `File System/Origins` database gives the origin; other storage buckets (`WebStorage/<id>/FileSystem`) are not read | `storage/default/<origin>/fs` |
+
+A partitioned origin (a site inside another, `^partitionKey=` in Firefox) or one in a Firefox container is never read. For ChatGPT's unsent drafts, the only messages a survey of everyday apps found in these storages (2026-10), with the reviewed schema in `testdata/idb-schemas/chatgpt-drafts.json` copied to `sources.indexeddb_schema_dir`:
+
+```json
+"storage_origins": ["https://chatgpt.com"],
+"indexeddb_dirs": {"chatgpt-drafts": ["~/.floorp/<profile>/storage/default/https+++chatgpt.com/ls"]}
+```
+
 1. `cade schema-discover --name whatsapp <directory>` reads the directory, asks the model (two short questions, under a grammar that only allows paths that exist) and saves `whatsapp.json` in `sources.indexeddb_schema_dir`. `--print` only shows it; `--force` replaces a saved one; `--source` names the events' source when it differs from the name.
 2. Add the directory to `sources.indexeddb_dirs` (the command prints the line) and run `cade ingest whatsapp`. Each saved schema is a source of that name; one named like a built-in source (`teams`, `git`…) is ignored.
 3. Review the schema: a small model's draft often reads a field from the wrong path. On the Teams sample it picked the right store, ids, sender and times but no condition for system messages; on WhatsApp Web it read the conversation from an encryption key id. Edit the file by hand; it is checked when loaded.
@@ -137,7 +151,7 @@ Then `cade ingest discord`. Only what is still in the cache is read: the channel
 
 | Key | Meaning |
 |---|---|
-| `records` | `kind` is the storage (`indexeddb`, `http_cache`, `cache_api`…); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store; in the request caches, the cache name, empty in the HTTP cache, and the `sources.request_cache_urls` name); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`). |
+| `records` | `kind` is the storage (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store; in localStorage, nothing and the item's key; in OPFS, the file's directory and name; in the request caches, the cache name, empty in the HTTP cache, and the `sources.request_cache_urls` name); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`). |
 | `require` | Conditions an item must meet: `in` / `not_in` (values of the text at `path`), `kind_not` (`object`, `undefined`…; a missing value is `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (required); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | field `paths` | Read in order; the first with a value wins. |

@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### localStorage and OPFS (#74)
+
+- **Sites' own storages are read** with the same schemas, discovery and `schema-check`: localStorage (`records.kind` `local_storage`) of Chromium and Electron apps (`Local Storage/leveldb`) and of Firefox and Floorp (`storage/default/<origin>/ls`), and the Origin Private File System (`opfs`) of both (`File System/<number>`, `storage/default/<origin>/fs`). A localStorage item is a record keyed by its key, a tree when it is JSON; an OPFS JSON file is a record located by its directory and name.
+- **Only configured origins are read.** A profile's localStorage holds every site, session tokens among them, so the new `sources.storage_origins` names the origins cade may read (empty by default: nothing is read); a configured directory of another origin is an error naming it (a test per reader).
+- **A survey of everyday apps** (WhatsApp Web, Teams, Discord, Notion, ChatGPT, ClickUp; Chrome and Floorp) found messages in these storages only in ChatGPT's unsent drafts: the reviewed `testdata/idb-schemas/chatgpt-drafts.json` indexes them with no code of ChatGPT's own. Teams keeps diagnostic logs in OPFS, Notion a SQLite WASM database; SQLite inside OPFS is not read.
+- No database migration.
+
 ### The HTTP cache and the Cache API (#75)
 
 - **Apps that keep no messages in IndexedDB** can be read from the API responses the browser caches. cade reads the HTTP cache and the Cache API of Chromium and Electron apps (`Cache/Cache_Data`, `Service Worker/CacheStorage`) and of Firefox and Floorp (`cache2`, `storage/default/<origin>/cache`), with the same schemas (`records.kind` `http_cache` or `cache_api`), discovery and `schema-check`. Bodies are JSON as they came over the network: gzip, deflate, br and zstd are decoded.
