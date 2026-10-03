@@ -53,7 +53,7 @@ func productionToolkit() cli.Toolkit {
 		LoadGenerator:      loadGenerator,
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
-		ReadIndexedDB:      readIndexedDB,
+		StoreReaders:       storeReaders(),
 		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),
 		StdoutIsTerminal:   isTerminal(os.Stdout),

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/v8value"
 	"github.com/chipskein/cade/internal/webstore"
 )
@@ -105,5 +106,19 @@ func TestIDBDiscoverReportsReadAndModelErrors(t *testing.T) {
 	world.generatorLoadError = errors.New("model file not found")
 	if code, _, stderr := world.run("idb-discover", "--name", "x", whatsappDir); code != 1 || !strings.Contains(stderr, "model file not found") {
 		t.Errorf("model error: got %d %q", code, stderr)
+	}
+}
+
+func TestIDBDiscoverWritesTheKindOfTheStorageItDetected(t *testing.T) {
+	world := discoverWorld(t, discoverFieldsReply)
+	records := []webstore.Record{chatRecord("A"), chatRecord("B")}
+	for i := range records {
+		records[i].Kind = webstore.KindLocalStorage
+	}
+	world.otherStores = webstore.Readers{&testfakes.FakeStoreReader{StoreKind: webstore.KindLocalStorage, Suffix: "/ls", Records: records}}
+	code, stdout, stderr := world.run("idb-discover", "--name", "chat", "/p/https_chat.example_0/ls")
+	saved, err := os.ReadFile(filepath.Join(world.cfg.Sources.IndexedDBSchemaDir, "chat.json"))
+	if code != 0 || err != nil || !strings.Contains(string(saved), `"kind": "local_storage"`) {
+		t.Fatalf("expected a local_storage schema saved, got %d %q (err %v):\n%s%s", code, saved, err, stdout, stderr)
 	}
 }

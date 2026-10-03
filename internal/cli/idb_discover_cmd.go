@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/idbdiscovery"
 	"github.com/chipskein/cade/internal/idbmap"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 var discoveredMessageNoun = nounForms{"mensagem", "mensagens", "message", "messages"}
@@ -67,7 +68,7 @@ func parseIDBDiscover(env commandEnv, args []string) (idbDiscoverRequest, error)
 }
 
 func (env commandEnv) discoverSchema(ctx context.Context, cfg config.Config, request idbDiscoverRequest) (idbdiscovery.Discovery, error) {
-	records, err := env.toolkit.ReadIndexedDB(config.ExpandHome(request.dir))
+	records, err := env.readDetectedStore(config.ExpandHome(request.dir))
 	if err != nil {
 		return idbdiscovery.Discovery{}, err
 	}
@@ -79,6 +80,16 @@ func (env commandEnv) discoverSchema(ctx context.Context, cfg config.Config, req
 	defer generator.Close()
 	discoverer := idbdiscovery.NewDiscoverer(generator, idbdiscovery.DefaultCatalogLimits)
 	return discoverer.Discover(ctx, records, request.name, request.source)
+}
+
+// readDetectedStore reads location with the reader of its layout, so a
+// schema can be discovered for any storage cade reads.
+func (env commandEnv) readDetectedStore(location string) ([]webstore.Record, error) {
+	reader, err := env.toolkit.StoreReaders.Detect(location)
+	if err != nil {
+		return nil, err
+	}
+	return reader.Read(location)
 }
 
 func printSchema(env commandEnv, schema idbmap.Schema) error {
