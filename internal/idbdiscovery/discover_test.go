@@ -75,7 +75,7 @@ func TestDiscoverBuildsASchemaThatMapsTheRecords(t *testing.T) {
 		t.Fatalf("expected a fingerprint starting at the message items, got %+v", schema.Fingerprint)
 	}
 	sender := schema.Fields[idbmap.FieldSender]
-	if sender.Lookup == nil || sender.Lookup.Store != "profiles" || sender.Default != unknownSender || schema.Fields[idbmap.FieldText].Transform != idbmap.TransformHTMLText {
+	if sender.Lookup == nil || sender.Lookup.Container != "profiles" || sender.Default != unknownSender || schema.Fields[idbmap.FieldText].Transform != idbmap.TransformHTMLText {
 		t.Fatalf("unexpected sender %+v / text %+v", sender, schema.Fields[idbmap.FieldText])
 	}
 }

@@ -114,17 +114,16 @@ type Split struct {
 	Index     int    `json:"index"`
 }
 
-// Lookup reads the first of Values with a value from the record of another
-// store whose Match equals the item's key: the text at KeyPath, or the
+// Lookup reads the first of Values with a value from the record at another
+// location whose Match equals the item's key: the text at KeyPath, or the
 // value already computed for KeyField (a chat id cut out of a composite
 // key with Split). A sender id becomes a contact name this way.
 type Lookup struct {
-	DatabasePrefix string `json:"database_prefix"`
-	Store          string `json:"store"`
-	KeyPath        Path   `json:"key_path,omitempty"`
-	KeyField       Field  `json:"key_field,omitempty"`
-	Match          Path   `json:"match"`
-	Values         []Path `json:"values"`
+	Location
+	KeyPath  Path   `json:"key_path,omitempty"`
+	KeyField Field  `json:"key_field,omitempty"`
+	Match    Path   `json:"match"`
+	Values   []Path `json:"values"`
 }
 
 // namePattern keeps schema names and sources usable as file names and
@@ -227,7 +226,7 @@ func validateLookup(field Field, lookup *Lookup, fields map[Field]FieldRule) err
 	if lookup == nil {
 		return nil
 	}
-	if lookup.Store == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
+	if lookup.Container == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
 		return fmt.Errorf("lookup %+v, expected store, match, values and one of key_path or key_field", *lookup)
 	}
 	if err := validateKeyField(field, lookup.KeyField, fields); err != nil {

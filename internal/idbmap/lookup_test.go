@@ -9,7 +9,7 @@ import (
 )
 
 func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
-	lookup := Lookup{DatabasePrefix: "model-storage", Store: "contact", KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
+	lookup := Lookup{Location: Location{NamespacePrefix: "model-storage", Container: "contact"}, KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
 	records := []indexeddb.Record{
 		record("model-storage", "contact", obj("id", str("1@c.us"), "name", str("Ana"))),
 		record("model-storage", "contact", obj("id", str("2@c.us"))),
@@ -33,7 +33,7 @@ func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
 }
 
 func TestBuildLookupRejectsBadPaths(t *testing.T) {
-	if _, err := buildLookup(Lookup{Store: "s", KeyPath: "x", Match: "$.id", Values: []Path{"$.name"}}, nil); err == nil {
+	if _, err := buildLookup(Lookup{Location: Location{Container: "s"}, KeyPath: "x", Match: "$.id", Values: []Path{"$.name"}}, nil); err == nil {
 		t.Fatal("expected an error for a relative key path")
 	}
 }

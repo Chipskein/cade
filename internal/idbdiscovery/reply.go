@@ -112,5 +112,5 @@ func (l lookupReply) lookup(catalog Catalog) (*idbmap.Lookup, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sender lookup: %w", err)
 	}
-	return &idbmap.Lookup{DatabasePrefix: idbschema.StablePrefix(store.Database), Store: store.Store, KeyPath: l.Key, Match: l.Match, Values: []idbmap.Path{l.Value}}, nil
+	return &idbmap.Lookup{Location: idbmap.Location{NamespacePrefix: idbschema.StablePrefix(store.Database), Container: store.Store}, KeyPath: l.Key, Match: l.Match, Values: []idbmap.Path{l.Value}}, nil
 }

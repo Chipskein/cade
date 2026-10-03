@@ -67,7 +67,7 @@ func (u *usedPathList) addRule(store Location, each Path, rule FieldRule) {
 		return
 	}
 	u.add(store, each, rule.Lookup.KeyPath)
-	u.add(Location{NamespacePrefix: rule.Lookup.DatabasePrefix, Container: rule.Lookup.Store}, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
+	u.add(rule.Lookup.Location, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
 }
 
 func (u *usedPathList) add(store Location, root Path, paths ...Path) {

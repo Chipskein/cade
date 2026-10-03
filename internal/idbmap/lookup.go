@@ -24,7 +24,7 @@ func buildLookup(lookup Lookup, records []indexeddb.Record) (lookupIndex, error)
 		return lookupIndex{}, err
 	}
 	for _, record := range records {
-		if !inStore(record, lookup.DatabasePrefix, lookup.Store) {
+		if !lookup.selects(record) {
 			continue
 		}
 		if key, value := readText(paths[0].First(record.Value), TransformNone), firstText(paths[1:], record.Value); key != "" && value != "" {

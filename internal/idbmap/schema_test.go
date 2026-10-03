@@ -26,7 +26,7 @@ func TestParseAcceptsAMetadataOnlySchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if schema.Fields[FieldSentAt].Transform != TransformUnixS || schema.Fields[FieldSender].Lookup.Store != "contact" {
+	if schema.Fields[FieldSentAt].Transform != TransformUnixS || schema.Fields[FieldSender].Lookup.Container != "contact" {
 		t.Fatalf("unexpected schema %+v", schema)
 	}
 }

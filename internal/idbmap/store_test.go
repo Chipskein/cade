@@ -66,7 +66,7 @@ func TestSaveThenLoadRoundTrips(t *testing.T) {
 		t.Fatalf("save: %v", err)
 	}
 	loaded, err := dir.Load("whatsapp")
-	if err != nil || loaded.Fields[FieldSender].Lookup.Store != "contact" || loaded.Revision != 1 {
+	if err != nil || loaded.Fields[FieldSender].Lookup.Container != "contact" || loaded.Revision != 1 {
 		t.Fatalf("expected the saved schema back, got %+v (err %v)", loaded, err)
 	}
 	if !strings.HasSuffix(string(files.Files[schemaDirPath+"/whatsapp.json"]), "}\n") {
