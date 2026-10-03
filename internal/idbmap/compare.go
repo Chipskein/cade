@@ -57,7 +57,7 @@ func eventUIDs(schema Schema, records []indexeddb.Record) (map[string]bool, erro
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := mapper.Apply(records, "")
+	events, _, err := mapper.Apply(records)
 	if err != nil {
 		return nil, err
 	}

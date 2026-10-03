@@ -157,7 +157,7 @@ func MeasureDrift(schema Schema, records []indexeddb.Record) (Drift, error) {
 	if err != nil {
 		return Drift{}, err
 	}
-	_, tally, err := mapper.Apply(records, "")
+	_, tally, err := mapper.Apply(records)
 	if err != nil {
 		return Drift{}, err
 	}

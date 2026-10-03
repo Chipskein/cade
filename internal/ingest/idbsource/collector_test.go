@@ -66,8 +66,8 @@ func whatsappRecords() []indexeddb.Record {
 		return obj("id", str(id), "from", str("55@c.us"), "t", num(1727280000), "type", str("chat"))
 	}
 	return []indexeddb.Record{
-		{Namespace: "model-storage", Container: "message", Value: message("A")},
-		{Namespace: "model-storage", Container: "message", Value: message("B")},
+		{Origin: "https+++web.whatsapp.com", Namespace: "model-storage", Container: "message", Value: message("A")},
+		{Origin: "https+++web.whatsapp.com", Namespace: "model-storage", Container: "message", Value: message("B")},
 	}
 }
 

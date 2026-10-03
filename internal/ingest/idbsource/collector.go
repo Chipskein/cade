@@ -43,7 +43,7 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 	if err != nil {
 		return err
 	}
-	events, tally, err := c.mapper.Apply(records, indexeddb.OriginName(c.dir))
+	events, tally, err := c.mapper.Apply(records)
 	if err != nil {
 		return err
 	}

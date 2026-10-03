@@ -113,7 +113,7 @@ func try(schema idbmap.Schema, records []indexeddb.Record) (Discovery, error) {
 	if err != nil {
 		return Discovery{Schema: schema}, fmt.Errorf("the proposed schema is invalid: %w", err)
 	}
-	events, tally, err := mapper.Apply(records, "")
+	events, tally, err := mapper.Apply(records)
 	found := Discovery{Schema: schema, Tally: tally, Events: len(events)}
 	if err != nil {
 		return found, err

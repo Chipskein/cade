@@ -26,7 +26,7 @@ type compiledRule struct {
 // NewMapper validates and compiles schema.
 //
 //	mapper, err := idbmap.NewMapper(schema)
-//	events, tally := mapper.Apply(records, "https+++web.whatsapp.com")
+//	events, tally, err := mapper.Apply(records)
 func NewMapper(schema Schema) (Mapper, error) {
 	if err := schema.Validate(); err != nil {
 		return Mapper{}, err
@@ -80,9 +80,9 @@ func (t Tally) Check(schema Schema) error {
 	return nil
 }
 
-// Apply maps records to events. origin names where the records came from
-// (kept in metadata, not in the UID).
-func (m Mapper) Apply(records []indexeddb.Record, origin string) ([]event.Event, Tally, error) {
+// Apply maps records to events; each event keeps its record's origin in
+// metadata, not in the UID.
+func (m Mapper) Apply(records []indexeddb.Record) ([]event.Event, Tally, error) {
 	lookups, err := m.buildLookups(records)
 	if err != nil {
 		return nil, Tally{}, err
@@ -94,7 +94,7 @@ func (m Mapper) Apply(records []indexeddb.Record, origin string) ([]event.Event,
 			continue
 		}
 		tally.StoreRecords++
-		events = append(events, m.mapRecord(record.Value, lookups, origin, &tally)...)
+		events = append(events, m.mapRecord(record.Value, lookups, record.Origin, &tally)...)
 	}
 	return events, tally, nil
 }
