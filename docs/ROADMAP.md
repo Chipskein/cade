@@ -269,11 +269,21 @@ flowchart LR
 | [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | **feito:** pacote `webstore` (registro e leitor por armazenamento, IndexedDB do Chromium e do Firefox como primeiros leitores), schema versão 2 com `records.kind` e `namespace_prefix`/`container` (a versão 1 continua lida), `schema-discover` e `schema-check` com `idb-*` como alias |
 | [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | **feito:** leitores do localStorage e do OPFS do Chromium/Electron e do Firefox/Floorp, só as origens de `sources.storage_origins`; o levantamento só achou mensagens nos rascunhos do ChatGPT (schema revisado); SQLite no OPFS fica para outra issue |
 | [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | **feito:** leitores do cache HTTP e da Cache API do Chromium/Electron e do Firefox/Floorp, só as URLs de `sources.request_cache_urls`, schema revisado do Discord (90 de 99 mensagens do cache do app desktop) |
-| [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |
+| [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | **feito:** decisão de não ler nenhum dos dois ([abaixo](#decisão-sessionstorage-e-cookies-76)) |
 | [#77](https://github.com/Chipskein/cade/issues/77) | Importar a conversa exportada do WhatsApp | completa o texto das mensagens que a fase 30 indexa só por metadados |
 | [#78](https://github.com/Chipskein/cade/issues/78) | Caminhos `^.` para mensagens aninhadas (ChatGPT) | a linguagem do schema só cresce com caso real; este é o próximo |
 | [#79](https://github.com/Chipskein/cade/issues/79) | Textos cifrados pelos apps | investigação sem código; decifrar fica fora |
 | [#80](https://github.com/Chipskein/cade/issues/80) | Buscar mensagens no servidor do app | investigação sem código; bate no princípio de não usar rede em tempo de execução |
+
+### Decisão: sessionStorage e cookies (#76)
+
+**O `cade` não lê cookies nem sessionStorage, e nenhum dos dois entra na descoberta.** O levantamento de 2026-10-03, nesta máquina (Floorp, Chrome e Discord desktop), olhou só nomes, hosts e tamanhos, nunca valores:
+
+- **Cookies sem mensagens.** O Floorp tem 1.964 cookies de 693 hosts em `cookies.sqlite`, em texto puro; o Chrome, 2.412 de 610 hosts em `Cookies`, todos cifrados (`v10`/`v11`, com a chave no keyring); o Discord, 7 cookies vazios do Cloudflare. Os 63 hosts com valores que parecem frase guardam consentimento (`OptanonConsent`), proteção contra robôs (`_abck`, `bm_*`) e rastreio de campanha. O resto são identificadores e credenciais (`session-token`, `jwt_token`, `SID`, `__Secure-*-BearerToken`). No Chromium, ler o conteúdo exigiria decifrar com a chave do keyring, o mesmo que tirar as senhas de sessão do navegador.
+- **sessionStorage sem mensagens e passageiro.** O Firefox e o Floorp só o gravam em `sessionstore-backups/recovery.jsonlz4`, para restaurar as abas abertas: com o Floorp aberto, uma origem (GitHub, 8 itens de estado da tela) e nenhum formulário. O mesmo arquivo traz 1.079 cookies de sessão em texto puro, então lê-lo é tocar em credenciais. No Chromium, `Session Storage/` estava vazio no Chrome e com um mapa vazio no Discord. A especificação apaga o sessionStorage ao fechar a aba, então o que estiver ali some antes do próximo `ingest`; o que um app de mensagens quer manter vai para o IndexedDB ou o localStorage, que o `cade` já lê.
+- **Risco sem ganho.** Não há uma regra que separe token de conteúdo pelo nome ou pelo formato; o mascaramento do `ingest.redact` reconhece formatos conhecidos, não todos. Sem mensagens para ganhar, não existe filtro aceitável.
+
+Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue nova começa por esse app e tem a regra de nunca indexar nem mostrar ao modelo um cookie ou o `recovery.jsonlz4` inteiro. Usar cookies para se autenticar no servidor do app é a #80.
 
 ---
 
