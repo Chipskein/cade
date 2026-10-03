@@ -88,6 +88,8 @@ type fakeWorld struct {
 	indexedDBRecords []webstore.Record
 	// otherStores are readers of other storages, tried before IndexedDB.
 	otherStores webstore.Readers
+	// readerSources are the sources each StoreReaders call was given.
+	readerSources []config.SourcesConfig
 }
 
 func newFakeWorld() *fakeWorld {
@@ -124,7 +126,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		},
 		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
-		StoreReaders:  append(append(webstore.Readers{}, w.otherStores...), worldIndexedDB{w}),
+		StoreReaders:  w.storeReaders,
 		SchemaFiles:   idbmap.OSSchemaFiles{},
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
@@ -451,4 +453,10 @@ func TestAskUnknownPersonFiltersListingAsText(t *testing.T) {
 	if !strings.Contains(stderr, "buscando como texto: CEP") || strings.Contains(stdout, "ana-msg") {
 		t.Fatalf("expected CEP searched as text, got %q / %q", stderr, stdout)
 	}
+}
+
+// storeReaders builds the world's readers, remembering the sources given.
+func (w *fakeWorld) storeReaders(sources config.SourcesConfig) (webstore.Readers, error) {
+	w.readerSources = append(w.readerSources, sources)
+	return append(append(webstore.Readers{}, w.otherStores...), worldIndexedDB{w}), nil
 }

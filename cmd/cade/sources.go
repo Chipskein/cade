@@ -42,20 +42,24 @@ func schemaSpecs(sources config.SourcesConfig, dir idbmap.SchemaDir, builtIn []i
 		if _, taken := ingest.FindSource(builtIn, name); taken == nil {
 			continue
 		}
-		specs = append(specs, ingest.SourceSpec{Name: name, DefaultTargets: sources.IndexedDBDirs[name], NewCollector: schemaCollectorFactory(dir, name)})
+		specs = append(specs, ingest.SourceSpec{Name: name, DefaultTargets: sources.IndexedDBDirs[name], NewCollector: schemaCollectorFactory(sources, dir, name)})
 	}
 	return specs
 }
 
 // schemaCollectorFactory loads the schema when its source is ingested, so
 // a hand edit gone wrong fails there, naming the file.
-func schemaCollectorFactory(dir idbmap.SchemaDir, name string) func(string) (ingest.EventCollector, error) {
+func schemaCollectorFactory(sources config.SourcesConfig, dir idbmap.SchemaDir, name string) func(string) (ingest.EventCollector, error) {
 	return func(location string) (ingest.EventCollector, error) {
 		schema, err := dir.Load(name)
 		if err != nil {
 			return nil, err
 		}
-		return idbsource.NewCollector(storeReaders(), location, schema)
+		readers, err := storeReaders(sources)
+		if err != nil {
+			return nil, err
+		}
+		return idbsource.NewCollector(readers, location, schema)
 	}
 }
 

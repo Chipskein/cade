@@ -68,7 +68,7 @@ func parseSchemaDiscover(env commandEnv, args []string) (schemaDiscoverRequest, 
 }
 
 func (env commandEnv) discoverSchema(ctx context.Context, cfg config.Config, request schemaDiscoverRequest) (idbdiscovery.Discovery, error) {
-	records, err := env.readDetectedStore(config.ExpandHome(request.dir))
+	records, err := env.readDetectedStore(cfg.Sources, config.ExpandHome(request.dir))
 	if err != nil {
 		return idbdiscovery.Discovery{}, err
 	}
@@ -84,8 +84,12 @@ func (env commandEnv) discoverSchema(ctx context.Context, cfg config.Config, req
 
 // readDetectedStore reads location with the reader of its layout, so a
 // schema can be discovered for any storage cade reads.
-func (env commandEnv) readDetectedStore(location string) ([]webstore.Record, error) {
-	reader, err := env.toolkit.StoreReaders.Detect(location)
+func (env commandEnv) readDetectedStore(sources config.SourcesConfig, location string) ([]webstore.Record, error) {
+	readers, err := env.toolkit.StoreReaders(sources)
+	if err != nil {
+		return nil, err
+	}
+	reader, err := readers.Detect(location)
 	if err != nil {
 		return nil, err
 	}
