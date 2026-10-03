@@ -3,26 +3,28 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestReadIndexedDBReadsFirefoxDirectories(t *testing.T) {
 	records, err := readIndexedDB("../../testdata/firefox-indexeddb")
-	if err != nil || len(records) != 3 || records[0].Database != "model-storage-fixture" {
+	if err != nil || len(records) != 3 || records[0].Namespace != "model-storage-fixture" {
 		t.Fatalf("expected the 3 Floorp sample records, got %d (err %v)", len(records), err)
 	}
 }
 
 func TestReadIndexedDBReadsChromiumDirectories(t *testing.T) {
 	records, err := readIndexedDB("../../testdata/chrome-indexeddb.leveldb")
-	if err != nil || len(records) == 0 || records[0].Database != "Teams:replychain-manager:fixture" {
+	if err != nil || len(records) == 0 || records[0].Namespace != "Teams:replychain-manager:fixture" {
 		t.Fatalf("expected the Chrome sample records, got %d (err %v)", len(records), err)
 	}
 }
 
-func TestIsFirefoxIndexedDBFalseForMissingDirectory(t *testing.T) {
-	if isFirefoxIndexedDB(filepath.Join(t.TempDir(), "absent")) {
-		t.Fatal("a missing directory is not a Firefox idb directory")
+func TestReadIndexedDBRefusesADirectoryOfNoKnownLayout(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := readIndexedDB(dir); err == nil || !strings.Contains(err.Error(), dir) {
+		t.Fatalf("readIndexedDB(empty dir) error = %v; want a refusal naming the directory", err)
 	}
 }
 

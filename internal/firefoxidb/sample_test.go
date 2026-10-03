@@ -26,7 +26,7 @@ func sampleRecords(t *testing.T) []indexeddb.Record {
 func sampleMessage(t *testing.T) *v8value.Value {
 	t.Helper()
 	for _, record := range sampleRecords(t) {
-		if record.Store == "message" && record.DecodeErr == nil {
+		if record.Container == "message" && record.DecodeErr == nil {
 			return record.Value
 		}
 	}
@@ -37,7 +37,7 @@ func sampleMessage(t *testing.T) *v8value.Value {
 func TestSampleNamesDatabaseAndStores(t *testing.T) {
 	counts := map[string]int{}
 	for _, record := range sampleRecords(t) {
-		counts[record.Database+"/"+record.Store]++
+		counts[record.Namespace+"/"+record.Container]++
 	}
 	if counts["model-storage-fixture/message"] != 2 || counts["model-storage-fixture/contact"] != 1 {
 		t.Fatalf("unexpected record counts %v", counts)

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/chipskein/cade/internal/filecopy"
 	"github.com/chipskein/cade/internal/indexeddb"
@@ -40,6 +42,24 @@ func NewReader(decode DecodeClone, open OpenDatabase) Reader {
 // sqliteSuffix marks the database files inside an idb directory; each one
 // holds a single IndexedDB database.
 const sqliteSuffix = ".sqlite"
+
+func (Reader) Kind() webstore.Kind { return webstore.KindIndexedDB }
+
+// Recognizes an idb directory: Firefox keeps one SQLite file per
+// IndexedDB database in it.
+func (Reader) Recognizes(location string) bool {
+	entries, err := os.ReadDir(location)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(entries, func(entry os.DirEntry) bool {
+		return entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), sqliteSuffix)
+	})
+}
+
+func (r Reader) Read(location string) ([]webstore.Record, error) {
+	return r.ReadDirectory(location)
+}
 
 // ReadDirectory snapshots dir (Firefox keeps the files open and writing)
 // and returns every object-store record of every database in it.

@@ -46,6 +46,27 @@ func ReadDirectory(dir string) ([]Record, error) {
 	return webstore.WithOrigin(decodeRecords(entries), OriginName(dir)), nil
 }
 
+// leveldbCurrentFile names the live manifest every LevelDB directory has.
+const leveldbCurrentFile = "CURRENT"
+
+// ChromiumReader reads Chromium IndexedDB directories as a webstore
+// reader.
+//
+//	readers := webstore.Readers{indexeddb.ChromiumReader{}}
+type ChromiumReader struct{}
+
+func (ChromiumReader) Kind() webstore.Kind { return webstore.KindIndexedDB }
+
+// Recognizes a LevelDB directory, which Chromium keeps one of per origin.
+func (ChromiumReader) Recognizes(location string) bool {
+	info, err := os.Stat(filepath.Join(location, leveldbCurrentFile))
+	return err == nil && info.Mode().IsRegular()
+}
+
+func (ChromiumReader) Read(location string) ([]webstore.Record, error) {
+	return ReadDirectory(location)
+}
+
 func decodeRecords(entries []leveldbraw.Entry) []Record {
 	names := buildCatalog(entries)
 	var records []Record
