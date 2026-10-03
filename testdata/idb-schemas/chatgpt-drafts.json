@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "target": "message/1",
+  "name": "chatgpt-drafts",
+  "source": "chatgpt-drafts",
+  "revision": 1,
+  "records": {
+    "kind": "local_storage",
+    "container": "oai/apps/conversationDrafts",
+    "each": "$.drafts[]"
+  },
+  "fields": {
+    "message_id": {
+      "paths": ["$.id"]
+    },
+    "conversation_id": {
+      "paths": ["$.id"]
+    },
+    "conversation": {
+      "default": "Rascunhos do ChatGPT"
+    },
+    "sender": {
+      "default": "eu"
+    },
+    "text": {
+      "paths": ["$.content"],
+      "transform": "trim",
+      "required": true
+    },
+    "sent_at": {
+      "paths": ["$.timestamp"],
+      "transform": "unix_ms"
+    },
+    "revision": {
+      "paths": ["$.timestamp"]
+    }
+  }
+}

@@ -70,7 +70,8 @@ type Toolkit struct {
 	// StoreReaders build the readers of the browser storages schemas map:
 	// discovery finds which one a location holds, checks read the kind a
 	// schema names. The request cache readers only read the URLs of
-	// sources.request_cache_urls.
+	// sources.request_cache_urls; the localStorage and OPFS readers, the
+	// origins of sources.storage_origins.
 	StoreReaders func(sources config.SourcesConfig) (webstore.Readers, error)
 	// SchemaFiles stores the schemas `schema-discover` writes.
 	SchemaFiles idbmap.SchemaFiles
