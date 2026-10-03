@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // PathShape is one path a schema reads, at its location, with the kinds
@@ -22,7 +22,7 @@ type PathShape struct {
 // schema that never matched.
 //
 //	schema.Fingerprint = idbmap.TakeFingerprint(schema, records)
-func TakeFingerprint(schema Schema, records []indexeddb.Record) []PathShape {
+func TakeFingerprint(schema Schema, records []webstore.Record) []PathShape {
 	shapes := usedPaths(schema)
 	observed := observedKinds(shapes, records)
 	for i := range shapes {
@@ -91,7 +91,7 @@ func underRoot(root, path Path) Path {
 // observedKinds maps each shape's path to the kinds seen there now, sorted,
 // in the summary's notation; undefined and null say nothing and are left
 // out. Records are selected per store the way the schema selects them.
-func observedKinds(shapes []PathShape, records []indexeddb.Record) map[shapeKey][]string {
+func observedKinds(shapes []PathShape, records []webstore.Record) map[shapeKey][]string {
 	kinds := map[shapeKey][]string{}
 	for store := range storesOf(shapes) {
 		addKinds(kinds, store, idbschema.Summarize(recordsOf(records, store)))
@@ -99,8 +99,8 @@ func observedKinds(shapes []PathShape, records []indexeddb.Record) map[shapeKey]
 	return kinds
 }
 
-func recordsOf(records []indexeddb.Record, store Location) []indexeddb.Record {
-	var selected []indexeddb.Record
+func recordsOf(records []webstore.Record, store Location) []webstore.Record {
+	var selected []webstore.Record
 	for _, record := range records {
 		if store.selects(record) {
 			selected = append(selected, record)
@@ -152,7 +152,7 @@ func (d Drift) Drifted() bool {
 // MeasureDrift compares schema's fingerprint and mapping with records. A
 // schema without a fingerprint (written by hand) is judged by its mapping
 // alone.
-func MeasureDrift(schema Schema, records []indexeddb.Record) (Drift, error) {
+func MeasureDrift(schema Schema, records []webstore.Record) (Drift, error) {
 	mapper, err := NewMapper(schema)
 	if err != nil {
 		return Drift{}, err

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Mapper applies one validated schema, its paths compiled once.
@@ -82,7 +82,7 @@ func (t Tally) Check(schema Schema) error {
 
 // Apply maps records to events; each event keeps its record's origin in
 // metadata, not in the UID.
-func (m Mapper) Apply(records []indexeddb.Record) ([]event.Event, Tally, error) {
+func (m Mapper) Apply(records []webstore.Record) ([]event.Event, Tally, error) {
 	lookups, err := m.buildLookups(records)
 	if err != nil {
 		return nil, Tally{}, err
@@ -99,7 +99,7 @@ func (m Mapper) Apply(records []indexeddb.Record) ([]event.Event, Tally, error) 
 	return events, tally, nil
 }
 
-func (m Mapper) buildLookups(records []indexeddb.Record) (map[Field]lookupIndex, error) {
+func (m Mapper) buildLookups(records []webstore.Record) (map[Field]lookupIndex, error) {
 	lookups := map[Field]lookupIndex{}
 	for field, rule := range m.rules {
 		if rule.rule.Lookup == nil {

@@ -1,6 +1,6 @@
 package idbmap
 
-import "github.com/chipskein/cade/internal/indexeddb"
+import "github.com/chipskein/cade/internal/webstore"
 
 // minUIDOverlap is the share of the current schema's events a replacement
 // must still produce under the same UID. Below it, messages already indexed
@@ -18,7 +18,7 @@ type Comparison struct {
 // CompareSchemas applies both schemas to records.
 //
 //	comparison, err := idbmap.CompareSchemas(current, regenerated, records)
-func CompareSchemas(current, next Schema, records []indexeddb.Record) (Comparison, error) {
+func CompareSchemas(current, next Schema, records []webstore.Record) (Comparison, error) {
 	currentUIDs, err := eventUIDs(current, records)
 	if err != nil {
 		return Comparison{}, err
@@ -52,7 +52,7 @@ func (c Comparison) Accepted() bool {
 	return c.NextEvents > 0 && c.NextEvents >= c.CurrentEvents && c.Overlap() >= minUIDOverlap
 }
 
-func eventUIDs(schema Schema, records []indexeddb.Record) (map[string]bool, error) {
+func eventUIDs(schema Schema, records []webstore.Record) (map[string]bool, error) {
 	mapper, err := NewMapper(schema)
 	if err != nil {
 		return nil, err

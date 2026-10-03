@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 	"github.com/chipskein/cade/internal/webstore"
 )
@@ -44,8 +43,8 @@ func mustMapper(t *testing.T, raw string) Mapper {
 	return mapper
 }
 
-func record(database, store string, value *v8value.Value) indexeddb.Record {
-	return indexeddb.Record{Namespace: database, Container: store, Value: value}
+func record(database, store string, value *v8value.Value) webstore.Record {
+	return webstore.Record{Namespace: database, Container: store, Value: value}
 }
 
 func chainMessage(id, messageType, content string, pairs ...any) *v8value.Value {
@@ -54,14 +53,14 @@ func chainMessage(id, messageType, content string, pairs ...any) *v8value.Value 
 	return obj(append(base, pairs...)...)
 }
 
-func chainRecords() []indexeddb.Record {
+func chainRecords() []webstore.Record {
 	messages := obj(
 		"1", chainMessage("1", "RichText/Html", "<p>Olá <b>time</b></p>", "imDisplayName", str("Ana Souza"), "version", num(1727280000001)),
 		"2", chainMessage("2", "Text", "sem nome", "isSentByCurrentUser", &v8value.Value{Kind: v8value.KindBool, Bool: true}),
 		"3", chainMessage("3", "ThreadActivity/AddMember", "<addmember/>"),
 		"4", chainMessage("4", "Text", "apagada", "deletionInfo", obj()),
 	)
-	return []indexeddb.Record{
+	return []webstore.Record{
 		record("app:chains:v1", "chains", obj("id", str("19:abc@thread.v2"), "messageMap", messages)),
 		record("app:profiles:v1", "profiles", obj("mri", str("8:orgid:ana"), "displayName", str(" Ana (perfil) "))),
 		record("other", "chains", obj("messageMap", obj("9", chainMessage("9", "Text", "outro banco")))),
@@ -126,7 +125,7 @@ func TestApplyKeysEventsOnSourceConversationAndID(t *testing.T) {
 
 func TestApplySkipsItemsWithoutIdentityOrTime(t *testing.T) {
 	noTime := obj("id", str("5"), "conversationId", str("c"), "messageType", str("Text"), "content", str("x"))
-	records := []indexeddb.Record{record("app:chains", "chains", obj("messageMap", obj("5", noTime)))}
+	records := []webstore.Record{record("app:chains", "chains", obj("messageMap", obj("5", noTime)))}
 	_, tally, _ := mustMapper(t, chainSchema).Apply(records)
 	if tally.Kept != 1 || tally.Mapped != 0 {
 		t.Fatalf("expected the item kept but not mapped, got %+v", tally)
@@ -136,7 +135,7 @@ func TestApplySkipsItemsWithoutIdentityOrTime(t *testing.T) {
 func TestApplyMapsMetadataOnlyRecordsWithoutText(t *testing.T) {
 	message := obj("id", str("false_55@c.us_A"), "from", str("55@c.us"), "t", num(1727280000), "type", str("chat"),
 		"msgRowOpaqueData", obj("_keyId", num(1)), "author", obj("_serialized", str("55@c.us")))
-	records := []indexeddb.Record{
+	records := []webstore.Record{
 		record("model-storage", "message", message),
 		record("model-storage", "contact", obj("id", str("55@c.us"), "name", str("Ana Souza"))),
 	}
@@ -197,7 +196,7 @@ const compositeSchema = `{
 }`
 
 func TestApplySplitsCompositeKeysAndLooksUpByField(t *testing.T) {
-	records := []indexeddb.Record{
+	records := []webstore.Record{
 		record("model-storage", "message", obj("id", str("true_55@g.us_3EB0"), "t", num(1727280000))),
 		record("model-storage", "message", obj("id", str("false_55@g.us_3EB1"), "t", num(1727280001))),
 		record("model-storage", "chat", obj("id", str("55@g.us"), "name", str("Família"))),

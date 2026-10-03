@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // UIDChanges pairs, item by item, the UID current gives a message with the
@@ -14,7 +14,7 @@ import (
 // duplicated. Both schemas must select the same items to be paired.
 //
 //	changes, err := idbmap.UIDChanges(current, regenerated, records)
-func UIDChanges(current, next Schema, records []indexeddb.Record) (map[string]string, error) {
+func UIDChanges(current, next Schema, records []webstore.Record) (map[string]string, error) {
 	if current.Records != next.Records {
 		return nil, fmt.Errorf("records %+v and %+v differ, expected the same store and each to pair messages", current.Records, next.Records)
 	}
@@ -37,7 +37,7 @@ type itemPair struct {
 	currentLookups, nextLookups map[Field]lookupIndex
 }
 
-func newItemPair(current, next Schema, records []indexeddb.Record) (itemPair, error) {
+func newItemPair(current, next Schema, records []webstore.Record) (itemPair, error) {
 	var pair itemPair
 	var err error
 	if pair.current, err = NewMapper(current); err != nil {

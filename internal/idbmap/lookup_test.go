@@ -4,13 +4,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
 	lookup := Lookup{Location: Location{NamespacePrefix: "model-storage", Container: "contact"}, KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
-	records := []indexeddb.Record{
+	records := []webstore.Record{
 		record("model-storage", "contact", obj("id", str("1@c.us"), "name", str("Ana"))),
 		record("model-storage", "contact", obj("id", str("2@c.us"))),
 		record("model-storage", "contact", obj("id", str("4@c.us"), "pushname", str(" Bia "))),

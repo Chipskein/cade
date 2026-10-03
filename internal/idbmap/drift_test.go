@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 func chainSchemaWithFingerprint(t *testing.T) Schema {
@@ -51,7 +51,7 @@ func TestMeasureDriftOnTheSameRecords(t *testing.T) {
 
 // renamedRecords is the same chat after the app renamed content to body
 // and started writing the arrival time as text.
-func renamedRecords() []indexeddb.Record {
+func renamedRecords() []webstore.Record {
 	records := chainRecords()
 	for _, message := range records[0].Value.Get("messageMap").Properties {
 		for i := range message.Value.Properties {

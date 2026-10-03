@@ -1,8 +1,8 @@
 package idbmap
 
 import (
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // lookupIndex answers one Lookup: the first value of each record of its
@@ -13,7 +13,7 @@ type lookupIndex struct {
 	values   map[string]string
 }
 
-func buildLookup(lookup Lookup, records []indexeddb.Record) (lookupIndex, error) {
+func buildLookup(lookup Lookup, records []webstore.Record) (lookupIndex, error) {
 	index := lookupIndex{keyField: lookup.KeyField, values: map[string]string{}}
 	var err error
 	if index.keyPath, err = compileEach(lookup.KeyPath); err != nil {
