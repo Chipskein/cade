@@ -10,13 +10,16 @@ import (
 // Record is one value a browser storage holds, decoded into the same value
 // tree whatever the storage. Namespace and Container locate it inside its
 // origin, two levels each storage fills its own way: the database and the
-// object store in IndexedDB, the cache name and the request URL in the
-// Cache API, no namespace and the key in localStorage, no namespace and
-// the URL in the HTTP cache.
+// object store in IndexedDB, no namespace and the key in localStorage. In
+// the request caches the container is the name of the configured URL
+// pattern the request matched (see requestcache.Scope), so one schema
+// reads every channel's URL; the namespace is the cache name in the Cache
+// API and empty in the HTTP cache.
 //
-// Key is the value's own key where the storage keys values by text, empty
-// where the reader does not decode keys (IndexedDB: a schema reaches a
-// message through the paths of its value). Exactly one of Value and
+// Key is the value's own key where the storage keys values by text (the
+// request URL, in the request caches), empty where the reader does not
+// decode keys (IndexedDB: a schema reaches a message through the paths of
+// its value). Exactly one of Value and
 // DecodeErr is set: a record that fails to decode is still reported, so
 // callers can count what they could not read instead of silently losing it.
 type Record struct {
