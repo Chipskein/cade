@@ -36,7 +36,7 @@ func whatsappBase() []indexeddb.Record {
 
 func collectWhatsapp(t *testing.T) map[string]event.Event {
 	t.Helper()
-	collector, err := NewCollector(FakeIndexedDBReader{Records: whatsappBase()}.Read, whatsappDir, loadSchema(t, whatsappSchemaPath))
+	collector, err := NewCollector(indexedDBReaders(whatsappBase(), nil), whatsappDir, loadSchema(t, whatsappSchemaPath))
 	if err != nil {
 		t.Fatal(err)
 	}
