@@ -46,14 +46,18 @@ Comandos:
                                         expirado) não volta
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
-  idb-discover --name N [--force] [--print] DIR
+  schema-discover --name N [--force] [--print] DIR
                                         gera com o modelo local um schema para
-                                        ingerir o IndexedDB de um aplicativo;
-                                        --rollback --name N volta à revisão anterior
-  idb-check [--update [--rekey]] [N...] confere se os aplicativos ainda batem com
+                                        ingerir o armazenamento de um aplicativo
+                                        no navegador (IndexedDB); --rollback
+                                        --name N volta à revisão anterior;
+                                        antes idb-discover, que continua valendo
+  schema-check [--update [--rekey]] [N...]
+                                        confere se os aplicativos ainda batem com
                                         os schemas; --update regenera o que mudou;
                                         --rekey aceita um schema que muda os UIDs e
-                                        renomeia os eventos já indexados (com cópia)
+                                        renomeia os eventos já indexados (com cópia);
+                                        antes idb-check, que continua valendo
   version                               versão, commit, data e tipo de build (CPU/CUDA)
   help                                  mostra esta ajuda
 
@@ -110,14 +114,18 @@ Commands:
                                         cache) does not come back
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
                                         to design the Teams ingestor
-  idb-discover --name N [--force] [--print] DIR
+  schema-discover --name N [--force] [--print] DIR
                                         generates with the local model a schema to
-                                        ingest an application's IndexedDB;
-                                        --rollback --name N restores the previous revision
-  idb-check [--update [--rekey]] [N...] checks the applications still match their
+                                        ingest an application's browser storage
+                                        (IndexedDB); --rollback --name N restores
+                                        the previous revision; formerly
+                                        idb-discover, which still works
+  schema-check [--update [--rekey]] [N...]
+                                        checks the applications still match their
                                         schemas; --update regenerates what changed;
                                         --rekey accepts a schema that changes UIDs and
-                                        renames indexed events (after a copy)
+                                        renames indexed events (after a copy);
+                                        formerly idb-check, which still works
   version                               version, commit, date and build type (CPU/CUDA)
   help                                  shows this help
 

@@ -70,7 +70,7 @@ type Toolkit struct {
 	// StoreReaders read the browser storages schemas map: discovery finds
 	// which one a location holds, checks read the kind a schema names.
 	StoreReaders webstore.Readers
-	// SchemaFiles stores the schemas `idb-discover` writes.
+	// SchemaFiles stores the schemas `schema-discover` writes.
 	SchemaFiles idbmap.SchemaFiles
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
@@ -180,14 +180,18 @@ func withUISettings(env commandEnv) commandEnv {
 
 func subcommands() map[string]subcommand {
 	return map[string]subcommand{
-		"init":         runInit,
-		"doctor":       runDoctor,
-		"ingest":       runIngest,
-		"timeline":     runTimeline,
-		"ask":          runAsk,
-		"teams-schema": runTeamsSchema,
-		"idb-discover": runIDBDiscover,
-		"idb-check":    runIDBCheck,
+		"init":            runInit,
+		"doctor":          runDoctor,
+		"ingest":          runIngest,
+		"timeline":        runTimeline,
+		"ask":             runAsk,
+		"teams-schema":    runTeamsSchema,
+		"schema-discover": runSchemaDiscover,
+		"schema-check":    runSchemaCheck,
+		// The names from when schemas read only IndexedDB (#19), kept so
+		// scripts and timers keep working.
+		"idb-discover": runSchemaDiscover,
+		"idb-check":    runSchemaCheck,
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,

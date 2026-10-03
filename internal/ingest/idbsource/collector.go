@@ -53,7 +53,7 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 		}
 	}
 	if err := tally.Check(c.schema); err != nil {
-		return fmt.Errorf("%w; run `cade idb-check --update %s`", err, c.schema.Name)
+		return fmt.Errorf("%w; run `cade schema-check --update %s`", err, c.schema.Name)
 	}
 	return nil
 }

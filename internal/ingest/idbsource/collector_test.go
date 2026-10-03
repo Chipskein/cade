@@ -91,7 +91,7 @@ func TestCollectEventsEmitsMappedMessagesWithTheirOrigin(t *testing.T) {
 func TestCollectEventsReportsAFormatChange(t *testing.T) {
 	records := []webstore.Record{{Namespace: "model-storage", Container: "mensagens", Value: obj("id", str("A"))}}
 	err := newWhatsappCollector(t, indexedDBReaders(records, nil)).CollectEvents(context.Background(), func(event.Event) error { return nil })
-	if err == nil || !strings.Contains(err.Error(), "changed its format") || !strings.Contains(err.Error(), "cade idb-check --update whatsapp") {
+	if err == nil || !strings.Contains(err.Error(), "changed its format") || !strings.Contains(err.Error(), "cade schema-check --update whatsapp") {
 		t.Fatalf("expected a format change error, got %v", err)
 	}
 }

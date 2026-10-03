@@ -32,11 +32,11 @@ type schemaChecker struct {
 	generator ClosableGenerator
 }
 
-// runIDBCheck reports, per schema and directory, whether the application
+// runSchemaCheck reports, per schema and directory, whether the application
 // still matches its schema; it fails while a drift is left unresolved, so
 // it can run on a timer.
-func runIDBCheck(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("idb-check", env.stderr, env.language)
+func runSchemaCheck(ctx context.Context, env commandEnv, args []string) error {
+	flags := newFlagSet("schema-check", env.stderr, env.language)
 	update := flags.Bool("update", false, env.language.pick("regenera com o modelo local os schemas que mudaram", "regenerates with the local model the schemas that drifted"))
 	rekey := flags.Bool("rekey", false, env.language.pick("com --update, aceita um schema que muda a identidade das mensagens e dá o UID novo às já indexadas (copia o banco antes)",
 		"with --update, accepts a schema that changes the messages' identity and gives the indexed ones their new UID (copies the database first)"))

@@ -31,7 +31,7 @@ func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.Sour
 // schemaSpecs registers one source per saved IndexedDB schema. A schema
 // named like a built-in source is left out rather than hide it, and an
 // unreadable directory registers nothing: ingest then names the source as
-// unknown, and `cade idb-discover` recreates the schema.
+// unknown, and `cade schema-discover` recreates the schema.
 func schemaSpecs(sources config.SourcesConfig, dir idbmap.SchemaDir, builtIn []ingest.SourceSpec) []ingest.SourceSpec {
 	names, err := dir.Names()
 	if err != nil {
