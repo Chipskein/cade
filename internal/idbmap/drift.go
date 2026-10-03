@@ -43,7 +43,7 @@ func (s PathShape) key() shapeKey {
 
 // usedPaths lists the store and record path of everything schema reads.
 func usedPaths(schema Schema) []PathShape {
-	store := Location{NamespacePrefix: schema.Records.DatabasePrefix, Container: schema.Records.Store}
+	store := schema.Records.Location
 	each := schema.Records.Each
 	var used usedPathList
 	used.add(store, "", each)

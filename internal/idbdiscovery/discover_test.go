@@ -65,10 +65,10 @@ func TestDiscoverBuildsASchemaThatMapsTheRecords(t *testing.T) {
 		t.Fatalf("expected mapped events, got %+v (err %v)", found, err)
 	}
 	schema := found.Schema
-	if schema.Name != "teams-web" || schema.Source != "teams" || schema.Records.Store != "replychains" || schema.Records.Each != "$.messageMap.<id>" {
+	if schema.Name != "teams-web" || schema.Source != "teams" || schema.Records.Container != "replychains" || schema.Records.Each != "$.messageMap.<id>" {
 		t.Fatalf("unexpected header %+v", schema)
 	}
-	if !strings.HasPrefix(schema.Records.DatabasePrefix, "Teams:replychain-manager:") || schema.Fields[idbmap.FieldSentAt].Transform != idbmap.TransformUnixMS {
+	if !strings.HasPrefix(schema.Records.NamespacePrefix, "Teams:replychain-manager:") || schema.Fields[idbmap.FieldSentAt].Transform != idbmap.TransformUnixMS {
 		t.Fatalf("unexpected records %+v / sent_at %+v", schema.Records, schema.Fields[idbmap.FieldSentAt])
 	}
 	if len(schema.Fingerprint) == 0 || schema.Fingerprint[0].Path != "$.messageMap.<id>" || schema.Fingerprint[0].Kinds[0] != "object" {

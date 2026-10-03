@@ -74,14 +74,12 @@ type Schema struct {
 	Fingerprint []PathShape `json:"fingerprint,omitempty"`
 }
 
-// RecordSelector picks the records that hold messages: those of Store in a
-// database whose name starts with DatabasePrefix, and, when Each is set,
-// every value Each reaches inside one record (a chat record holding a map
-// of messages).
+// RecordSelector picks the records that hold messages: those at Location,
+// and, when Each is set, every value Each reaches inside one record (a
+// chat record holding a map of messages).
 type RecordSelector struct {
-	DatabasePrefix string `json:"database_prefix"`
-	Store          string `json:"store"`
-	Each           Path   `json:"each,omitempty"`
+	Location
+	Each Path `json:"each,omitempty"`
 }
 
 // Condition keeps an item only when the string at Path is in In, is not in
@@ -170,7 +168,7 @@ func (s Schema) validateHeader() error {
 }
 
 func (s Schema) validateRecords() error {
-	if s.Records.Store == "" {
+	if s.Records.Container == "" {
 		return fmt.Errorf("records.store is empty, expected the object store holding the messages")
 	}
 	return validatePaths(s.Records.Each)

@@ -52,11 +52,6 @@ func (l lookupIndex) findByPath(item *v8value.Value) string {
 	return l.values[readText(l.keyPath.First(item), TransformNone)]
 }
 
-// inStore reports whether record decoded and belongs to the store.
-func inStore(record indexeddb.Record, databasePrefix, store string) bool {
-	return record.InContainer(databasePrefix, store)
-}
-
 func compilePaths(paths ...Path) ([]CompiledPath, error) {
 	compiled := make([]CompiledPath, len(paths))
 	for i, path := range paths {

@@ -72,7 +72,7 @@ type Tally struct {
 // empty database is fine.
 func (t Tally) Check(schema Schema) error {
 	if t.Records > 0 && t.StoreRecords == 0 {
-		return fmt.Errorf("schema %q: no decoded record in store %q of a database starting with %q among %d records; the application may have changed its format", schema.Name, schema.Records.Store, schema.Records.DatabasePrefix, t.Records)
+		return fmt.Errorf("schema %q: no decoded record in store %q of a database starting with %q among %d records; the application may have changed its format", schema.Name, schema.Records.Container, schema.Records.NamespacePrefix, t.Records)
 	}
 	if t.Kept > 0 && t.Mapped == 0 {
 		return fmt.Errorf("schema %q: none of %d items has %s; the application may have changed its format", schema.Name, t.Kept, joinFields(requiredFields))
@@ -90,7 +90,7 @@ func (m Mapper) Apply(records []indexeddb.Record, origin string) ([]event.Event,
 	tally := Tally{Records: len(records)}
 	var events []event.Event
 	for _, record := range records {
-		if !inStore(record, m.schema.Records.DatabasePrefix, m.schema.Records.Store) {
+		if !m.schema.Records.selects(record) {
 			continue
 		}
 		tally.StoreRecords++

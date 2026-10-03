@@ -24,7 +24,7 @@ func UIDChanges(current, next Schema, records []indexeddb.Record) (map[string]st
 	}
 	changes := map[string]string{}
 	for _, record := range records {
-		if inStore(record, current.Records.DatabasePrefix, current.Records.Store) {
+		if current.Records.selects(record) {
 			pair.collect(record.Value, changes)
 		}
 	}

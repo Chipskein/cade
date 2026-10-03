@@ -111,7 +111,7 @@ func (env commandEnv) saveDiscovered(cfg config.Config, request idbDiscoverReque
 		return err
 	}
 	fmt.Fprintf(env.stdout, env.language.pick("schema %q salvo em %s: %s de %d registros do store %q.\n", "schema %q saved to %s: %s from %d records of store %q.\n"),
-		found.Schema.Name, dir.FilePath(found.Schema.Name), env.language.count(found.Events, discoveredMessageNoun), found.Tally.StoreRecords, found.Schema.Records.Store)
+		found.Schema.Name, dir.FilePath(found.Schema.Name), env.language.count(found.Events, discoveredMessageNoun), found.Tally.StoreRecords, found.Schema.Records.Container)
 	hint, _ := json.Marshal(map[string][]string{found.Schema.Name: {request.dir}})
 	fmt.Fprintf(env.stdout, env.language.pick("Para ingerir, acrescente em sources.indexeddb_dirs da configuração: %s\ne rode: cade ingest %s\n", "To ingest, add to sources.indexeddb_dirs in the config: %s\nand run: cade ingest %s\n"),
 		hint, found.Schema.Name)

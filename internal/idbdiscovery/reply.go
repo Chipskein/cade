@@ -70,7 +70,7 @@ type schemaTarget struct {
 func (r fieldsReply) schema(target schemaTarget, catalog Catalog, store StoreView, each idbmap.Path) (idbmap.Schema, error) {
 	schema := idbmap.Schema{
 		Version: idbmap.FormatVersion, Target: idbmap.TargetMessage, Name: target.name, Source: target.source, Revision: 1,
-		Records: idbmap.RecordSelector{DatabasePrefix: idbschema.StablePrefix(store.Database), Store: store.Store, Each: each},
+		Records: idbmap.RecordSelector{Location: store.location(), Each: each},
 		Fields:  r.fields(),
 	}
 	if r.Keep != nil {
@@ -112,5 +112,11 @@ func (l lookupReply) lookup(catalog Catalog) (*idbmap.Lookup, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sender lookup: %w", err)
 	}
-	return &idbmap.Lookup{Location: idbmap.Location{NamespacePrefix: idbschema.StablePrefix(store.Database), Container: store.Store}, KeyPath: l.Key, Match: l.Match, Values: []idbmap.Path{l.Value}}, nil
+	return &idbmap.Lookup{Location: store.location(), KeyPath: l.Key, Match: l.Match, Values: []idbmap.Path{l.Value}}, nil
+}
+
+// location is where a schema finds the store: its database cut to the
+// stable prefix, since the rest often names the user.
+func (s StoreView) location() idbmap.Location {
+	return idbmap.Location{NamespacePrefix: idbschema.StablePrefix(s.Database), Container: s.Store}
 }

@@ -117,7 +117,7 @@ func TestCollectEventsStopsOnErrors(t *testing.T) {
 
 func TestNewCollectorRejectsInvalidSchemas(t *testing.T) {
 	schema := chatSchemaParsed(t)
-	schema.Records.Store = ""
+	schema.Records.Container = ""
 	if _, err := NewCollector(FakeIndexedDBReader{}.Read, whatsappDir, schema); err == nil {
 		t.Fatal("expected an error for a schema without store")
 	}
