@@ -31,7 +31,7 @@ func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.Sour
 // schemaSpecs registers one source per saved IndexedDB schema. A schema
 // named like a built-in source is left out rather than hide it, and an
 // unreadable directory registers nothing: ingest then names the source as
-// unknown, and `cade idb-discover` recreates the schema.
+// unknown, and `cade schema-discover` recreates the schema.
 func schemaSpecs(sources config.SourcesConfig, dir idbmap.SchemaDir, builtIn []ingest.SourceSpec) []ingest.SourceSpec {
 	names, err := dir.Names()
 	if err != nil {
@@ -50,12 +50,12 @@ func schemaSpecs(sources config.SourcesConfig, dir idbmap.SchemaDir, builtIn []i
 // schemaCollectorFactory loads the schema when its source is ingested, so
 // a hand edit gone wrong fails there, naming the file.
 func schemaCollectorFactory(dir idbmap.SchemaDir, name string) func(string) (ingest.EventCollector, error) {
-	return func(indexedDBDir string) (ingest.EventCollector, error) {
+	return func(location string) (ingest.EventCollector, error) {
 		schema, err := dir.Load(name)
 		if err != nil {
 			return nil, err
 		}
-		return idbsource.NewCollector(readIndexedDB, indexedDBDir, schema)
+		return idbsource.NewCollector(storeReaders(), location, schema)
 	}
 }
 

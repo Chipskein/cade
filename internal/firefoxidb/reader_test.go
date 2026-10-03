@@ -9,6 +9,7 @@ import (
 
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 	"github.com/klauspost/compress/snappy"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -87,11 +88,23 @@ func TestReadDirectoryNamesDatabasesAndStores(t *testing.T) {
 		[]fixtureValue{{1, "u", "user-u", nil}})
 	got := map[string]string{}
 	for _, record := range readFixture(t, dir, FakeCloneDecoder{}) {
-		got[record.Database+"/"+record.Store+"/"+record.Value.Text] = ""
+		got[record.Namespace+"/"+record.Container+"/"+record.Value.Text] = ""
 	}
 	for _, want := range []string{"model-storage/chat/chat-a", "model-storage/message/msg-b", "model-storage/message/msg-c", "wawc/user/user-u"} {
 		if _, ok := got[want]; !ok || len(got) != 4 {
 			t.Fatalf("expected %q among 4 decompressed records, got %v", want, got)
+		}
+	}
+}
+
+func TestReaderRecognizesIdbDirectoriesOnly(t *testing.T) {
+	reader := NewReader(FakeCloneDecoder{}.Decode, openForTest)
+	if !reader.Recognizes(sampleDir) || reader.Kind() != webstore.KindIndexedDB {
+		t.Fatalf("Recognizes(%q) = false or kind %q; want an indexeddb idb directory", sampleDir, reader.Kind())
+	}
+	for _, other := range []string{"../../testdata/chrome-indexeddb.leveldb", filepath.Join(t.TempDir(), "absent")} {
+		if reader.Recognizes(other) {
+			t.Fatalf("Recognizes(%q) = true; want false without a .sqlite file", other)
 		}
 	}
 }
@@ -114,7 +127,7 @@ func TestReadDirectoryKeepsRecordsThatFailToDecode(t *testing.T) {
 	writeFixtureDatabase(t, filepath.Join(dir, "db.sqlite"), "db", map[int64]string{1: "s"}, []fixtureValue{{1, "k", "x", nil}})
 	failure := errors.New("unknown tag")
 	records := readFixture(t, dir, FakeCloneDecoder{FailWith: failure})
-	if len(records) != 1 || !errors.Is(records[0].DecodeErr, failure) || records[0].Store != "s" {
+	if len(records) != 1 || !errors.Is(records[0].DecodeErr, failure) || records[0].Container != "s" {
 		t.Fatalf("expected one failed record in store s, got %+v", records)
 	}
 }
@@ -122,8 +135,8 @@ func TestReadDirectoryKeepsRecordsThatFailToDecode(t *testing.T) {
 func TestReadDirectoryNamesUnknownStoresByID(t *testing.T) {
 	dir := t.TempDir()
 	writeFixtureDatabase(t, filepath.Join(dir, "db.sqlite"), "db", map[int64]string{}, []fixtureValue{{7, "k", "x", nil}})
-	if records := readFixture(t, dir, FakeCloneDecoder{}); records[0].Store != "#7" {
-		t.Fatalf("expected store #7, got %q", records[0].Store)
+	if records := readFixture(t, dir, FakeCloneDecoder{}); records[0].Container != "#7" {
+		t.Fatalf("expected store #7, got %q", records[0].Container)
 	}
 }
 

@@ -45,7 +45,7 @@
 | `sources.git_identities` | Identidades tratadas como "você". |
 | `sources.browser_histories` | Arquivos de histórico usados no `ingest browser`. |
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
-| `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade idb-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
+| `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade schema-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
 | `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
@@ -104,31 +104,37 @@ Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil d
 
 Aplicativos que guardam os dados no IndexedDB do navegador podem ser ingeridos sem código próprio. O modelo local escreve um **schema** uma vez por aplicativo: um arquivo JSON que diz em que store estão as mensagens e de onde vem cada campo. A ingestão lê com o schema e nunca roda o modelo. São lidos perfis Chromium (`*.indexeddb.leveldb`) e perfis do Firefox e do Floorp (`storage/default/<origem>/idb`).
 
-1. `cade idb-discover --name whatsapp <diretório>` lê o diretório, pergunta ao modelo (duas perguntas curtas, sob uma gramática que só aceita caminhos que existem) e salva `whatsapp.json` em `sources.indexeddb_schema_dir`. `--print` só mostra; `--force` substitui um já salvo; `--source` dá a fonte dos eventos quando ela é diferente do nome.
+Um schema diz qual armazenamento do navegador ele lê (`records.kind`). O IndexedDB (`indexeddb`) é o único que o cade lê hoje; `local_storage`, `opfs`, `http_cache` e `cache_api` são aceitos num schema e passam a ser lidos à medida que os leitores chegarem. Os comandos descobrem qual armazenamento um diretório guarda pela estrutura dele.
+
+1. `cade schema-discover --name whatsapp <diretório>` lê o diretório, pergunta ao modelo (duas perguntas curtas, sob uma gramática que só aceita caminhos que existem) e salva `whatsapp.json` em `sources.indexeddb_schema_dir`. `--print` só mostra; `--force` substitui um já salvo; `--source` dá a fonte dos eventos quando ela é diferente do nome.
 2. Acrescente o diretório em `sources.indexeddb_dirs` (o comando mostra a linha) e rode `cade ingest whatsapp`. Cada schema salvo vira uma fonte com o mesmo nome; um com o nome de uma fonte embutida (`teams`, `git`…) é ignorado.
 3. Revise o schema: o rascunho de um modelo pequeno às vezes lê um campo do caminho errado. Na amostra do Teams ele acertou o store, os ids, o remetente e as horas, mas não pôs condição para mensagens de sistema; no WhatsApp Web leu a conversa do id de uma chave de criptografia. Edite o arquivo à mão; ele é conferido ao ser carregado.
 
-**Formato do schema** (`version` 1, `target` `message/1`):
+**Formato do schema** (`version` 2, `target` `message/1`):
 
 | Chave | Significado |
 |---|---|
-| `records` | `database_prefix` e `store` escolhem os registros; `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`). |
+| `records` | `kind` é o armazenamento (`indexeddb`…); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`). |
 | `require` | Condições que um item precisa cumprir: `in` / `not_in` (valores do texto em `path`), `kind_not` (`object`, `undefined`…; um valor ausente é `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (obrigatórios); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | `paths` do campo | Lidos em ordem; o primeiro com valor vence. |
 | `split` do campo | `separator` e `index`: fica com uma parte de um valor composto (`false_<chat>_<id>`). Um flag também lê uma parte igual a `true`. |
 | `transform` do campo | Texto: `trim`, `html_text`. Hora: `unix_ms`, `unix_s`, `iso8601`; um `Date` do JavaScript não precisa de nenhum. |
-| `lookup` do campo | Lê `values` (o primeiro com valor) do registro de outro `store` cujo `match` é igual ao `key_path` do item, ou ao valor de outro campo (`key_field`, um nível). |
+| `lookup` do campo | Lê `values` (o primeiro com valor) do registro em outro `namespace_prefix` e `container`, do mesmo armazenamento, cujo `match` é igual ao `key_path` do item, ou ao valor de outro campo (`key_field`, um nível). |
 | `default`, `required` do campo | O valor quando nada mais tem um; `required` descarta o item quando o campo fica vazio. |
+
+Schemas salvos como `version` 1 (de antes do `kind`) continuam funcionando sem edição: são lidos como `indexeddb`, com `database_prefix` e `store` no lugar de `namespace_prefix` e `container`, e uma substituição os grava como versão 2.
 
 Os caminhos usam a notação que o `cade teams-schema` mostra: `$` é o registro ou o item, `.chave`, `[]` itens de lista, `{}` valores de Map, `<>` membros de Set, e `.<id>` / `.<text>` para chaves que são dados (casam com toda chave assim). O UID de uma mensagem é a fonte, o id da conversa e o id da mensagem, então a mesma mensagem lida duas vezes continua um evento só.
 
-**Quando o aplicativo muda.** Aplicativos mudam o jeito de guardar os dados sem aviso. Um schema feito pelo `idb-discover` guarda uma impressão digital: os caminhos que ele lê com os tipos, sem valores.
+**Quando o aplicativo muda.** Aplicativos mudam o jeito de guardar os dados sem aviso. Um schema feito pelo `schema-discover` guarda uma impressão digital: os caminhos que ele lê com os tipos, sem valores.
 
-- `cade idb-check [NOME…]` compara cada schema com os diretórios dele agora e lista os caminhos que sumiram ou mudaram de tipo. Ele sai com erro enquanto houver mudança sem resolver, então pode rodar num timer; o `ingest` só lê e aponta para ele quando nada mais mapeia.
-- `cade idb-check --update` regenera o que mudou. O modelo também lê o schema atual e a mudança. O schema novo só substitui o atual se mapear pelo menos tantas mensagens e mantiver o UID de pelo menos 90% delas; o atual vai para `history/<nome>.<revisão>.json`. Senão, ele é salvo como `<nome>.candidate.json` para revisão, e a ingestão nunca o lê.
+- `cade schema-check [NOME…]` compara cada schema com os diretórios dele agora e lista os caminhos que sumiram ou mudaram de tipo. Ele sai com erro enquanto houver mudança sem resolver, então pode rodar num timer; o `ingest` só lê e aponta para ele quando nada mais mapeia.
+- `cade schema-check --update` regenera o que mudou. O modelo também lê o schema atual e a mudança. O schema novo só substitui o atual se mapear pelo menos tantas mensagens e mantiver o UID de pelo menos 90% delas; o atual vai para `history/<nome>.<revisão>.json`. Senão, ele é salvo como `<nome>.candidate.json` para revisão, e a ingestão nunca o lê.
 - `--rekey` aceita também um schema que muda a identidade das mensagens (o aplicativo trocou o campo de id): as mensagens já indexadas ganham o UID novo, depois de uma cópia `cade.db.before-rekey-<data>`. Uma mensagem esquecida continua esquecida.
-- `cade idb-discover --rollback --name NOME` volta à revisão anterior.
+- `cade schema-discover --rollback --name NOME` volta à revisão anterior.
+
+`idb-discover` e `idb-check`, os nomes de quando os schemas só liam IndexedDB, continuam rodando os mesmos comandos.
 
 Uma troca de schema nunca apaga eventos já indexados. Uma revisão nova que lê uma mensagem de outro jeito a substitui na próxima ingestão, se o aplicativo ainda a tiver; uma mensagem que já saiu do cache do aplicativo fica com o que a revisão antiga leu.
 

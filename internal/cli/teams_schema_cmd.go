@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/idbschema"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // maxFieldsPerStore keeps the report readable; the most frequent paths are
@@ -24,7 +25,7 @@ func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
 			env.language.pick("informe o diretório", "name the directory"))
 	}
 	for _, dir := range args {
-		records, err := env.toolkit.ReadIndexedDB(dir)
+		records, err := env.toolkit.StoreReaders.ReadKind(webstore.KindIndexedDB, dir)
 		if err != nil {
 			return err
 		}

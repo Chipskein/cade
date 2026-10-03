@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Armazenamentos do navegador atrás de um leitor só (#73)
+
+- **Os schemas não estão mais presos ao IndexedDB.** De onde vêm os registros ficou separado de como eles viram mensagem: cada armazenamento do navegador tem um leitor que entrega os mesmos registros (tipo, origem, namespace, contêiner e o valor decodificado), e os leitores do IndexedDB do Chromium e do Firefox são os primeiros. Um armazenamento novo (localStorage, OPFS, cache HTTP, Cache API: #74, #75) só precisa de um leitor; o coletor, a descoberta e o schema ficam como estão (um teste mostra isso com um leitor falso).
+- **Formato de schema versão 2:** `records.kind` diz qual é o armazenamento (`indexeddb` é o único lido hoje), e `namespace_prefix` e `container` substituem `database_prefix` e `store` nos records, nos lookups e nas impressões digitais. Os schemas da versão 1, salvos na #19, continuam funcionando sem edição: são lidos como `indexeddb`, e uma substituição os grava como versão 2.
+- **`cade schema-discover` e `cade schema-check`** são os nomes novos do `idb-discover` e do `idb-check`, que continuam rodando os mesmos comandos. A descoberta acha qual armazenamento um diretório guarda pela estrutura dele; um diretório de estrutura desconhecida é recusado, com o nome dele.
+- Sem migração do banco.
+
 ### Outros aplicativos por schemas de IndexedDB (#19)
 
 - **Qualquer aplicativo que guarda os dados no IndexedDB do navegador** pode ser ingerido sem código próprio. O `cade idb-discover --name N DIR` faz o modelo local escrever um schema uma vez: em que store estão as mensagens e de onde vem cada campo. O modelo preenche um alvo fixo (a mensagem que o cade já guarda) sob uma gramática montada com os caminhos que o IndexedDB tem de verdade, então não consegue inventar um; o schema proposto é testado nos mesmos registros antes de ser salvo. Cada schema em `sources.indexeddb_schema_dir` vira uma fonte do `ingest`, com `sources.indexeddb_dirs` como alvos. A ingestão nunca roda o modelo. Formato e opções em [docs/CONFIGURATION.pt-BR.md](docs/CONFIGURATION.pt-BR.md#outros-aplicativos-por-schemas-de-indexeddb-experimental).

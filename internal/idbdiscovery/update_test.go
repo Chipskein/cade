@@ -14,8 +14,8 @@ func TestRegenerateTellsTheModelWhatChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 	drift := idbmap.Drift{
-		Missing: []idbmap.PathShape{{Store: "replychains", Path: "$.messageMap.<id>.content", Kinds: []string{"string"}}},
-		Changed: []idbmap.PathShape{{Store: "replychains", Path: "$.messageMap.<id>.originalArrivalTime", Kinds: []string{"string"}}},
+		Missing: []idbmap.PathShape{{Location: idbmap.Location{Container: "replychains"}, Path: "$.messageMap.<id>.content", Kinds: []string{"string"}}},
+		Changed: []idbmap.PathShape{{Location: idbmap.Location{Container: "replychains"}, Path: "$.messageMap.<id>.originalArrivalTime", Kinds: []string{"string"}}},
 	}
 	generator := &FakeSchemaGenerator{Replies: teamsReplies(t)}
 	found, err := NewDiscoverer(generator, DefaultCatalogLimits).Regenerate(context.Background(), teamsRecords(t), current.Schema, drift)

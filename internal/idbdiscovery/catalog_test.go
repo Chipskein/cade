@@ -11,6 +11,7 @@ import (
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/smclone"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -29,7 +30,7 @@ func teamsCatalog(t *testing.T) Catalog {
 	return BuildCatalog(records, DefaultCatalogLimits)
 }
 
-func firefoxRecords(t *testing.T) []indexeddb.Record {
+func firefoxRecords(t *testing.T) []webstore.Record {
 	t.Helper()
 	open := func(path string) (*sql.DB, error) { return sql.Open("sqlite3", path) }
 	records, err := firefoxidb.NewReader(smclone.Decode, open).ReadDirectory(firefoxSampleDir)

@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/chipskein/cade/internal/filecopy"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // DecodeClone turns one uncompressed SpiderMonkey structured clone into a
@@ -40,6 +43,24 @@ func NewReader(decode DecodeClone, open OpenDatabase) Reader {
 // holds a single IndexedDB database.
 const sqliteSuffix = ".sqlite"
 
+func (Reader) Kind() webstore.Kind { return webstore.KindIndexedDB }
+
+// Recognizes an idb directory: Firefox keeps one SQLite file per
+// IndexedDB database in it.
+func (Reader) Recognizes(location string) bool {
+	entries, err := os.ReadDir(location)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(entries, func(entry os.DirEntry) bool {
+		return entry.Type().IsRegular() && strings.HasSuffix(entry.Name(), sqliteSuffix)
+	})
+}
+
+func (r Reader) Read(location string) ([]webstore.Record, error) {
+	return r.ReadDirectory(location)
+}
+
 // ReadDirectory snapshots dir (Firefox keeps the files open and writing)
 // and returns every object-store record of every database in it.
 //
@@ -57,7 +78,8 @@ func (r Reader) ReadDirectory(dir string) ([]indexeddb.Record, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list databases in %q: %w", snapshot, err)
 	}
-	return r.readDatabases(paths)
+	records, err := r.readDatabases(paths)
+	return webstore.WithOrigin(records, indexeddb.OriginName(dir)), err
 }
 
 func (r Reader) readDatabases(paths []string) ([]indexeddb.Record, error) {

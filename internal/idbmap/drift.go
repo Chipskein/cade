@@ -5,17 +5,16 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
-// PathShape is one path a schema reads, in its store, with the kinds it
-// held when the schema was made: the structure, never a value.
+// PathShape is one path a schema reads, at its location, with the kinds
+// it held when the schema was made: the structure, never a value.
 type PathShape struct {
-	DatabasePrefix string   `json:"database_prefix"`
-	Store          string   `json:"store"`
-	Path           Path     `json:"path"`
-	Kinds          []string `json:"kinds"`
+	Location
+	Path  Path     `json:"path"`
+	Kinds []string `json:"kinds"`
 }
 
 // TakeFingerprint records the shape of every path schema reads, as found in
@@ -23,7 +22,7 @@ type PathShape struct {
 // schema that never matched.
 //
 //	schema.Fingerprint = idbmap.TakeFingerprint(schema, records)
-func TakeFingerprint(schema Schema, records []indexeddb.Record) []PathShape {
+func TakeFingerprint(schema Schema, records []webstore.Record) []PathShape {
 	shapes := usedPaths(schema)
 	observed := observedKinds(shapes, records)
 	for i := range shapes {
@@ -32,19 +31,19 @@ func TakeFingerprint(schema Schema, records []indexeddb.Record) []PathShape {
 	return shapes
 }
 
-// shapeKey names one path of one store, the way the schema selects it.
+// shapeKey names one path at one location, the way the schema selects it.
 type shapeKey struct {
-	databasePrefix, store string
-	path                  Path
+	location Location
+	path     Path
 }
 
 func (s PathShape) key() shapeKey {
-	return shapeKey{s.DatabasePrefix, s.Store, s.Path}
+	return shapeKey{s.Location, s.Path}
 }
 
 // usedPaths lists the store and record path of everything schema reads.
 func usedPaths(schema Schema) []PathShape {
-	store := storeRef{schema.Records.DatabasePrefix, schema.Records.Store}
+	store := schema.Records.Location
 	each := schema.Records.Each
 	var used usedPathList
 	used.add(store, "", each)
@@ -59,26 +58,21 @@ func usedPaths(schema Schema) []PathShape {
 	return used
 }
 
-// storeRef is a store as a schema selects it.
-type storeRef struct {
-	databasePrefix, store string
-}
-
 // usedPathList keeps each store path once, in first-use order.
 type usedPathList []PathShape
 
-func (u *usedPathList) addRule(store storeRef, each Path, rule FieldRule) {
+func (u *usedPathList) addRule(store Location, each Path, rule FieldRule) {
 	u.add(store, each, rule.Paths...)
 	if rule.Lookup == nil {
 		return
 	}
 	u.add(store, each, rule.Lookup.KeyPath)
-	u.add(storeRef{rule.Lookup.DatabasePrefix, rule.Lookup.Store}, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
+	u.add(rule.Lookup.Location, "", append([]Path{rule.Lookup.Match}, rule.Lookup.Values...)...)
 }
 
-func (u *usedPathList) add(store storeRef, root Path, paths ...Path) {
+func (u *usedPathList) add(store Location, root Path, paths ...Path) {
 	for _, path := range paths {
-		shape := PathShape{DatabasePrefix: store.databasePrefix, Store: store.store, Path: underRoot(root, path)}
+		shape := PathShape{Location: store, Path: underRoot(root, path)}
 		if path != "" && !slices.ContainsFunc(*u, func(used PathShape) bool { return used.key() == shape.key() }) {
 			*u = append(*u, shape)
 		}
@@ -97,7 +91,7 @@ func underRoot(root, path Path) Path {
 // observedKinds maps each shape's path to the kinds seen there now, sorted,
 // in the summary's notation; undefined and null say nothing and are left
 // out. Records are selected per store the way the schema selects them.
-func observedKinds(shapes []PathShape, records []indexeddb.Record) map[shapeKey][]string {
+func observedKinds(shapes []PathShape, records []webstore.Record) map[shapeKey][]string {
 	kinds := map[shapeKey][]string{}
 	for store := range storesOf(shapes) {
 		addKinds(kinds, store, idbschema.Summarize(recordsOf(records, store)))
@@ -105,28 +99,28 @@ func observedKinds(shapes []PathShape, records []indexeddb.Record) map[shapeKey]
 	return kinds
 }
 
-func recordsOf(records []indexeddb.Record, store storeRef) []indexeddb.Record {
-	var selected []indexeddb.Record
+func recordsOf(records []webstore.Record, store Location) []webstore.Record {
+	var selected []webstore.Record
 	for _, record := range records {
-		if inStore(record, store.databasePrefix, store.store) {
+		if store.selects(record) {
 			selected = append(selected, record)
 		}
 	}
 	return selected
 }
 
-func storesOf(shapes []PathShape) map[storeRef]bool {
-	stores := map[storeRef]bool{}
+func storesOf(shapes []PathShape) map[Location]bool {
+	stores := map[Location]bool{}
 	for _, shape := range shapes {
-		stores[storeRef{shape.DatabasePrefix, shape.Store}] = true
+		stores[shape.Location] = true
 	}
 	return stores
 }
 
-func addKinds(kinds map[shapeKey][]string, store storeRef, summaries []idbschema.StoreSummary) {
+func addKinds(kinds map[shapeKey][]string, store Location, summaries []idbschema.StoreSummary) {
 	for _, summary := range summaries {
 		for _, field := range summary.Fields {
-			key := shapeKey{store.databasePrefix, store.store, Path(field.Path)}
+			key := shapeKey{store, Path(field.Path)}
 			kinds[key] = mergeKinds(kinds[key], field.Kinds)
 		}
 	}
@@ -158,12 +152,12 @@ func (d Drift) Drifted() bool {
 // MeasureDrift compares schema's fingerprint and mapping with records. A
 // schema without a fingerprint (written by hand) is judged by its mapping
 // alone.
-func MeasureDrift(schema Schema, records []indexeddb.Record) (Drift, error) {
+func MeasureDrift(schema Schema, records []webstore.Record) (Drift, error) {
 	mapper, err := NewMapper(schema)
 	if err != nil {
 		return Drift{}, err
 	}
-	_, tally, err := mapper.Apply(records, "")
+	_, tally, err := mapper.Apply(records)
 	if err != nil {
 		return Drift{}, err
 	}

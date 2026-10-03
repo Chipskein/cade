@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // FakeSchemaGenerator answers the discovery's calls in order and records
@@ -34,7 +35,7 @@ func (f *FakeSchemaGenerator) GenerateStructured(_ context.Context, messages []l
 
 const teamsFieldsReply = `{"message_id": ["$.id"], "conversation_id": ["$.conversationId"], "sent_at": ["$.originalArrivalTime", "$.clientArrivalTime"], "time_format": "unix_ms", "sender": ["$.imDisplayName"], "sender_id": ["$.creator"], "conversation": [], "text": ["$.content"], "text_format": "html_text", "sent_by_me": ["$.isSentByCurrentUser"], "keep": {"path": "$.messageType", "in": ["Text", "RichText/Html"]}, "sender_lookup": {"store": "PROFILES", "key": "$.creator", "match": "$.mri", "value": "$.displayName"}}`
 
-func teamsRecords(t *testing.T) []indexeddb.Record {
+func teamsRecords(t *testing.T) []webstore.Record {
 	t.Helper()
 	records, err := indexeddb.ReadDirectory(teamsSampleDir)
 	if err != nil {
@@ -65,17 +66,17 @@ func TestDiscoverBuildsASchemaThatMapsTheRecords(t *testing.T) {
 		t.Fatalf("expected mapped events, got %+v (err %v)", found, err)
 	}
 	schema := found.Schema
-	if schema.Name != "teams-web" || schema.Source != "teams" || schema.Records.Store != "replychains" || schema.Records.Each != "$.messageMap.<id>" {
+	if schema.Name != "teams-web" || schema.Source != "teams" || schema.Records.Container != "replychains" || schema.Records.Each != "$.messageMap.<id>" {
 		t.Fatalf("unexpected header %+v", schema)
 	}
-	if !strings.HasPrefix(schema.Records.DatabasePrefix, "Teams:replychain-manager:") || schema.Fields[idbmap.FieldSentAt].Transform != idbmap.TransformUnixMS {
+	if !strings.HasPrefix(schema.Records.NamespacePrefix, "Teams:replychain-manager:") || schema.Fields[idbmap.FieldSentAt].Transform != idbmap.TransformUnixMS {
 		t.Fatalf("unexpected records %+v / sent_at %+v", schema.Records, schema.Fields[idbmap.FieldSentAt])
 	}
 	if len(schema.Fingerprint) == 0 || schema.Fingerprint[0].Path != "$.messageMap.<id>" || schema.Fingerprint[0].Kinds[0] != "object" {
 		t.Fatalf("expected a fingerprint starting at the message items, got %+v", schema.Fingerprint)
 	}
 	sender := schema.Fields[idbmap.FieldSender]
-	if sender.Lookup == nil || sender.Lookup.Store != "profiles" || sender.Default != unknownSender || schema.Fields[idbmap.FieldText].Transform != idbmap.TransformHTMLText {
+	if sender.Lookup == nil || sender.Lookup.Container != "profiles" || sender.Default != unknownSender || schema.Fields[idbmap.FieldText].Transform != idbmap.TransformHTMLText {
 		t.Fatalf("unexpected sender %+v / text %+v", sender, schema.Fields[idbmap.FieldText])
 	}
 }

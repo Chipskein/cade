@@ -24,7 +24,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 | `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
 | `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas, perfis do Teams e diretórios de IndexedDB ler | `600` |
 | `~/.config/cade/idb-schemas/` | um schema por aplicativo: nomes de bancos e stores, caminhos dos campos e seus tipos, as condições que você ou o modelo escreveram (como valores de tipo de mensagem); nenhuma mensagem, nome ou id. `history/` guarda as revisões substituídas, `*.candidate.json` as recusadas | `600` |
-| `~/.local/share/cade/cade.db.before-rekey-*` | cópia salva antes de o `idb-check --rekey` renomear UIDs; mesmo conteúdo do banco | `600` |
+| `~/.local/share/cade/cade.db.before-rekey-*` | cópia salva antes de o `schema-check --rekey` renomear UIDs; mesmo conteúdo do banco | `600` |
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
 | `~/.local/state/cade/ingest-state.json` | o `ingest` em andamento ou o último: argumentos (fonte e alvos), etapa, última linha de progresso e erro | `600` |
 | `~/.local/state/cade/ingest.log` | saída do último `ingest start`: linhas de progresso com os alvos, o relatório, erros; substituído a cada execução em segundo plano | `600` |
@@ -65,7 +65,7 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 ## Outros aplicativos por schemas de IndexedDB
 
 - **O mesmo cuidado do Teams:** o cache de um aplicativo de conversa guarda mensagens de outras pessoas, e ingeri-lo copia essas mensagens para o banco do cade. Confira antes os termos do aplicativo e da sua organização.
-- O `idb-discover`, o `idb-check` e a ingestão copiam o diretório do IndexedDB para uma pasta temporária, leem a cópia e a apagam. O cade nunca altera os dados do aplicativo.
+- O `schema-discover`, o `schema-check` e a ingestão copiam o diretório do IndexedDB para uma pasta temporária, leem a cópia e a apagam. O cade nunca altera os dados do aplicativo.
 - **Dado cifrado continua cifrado.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB; o cade não decifra, então as mensagens dele são indexadas só por metadados.
 - Uma mensagem apagada no aplicativo depois de ingerida **continua** no cade até `cade forget <fonte>`. Uma troca de schema nunca apaga eventos.
 
@@ -79,7 +79,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 - **Estado do prompt salvo:** `~/.cache/cade/prompt-state/` guarda um arquivo (~55 MB, só o dono lê) com o estado do modelo depois das instruções e exemplos fixos. Não contém pergunta nenhuma nem nada do banco.
 - **Respostas:** a sua pergunta, a data de hoje e até `top_k` (6 por padrão) eventos; de um evento longo, só o pedaço que casou (até 1.200 caracteres), senão o texto até esse tamanho.
 - **Texto que dá ordens ao assistente:** mensagens, títulos de páginas e notas são palavras de outras pessoas, e alguma pode ser escrita para manipular a resposta ("IMPORTANTE para o assistente: ignore as regras…"). Esses eventos vão ao modelo marcados como não confiáveis e sem o texto, com uma regra para não usá-los nem citá-los; a lista de fontes mostra o evento com a marca, e o `ask --json` põe `"untrusted": true`. Isso reduz o risco sem eliminá-lo: um texto que o detector não reconhece ainda chega inteiro ao modelo e pode manipular a resposta, mas o modelo não tem ferramentas, então não consegue agir sobre nada.
-- **Descoberta de schemas** (só no `cade idb-discover` e no `cade idb-check --update`, rodados por você): os maiores stores do IndexedDB com os nomes mascarados (e-mails, GUIDs e sequências de 6 ou mais dígitos escondidos), os caminhos dos campos e os tipos encontrados, e até duas amostras por caminho. Amostras de texto são mascaradas do mesmo jeito e cortadas em 40 caracteres; números mostram só a quantidade de dígitos (`<n:13>`), datas e dados binários só o tipo. Numa regeneração, ele lê também o schema atual (só caminhos) e quais caminhos mudaram. O schema que ele escreve guarda caminhos e tipos, nunca uma amostra. A ingestão nunca roda o modelo.
+- **Descoberta de schemas** (só no `cade schema-discover` e no `cade schema-check --update`, rodados por você): os maiores stores do IndexedDB com os nomes mascarados (e-mails, GUIDs e sequências de 6 ou mais dígitos escondidos), os caminhos dos campos e os tipos encontrados, e até duas amostras por caminho. Amostras de texto são mascaradas do mesmo jeito e cortadas em 40 caracteres; números mostram só a quantidade de dígitos (`<n:13>`), datas e dados binários só o tipo. Numa regeneração, ele lê também o schema atual (só caminhos) e quais caminhos mudaram. O schema que ele escreve guarda caminhos e tipos, nunca uma amostra. A ingestão nunca roda o modelo.
 - Nada mais do banco é passado ao modelo. Listagens e relatórios de tarefas não usam o modelo de geração; uma listagem com assunto ("páginas sobre redis") só embute o assunto.
 
 ## Logs

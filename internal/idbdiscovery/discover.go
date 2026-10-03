@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/chipskein/cade/internal/idbmap"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Token budgets of the two answers: a store label and a path, then the
@@ -45,18 +45,18 @@ type Discovery struct {
 
 // Discover proposes a schema called name, whose events get source, from
 // records. The model runs twice: to pick the store, then to fill fields.
-func (d Discoverer) Discover(ctx context.Context, records []indexeddb.Record, name, source string) (Discovery, error) {
+func (d Discoverer) Discover(ctx context.Context, records []webstore.Record, name, source string) (Discovery, error) {
 	return d.discover(ctx, records, schemaTarget{name: name, source: source}, "")
 }
 
 // Regenerate proposes a replacement for current after the application
 // changed: the model also reads the current mapping and what drifted, so
 // it keeps what still exists. The caller decides with CompareSchemas.
-func (d Discoverer) Regenerate(ctx context.Context, records []indexeddb.Record, current idbmap.Schema, drift idbmap.Drift) (Discovery, error) {
+func (d Discoverer) Regenerate(ctx context.Context, records []webstore.Record, current idbmap.Schema, drift idbmap.Drift) (Discovery, error) {
 	return d.discover(ctx, records, schemaTarget{name: current.Name, source: current.Source}, regenerationNote(current, drift))
 }
 
-func (d Discoverer) discover(ctx context.Context, records []indexeddb.Record, target schemaTarget, note string) (Discovery, error) {
+func (d Discoverer) discover(ctx context.Context, records []webstore.Record, target schemaTarget, note string) (Discovery, error) {
 	catalog := BuildCatalog(records, d.limits)
 	if len(catalog.Stores) == 0 {
 		return Discovery{}, fmt.Errorf("none of the %d records decoded to a store with values, expected an IndexedDB the application has written", len(records))
@@ -107,13 +107,13 @@ func (d Discoverer) fillFields(ctx context.Context, catalog Catalog, store Store
 // try applies the schema to the records it came from: a schema that maps
 // nothing is returned with ErrNoMessages, for the user to review. The
 // schema keeps the shape of what it reads, to measure drift later.
-func try(schema idbmap.Schema, records []indexeddb.Record) (Discovery, error) {
+func try(schema idbmap.Schema, records []webstore.Record) (Discovery, error) {
 	schema.Fingerprint = idbmap.TakeFingerprint(schema, records)
 	mapper, err := idbmap.NewMapper(schema)
 	if err != nil {
 		return Discovery{Schema: schema}, fmt.Errorf("the proposed schema is invalid: %w", err)
 	}
-	events, tally, err := mapper.Apply(records, "")
+	events, tally, err := mapper.Apply(records)
 	found := Discovery{Schema: schema, Tally: tally, Events: len(events)}
 	if err != nil {
 		return found, err

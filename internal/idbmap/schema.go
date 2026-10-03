@@ -1,5 +1,5 @@
-// Package idbmap is the declarative mapping from decoded IndexedDB records
-// to cade messages. A Schema is generated once per application (by the
+// Package idbmap is the declarative mapping from decoded browser-storage
+// records (webstore: IndexedDB first) to cade messages. A Schema is generated once per application (by the
 // local model, see idbdiscovery) and kept outside the code; applying it is
 // deterministic and never runs a model.
 package idbmap
@@ -11,10 +11,13 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/chipskein/cade/internal/webstore"
 )
 
-// FormatVersion is the schema file format this code reads.
-const FormatVersion = 1
+// FormatVersion is the schema file format this code writes; it also reads
+// version 1 (see upgrade).
+const FormatVersion = 2
 
 // Target names the cade entity a schema fills, with its version: a change
 // to the entity means migrating saved schemas, not regenerating them.
@@ -57,7 +60,7 @@ var fieldShapes = map[Field]fieldShape{
 // encrypt the body and only metadata can be indexed.
 var requiredFields = []Field{FieldMessageID, FieldConversationID, FieldSentAt}
 
-// Schema maps one application's IndexedDB to messages.
+// Schema maps one application's browser storage to messages.
 //
 //	schema, err := idbmap.Parse(raw)
 type Schema struct {
@@ -70,18 +73,18 @@ type Schema struct {
 	Require  []Condition         `json:"require,omitempty"`
 	Fields   map[Field]FieldRule `json:"fields"`
 	// Fingerprint is the shape of what the schema reads when it was made;
-	// MeasureDrift compares it with the application's IndexedDB now.
+	// MeasureDrift compares it with the application's storage now.
 	Fingerprint []PathShape `json:"fingerprint,omitempty"`
 }
 
-// RecordSelector picks the records that hold messages: those of Store in a
-// database whose name starts with DatabasePrefix, and, when Each is set,
-// every value Each reaches inside one record (a chat record holding a map
-// of messages).
+// RecordSelector picks the records that hold messages: those of the
+// storage of Kind at Location, and, when Each is set, every value Each
+// reaches inside one record (a chat record holding a map of messages).
+// Lookups read the same storage.
 type RecordSelector struct {
-	DatabasePrefix string `json:"database_prefix"`
-	Store          string `json:"store"`
-	Each           Path   `json:"each,omitempty"`
+	Kind webstore.Kind `json:"kind"`
+	Location
+	Each Path `json:"each,omitempty"`
 }
 
 // Condition keeps an item only when the string at Path is in In, is not in
@@ -114,17 +117,16 @@ type Split struct {
 	Index     int    `json:"index"`
 }
 
-// Lookup reads the first of Values with a value from the record of another
-// store whose Match equals the item's key: the text at KeyPath, or the
+// Lookup reads the first of Values with a value from the record at another
+// location whose Match equals the item's key: the text at KeyPath, or the
 // value already computed for KeyField (a chat id cut out of a composite
 // key with Split). A sender id becomes a contact name this way.
 type Lookup struct {
-	DatabasePrefix string `json:"database_prefix"`
-	Store          string `json:"store"`
-	KeyPath        Path   `json:"key_path,omitempty"`
-	KeyField       Field  `json:"key_field,omitempty"`
-	Match          Path   `json:"match"`
-	Values         []Path `json:"values"`
+	Location
+	KeyPath  Path   `json:"key_path,omitempty"`
+	KeyField Field  `json:"key_field,omitempty"`
+	Match    Path   `json:"match"`
+	Values   []Path `json:"values"`
 }
 
 // namePattern keeps schema names and sources usable as file names and
@@ -138,7 +140,10 @@ func Parse(raw []byte) (Schema, error) {
 	decoder.DisallowUnknownFields()
 	var schema Schema
 	if err := decoder.Decode(&schema); err != nil {
-		return Schema{}, fmt.Errorf("parse IndexedDB schema: %w", err)
+		return Schema{}, fmt.Errorf("parse schema: %w", err)
+	}
+	if err := schema.upgrade(); err != nil {
+		return Schema{}, fmt.Errorf("schema %q: %w", schema.Name, err)
 	}
 	return schema, schema.Validate()
 }
@@ -156,7 +161,7 @@ func (s Schema) Validate() error {
 
 func (s Schema) validateHeader() error {
 	if s.Version != FormatVersion {
-		return fmt.Errorf("version %d, expected %d", s.Version, FormatVersion)
+		return fmt.Errorf("version %d, expected %d (or %d, read as %d)", s.Version, FormatVersion, indexedDBOnlyVersion, FormatVersion)
 	}
 	if s.Target != TargetMessage {
 		return fmt.Errorf("target %q, expected %q", s.Target, TargetMessage)
@@ -171,8 +176,11 @@ func (s Schema) validateHeader() error {
 }
 
 func (s Schema) validateRecords() error {
-	if s.Records.Store == "" {
-		return fmt.Errorf("records.store is empty, expected the object store holding the messages")
+	if err := s.Records.Kind.Validate(); err != nil {
+		return fmt.Errorf("records.kind: %w", err)
+	}
+	if s.Records.Container == "" {
+		return fmt.Errorf("records.container is empty, expected the container holding the messages (the object store, in IndexedDB)")
 	}
 	return validatePaths(s.Records.Each)
 }
@@ -227,7 +235,7 @@ func validateLookup(field Field, lookup *Lookup, fields map[Field]FieldRule) err
 	if lookup == nil {
 		return nil
 	}
-	if lookup.Store == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
+	if lookup.Container == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
 		return fmt.Errorf("lookup %+v, expected store, match, values and one of key_path or key_field", *lookup)
 	}
 	if err := validateKeyField(field, lookup.KeyField, fields); err != nil {

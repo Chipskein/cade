@@ -3,10 +3,10 @@ package indexeddb
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 
 	"github.com/chipskein/cade/internal/snappyblock"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Blink value envelopes (third_party/blink/.../idb_value_wrapping.h): a
@@ -26,7 +26,7 @@ const (
 
 // ErrBlobWrapped reports a value too large to live in LevelDB; Chromium
 // moved it to a file in the sibling .blob directory.
-var ErrBlobWrapped = errors.New("value stored in an external blob file")
+var ErrBlobWrapped = webstore.ErrExternalValue
 
 // v8Payload turns a stored object-store value into the bytes v8value.Decode
 // expects: it drops the record version, undoes Snappy wrapping and strips

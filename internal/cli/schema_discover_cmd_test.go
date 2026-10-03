@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 const (
@@ -17,13 +18,13 @@ const (
 	whatsappDir         = "/home/ana/.floorp/p/storage/default/https+++web.whatsapp.com/idb"
 )
 
-func chatRecord(id string) indexeddb.Record {
+func chatRecord(id string) webstore.Record {
 	text := func(value string) *v8value.Value { return &v8value.Value{Kind: v8value.KindString, Text: value} }
 	value := &v8value.Value{Kind: v8value.KindObject, Properties: []v8value.Property{
 		{Key: "id", Value: text(id)}, {Key: "from", Value: text("55@c.us")}, {Key: "body", Value: text("oi")},
 		{Key: "t", Value: &v8value.Value{Kind: v8value.KindNumber, Number: 1727280000}},
 	}}
-	return indexeddb.Record{Database: "model-storage", Store: "message", Value: value}
+	return webstore.Record{Kind: webstore.KindIndexedDB, Namespace: "model-storage", Container: "message", Value: value}
 }
 
 // discoverWorld is a world whose IndexedDB holds two chat messages and
@@ -32,14 +33,14 @@ func discoverWorld(t *testing.T, fieldsReply string) *fakeWorld {
 	t.Helper()
 	world := newFakeWorld()
 	world.cfg.Sources.IndexedDBSchemaDir = t.TempDir()
-	world.indexedDBRecords = []indexeddb.Record{chatRecord("A"), chatRecord("B")}
+	world.indexedDBRecords = []webstore.Record{chatRecord("A"), chatRecord("B")}
 	world.generator.StructuredReplies = []string{discoverStoreReply, fieldsReply}
 	return world
 }
 
-func TestIDBDiscoverSavesTheSchemaAndExplainsTheNextStep(t *testing.T) {
+func TestSchemaDiscoverSavesTheSchemaAndExplainsTheNextStep(t *testing.T) {
 	world := discoverWorld(t, discoverFieldsReply)
-	code, stdout, stderr := world.run("idb-discover", "--name", "whatsapp", whatsappDir)
+	code, stdout, stderr := world.run("schema-discover", "--name", "whatsapp", whatsappDir)
 	if code != 0 || !strings.Contains(stdout, `schema "whatsapp" salvo`) || !strings.Contains(stdout, "2 mensagens de 2 registros") {
 		t.Fatalf("expected the saved schema reported, got %d:\n%s%s", code, stdout, stderr)
 	}
@@ -55,23 +56,23 @@ func TestIDBDiscoverSavesTheSchemaAndExplainsTheNextStep(t *testing.T) {
 	}
 }
 
-func TestIDBDiscoverRefusesToReplaceWithoutForce(t *testing.T) {
+func TestSchemaDiscoverRefusesToReplaceWithoutForce(t *testing.T) {
 	world := discoverWorld(t, discoverFieldsReply)
-	world.run("idb-discover", "--name", "whatsapp", whatsappDir)
+	world.run("schema-discover", "--name", "whatsapp", whatsappDir)
 	world.generator.StructuredReplies = []string{discoverStoreReply, discoverFieldsReply}
-	code, _, stderr := world.run("idb-discover", "--name", "whatsapp", whatsappDir)
+	code, _, stderr := world.run("schema-discover", "--name", "whatsapp", whatsappDir)
 	if code != 1 || !strings.Contains(stderr, "--force") {
 		t.Fatalf("expected a refusal mentioning --force, got %d %q", code, stderr)
 	}
 	world.generator.StructuredReplies = []string{discoverStoreReply, discoverFieldsReply}
-	if code, _, stderr := world.run("idb-discover", "--force", "--name", "whatsapp", whatsappDir); code != 0 {
+	if code, _, stderr := world.run("schema-discover", "--force", "--name", "whatsapp", whatsappDir); code != 0 {
 		t.Fatalf("expected --force to replace, got %d %q", code, stderr)
 	}
 }
 
-func TestIDBDiscoverPrintOnlyDoesNotSave(t *testing.T) {
+func TestSchemaDiscoverPrintOnlyDoesNotSave(t *testing.T) {
 	world := discoverWorld(t, discoverFieldsReply)
-	code, stdout, _ := world.run("idb-discover", "--print", "--name", "whatsapp", "--source", "zap", whatsappDir)
+	code, stdout, _ := world.run("schema-discover", "--print", "--name", "whatsapp", "--source", "zap", whatsappDir)
 	if code != 0 || !strings.Contains(stdout, `"source": "zap"`) {
 		t.Fatalf("expected the schema printed with its source, got %d:\n%s", code, stdout)
 	}
@@ -80,29 +81,43 @@ func TestIDBDiscoverPrintOnlyDoesNotSave(t *testing.T) {
 	}
 }
 
-func TestIDBDiscoverPrintsASchemaThatMapsNothing(t *testing.T) {
+func TestSchemaDiscoverPrintsASchemaThatMapsNothing(t *testing.T) {
 	world := discoverWorld(t, strings.Replace(discoverFieldsReply, `"keep": null`, `"keep": {"path": "$.body", "in": ["nada"]}`, 1))
-	code, stdout, stderr := world.run("idb-discover", "--name", "whatsapp", whatsappDir)
+	code, stdout, stderr := world.run("schema-discover", "--name", "whatsapp", whatsappDir)
 	if code != 1 || !strings.Contains(stdout, `"name": "whatsapp"`) || !strings.Contains(stderr, "maps no message") {
 		t.Fatalf("expected the schema printed for review and the error, got %d:\n%s%s", code, stdout, stderr)
 	}
 }
 
-func TestIDBDiscoverRequiresNameAndDirectory(t *testing.T) {
-	for _, args := range [][]string{{"idb-discover", whatsappDir}, {"idb-discover", "--name", "x"}} {
+func TestSchemaDiscoverRequiresNameAndDirectory(t *testing.T) {
+	for _, args := range [][]string{{"schema-discover", whatsappDir}, {"schema-discover", "--name", "x"}} {
 		if code, _, stderr := newFakeWorld().run(args...); code != 1 || !strings.Contains(stderr, "--name") {
 			t.Errorf("%v: expected a usage error, got %d %q", args, code, stderr)
 		}
 	}
 }
 
-func TestIDBDiscoverReportsReadAndModelErrors(t *testing.T) {
-	if code, _, stderr := newFakeWorld().run("idb-discover", "--name", "x", "/missing"); code != 1 || !strings.Contains(stderr, "no such directory") {
+func TestSchemaDiscoverReportsReadAndModelErrors(t *testing.T) {
+	if code, _, stderr := newFakeWorld().run("schema-discover", "--name", "x", "/missing"); code != 1 || !strings.Contains(stderr, "no such directory") {
 		t.Errorf("read error: got %d %q", code, stderr)
 	}
 	world := discoverWorld(t, discoverFieldsReply)
 	world.generatorLoadError = errors.New("model file not found")
-	if code, _, stderr := world.run("idb-discover", "--name", "x", whatsappDir); code != 1 || !strings.Contains(stderr, "model file not found") {
+	if code, _, stderr := world.run("schema-discover", "--name", "x", whatsappDir); code != 1 || !strings.Contains(stderr, "model file not found") {
 		t.Errorf("model error: got %d %q", code, stderr)
+	}
+}
+
+func TestSchemaDiscoverWritesTheKindOfTheStorageItDetected(t *testing.T) {
+	world := discoverWorld(t, discoverFieldsReply)
+	records := []webstore.Record{chatRecord("A"), chatRecord("B")}
+	for i := range records {
+		records[i].Kind = webstore.KindLocalStorage
+	}
+	world.otherStores = webstore.Readers{&testfakes.FakeStoreReader{StoreKind: webstore.KindLocalStorage, Suffix: "/ls", Records: records}}
+	code, stdout, stderr := world.run("schema-discover", "--name", "chat", "/p/https_chat.example_0/ls")
+	saved, err := os.ReadFile(filepath.Join(world.cfg.Sources.IndexedDBSchemaDir, "chat.json"))
+	if code != 0 || err != nil || !strings.Contains(string(saved), `"kind": "local_storage"`) {
+		t.Fatalf("expected a local_storage schema saved, got %d %q (err %v):\n%s%s", code, saved, err, stdout, stderr)
 	}
 }

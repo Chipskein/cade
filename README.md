@@ -54,9 +54,9 @@ cade compact            # after a large forget: returns the deleted vectors' spa
 Any other app that keeps its data in the browser's IndexedDB (Chrome, Firefox, Floorp), without code of its own: the local model writes a schema once, and ingestion reads with it.
 
 ```sh
-cade idb-discover --name whatsapp ~/.floorp/<profile>/storage/default/https+++web.whatsapp.com/idb
+cade schema-discover --name whatsapp ~/.floorp/<profile>/storage/default/https+++web.whatsapp.com/idb
 cade ingest whatsapp
-cade idb-check --update  # when the app changes how it stores data
+cade schema-check --update  # when the app changes how it stores data
 ```
 
 Finding an image by its text:

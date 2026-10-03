@@ -4,18 +4,18 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
-	lookup := Lookup{DatabasePrefix: "model-storage", Store: "contact", KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
-	records := []indexeddb.Record{
+	lookup := Lookup{Location: Location{NamespacePrefix: "model-storage", Container: "contact"}, KeyPath: "$.author", Match: "$.id", Values: []Path{"$.name", "$.pushname"}}
+	records := []webstore.Record{
 		record("model-storage", "contact", obj("id", str("1@c.us"), "name", str("Ana"))),
 		record("model-storage", "contact", obj("id", str("2@c.us"))),
 		record("model-storage", "contact", obj("id", str("4@c.us"), "pushname", str(" Bia "))),
 		record("model-storage", "chat", obj("id", str("3@c.us"), "name", str("Grupo"))),
-		{Database: "model-storage", Store: "contact", DecodeErr: errors.New("corrupt")},
+		{Namespace: "model-storage", Container: "contact", DecodeErr: errors.New("corrupt")},
 	}
 	index, err := buildLookup(lookup, records)
 	if err != nil || len(index.values) != 2 {
@@ -33,7 +33,7 @@ func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
 }
 
 func TestBuildLookupRejectsBadPaths(t *testing.T) {
-	if _, err := buildLookup(Lookup{Store: "s", KeyPath: "x", Match: "$.id", Values: []Path{"$.name"}}, nil); err == nil {
+	if _, err := buildLookup(Lookup{Location: Location{Container: "s"}, KeyPath: "x", Match: "$.id", Values: []Path{"$.name"}}, nil); err == nil {
 		t.Fatal("expected an error for a relative key path")
 	}
 }

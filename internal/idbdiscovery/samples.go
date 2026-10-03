@@ -7,8 +7,8 @@ import (
 
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // maxSampleRunes truncates sample text: enough to tell a name from an id
@@ -25,7 +25,7 @@ const (
 
 // collectSamples renders up to limit distinct samples of path from
 // records. Containers have none: their paths speak for them.
-func collectSamples(path idbmap.Path, records []indexeddb.Record, limit int) []string {
+func collectSamples(path idbmap.Path, records []webstore.Record, limit int) []string {
 	compiled, err := idbmap.CompilePath(path)
 	if err != nil {
 		return nil

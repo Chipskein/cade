@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // percentScale turns an overlap ratio into the percentage printed.
@@ -32,11 +33,11 @@ type schemaChecker struct {
 	generator ClosableGenerator
 }
 
-// runIDBCheck reports, per schema and directory, whether the application
+// runSchemaCheck reports, per schema and directory, whether the application
 // still matches its schema; it fails while a drift is left unresolved, so
 // it can run on a timer.
-func runIDBCheck(ctx context.Context, env commandEnv, args []string) error {
-	flags := newFlagSet("idb-check", env.stderr, env.language)
+func runSchemaCheck(ctx context.Context, env commandEnv, args []string) error {
+	flags := newFlagSet("schema-check", env.stderr, env.language)
 	update := flags.Bool("update", false, env.language.pick("regenera com o modelo local os schemas que mudaram", "regenerates with the local model the schemas that drifted"))
 	rekey := flags.Bool("rekey", false, env.language.pick("com --update, aceita um schema que muda a identidade das mensagens e dá o UID novo às já indexadas (copia o banco antes)",
 		"with --update, accepts a schema that changes the messages' identity and gives the indexed ones their new UID (copies the database first)"))
@@ -100,7 +101,7 @@ func (c *schemaChecker) checkDirectory(ctx context.Context, name, dir string) (b
 	if err != nil {
 		return false, err
 	}
-	records, err := c.env.toolkit.ReadIndexedDB(config.ExpandHome(dir))
+	records, err := c.env.toolkit.StoreReaders.ReadKind(schema.Records.Kind, config.ExpandHome(dir))
 	if err != nil {
 		return false, err
 	}
@@ -125,7 +126,7 @@ func (c *schemaChecker) printDrift(name, dir string, drift idbmap.Drift) {
 	fmt.Fprintf(c.env.stdout, language.pick("%smudou: %s, %s, %s\n", "%schanged: %s, %s, %s\n"), prefix,
 		language.count(len(drift.Missing), missingPathNoun), language.count(len(drift.Changed), changedPathNoun), language.count(drift.Tally.Mapped, discoveredMessageNoun))
 	for _, shape := range append(drift.Missing, drift.Changed...) {
-		fmt.Fprintf(c.env.stdout, "  %s %s\n", shape.Store, shape.Path)
+		fmt.Fprintf(c.env.stdout, "  %s %s\n", shape.Container, shape.Path)
 	}
 	if drift.Format != nil {
 		fmt.Fprintf(c.env.stdout, "  %v\n", drift.Format)
@@ -134,7 +135,7 @@ func (c *schemaChecker) printDrift(name, dir string, drift idbmap.Drift) {
 
 // regenerate replaces the schema when the comparison accepts the new one,
 // and otherwise saves it as a candidate for review.
-func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, records []indexeddb.Record, drift idbmap.Drift) (bool, error) {
+func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, records []webstore.Record, drift idbmap.Drift) (bool, error) {
 	generator, err := c.loadedGenerator()
 	if err != nil {
 		return false, err
@@ -170,7 +171,7 @@ func identityOnly(comparison idbmap.Comparison) bool {
 
 // rekeyAndReplace gives the indexed messages the UIDs next assigns them,
 // then replaces the schema; the store copies the database first.
-func (c *schemaChecker) rekeyAndReplace(ctx context.Context, current, next idbmap.Schema, records []indexeddb.Record) error {
+func (c *schemaChecker) rekeyAndReplace(ctx context.Context, current, next idbmap.Schema, records []webstore.Record) error {
 	changes, err := idbmap.UIDChanges(current, next, records)
 	if err != nil {
 		return err

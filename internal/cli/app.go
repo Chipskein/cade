@@ -16,7 +16,6 @@ import (
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm"
@@ -24,6 +23,7 @@ import (
 	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // ClosableEmbedder is an embedder holding a model that must be released.
@@ -66,9 +66,11 @@ type Toolkit struct {
 	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
 	// Sources builds the collectors; the file source reads captions, which
 	// the first stage of `ingest` fills.
-	Sources       func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
-	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
-	// SchemaFiles stores the IndexedDB schemas `idb-discover` writes.
+	Sources func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
+	// StoreReaders read the browser storages schemas map: discovery finds
+	// which one a location holds, checks read the kind a schema names.
+	StoreReaders webstore.Readers
+	// SchemaFiles stores the schemas `schema-discover` writes.
 	SchemaFiles idbmap.SchemaFiles
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
@@ -178,14 +180,18 @@ func withUISettings(env commandEnv) commandEnv {
 
 func subcommands() map[string]subcommand {
 	return map[string]subcommand{
-		"init":         runInit,
-		"doctor":       runDoctor,
-		"ingest":       runIngest,
-		"timeline":     runTimeline,
-		"ask":          runAsk,
-		"teams-schema": runTeamsSchema,
-		"idb-discover": runIDBDiscover,
-		"idb-check":    runIDBCheck,
+		"init":            runInit,
+		"doctor":          runDoctor,
+		"ingest":          runIngest,
+		"timeline":        runTimeline,
+		"ask":             runAsk,
+		"teams-schema":    runTeamsSchema,
+		"schema-discover": runSchemaDiscover,
+		"schema-check":    runSchemaCheck,
+		// The names from when schemas read only IndexedDB (#19), kept so
+		// scripts and timers keep working.
+		"idb-discover": runSchemaDiscover,
+		"idb-check":    runSchemaCheck,
 		"forget":       runForget,
 		"tasks":        runTasks,
 		"reindex":      runReindex,

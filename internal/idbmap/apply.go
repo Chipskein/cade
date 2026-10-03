@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Mapper applies one validated schema, its paths compiled once.
@@ -26,7 +26,7 @@ type compiledRule struct {
 // NewMapper validates and compiles schema.
 //
 //	mapper, err := idbmap.NewMapper(schema)
-//	events, tally := mapper.Apply(records, "https+++web.whatsapp.com")
+//	events, tally, err := mapper.Apply(records)
 func NewMapper(schema Schema) (Mapper, error) {
 	if err := schema.Validate(); err != nil {
 		return Mapper{}, err
@@ -72,7 +72,7 @@ type Tally struct {
 // empty database is fine.
 func (t Tally) Check(schema Schema) error {
 	if t.Records > 0 && t.StoreRecords == 0 {
-		return fmt.Errorf("schema %q: no decoded record in store %q of a database starting with %q among %d records; the application may have changed its format", schema.Name, schema.Records.Store, schema.Records.DatabasePrefix, t.Records)
+		return fmt.Errorf("schema %q: no decoded record in store %q of a database starting with %q among %d records; the application may have changed its format", schema.Name, schema.Records.Container, schema.Records.NamespacePrefix, t.Records)
 	}
 	if t.Kept > 0 && t.Mapped == 0 {
 		return fmt.Errorf("schema %q: none of %d items has %s; the application may have changed its format", schema.Name, t.Kept, joinFields(requiredFields))
@@ -80,9 +80,9 @@ func (t Tally) Check(schema Schema) error {
 	return nil
 }
 
-// Apply maps records to events. origin names where the records came from
-// (kept in metadata, not in the UID).
-func (m Mapper) Apply(records []indexeddb.Record, origin string) ([]event.Event, Tally, error) {
+// Apply maps records to events; each event keeps its record's origin in
+// metadata, not in the UID.
+func (m Mapper) Apply(records []webstore.Record) ([]event.Event, Tally, error) {
 	lookups, err := m.buildLookups(records)
 	if err != nil {
 		return nil, Tally{}, err
@@ -90,16 +90,16 @@ func (m Mapper) Apply(records []indexeddb.Record, origin string) ([]event.Event,
 	tally := Tally{Records: len(records)}
 	var events []event.Event
 	for _, record := range records {
-		if !inStore(record, m.schema.Records.DatabasePrefix, m.schema.Records.Store) {
+		if !m.schema.Records.selects(record) {
 			continue
 		}
 		tally.StoreRecords++
-		events = append(events, m.mapRecord(record.Value, lookups, origin, &tally)...)
+		events = append(events, m.mapRecord(record.Value, lookups, record.Origin, &tally)...)
 	}
 	return events, tally, nil
 }
 
-func (m Mapper) buildLookups(records []indexeddb.Record) (map[Field]lookupIndex, error) {
+func (m Mapper) buildLookups(records []webstore.Record) (map[Field]lookupIndex, error) {
 	lookups := map[Field]lookupIndex{}
 	for field, rule := range m.rules {
 		if rule.rule.Lookup == nil {

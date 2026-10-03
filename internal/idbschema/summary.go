@@ -7,8 +7,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // maxWalkDepth bounds how deep field paths go; deeper structure adds noise
@@ -35,11 +35,11 @@ type StoreSummary struct {
 // Summarize groups records by store and collects their masked field paths.
 //
 //	report := idbschema.Summarize(records)
-func Summarize(records []indexeddb.Record) []StoreSummary {
+func Summarize(records []webstore.Record) []StoreSummary {
 	builders := map[string]*storeBuilder{}
 	var order []string
 	for _, record := range records {
-		key := record.Database + "\x00" + record.Store
+		key := record.Namespace + "\x00" + record.Container
 		if builders[key] == nil {
 			builders[key] = newStoreBuilder(record)
 			order = append(order, key)
@@ -59,16 +59,16 @@ type storeBuilder struct {
 	fields map[string]*FieldStat
 }
 
-func newStoreBuilder(record indexeddb.Record) *storeBuilder {
+func newStoreBuilder(record webstore.Record) *storeBuilder {
 	return &storeBuilder{
-		result: StoreSummary{Database: MaskName(record.Database), Store: MaskName(record.Store)},
+		result: StoreSummary{Database: MaskName(record.Namespace), Store: MaskName(record.Container)},
 		fields: map[string]*FieldStat{},
 	}
 }
 
-func (b *storeBuilder) add(record indexeddb.Record) {
+func (b *storeBuilder) add(record webstore.Record) {
 	b.result.Records++
-	if errors.Is(record.DecodeErr, indexeddb.ErrBlobWrapped) {
+	if errors.Is(record.DecodeErr, webstore.ErrExternalValue) {
 		b.result.BlobWrapped++
 		return
 	}

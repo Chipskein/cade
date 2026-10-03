@@ -15,7 +15,6 @@ import (
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/filesource"
 	"github.com/chipskein/cade/internal/listing"
@@ -24,6 +23,7 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/timeline"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 var cliNow = time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
@@ -85,7 +85,9 @@ type fakeWorld struct {
 	loadedEmbedding config.EmbeddingConfig
 	// indexedDBRecords, when set, are what the fake IndexedDB reader
 	// returns instead of its Teams-like record.
-	indexedDBRecords []indexeddb.Record
+	indexedDBRecords []webstore.Record
+	// otherStores are readers of other storages, tried before IndexedDB.
+	otherStores webstore.Readers
 }
 
 func newFakeWorld() *fakeWorld {
@@ -122,7 +124,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		},
 		LoadGenerator: w.loadGenerator,
 		Sources:       w.sources,
-		ReadIndexedDB: w.readIndexedDB,
+		StoreReaders:  append(append(webstore.Readers{}, w.otherStores...), worldIndexedDB{w}),
 		SchemaFiles:   idbmap.OSSchemaFiles{},
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,

@@ -13,7 +13,7 @@ import (
 func regenerationNote(current idbmap.Schema, drift idbmap.Drift) string {
 	lines := []string{
 		"O aplicativo mudou o formato desde o schema anterior. Mantenha os campos que ainda existem, principalmente message_id e conversation_id, e troque só o que sumiu ou mudou.",
-		fmt.Sprintf("Schema anterior: store %q, each %q.", current.Records.Store, current.Records.Each),
+		fmt.Sprintf("Schema anterior: store %q, each %q.", current.Records.Container, current.Records.Each),
 	}
 	for _, field := range sortedFieldNames(current) {
 		lines = append(lines, fmt.Sprintf("- %s: %s", field, joinPaths(current.Fields[field].Paths)))

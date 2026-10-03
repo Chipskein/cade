@@ -13,7 +13,9 @@ import (
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/teamssource"
+	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // The reviewed Teams schema must produce the same core fields as the
@@ -59,13 +61,13 @@ func collectCore(t *testing.T, collector ingest.EventCollector) []coreFields {
 	return core
 }
 
-func assertEquivalent(t *testing.T, read ReadIndexedDB, dir string) {
+func assertEquivalent(t *testing.T, reader webstore.Reader, dir string) {
 	t.Helper()
-	generic, err := NewCollector(read, dir, loadSchema(t, teamsSchemaPath))
+	generic, err := NewCollector(webstore.Readers{reader}, dir, loadSchema(t, teamsSchemaPath))
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := collectCore(t, teamssource.NewCollector(teamssource.ReadIndexedDB(read), dir))
+	want := collectCore(t, teamssource.NewCollector(reader.Read, dir))
 	got := collectCore(t, generic)
 	if len(want) == 0 || !slices.Equal(got, want) {
 		t.Fatalf("schema events differ from the Teams collector's:\nschema: %+v\nteams:  %+v", got, want)
@@ -74,11 +76,11 @@ func assertEquivalent(t *testing.T, read ReadIndexedDB, dir string) {
 }
 
 func TestTeamsSchemaMatchesTheTeamsCollectorOnTheRealSample(t *testing.T) {
-	assertEquivalent(t, indexeddb.ReadDirectory, teamsSampleDir)
+	assertEquivalent(t, indexeddb.ChromiumReader{}, teamsSampleDir)
 }
 
 func TestTeamsSchemaMatchesTheTeamsCollectorOnEdgeCases(t *testing.T) {
-	assertEquivalent(t, FakeIndexedDBReader{Records: teamsEdgeCases()}.Read, "/p/https_teams.microsoft.com_0.indexeddb.leveldb")
+	assertEquivalent(t, &testfakes.FakeStoreReader{StoreKind: webstore.KindIndexedDB, Records: teamsEdgeCases()}, "/p/https_teams.microsoft.com_0.indexeddb.leveldb")
 }
 
 // teamsEdgeCases holds one message per rule the Teams collector applies.
@@ -96,8 +98,8 @@ func teamsEdgeCases() []indexeddb.Record {
 		"10", obj("id", str("10"), "conversationId", str("19:c@thread.v2"), "messageType", str("Text"), "content", str("sem hora")),
 	)
 	return []indexeddb.Record{
-		{Database: "Teams:replychain-manager:x", Store: "replychains", Value: obj("id", str("19:c@thread.v2"), "messageMap", messages)},
-		{Database: "Teams:profiles:x", Store: "profiles", Value: obj("mri", str("8:orgid:carla"), "displayName", str(" Carla Dias "))},
+		{Namespace: "Teams:replychain-manager:x", Container: "replychains", Value: obj("id", str("19:c@thread.v2"), "messageMap", messages)},
+		{Namespace: "Teams:profiles:x", Container: "profiles", Value: obj("mri", str("8:orgid:carla"), "displayName", str(" Carla Dias "))},
 	}
 }
 

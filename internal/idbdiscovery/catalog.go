@@ -12,8 +12,8 @@ import (
 
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // CatalogLimits bound what the model reads, so the prompt fits a small
@@ -39,10 +39,11 @@ type Catalog struct {
 	Stores []StoreView
 }
 
-// StoreView is one store. Database and Store are the real names, used in
-// the schema; MaskedDatabase is what the model reads.
+// StoreView is one store. Kind, Database and Store are the real storage
+// and names, used in the schema; MaskedDatabase is what the model reads.
 type StoreView struct {
 	Label          string
+	Kind           webstore.Kind
 	Database       string
 	MaskedDatabase string
 	Store          string
@@ -62,7 +63,7 @@ type PathView struct {
 // stores and most frequent paths.
 //
 //	catalog := idbdiscovery.BuildCatalog(records, idbdiscovery.DefaultCatalogLimits)
-func BuildCatalog(records []indexeddb.Record, limits CatalogLimits) Catalog {
+func BuildCatalog(records []webstore.Record, limits CatalogLimits) Catalog {
 	groups := groupByStore(records)
 	slices.SortStableFunc(groups, func(a, b storeGroup) int { return cmp.Compare(len(b.records), len(a.records)) })
 	var catalog Catalog
@@ -88,22 +89,23 @@ func (c Catalog) Store(label string) (StoreView, error) {
 }
 
 type storeGroup struct {
+	kind            webstore.Kind
 	database, store string
-	records         []indexeddb.Record
+	records         []webstore.Record
 }
 
 // groupByStore keeps decoded records only, in first-seen store order.
-func groupByStore(records []indexeddb.Record) []storeGroup {
+func groupByStore(records []webstore.Record) []storeGroup {
 	index := map[[2]string]int{}
 	var groups []storeGroup
 	for _, record := range records {
 		if record.DecodeErr != nil {
 			continue
 		}
-		key := [2]string{record.Database, record.Store}
+		key := [2]string{record.Namespace, record.Container}
 		if _, seen := index[key]; !seen {
 			index[key] = len(groups)
-			groups = append(groups, storeGroup{database: record.Database, store: record.Store})
+			groups = append(groups, storeGroup{kind: record.Kind, database: record.Namespace, store: record.Container})
 		}
 		groups[index[key]].records = append(groups[index[key]].records, record)
 	}
@@ -111,7 +113,7 @@ func groupByStore(records []indexeddb.Record) []storeGroup {
 }
 
 func (g storeGroup) view(limits CatalogLimits) StoreView {
-	view := StoreView{Database: g.database, MaskedDatabase: idbschema.MaskName(g.database), Store: g.store, Records: len(g.records)}
+	view := StoreView{Kind: g.kind, Database: g.database, MaskedDatabase: idbschema.MaskName(g.database), Store: g.store, Records: len(g.records)}
 	for _, summary := range idbschema.Summarize(g.records) {
 		view.Paths = append(view.Paths, frequentPaths(summary.Fields, limits.PathsPerStore)...)
 	}

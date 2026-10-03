@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 func chainSchemaWithFingerprint(t *testing.T) Schema {
@@ -16,7 +16,7 @@ func chainSchemaWithFingerprint(t *testing.T) Schema {
 }
 
 func shapeOf(shapes []PathShape, store string, path Path) (PathShape, bool) {
-	index := slices.IndexFunc(shapes, func(shape PathShape) bool { return shape.Store == store && shape.Path == path })
+	index := slices.IndexFunc(shapes, func(shape PathShape) bool { return shape.Container == store && shape.Path == path })
 	if index < 0 {
 		return PathShape{}, false
 	}
@@ -51,7 +51,7 @@ func TestMeasureDriftOnTheSameRecords(t *testing.T) {
 
 // renamedRecords is the same chat after the app renamed content to body
 // and started writing the arrival time as text.
-func renamedRecords() []indexeddb.Record {
+func renamedRecords() []webstore.Record {
 	records := chainRecords()
 	for _, message := range records[0].Value.Get("messageMap").Properties {
 		for i := range message.Value.Properties {
@@ -84,7 +84,7 @@ func TestMeasureDriftFindsMissingAndChangedPaths(t *testing.T) {
 func TestMeasureDriftReportsAGoneStoreEvenWithoutFingerprint(t *testing.T) {
 	records := chainRecords()
 	for i := range records {
-		records[i].Store = strings.ToUpper(records[i].Store)
+		records[i].Container = strings.ToUpper(records[i].Container)
 	}
 	drift, err := MeasureDrift(mustMapper(t, chainSchema).schema, records)
 	if err != nil || drift.Format == nil || !drift.Drifted() || len(drift.Missing) != 0 {

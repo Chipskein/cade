@@ -1,10 +1,8 @@
 package idbmap
 
 import (
-	"strings"
-
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // lookupIndex answers one Lookup: the first value of each record of its
@@ -15,7 +13,7 @@ type lookupIndex struct {
 	values   map[string]string
 }
 
-func buildLookup(lookup Lookup, records []indexeddb.Record) (lookupIndex, error) {
+func buildLookup(lookup Lookup, records []webstore.Record) (lookupIndex, error) {
 	index := lookupIndex{keyField: lookup.KeyField, values: map[string]string{}}
 	var err error
 	if index.keyPath, err = compileEach(lookup.KeyPath); err != nil {
@@ -26,7 +24,7 @@ func buildLookup(lookup Lookup, records []indexeddb.Record) (lookupIndex, error)
 		return lookupIndex{}, err
 	}
 	for _, record := range records {
-		if !inStore(record, lookup.DatabasePrefix, lookup.Store) {
+		if !lookup.selects(record) {
 			continue
 		}
 		if key, value := readText(paths[0].First(record.Value), TransformNone), firstText(paths[1:], record.Value); key != "" && value != "" {
@@ -52,11 +50,6 @@ func (l lookupIndex) findByPath(item *v8value.Value) string {
 		return ""
 	}
 	return l.values[readText(l.keyPath.First(item), TransformNone)]
-}
-
-// inStore reports whether record decoded and belongs to the store.
-func inStore(record indexeddb.Record, databasePrefix, store string) bool {
-	return record.DecodeErr == nil && record.Store == store && strings.HasPrefix(record.Database, databasePrefix)
 }
 
 func compilePaths(paths ...Path) ([]CompiledPath, error) {
