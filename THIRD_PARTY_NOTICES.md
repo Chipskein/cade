@@ -10,7 +10,8 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | v1.14.52 | MIT | SQLite driver (cgo) |
 | [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
-| [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy` package) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache |
+| [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `s2`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache and Snappy streams in the Firefox Cache API; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
+| [andybalholm/brotli](https://github.com/andybalholm/brotli) | v1.2.6 | MIT | decoding brotli (`br`) bodies of the browsers' HTTP cache |
 | [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
 
 The sqlite-vec Go module ships without a license file; its texts below come from the upstream repository (`LICENSE-MIT`, `LICENSE-APACHE`). A test (`internal/buildinfo`) fails when `go.mod` gains a module this file does not name.
@@ -436,6 +437,30 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+```
+
+## andybalholm/brotli
+
+```
+Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ## klauspost/compress

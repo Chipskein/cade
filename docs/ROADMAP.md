@@ -268,7 +268,7 @@ flowchart LR
 | ----- | ---- | ---------- |
 | [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | **feito:** pacote `webstore` (registro e leitor por armazenamento, IndexedDB do Chromium e do Firefox como primeiros leitores), schema versão 2 com `records.kind` e `namespace_prefix`/`container` (a versão 1 continua lida), `schema-discover` e `schema-check` com `idb-*` como alias |
 | [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | depende da #73; começa por um levantamento de quais apps guardam mensagens ali |
-| [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | depende da #73; o cache HTTP tem dados de todos os sites, só se lê o que estiver configurado |
+| [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | **feito:** leitores do cache HTTP e da Cache API do Chromium/Electron e do Firefox/Floorp, só as URLs de `sources.request_cache_urls`, schema revisado do Discord (90 de 99 mensagens do cache do app desktop) |
 | [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |
 | [#77](https://github.com/Chipskein/cade/issues/77) | Importar a conversa exportada do WhatsApp | completa o texto das mensagens que a fase 30 indexa só por metadados |
 | [#78](https://github.com/Chipskein/cade/issues/78) | Caminhos `^.` para mensagens aninhadas (ChatGPT) | a linguagem do schema só cresce com caso real; este é o próximo |

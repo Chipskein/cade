@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+
+	"github.com/chipskein/cade/internal/requestcache"
 )
 
 // Config is the full on-disk configuration.
@@ -141,7 +143,12 @@ type SourcesConfig struct {
 	IndexedDBSchemaDir string `json:"indexeddb_schema_dir"`
 	// IndexedDBDirs are, per schema name, the IndexedDB directories it
 	// reads (Chromium *.indexeddb.leveldb or Firefox idb).
-	IndexedDBDirs    map[string][]string `json:"indexeddb_dirs"`
+	IndexedDBDirs map[string][]string `json:"indexeddb_dirs"`
+	// RequestCacheURLs are the only URLs read from the browsers' request
+	// caches (HTTP cache, Cache API), as named patterns: a request cache
+	// holds the responses of every site, and the name is what a schema's
+	// records.container selects.
+	RequestCacheURLs map[string][]string `json:"request_cache_urls"`
 	Directories      []string            `json:"directories"`
 	IgnoredDirNames  []string            `json:"ignored_dir_names"`
 	IgnoredFileGlobs []string            `json:"ignored_file_globs"`
@@ -197,6 +204,9 @@ func (c Config) validate() error {
 	}
 	if err := c.Ingest.Background.validate(c.Sources.Images); err != nil {
 		return err
+	}
+	if _, err := requestcache.NewScope(c.Sources.RequestCacheURLs); err != nil {
+		return fmt.Errorf("sources.request_cache_urls: %w", err)
 	}
 	if !c.Sources.Images {
 		return nil

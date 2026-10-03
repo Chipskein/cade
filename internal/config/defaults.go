@@ -109,6 +109,7 @@ func defaultSources() SourcesConfig {
 		TeamsIndexedDBDirs: []string{},
 		IndexedDBSchemaDir: defaultIndexedDBSchemaDir,
 		IndexedDBDirs:      map[string][]string{},
+		RequestCacheURLs:   map[string][]string{},
 		Directories:        []string{},
 		IgnoredDirNames:    []string{".git", "node_modules", "vendor", "__pycache__", ".venv", "target"},
 		IgnoredFileGlobs:   defaultIgnoredFileGlobs,

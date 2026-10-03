@@ -56,6 +56,7 @@
     ],
     "indexeddb_schema_dir": "~/.config/cade/idb-schemas",
     "indexeddb_dirs": {},
+    "request_cache_urls": {},
     "directories": [
       "~/notes"
     ],

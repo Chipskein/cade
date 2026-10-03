@@ -101,7 +101,11 @@ func (c *schemaChecker) checkDirectory(ctx context.Context, name, dir string) (b
 	if err != nil {
 		return false, err
 	}
-	records, err := c.env.toolkit.StoreReaders.ReadKind(schema.Records.Kind, config.ExpandHome(dir))
+	readers, err := c.env.toolkit.StoreReaders(c.cfg.Sources)
+	if err != nil {
+		return false, err
+	}
+	records, err := readers.ReadKind(schema.Records.Kind, config.ExpandHome(dir))
 	if err != nil {
 		return false, err
 	}

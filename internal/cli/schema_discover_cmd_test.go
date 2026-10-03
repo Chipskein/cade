@@ -121,3 +121,12 @@ func TestSchemaDiscoverWritesTheKindOfTheStorageItDetected(t *testing.T) {
 		t.Fatalf("expected a local_storage schema saved, got %d %q (err %v):\n%s%s", code, saved, err, stdout, stderr)
 	}
 }
+
+func TestSchemaDiscoverGivesTheReadersTheConfiguredURLs(t *testing.T) {
+	world := discoverWorld(t, discoverFieldsReply)
+	world.cfg.Sources.RequestCacheURLs = map[string][]string{"discord-messages": {"https://discord.com/api/v*/channels/*/messages*"}}
+	world.run("schema-discover", "--name", "x", whatsappDir)
+	if len(world.readerSources) != 1 || len(world.readerSources[0].RequestCacheURLs["discord-messages"]) != 1 {
+		t.Fatalf("readers built with %+v; want the config's request_cache_urls", world.readerSources)
+	}
+}

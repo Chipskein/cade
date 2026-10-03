@@ -67,9 +67,11 @@ type Toolkit struct {
 	// Sources builds the collectors; the file source reads captions, which
 	// the first stage of `ingest` fills.
 	Sources func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
-	// StoreReaders read the browser storages schemas map: discovery finds
-	// which one a location holds, checks read the kind a schema names.
-	StoreReaders webstore.Readers
+	// StoreReaders build the readers of the browser storages schemas map:
+	// discovery finds which one a location holds, checks read the kind a
+	// schema names. The request cache readers only read the URLs of
+	// sources.request_cache_urls.
+	StoreReaders func(sources config.SourcesConfig) (webstore.Readers, error)
 	// SchemaFiles stores the schemas `schema-discover` writes.
 	SchemaFiles idbmap.SchemaFiles
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
