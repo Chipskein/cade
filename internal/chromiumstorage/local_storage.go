@@ -1,5 +1,6 @@
 // Package chromiumstorage reads the site storages of Chromium, Chrome and
-// Electron apps: localStorage, one LevelDB for every origin of a profile.
+// Electron apps: localStorage, one LevelDB for every origin of a profile,
+// and the Origin Private File System, a directory per origin.
 package chromiumstorage
 
 import (

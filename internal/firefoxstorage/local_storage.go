@@ -1,5 +1,6 @@
-// Package firefoxstorage reads the site storages of Firefox and Floorp:
-// localStorage, one SQLite file per origin under storage/default.
+// Package firefoxstorage reads the site storages of Firefox and Floorp,
+// localStorage and the Origin Private File System, each a directory per
+// origin under storage/default.
 package firefoxstorage
 
 import (
