@@ -68,3 +68,31 @@ func TestStoreReadersRefuseABadURLPattern(t *testing.T) {
 		t.Fatalf("storeReaders error = %v; want the pattern refused", err)
 	}
 }
+
+func TestStoreReadersReadSiteStoragesBeforeIndexedDB(t *testing.T) {
+	origin := t.TempDir()
+	for _, layout := range []struct{ dir, database string }{{"ls", "data.sqlite"}, {"fs", "metadata.sqlite"}} {
+		if err := os.MkdirAll(filepath.Join(origin, layout.dir), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(origin, layout.dir, layout.database), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readers, err := storeReaders(config.SourcesConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for dir, kind := range map[string]webstore.Kind{"ls": webstore.KindLocalStorage, "fs": webstore.KindOPFS} {
+		if reader, err := readers.Detect(filepath.Join(origin, dir)); err != nil || reader.Kind() != kind {
+			t.Fatalf("Detect(Firefox %s dir) = %v, %v; want the %s reader", dir, reader, err, kind)
+		}
+	}
+}
+
+func TestStoreReadersRefuseABadStorageOrigin(t *testing.T) {
+	_, err := storeReaders(config.SourcesConfig{StorageOrigins: []string{"chatgpt.com"}})
+	if err == nil || !strings.Contains(err.Error(), `"chatgpt.com"`) {
+		t.Fatalf("storeReaders error = %v; want the origin refused", err)
+	}
+}

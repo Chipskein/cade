@@ -48,6 +48,7 @@
 | `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade schema-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
 | `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
 | `sources.request_cache_urls` | As únicas URLs lidas do cache HTTP e da Cache API dos navegadores, como padrões com nome, ex.: `{"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}`; `*` casa qualquer sequência de caracteres, e a origem é literal. Vazio (o padrão) não lê nada desses caches. |
+| `sources.storage_origins` | As únicas origens lidas do localStorage e do Origin Private File System (OPFS), ex.: `["https://chatgpt.com"]`, no formato `scheme://host[:port]`. Vazio (o padrão) não lê nada desses armazenamentos. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
 | `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
@@ -105,7 +106,7 @@ Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil d
 
 Aplicativos que guardam os dados no IndexedDB do navegador podem ser ingeridos sem código próprio. O modelo local escreve um **schema** uma vez por aplicativo: um arquivo JSON que diz em que store estão as mensagens e de onde vem cada campo. A ingestão lê com o schema e nunca roda o modelo. São lidos perfis Chromium (`*.indexeddb.leveldb`) e perfis do Firefox e do Floorp (`storage/default/<origem>/idb`).
 
-Um schema diz qual armazenamento do navegador ele lê (`records.kind`). O cade lê o IndexedDB (`indexeddb`), o cache HTTP (`http_cache`) e a Cache API (`cache_api`); `local_storage` e `opfs` são aceitos num schema e passam a ser lidos à medida que os leitores chegarem. Os comandos descobrem qual armazenamento um diretório guarda pela estrutura dele.
+Um schema diz qual armazenamento do navegador ele lê (`records.kind`). O cade lê o IndexedDB (`indexeddb`), o localStorage (`local_storage`), o Origin Private File System (`opfs`), o cache HTTP (`http_cache`) e a Cache API (`cache_api`). Os comandos descobrem qual armazenamento um diretório guarda pela estrutura dele.
 
 **Caches de requisições (cache HTTP e Cache API).** Alguns apps não guardam mensagens no IndexedDB, mas o navegador guarda em cache as respostas da API que as trazem: as últimas mensagens de cada canal aberto no Discord, por exemplo, até o navegador descartá-las. Um cache de requisições tem as respostas de todos os sites, então o cade só lê as URLs que você nomeia em `sources.request_cache_urls`; sem nenhuma, não lê nada desses caches. Cada nome é o que o `records.container` de um schema seleciona, quaisquer que sejam os ids na URL; o corpo precisa ser JSON (gzip, deflate, br e zstd são decodificados).
 
@@ -128,6 +129,20 @@ Para o Discord, com o schema revisado de `testdata/idb-schemas/discord.json` cop
 
 Depois, `cade ingest discord`. Só se lê o que ainda está no cache: os canais que você abriu, até o navegador descartá-los; uma mensagem que está em duas respostas é um evento só.
 
+**Armazenamentos do site (localStorage e OPFS).** Os sites guardam estado no localStorage e no Origin Private File System. O localStorage de um perfil tem todos os sites, tokens de sessão entre eles, então o cade só lê as origens que você nomeia em `sources.storage_origins` (`scheme://host[:porta]`); sem nenhuma, não lê nada desses armazenamentos, e um diretório configurado de outra origem é um erro que a nomeia. Cada item do localStorage é um registro cujo `records.container` é a chave do item, com o valor em árvore quando é JSON e texto nos outros casos. Cada arquivo do OPFS é um registro cujo `namespace_prefix` é comparado com o diretório dele e cujo contêiner é o nome; só arquivos JSON de até 16 MiB são decodificados (um banco SQLite no OPFS, como o do Notion, não é lido).
+
+| Armazenamento | Chromium e apps Electron | Firefox e Floorp |
+|---|---|---|
+| localStorage | `Local Storage/leveldb` (todas as origens do perfil) | `storage/default/<origem>/ls` |
+| OPFS | `File System/<número>`, o número que o banco `File System/Origins` dá à origem; outros buckets (`WebStorage/<id>/FileSystem`) não são lidos | `storage/default/<origem>/fs` |
+
+Uma origem particionada (um site dentro de outro, `^partitionKey=` no Firefox) ou de um contêiner do Firefox nunca é lida. Para os rascunhos não enviados do ChatGPT, as únicas mensagens que um levantamento dos apps do dia a dia achou nesses armazenamentos (2026-10), com o schema revisado de `testdata/idb-schemas/chatgpt-drafts.json` copiado para `sources.indexeddb_schema_dir`:
+
+```json
+"storage_origins": ["https://chatgpt.com"],
+"indexeddb_dirs": {"chatgpt-drafts": ["~/.floorp/<perfil>/storage/default/https+++chatgpt.com/ls"]}
+```
+
 1. `cade schema-discover --name whatsapp <diretório>` lê o diretório, pergunta ao modelo (duas perguntas curtas, sob uma gramática que só aceita caminhos que existem) e salva `whatsapp.json` em `sources.indexeddb_schema_dir`. `--print` só mostra; `--force` substitui um já salvo; `--source` dá a fonte dos eventos quando ela é diferente do nome.
 2. Acrescente o diretório em `sources.indexeddb_dirs` (o comando mostra a linha) e rode `cade ingest whatsapp`. Cada schema salvo vira uma fonte com o mesmo nome; um com o nome de uma fonte embutida (`teams`, `git`…) é ignorado.
 3. Revise o schema: o rascunho de um modelo pequeno às vezes lê um campo do caminho errado. Na amostra do Teams ele acertou o store, os ids, o remetente e as horas, mas não pôs condição para mensagens de sistema; no WhatsApp Web leu a conversa do id de uma chave de criptografia. Edite o arquivo à mão; ele é conferido ao ser carregado.
@@ -136,7 +151,7 @@ Depois, `cade ingest discord`. Só se lê o que ainda está no cache: os canais 
 
 | Chave | Significado |
 |---|---|
-| `records` | `kind` é o armazenamento (`indexeddb`, `http_cache`, `cache_api`…); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store; nos caches de requisições, o nome do cache, vazio no cache HTTP, e o nome em `sources.request_cache_urls`); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`). |
+| `records` | `kind` é o armazenamento (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store; no localStorage, nada e a chave do item; no OPFS, o diretório e o nome do arquivo; nos caches de requisições, o nome do cache, vazio no cache HTTP, e o nome em `sources.request_cache_urls`); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`). |
 | `require` | Condições que um item precisa cumprir: `in` / `not_in` (valores do texto em `path`), `kind_not` (`object`, `undefined`…; um valor ausente é `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (obrigatórios); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | `paths` do campo | Lidos em ordem; o primeiro com valor vence. |

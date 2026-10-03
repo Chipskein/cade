@@ -267,7 +267,7 @@ flowchart LR
 | Issue | Tema | Observação |
 | ----- | ---- | ---------- |
 | [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | **feito:** pacote `webstore` (registro e leitor por armazenamento, IndexedDB do Chromium e do Firefox como primeiros leitores), schema versão 2 com `records.kind` e `namespace_prefix`/`container` (a versão 1 continua lida), `schema-discover` e `schema-check` com `idb-*` como alias |
-| [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | depende da #73; começa por um levantamento de quais apps guardam mensagens ali |
+| [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | **feito:** leitores do localStorage e do OPFS do Chromium/Electron e do Firefox/Floorp, só as origens de `sources.storage_origins`; o levantamento só achou mensagens nos rascunhos do ChatGPT (schema revisado); SQLite no OPFS fica para outra issue |
 | [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | **feito:** leitores do cache HTTP e da Cache API do Chromium/Electron e do Firefox/Floorp, só as URLs de `sources.request_cache_urls`, schema revisado do Discord (90 de 99 mensagens do cache do app desktop) |
 | [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |
 | [#77](https://github.com/Chipskein/cade/issues/77) | Importar a conversa exportada do WhatsApp | completa o texto das mensagens que a fase 30 indexa só por metadados |

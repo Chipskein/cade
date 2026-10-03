@@ -28,7 +28,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
 | `~/.local/state/cade/ingest-state.json` | o `ingest` em andamento ou o último: argumentos (fonte e alvos), etapa, última linha de progresso e erro | `600` |
 | `~/.local/state/cade/ingest.log` | saída do último `ingest start`: linhas de progresso com os alvos, o relatório, erros; substituído a cada execução em segundo plano | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*` | cópias do histórico do navegador, de um IndexedDB (Chromium ou Firefox) e do banco da Cache API do Firefox enquanto um comando o lê; apagadas ao final | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*` | cópias do histórico do navegador, de um IndexedDB (Chromium ou Firefox), do banco da Cache API do Firefox e do banco do localStorage ou do OPFS do Firefox enquanto um comando o lê; apagadas ao final | `700` |
 
 Backups da sua pasta pessoal incluem o `cade.db`.
 
@@ -69,6 +69,7 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 - **Dado cifrado continua cifrado.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB; o cade não decifra, então as mensagens dele são indexadas só por metadados.
 - Uma mensagem apagada no aplicativo depois de ingerida **continua** no cade até `cade forget <fonte>`. Uma troca de schema nunca apaga eventos.
 - **O cache HTTP e a Cache API do navegador guardam as respostas de todos os sites que você visita,** não só as do aplicativo. O cade só lê deles as URLs que você nomeia em `sources.request_cache_urls`, vazio por padrão; a origem de um padrão não pode ter curinga, então ele nunca alcança outro site. De qualquer outra entrada o cade lê só a chave (a URL), nunca o corpo; o banco da Cache API do Firefox é copiado para uma pasta temporária e apagado, os corpos são lidos no lugar, e nada nesses caches é alterado.
+- **O localStorage e o Origin Private File System guardam o estado de todos os sites,** tokens de sessão e logins entre eles. O cade só lê as origens que você nomeia em `sources.storage_origins`, vazio por padrão; uma origem particionada ou de um contêiner do Firefox nunca é lida. No Chromium, em que um banco só guarda todas as origens, os itens das outras origens são pulados pela chave e nunca decodificados. Todos os itens e arquivos JSON de uma origem configurada são lidos, mas só os que um schema seleciona viram eventos. Os bancos do Firefox são copiados para uma pasta temporária e apagados, os arquivos do OPFS são lidos no lugar, e nada é alterado.
 
 ## O que o modelo local vê
 

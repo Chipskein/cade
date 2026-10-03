@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### localStorage e OPFS (#74)
+
+- **Os armazenamentos dos próprios sites são lidos** com os mesmos schemas, descoberta e `schema-check`: o localStorage (`records.kind` `local_storage`) do Chromium e de apps Electron (`Local Storage/leveldb`) e do Firefox e do Floorp (`storage/default/<origem>/ls`), e o Origin Private File System (`opfs`) dos dois (`File System/<número>`, `storage/default/<origem>/fs`). Um item do localStorage é um registro com a chave dele, em árvore quando é JSON; um arquivo JSON do OPFS é um registro localizado pelo diretório e pelo nome.
+- **Só as origens configuradas são lidas.** O localStorage de um perfil tem todos os sites, tokens de sessão entre eles, então o novo `sources.storage_origins` nomeia as origens que o cade pode ler (vazio por padrão: nada é lido); um diretório configurado de outra origem é um erro que a nomeia (um teste por leitor).
+- **Um levantamento dos apps do dia a dia** (WhatsApp Web, Teams, Discord, Notion, ChatGPT, ClickUp; Chrome e Floorp) só achou mensagens nesses armazenamentos nos rascunhos não enviados do ChatGPT: o `testdata/idb-schemas/chatgpt-drafts.json` revisado os indexa sem código próprio do ChatGPT. O Teams guarda logs de diagnóstico no OPFS, o Notion um banco SQLite WASM; SQLite dentro do OPFS não é lido.
+- Nenhuma migração do banco.
+
 ### O cache HTTP e a Cache API (#75)
 
 - **Apps que não guardam mensagens no IndexedDB** podem ser lidos pelas respostas da API que o navegador guarda em cache. O cade lê o cache HTTP e a Cache API do Chromium e de apps Electron (`Cache/Cache_Data`, `Service Worker/CacheStorage`) e do Firefox e do Floorp (`cache2`, `storage/default/<origem>/cache`), com os mesmos schemas (`records.kind` `http_cache` ou `cache_api`), a mesma descoberta e o mesmo `schema-check`. Os corpos são JSON como vieram da rede: gzip, deflate, br e zstd são decodificados.

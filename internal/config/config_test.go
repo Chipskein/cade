@@ -239,3 +239,19 @@ func TestLoadAcceptsRequestCacheURLs(t *testing.T) {
 		t.Fatalf("expected the discord pattern loaded, got %+v %v", cfg.Sources.RequestCacheURLs, err)
 	}
 }
+
+func TestLoadRejectsAStorageOriginWithAPath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com/c/1"]}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sources.storage_origins") || !strings.Contains(err.Error(), "https://chatgpt.com/c/1") {
+		t.Fatalf("expected the origin rejected by setting and value, got %v", err)
+	}
+}
+
+func TestLoadAcceptsStorageOrigins(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com"]}}`), 0o600))
+	if cfg, err := Load(path); err != nil || len(cfg.Sources.StorageOrigins) != 1 {
+		t.Fatalf("expected the chatgpt origin loaded, got %+v %v", cfg.Sources.StorageOrigins, err)
+	}
+}
