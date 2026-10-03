@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/chipskein/cade/internal/requestcache"
+	"github.com/chipskein/cade/internal/sitestorage"
 )
 
 // Config is the full on-disk configuration.
@@ -149,10 +150,14 @@ type SourcesConfig struct {
 	// holds the responses of every site, and the name is what a schema's
 	// records.container selects.
 	RequestCacheURLs map[string][]string `json:"request_cache_urls"`
-	Directories      []string            `json:"directories"`
-	IgnoredDirNames  []string            `json:"ignored_dir_names"`
-	IgnoredFileGlobs []string            `json:"ignored_file_globs"`
-	MaxFileBytes     int64               `json:"max_file_bytes"`
+	// StorageOrigins are the only origins read from localStorage and the
+	// Origin Private File System: a profile's localStorage holds every
+	// site, session tokens among them.
+	StorageOrigins   []string `json:"storage_origins"`
+	Directories      []string `json:"directories"`
+	IgnoredDirNames  []string `json:"ignored_dir_names"`
+	IgnoredFileGlobs []string `json:"ignored_file_globs"`
+	MaxFileBytes     int64    `json:"max_file_bytes"`
 	// Images turns on describing png, jpeg and webp files of Directories
 	// with the local vision model, so they are found by what they show.
 	Images bool `json:"images"`
@@ -207,6 +212,9 @@ func (c Config) validate() error {
 	}
 	if _, err := requestcache.NewScope(c.Sources.RequestCacheURLs); err != nil {
 		return fmt.Errorf("sources.request_cache_urls: %w", err)
+	}
+	if _, err := sitestorage.NewScope(c.Sources.StorageOrigins); err != nil {
+		return fmt.Errorf("sources.storage_origins: %w", err)
 	}
 	if !c.Sources.Images {
 		return nil
