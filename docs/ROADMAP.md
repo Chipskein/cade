@@ -261,12 +261,12 @@ flowchart LR
 **Issues:** [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80), sub-issues da #19.
 
 - **Problema:** a fase 30 só lê IndexedDB. As mensagens de outros apps ficam em outros armazenamentos do navegador (o Discord só no cache HTTP), e o texto do WhatsApp Web é cifrado.
-- **Mudança:** separar de onde vêm os registros (IndexedDB, localStorage, OPFS, cache HTTP, Cache API, cookies) de como eles viram mensagem; o IndexedDB vira a primeira implementação e os outros armazenamentos entram como leitores da mesma interface, com o mesmo schema, a mesma descoberta e o mesmo `idb-check`.
+- **Mudança:** separar de onde vêm os registros (IndexedDB, localStorage, OPFS, cache HTTP, Cache API, cookies) de como eles viram mensagem; o IndexedDB vira a primeira implementação e os outros armazenamentos entram como leitores da mesma interface, com o mesmo schema, a mesma descoberta e o mesmo `schema-check`.
 - **Aceite:** os schemas da fase 30 continuam funcionando sem edição; cada leitor lê só as origens configuradas; o PRIVACY diz o que cada um lê.
 
 | Issue | Tema | Observação |
 | ----- | ---- | ---------- |
-| [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | continuação da fase 30; pré-requisito das #74 a #76 |
+| [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | **feito:** pacote `webstore` (registro e leitor por armazenamento, IndexedDB do Chromium e do Firefox como primeiros leitores), schema versão 2 com `records.kind` e `namespace_prefix`/`container` (a versão 1 continua lida), `schema-discover` e `schema-check` com `idb-*` como alias |
 | [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | depende da #73; começa por um levantamento de quais apps guardam mensagens ali |
 | [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | depende da #73; o cache HTTP tem dados de todos os sites, só se lê o que estiver configurado |
 | [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |

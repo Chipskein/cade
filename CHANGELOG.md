@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Browser storages behind one reader (#73)
+
+- **Schemas are no longer tied to IndexedDB.** Where the records come from is separate from how they become messages: each browser storage has a reader that gives the same records (kind, origin, namespace, container and the decoded value), and the Chromium and Firefox IndexedDB readers are the first. A new storage (localStorage, OPFS, the HTTP cache, the Cache API: #74, #75) needs only a reader; the collector, the discovery and the schema stay as they are (a test shows it with a fake reader).
+- **Schema format version 2:** `records.kind` names the storage (`indexeddb` is the only one read today), and `namespace_prefix` and `container` replace `database_prefix` and `store` in records, lookups and fingerprints. Version 1 schemas, the ones saved with #19, still work unedited: they are read as `indexeddb`, and a replacement writes them as version 2.
+- **`cade schema-discover` and `cade schema-check`** are the new names of `idb-discover` and `idb-check`, which still run the same commands. Discovery finds which storage a directory holds by its layout; a directory of no known layout is refused, naming it.
+- No database migration.
+
 ### Other apps through IndexedDB schemas (#19)
 
 - **Any app that keeps its data in the browser's IndexedDB** can be ingested without code of its own. `cade idb-discover --name N DIR` has the local model write a schema once: which store holds the messages and where each field comes from. The model fills a fixed target (the message cade already stores) under a grammar built from the paths the IndexedDB really has, so it cannot invent one; the proposed schema is tried on the same records before it is saved. Every schema in `sources.indexeddb_schema_dir` is an `ingest` source, with `sources.indexeddb_dirs` as its targets. Ingestion never runs the model. Format and options in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#other-applications-through-indexeddb-schemas-experimental).

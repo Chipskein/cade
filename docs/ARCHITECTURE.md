@@ -81,8 +81,9 @@ flowchart TD
         ingest["ingest<br/>Pipeline, SourceSpec"]
         sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource<br/>ingest/idbsource"]
         chunking["chunking"]
+        webstore["webstore<br/>registro e leitor de cada<br/>armazenamento do navegador (#73)"]
         indexeddb["indexeddb (Chromium)<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy<br/>firefoxidb + smclone (Firefox)"]
-        idbmap["idbmap<br/>schema de IndexedDB,<br/>aplicação, deriva, histórico"]
+        idbmap["idbmap<br/>schema de armazenamento,<br/>aplicação, deriva, histórico"]
         idbdiscovery["idbdiscovery<br/>schema pelo modelo local"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
         imagefile["imagefile<br/>png, jpeg, webp → RGB"]
@@ -124,6 +125,7 @@ flowchart TD
     cli --> pacing
     cli --> idbdiscovery
     idbdiscovery --> idbmap
+    idbdiscovery --> webstore
     idbdiscovery --> llm
 
     queryplan --> llm
@@ -139,7 +141,9 @@ flowchart TD
     sources --> ingest
     sources --> indexeddb
     sources --> idbmap
-    idbmap --> indexeddb
+    sources --> webstore
+    idbmap --> webstore
+    indexeddb -. implementa .-> webstore
     ingest --> chunking
     ingest --> llm
     ingest --> storage
@@ -177,14 +181,14 @@ flowchart LR
         loadEmbedder["LoadEmbedder → llamacpp embedder"]
         loadGenerator["LoadGenerator → llamacpp generator<br/>(estado do prompt salvo)"]
         loadDescriber["LoadImageDescriber → llamacpp gerador + mmproj<br/>(só o ingest com imagens)"]
-        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams<br/>+ uma fonte por schema de IndexedDB salvo"]
+        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams<br/>+ uma fonte por schema salvo"]
         loadConfig["LoadConfig / WriteConfig"]
-        readIDB["ReadIndexedDB → readIndexedDB<br/>indexeddb (Chromium) ou firefoxidb (Firefox)"]
+        readIDB["StoreReaders → storeReaders()<br/>webstore.Readers: indexeddb.ChromiumReader,<br/>firefoxidb.Reader"]
         schemaFiles["SchemaFiles → idbmap.OSSchemaFiles"]
     end
 
     toolkit --- toolkitfns
-    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runIDBDiscover · runIDBCheck · runVersion"]
+    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runSchemaDiscover · runSchemaCheck · runVersion"]
 ```
 
 ---
@@ -283,14 +287,17 @@ flowchart LR
     copy --> fidb["firefoxidb<br/>SQLite + snappyblock"]
     fidb --> sm["smclone<br/>structured clone do SpiderMonkey"]
     v8 --> teams["teamssource.Collector<br/>mensagens, conversas, perfis"]
-    v8 --> idbsrc["idbsource.Collector<br/>idbmap.Mapper + schema salvo"]
+    v8 --> records["webstore.Record<br/>kind, origem, namespace,<br/>contêiner, valor"]
     sm --> teams
-    sm --> idbsrc
+    sm --> records
+    records -->|"Readers.ReadKind(records.kind)"| idbsrc["idbsource.Collector<br/>idbmap.Mapper + schema salvo"]
     teams -->|"emit(event.Event)"| pipeline["ingest.Pipeline"]
     idbsrc -->|"emit(event.Event)"| pipeline
 ```
 
-O schema de um aplicativo sai do `cade idb-discover`: o `idbdiscovery` monta um catálogo dos stores (caminhos, tipos e amostras mascaradas), pergunta ao modelo duas vezes sob gramáticas geradas a partir desses caminhos e aplica o schema proposto aos próprios registros antes de salvá-lo. O `cade idb-check` mede a deriva contra a impressão digital do schema e, com `--update`, regenera, compara (`idbmap.CompareSchemas`) e troca guardando a revisão anterior; com `--rekey`, renomeia os UIDs já indexados (`storage.EventStore.RekeyEvents`, com cópia do banco).
+O `idbsource` não sabe de onde os registros vêm: cada armazenamento do navegador tem um `webstore.Reader` (tipo, `Recognizes` pela estrutura do diretório e `Read`), e o `cmd/cade` junta os leitores em `storeReaders()`. O coletor lê com o leitor do `records.kind` do schema; a descoberta acha o leitor pela estrutura do diretório e grava o tipo no schema. Os registros de qualquer armazenamento têm a mesma forma (`webstore.Record`: tipo, origem, namespace e contêiner, valor no modelo do `v8value`), então um armazenamento novo entra só com um leitor, sem mexer no coletor, na descoberta nem no `idbmap`. Hoje os leitores são os do IndexedDB do Chromium e do Firefox.
+
+O schema de um aplicativo sai do `cade schema-discover`: o `idbdiscovery` monta um catálogo dos stores (caminhos, tipos e amostras mascaradas), pergunta ao modelo duas vezes sob gramáticas geradas a partir desses caminhos e aplica o schema proposto aos próprios registros antes de salvá-lo. O `cade schema-check` mede a deriva contra a impressão digital do schema e, com `--update`, regenera, compara (`idbmap.CompareSchemas`) e troca guardando a revisão anterior; com `--rekey`, renomeia os UIDs já indexados (`storage.EventStore.RekeyEvents`, com cópia do banco).
 
 ### Em segundo plano (`ingest start`, `status`, `pause`, `resume`, `stop`, `--gentle`)
 
