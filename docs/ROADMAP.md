@@ -22,7 +22,7 @@ A v0.1.0 cuidou do risco no uso real: privacidade, respostas honestas, custo da 
 1. **Base medida:** gravar menos no disco (#51), benchmarks reproduzíveis (#14) e um plano de espaço (#40), para comparar o antes e o depois das tabelas novas.
 2. **Regras de privacidade antes dos dados novos:** as entidades concentram dados pessoais (pessoas, mensagens), então as lacunas da LGPD e do GDPR são levantadas antes (#25).
 3. **Entidades e relacionamentos:** entidades (#20), relações entre elas (#21), representações multimodais (#22) e a busca que usa tudo isso (#24).
-4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19).
+4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19), e depois os outros armazenamentos do navegador pela mesma via (#73 a #80).
 
 Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 
@@ -41,7 +41,8 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
-| 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | em andamento | médio | alto |
+| 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
+| 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
 | — | [v0.3.0](#v030) | várias | depois | — | — |
@@ -54,6 +55,7 @@ A tabela está na ordem sugerida:
 - **LGPD antes das entidades (25):** a fase 26 cria a entidade `Person`. As regras (o que guardar, como exportar, como o `forget` apaga) precisam existir antes de os dados existirem.
 - **Entidades, relações, representações e busca (26 a 29):** cada uma depende da anterior. Cada uma começa pelos casos da suíte (`go tool mage eval`) que falham hoje; sem um caso que falhe, a fase espera. A fase 27 começa pelo passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`timeline --around`), para ver se ele já resolve parte dos casos.
 - **IndexedDB (30) independente:** não depende das anteriores e pode correr em paralelo a qualquer uma a partir da 22. Fica no fim da tabela porque é a que menos muda o que já existe.
+- **Outras fontes do navegador (30a) depois da 30:** a abstração (#73) vem antes dos leitores novos; as investigações não dependem de nada e podem correr a qualquer momento.
 - **Empacotamento (31) por último.**
 
 ### Onde cada fase entra no código
@@ -250,15 +252,28 @@ flowchart LR
 - **Mudança:** o modelo local atua como tradutor. Ele recebe o resumo do `idbschema` e poucas amostras e preenche um mapeamento declarativo para o evento do `cade`, com a saída restrita por gramática GBNF. O mapeamento é gerado uma vez por aplicação, salvo fora do código e editável. A indexação usa o schema salvo sem rodar o modelo. O decodificador do Chromium (`indexeddb`, `v8value`) não muda; um leitor do Firefox é acrescentado.
 - **Aceite:** o schema do Teams produz os mesmos UID, hora, remetente e texto do `teamssource` de hoje (teste; o título e o tipo da conversa podem divergir); uma segunda aplicação é indexada sem código específico; o PRIVACY diz o que o modelo vê na descoberta.
 - **Resultado:** `cade idb-discover`, `cade idb-check [--update] [--rekey]` e uma fonte do `ingest` por schema salvo, com leitor de IndexedDB do Firefox e do Floorp (`firefoxidb`, `smclone`). Com o Qwen3.5-2B na GPU (120 W), o rascunho do Teams sai em 6,4 s e acerta store, ids, remetente com lookup, texto e hora; o do WhatsApp Web, em 10,5 s, erra os campos que a cifragem confunde. Os dois foram revisados à mão (`testdata/idb-schemas/`). O do Teams bate com o `teamssource` em 3 mensagens reais e 5 de borda. O WhatsApp Web, cujo texto é cifrado, entra só por metadados: 9.633 mensagens numa cópia da base real, 85% com nome. A linguagem cresceu com casos reais: `required` (o Teams descarta corpo só de tags), `split`, `key_field` e `values` (chaves compostas do WhatsApp). Pendente: filtros de pessoa e direção do `ask` para fontes além do Teams.
-- **Próximas tarefas** (mesma issue e branch, cada uma com até 10 arquivos):
-  - O Discord não guarda mensagens no IndexedDB, mas o cache HTTP do navegador guarda as últimas respostas de `GET /api/v9/channels/<id>/messages`, só dos canais abertos e até o navegador descartá-las.
-  - O texto do WhatsApp Web é cifrado no IndexedDB e não passa pelo cache HTTP; a fonte legítima é a exportação oficial de conversa (`.txt`).
-  1. Leitor do cache HTTP do Firefox/Floorp (`cache2`): só origens e padrões de URL configurados; corpos JSON viram registros, com a URL no papel do store.
-  2. Leitor do cache HTTP do Chrome (`Cache/Cache_Data`).
-  3. Integração: schema com `records.url`, descoberta e `idb-check` sobre esses registros, e o schema revisado do Discord.
-  4. Importação do `.txt` exportado do WhatsApp, com o mesmo UID do evento do IndexedDB, para completar o texto sem duplicar.
-  5. Caminhos que leem o registro de dentro do item (`^.id`, `^.updateTime`), para mensagens aninhadas na conversa, como o cache do ChatGPT.
-  6. Docs e PRIVACY (EN e PT).
+- **Continuações:** viraram issues próprias, sub-issues da #19, na [fase 30a](#fase-30a--outras-fontes-do-navegador).
+
+---
+
+## Fase 30a — Outras fontes do navegador
+
+**Issues:** [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80), sub-issues da #19.
+
+- **Problema:** a fase 30 só lê IndexedDB. As mensagens de outros apps ficam em outros armazenamentos do navegador (o Discord só no cache HTTP), e o texto do WhatsApp Web é cifrado.
+- **Mudança:** separar de onde vêm os registros (IndexedDB, localStorage, OPFS, cache HTTP, Cache API, cookies) de como eles viram mensagem; o IndexedDB vira a primeira implementação e os outros armazenamentos entram como leitores da mesma interface, com o mesmo schema, a mesma descoberta e o mesmo `idb-check`.
+- **Aceite:** os schemas da fase 30 continuam funcionando sem edição; cada leitor lê só as origens configuradas; o PRIVACY diz o que cada um lê.
+
+| Issue | Tema | Observação |
+| ----- | ---- | ---------- |
+| [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | continuação da fase 30; pré-requisito das #74 a #76 |
+| [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | depende da #73; começa por um levantamento de quais apps guardam mensagens ali |
+| [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | depende da #73; o cache HTTP tem dados de todos os sites, só se lê o que estiver configurado |
+| [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |
+| [#77](https://github.com/Chipskein/cade/issues/77) | Importar a conversa exportada do WhatsApp | completa o texto das mensagens que a fase 30 indexa só por metadados |
+| [#78](https://github.com/Chipskein/cade/issues/78) | Caminhos `^.` para mensagens aninhadas (ChatGPT) | a linguagem do schema só cresce com caso real; este é o próximo |
+| [#79](https://github.com/Chipskein/cade/issues/79) | Textos cifrados pelos apps | investigação sem código; decifrar fica fora |
+| [#80](https://github.com/Chipskein/cade/issues/80) | Buscar mensagens no servidor do app | investigação sem código; bate no princípio de não usar rede em tempo de execução |
 
 ---
 
