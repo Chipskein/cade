@@ -54,9 +54,9 @@ cade compact            # depois de um forget grande: devolve o espaço dos veto
 Qualquer outro aplicativo que guarda os dados no IndexedDB do navegador (Chrome, Firefox, Floorp), sem código próprio: o modelo local escreve um schema uma vez, e a ingestão lê com ele.
 
 ```sh
-cade idb-discover --name whatsapp ~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb
+cade schema-discover --name whatsapp ~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb
 cade ingest whatsapp
-cade idb-check --update  # quando o aplicativo muda o jeito de guardar os dados
+cade schema-check --update  # quando o aplicativo muda o jeito de guardar os dados
 ```
 
 Encontrando uma imagem pelo texto dela:

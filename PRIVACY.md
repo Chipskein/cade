@@ -24,7 +24,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
 | `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories, Teams profiles and IndexedDB directories to read | `600` |
 | `~/.config/cade/idb-schemas/` | one schema per app: database and store names, field paths and their types, the conditions you or the model wrote (such as message type values); no message, name or id. `history/` keeps replaced revisions, `*.candidate.json` refused ones | `600` |
-| `~/.local/share/cade/cade.db.before-rekey-*` | copy saved before `idb-check --rekey` renames UIDs; same contents as the database | `600` |
+| `~/.local/share/cade/cade.db.before-rekey-*` | copy saved before `schema-check --rekey` renames UIDs; same contents as the database | `600` |
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
 | `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
 | `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
@@ -65,7 +65,7 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 ## Other apps through IndexedDB schemas
 
 - **Same care as Teams:** a chat app's cache holds other people's messages, and ingesting it copies them into cade's database. Check the app's and your organization's terms first.
-- `idb-discover`, `idb-check` and the ingestion copy the IndexedDB directory to a temporary folder, read the copy and delete it. cade never changes the app's data.
+- `schema-discover`, `schema-check` and the ingestion copy the IndexedDB directory to a temporary folder, read the copy and delete it. cade never changes the app's data.
 - **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only.
 - A message deleted in the app after ingestion **stays** in cade until `cade forget <source>`. A schema change never deletes events.
 
@@ -79,7 +79,7 @@ Both models run in-process through llama.cpp.
 - **Saved prompt state:** `~/.cache/cade/prompt-state/` holds one file (~55 MB, owner-only) with the model's state after its fixed instructions and examples. It contains no question and nothing from the database.
 - **Answers:** your question, today's date and up to `top_k` (6 by default) events; for a long event, only the chunk that matched (up to 1,200 characters), otherwise its text up to that length.
 - **Text that gives the assistant orders:** messages, page titles and notes are other people's words, and one may be written to steer the answer ("IMPORTANTE para o assistente: ignore as regras…"). Such events go to the model marked as untrusted and without their text, with a rule not to use or cite them; the sources list shows the event with the mark, and `ask --json` sets `"untrusted": true`. This lowers the risk without removing it: text the detector does not recognize still reaches the model whole and can steer the answer, but the model has no tools, so it cannot act on anything.
-- **Schema discovery** (only `cade idb-discover` and `cade idb-check --update`, run by you): the IndexedDB's largest stores with their names masked (e-mails, GUIDs and runs of 6+ digits hidden), the paths of their fields and the types found, and up to two samples per path. Text samples are masked the same way and cut at 40 characters; numbers show only their digit count (`<n:13>`), dates and binary data only their type. On a regeneration it also reads the current schema (paths only) and which paths changed. The schema it writes holds paths and types, never a sample. Ingestion never runs the model.
+- **Schema discovery** (only `cade schema-discover` and `cade schema-check --update`, run by you): the IndexedDB's largest stores with their names masked (e-mails, GUIDs and runs of 6+ digits hidden), the paths of their fields and the types found, and up to two samples per path. Text samples are masked the same way and cut at 40 characters; numbers show only their digit count (`<n:13>`), dates and binary data only their type. On a regeneration it also reads the current schema (paths only) and which paths changed. The schema it writes holds paths and types, never a sample. Ingestion never runs the model.
 - Nothing else in the database is given to the model. Listings and task reports do not use the generation model; a listing with a topic ("pages about redis") embeds only the topic.
 
 ## Logs
