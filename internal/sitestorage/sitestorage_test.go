@@ -1,10 +1,13 @@
 package sitestorage
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 const chatGPT = "https://chatgpt.com"
@@ -73,5 +76,41 @@ func TestUTF16LEDecodesSurrogatePairs(t *testing.T) {
 func TestUTF16LERejectsAnOddLength(t *testing.T) {
 	if _, err := UTF16LE([]byte{'o', 0, 'i'}); err == nil || !strings.Contains(err.Error(), "3 bytes") {
 		t.Fatalf("UTF16LE error = %v; want the length named", err)
+	}
+}
+
+func writeOPFSFile(t *testing.T, content []byte) OPFSFile {
+	t.Helper()
+	diskPath := filepath.Join(t.TempDir(), "AB")
+	if err := os.WriteFile(diskPath, content, 0o600); err != nil {
+		t.Fatalf("write OPFS file: %v", err)
+	}
+	return OPFSFile{Origin: chatGPT, Dir: "cache/chats", Name: "c1.json", DiskPath: diskPath}
+}
+
+func TestOPFSFileRecordParsesJSON(t *testing.T) {
+	record := writeOPFSFile(t, []byte(`{"messages":[{"text":"oi"}]}`)).Record()
+	if record.DecodeErr != nil || record.Kind != webstore.KindOPFS || record.Namespace != "cache/chats" || record.Container != "c1.json" || record.Key != "cache/chats/c1.json" {
+		t.Fatalf("Record = %+v; want the file located by directory and name", record)
+	}
+	if got := record.Value.Get("messages").Items[0].Get("text").String(); got != "oi" {
+		t.Fatalf("Record text = %q; want oi", got)
+	}
+}
+
+func TestOPFSFileRecordReportsAFileThatIsNotJSON(t *testing.T) {
+	record := writeOPFSFile(t, []byte("SQLite format 3\x00")).Record()
+	if record.Value != nil || record.DecodeErr == nil || !strings.Contains(record.DecodeErr.Error(), "cache/chats/c1.json") {
+		t.Fatalf("Record = %+v; want a DecodeErr naming the file", record)
+	}
+}
+
+func TestOPFSFileRecordLeavesALargeFileUnread(t *testing.T) {
+	file := writeOPFSFile(t, nil)
+	if err := os.Truncate(file.DiskPath, MaxFileBytes+1); err != nil {
+		t.Fatalf("grow OPFS file: %v", err)
+	}
+	if record := file.Record(); record.DecodeErr == nil || !strings.Contains(record.DecodeErr.Error(), "at most") {
+		t.Fatalf("Record = %+v; want a DecodeErr naming the size limit", record)
 	}
 }
