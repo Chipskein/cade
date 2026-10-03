@@ -10,16 +10,19 @@ import (
 	"github.com/chipskein/cade/internal/filecopy"
 	"github.com/chipskein/cade/internal/leveldbraw"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
-// Record is one object-store value. Exactly one of Value and DecodeErr is
-// set: a record that fails to decode is still reported, so callers can
-// count what they could not read instead of silently losing it.
-type Record struct {
-	Database  string
-	Store     string
-	Value     *v8value.Value
-	DecodeErr error
+// Record is one object-store value: a webstore record whose namespace is
+// the database and whose container is the object store.
+type Record = webstore.Record
+
+// NewRecord starts the record of one value of store in database, for the
+// Chromium and the Firefox reader alike.
+//
+//	record := indexeddb.NewRecord("model-storage", "message")
+func NewRecord(database, store string) Record {
+	return Record{Kind: webstore.KindIndexedDB, Namespace: database, Container: store, Database: database, Store: store}
 }
 
 // ReadDirectory snapshots dir (the browser keeps it locked and writing)
@@ -40,7 +43,7 @@ func ReadDirectory(dir string) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	return decodeRecords(entries), nil
+	return webstore.WithOrigin(decodeRecords(entries), OriginName(dir)), nil
 }
 
 func decodeRecords(entries []leveldbraw.Entry) []Record {
@@ -57,10 +60,8 @@ func decodeRecords(entries []leveldbraw.Entry) []Record {
 }
 
 func decodeRecord(names catalog, prefix keyPrefix, stored []byte) Record {
-	record := Record{
-		Database: nameOrID(names.databases[prefix.databaseID], prefix.databaseID),
-		Store:    nameOrID(names.stores[storeRef{prefix.databaseID, prefix.objectStoreID}], prefix.objectStoreID),
-	}
+	record := NewRecord(nameOrID(names.databases[prefix.databaseID], prefix.databaseID),
+		nameOrID(names.stores[storeRef{prefix.databaseID, prefix.objectStoreID}], prefix.objectStoreID))
 	payload, err := v8Payload(stored)
 	if err != nil {
 		record.DecodeErr = err

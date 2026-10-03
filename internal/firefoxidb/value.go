@@ -35,7 +35,7 @@ func (r Reader) readValues(db *sql.DB, names catalog) ([]indexeddb.Record, error
 }
 
 func (r Reader) decodeRecord(names catalog, storeID int64, stored []byte, fileIDs string) indexeddb.Record {
-	record := indexeddb.Record{Database: names.database, Store: names.storeName(storeID)}
+	record := indexeddb.NewRecord(names.database, names.storeName(storeID))
 	payload, err := clonePayload(stored, fileIDs)
 	if err != nil {
 		record.DecodeErr = err

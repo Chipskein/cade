@@ -27,6 +27,11 @@ type Record struct {
 	Key       string
 	Value     *v8value.Value
 	DecodeErr error
+	// Database and Store are the IndexedDB names of Namespace and
+	// Container, kept only while the tests that build records move to the
+	// generic names (#73); the IndexedDB readers fill both until then.
+	Database string
+	Store    string
 }
 
 // ErrExternalValue reports a value kept outside the storage that was read,
@@ -40,5 +45,27 @@ var ErrExternalValue = errors.New("value stored in an external file")
 //
 //	record.InContainer("Teams:replychain-manager:", "replychains")
 func (r Record) InContainer(namespacePrefix, container string) bool {
-	return r.DecodeErr == nil && r.Container == container && strings.HasPrefix(r.Namespace, namespacePrefix)
+	namespace, actual := r.Location()
+	return r.DecodeErr == nil && actual == container && strings.HasPrefix(namespace, namespacePrefix)
+}
+
+// Location is where the record lives: Namespace and Container, or
+// Database and Store for a record built with the IndexedDB names (#73,
+// until they go).
+func (r Record) Location() (namespace, container string) {
+	if r.Namespace == "" && r.Container == "" {
+		return r.Database, r.Store
+	}
+	return r.Namespace, r.Container
+}
+
+// WithOrigin names the origin of every record, which a reader knows from
+// the location rather than from each value.
+//
+//	return webstore.WithOrigin(records, "https+++web.whatsapp.com"), nil
+func WithOrigin(records []Record, origin string) []Record {
+	for i := range records {
+		records[i].Origin = origin
+	}
+	return records
 }

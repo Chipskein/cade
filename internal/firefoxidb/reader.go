@@ -13,6 +13,7 @@ import (
 	"github.com/chipskein/cade/internal/filecopy"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // DecodeClone turns one uncompressed SpiderMonkey structured clone into a
@@ -57,7 +58,8 @@ func (r Reader) ReadDirectory(dir string) ([]indexeddb.Record, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list databases in %q: %w", snapshot, err)
 	}
-	return r.readDatabases(paths)
+	records, err := r.readDatabases(paths)
+	return webstore.WithOrigin(records, indexeddb.OriginName(dir)), err
 }
 
 func (r Reader) readDatabases(paths []string) ([]indexeddb.Record, error) {

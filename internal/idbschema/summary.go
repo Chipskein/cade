@@ -39,7 +39,8 @@ func Summarize(records []indexeddb.Record) []StoreSummary {
 	builders := map[string]*storeBuilder{}
 	var order []string
 	for _, record := range records {
-		key := record.Database + "\x00" + record.Store
+		namespace, container := record.Location()
+		key := namespace + "\x00" + container
 		if builders[key] == nil {
 			builders[key] = newStoreBuilder(record)
 			order = append(order, key)
@@ -60,8 +61,9 @@ type storeBuilder struct {
 }
 
 func newStoreBuilder(record indexeddb.Record) *storeBuilder {
+	namespace, container := record.Location()
 	return &storeBuilder{
-		result: StoreSummary{Database: MaskName(record.Database), Store: MaskName(record.Store)},
+		result: StoreSummary{Database: MaskName(namespace), Store: MaskName(container)},
 		fields: map[string]*FieldStat{},
 	}
 }

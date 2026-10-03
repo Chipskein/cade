@@ -8,6 +8,7 @@ import (
 
 	"github.com/chipskein/cade/internal/leveldbraw"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Real Chrome IndexedDB with synthetic data; regenerate with
@@ -40,6 +41,13 @@ func TestReadDirectoryNamesDatabasesAndStores(t *testing.T) {
 	prefix := "Teams:replychain-manager:fixture/"
 	if counts[prefix+"replychains"] != 4 || counts[prefix+"people"] != 1 || counts[prefix+"bulk"] != 320 {
 		t.Fatalf("unexpected record counts %v", counts)
+	}
+}
+
+func TestReadDirectoryRecordsKindOriginAndContainer(t *testing.T) {
+	record := fixtureRecords(t)[0]
+	if record.Kind != webstore.KindIndexedDB || record.Origin != "chrome-indexeddb.leveldb" || record.Namespace != "Teams:replychain-manager:fixture" || record.Container == "" {
+		t.Fatalf("record %+v; want an indexeddb record of origin chrome-indexeddb.leveldb in a named store", record)
 	}
 }
 

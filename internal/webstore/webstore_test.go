@@ -89,3 +89,17 @@ func TestValidateAcceptsKnownKindsOnly(t *testing.T) {
 		t.Fatalf("Validate(indexed_db) = %v; want the value and the kinds expected", err)
 	}
 }
+
+func TestLocationFallsBackToTheIndexedDBNames(t *testing.T) {
+	namespace, container := webstore.Record{Database: "model-storage", Store: "message"}.Location()
+	if namespace != "model-storage" || container != "message" {
+		t.Fatalf("Location = %q, %q; want the IndexedDB names", namespace, container)
+	}
+}
+
+func TestWithOriginNamesEveryRecord(t *testing.T) {
+	records := webstore.WithOrigin([]webstore.Record{{Container: "a"}, {Container: "b"}}, "https+++web.whatsapp.com")
+	if records[0].Origin != "https+++web.whatsapp.com" || records[1].Origin != records[0].Origin {
+		t.Fatalf("WithOrigin = %+v; want the origin on each record", records)
+	}
+}

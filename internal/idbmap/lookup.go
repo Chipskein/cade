@@ -1,8 +1,6 @@
 package idbmap
 
 import (
-	"strings"
-
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 )
@@ -56,7 +54,7 @@ func (l lookupIndex) findByPath(item *v8value.Value) string {
 
 // inStore reports whether record decoded and belongs to the store.
 func inStore(record indexeddb.Record, databasePrefix, store string) bool {
-	return record.DecodeErr == nil && record.Store == store && strings.HasPrefix(record.Database, databasePrefix)
+	return record.InContainer(databasePrefix, store)
 }
 
 func compilePaths(paths ...Path) ([]CompiledPath, error) {
