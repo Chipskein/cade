@@ -14,6 +14,7 @@ import (
 	"github.com/chipskein/cade/internal/idbschema"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // CatalogLimits bound what the model reads, so the prompt fits a small
@@ -39,10 +40,11 @@ type Catalog struct {
 	Stores []StoreView
 }
 
-// StoreView is one store. Database and Store are the real names, used in
-// the schema; MaskedDatabase is what the model reads.
+// StoreView is one store. Kind, Database and Store are the real storage
+// and names, used in the schema; MaskedDatabase is what the model reads.
 type StoreView struct {
 	Label          string
+	Kind           webstore.Kind
 	Database       string
 	MaskedDatabase string
 	Store          string
@@ -88,6 +90,7 @@ func (c Catalog) Store(label string) (StoreView, error) {
 }
 
 type storeGroup struct {
+	kind            webstore.Kind
 	database, store string
 	records         []indexeddb.Record
 }
@@ -103,7 +106,7 @@ func groupByStore(records []indexeddb.Record) []storeGroup {
 		key := [2]string{record.Namespace, record.Container}
 		if _, seen := index[key]; !seen {
 			index[key] = len(groups)
-			groups = append(groups, storeGroup{database: record.Namespace, store: record.Container})
+			groups = append(groups, storeGroup{kind: record.Kind, database: record.Namespace, store: record.Container})
 		}
 		groups[index[key]].records = append(groups[index[key]].records, record)
 	}
@@ -111,7 +114,7 @@ func groupByStore(records []indexeddb.Record) []storeGroup {
 }
 
 func (g storeGroup) view(limits CatalogLimits) StoreView {
-	view := StoreView{Database: g.database, MaskedDatabase: idbschema.MaskName(g.database), Store: g.store, Records: len(g.records)}
+	view := StoreView{Kind: g.kind, Database: g.database, MaskedDatabase: idbschema.MaskName(g.database), Store: g.store, Records: len(g.records)}
 	for _, summary := range idbschema.Summarize(g.records) {
 		view.Paths = append(view.Paths, frequentPaths(summary.Fields, limits.PathsPerStore)...)
 	}

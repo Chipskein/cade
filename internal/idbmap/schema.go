@@ -1,5 +1,5 @@
-// Package idbmap is the declarative mapping from decoded IndexedDB records
-// to cade messages. A Schema is generated once per application (by the
+// Package idbmap is the declarative mapping from decoded browser-storage
+// records (webstore: IndexedDB first) to cade messages. A Schema is generated once per application (by the
 // local model, see idbdiscovery) and kept outside the code; applying it is
 // deterministic and never runs a model.
 package idbmap
@@ -11,10 +11,13 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/chipskein/cade/internal/webstore"
 )
 
-// FormatVersion is the schema file format this code reads.
-const FormatVersion = 1
+// FormatVersion is the schema file format this code writes; it also reads
+// version 1 (see upgrade).
+const FormatVersion = 2
 
 // Target names the cade entity a schema fills, with its version: a change
 // to the entity means migrating saved schemas, not regenerating them.
@@ -57,7 +60,7 @@ var fieldShapes = map[Field]fieldShape{
 // encrypt the body and only metadata can be indexed.
 var requiredFields = []Field{FieldMessageID, FieldConversationID, FieldSentAt}
 
-// Schema maps one application's IndexedDB to messages.
+// Schema maps one application's browser storage to messages.
 //
 //	schema, err := idbmap.Parse(raw)
 type Schema struct {
@@ -70,14 +73,16 @@ type Schema struct {
 	Require  []Condition         `json:"require,omitempty"`
 	Fields   map[Field]FieldRule `json:"fields"`
 	// Fingerprint is the shape of what the schema reads when it was made;
-	// MeasureDrift compares it with the application's IndexedDB now.
+	// MeasureDrift compares it with the application's storage now.
 	Fingerprint []PathShape `json:"fingerprint,omitempty"`
 }
 
-// RecordSelector picks the records that hold messages: those at Location,
-// and, when Each is set, every value Each reaches inside one record (a
-// chat record holding a map of messages).
+// RecordSelector picks the records that hold messages: those of the
+// storage of Kind at Location, and, when Each is set, every value Each
+// reaches inside one record (a chat record holding a map of messages).
+// Lookups read the same storage.
 type RecordSelector struct {
+	Kind webstore.Kind `json:"kind"`
 	Location
 	Each Path `json:"each,omitempty"`
 }
@@ -135,7 +140,10 @@ func Parse(raw []byte) (Schema, error) {
 	decoder.DisallowUnknownFields()
 	var schema Schema
 	if err := decoder.Decode(&schema); err != nil {
-		return Schema{}, fmt.Errorf("parse IndexedDB schema: %w", err)
+		return Schema{}, fmt.Errorf("parse schema: %w", err)
+	}
+	if err := schema.upgrade(); err != nil {
+		return Schema{}, fmt.Errorf("schema %q: %w", schema.Name, err)
 	}
 	return schema, schema.Validate()
 }
@@ -153,7 +161,7 @@ func (s Schema) Validate() error {
 
 func (s Schema) validateHeader() error {
 	if s.Version != FormatVersion {
-		return fmt.Errorf("version %d, expected %d", s.Version, FormatVersion)
+		return fmt.Errorf("version %d, expected %d (or %d, read as %d)", s.Version, FormatVersion, indexedDBOnlyVersion, FormatVersion)
 	}
 	if s.Target != TargetMessage {
 		return fmt.Errorf("target %q, expected %q", s.Target, TargetMessage)
@@ -168,8 +176,11 @@ func (s Schema) validateHeader() error {
 }
 
 func (s Schema) validateRecords() error {
+	if err := s.Records.Kind.Validate(); err != nil {
+		return fmt.Errorf("records.kind: %w", err)
+	}
 	if s.Records.Container == "" {
-		return fmt.Errorf("records.store is empty, expected the object store holding the messages")
+		return fmt.Errorf("records.container is empty, expected the container holding the messages (the object store, in IndexedDB)")
 	}
 	return validatePaths(s.Records.Each)
 }

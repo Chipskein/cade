@@ -70,7 +70,7 @@ type schemaTarget struct {
 func (r fieldsReply) schema(target schemaTarget, catalog Catalog, store StoreView, each idbmap.Path) (idbmap.Schema, error) {
 	schema := idbmap.Schema{
 		Version: idbmap.FormatVersion, Target: idbmap.TargetMessage, Name: target.name, Source: target.source, Revision: 1,
-		Records: idbmap.RecordSelector{Location: store.location(), Each: each},
+		Records: idbmap.RecordSelector{Kind: store.Kind, Location: store.location(), Each: each},
 		Fields:  r.fields(),
 	}
 	if r.Keep != nil {
