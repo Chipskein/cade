@@ -36,7 +36,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | feito | alto | médio |
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | feito | médio | alto |
-| 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
+| 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | feito | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
@@ -200,6 +200,7 @@ flowchart LR
 - **Problema:** muito já existe (tudo local, PRIVACY, `forget` por fonte, UID, texto e período, `secure_delete`, banco só do dono), mas ninguém comparou isso com a LGPD e o GDPR. Falta, por exemplo, exportar os dados de uma pessoa ou de uma fonte.
 - **Mudança:** tabela "requisito → como o `cade` atende → lacuna" no PRIVACY (EN e PT), sem amarrar o `cade` a uma lei. Cada lacuna vira uma issue. As regras para a entidade `Person` (fase 26) e para dados biométricos (rostos, v0.3.0) ficam definidas aqui.
 - **Aceite:** a tabela no PRIVACY; uma issue por lacuna; as regras para `Person` definidas antes da fase 26 começar.
+- **Resultado** ([PRIVACY](../PRIVACY.pt-BR.md#dados-pessoais-e-leis-de-privacidade)): os dados pessoais por fonte (seus e de outras pessoas, e onde pode haver dado sensível), a tabela de requisitos e lacunas e cinco regras para dados sensíveis e biométricos, que valem para a fase 26 e para a #23: opt-in por tipo, nada sensível deduzido, biometria numa tabela à parte e só comparada com os seus arquivos, derivados apagados com o evento, e exportação com os derivados. Três lacunas viraram issues da v0.3.0: exportação ([#85](https://github.com/Chipskein/cade/issues/85)), apagar e exportar por pessoa ([#86](https://github.com/Chipskein/cade/issues/86)) e as cópias de migração que guardam o que foi esquecido ([#87](https://github.com/Chipskein/cade/issues/87)); a criptografia continua na #57.
 
 ---
 
@@ -315,6 +316,9 @@ Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.
 | [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
 | [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
 | [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
+| [#85](https://github.com/Chipskein/cade/issues/85) | Exportar os dados guardados (`cade export`) | lacuna de acesso e portabilidade da fase 25; os derivados das fases 26 a 28 entram na exportação |
+| [#86](https://github.com/Chipskein/cade/issues/86) | Apagar e exportar tudo sobre uma pessoa | lacuna da fase 25; parte da entidade `Person` da fase 26 e da #85 |
+| [#87](https://github.com/Chipskein/cade/issues/87) | Cópias de migração com dados esquecidos | lacuna da fase 25; o PRIVACY já avisa para apagá-las à mão |
 
 ---
 
