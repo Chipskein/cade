@@ -10,7 +10,7 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | v1.14.52 | MIT | SQLite driver (cgo) |
 | [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
-| [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
+| [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `s2`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache and Snappy streams in the Firefox Cache API; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
 | [andybalholm/brotli](https://github.com/andybalholm/brotli) | v1.2.6 | MIT | decoding brotli (`br`) bodies of the browsers' HTTP cache |
 | [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
 

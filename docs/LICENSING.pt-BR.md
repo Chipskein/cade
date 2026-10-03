@@ -30,7 +30,7 @@ Levantado com `go version -m bin/cade`, pelo `go.mod` e pelos `LDFLAGS` do cgo e
 | mattn/go-sqlite3 v1.14.52 | MIT | sim | sim |
 | SQLite (embutido no go-sqlite3) | domínio público | sim | sim |
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT ou Apache-2.0, usado sob MIT | sim, só sob MIT | sim, sob qualquer uma |
-| klauspost/compress v1.20.1 (`snappy`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | sim | sim |
+| klauspost/compress v1.20.1 (`snappy`, `s2`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | sim | sim |
 | andybalholm/brotli v1.2.6 | MIT | sim | sim |
 | golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | sim | sim |
 
