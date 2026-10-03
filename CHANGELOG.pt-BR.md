@@ -10,6 +10,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### O cache HTTP e a Cache API (#75)
+
+- **Apps que não guardam mensagens no IndexedDB** podem ser lidos pelas respostas da API que o navegador guarda em cache. O cade lê o cache HTTP e a Cache API do Chromium e de apps Electron (`Cache/Cache_Data`, `Service Worker/CacheStorage`) e do Firefox e do Floorp (`cache2`, `storage/default/<origem>/cache`), com os mesmos schemas (`records.kind` `http_cache` ou `cache_api`), a mesma descoberta e o mesmo `schema-check`. Os corpos são JSON como vieram da rede: gzip, deflate, br e zstd são decodificados.
+- **Só as URLs configuradas são lidas.** Um cache de requisições tem as respostas de todos os sites, então o novo `sources.request_cache_urls` nomeia os padrões de URL que o cade pode ler (vazio por padrão: nada é lido); a origem de um padrão é literal. De qualquer outra entrada só se lê a chave (a URL), nunca o corpo (um teste por leitor). O nome do padrão é o contêiner dos registros, então um schema lê a URL de todos os canais.
+- **O Discord** é indexado por schema, sem código próprio: o `testdata/idb-schemas/discord.json` revisado mapeia as respostas de mensagens dos canais. No cache do app desktop: 90 de 99 mensagens em cache (as outras são mensagens de sistema) em 7 canais. Só se lê o que ainda está em cache: os canais abertos, até o navegador descartá-los.
+- Dependência nova: andybalholm/brotli (MIT), para corpos `br`. Os corpos da Cache API do Firefox são streams Snappy cujos checksums de bloco não batem com os do formato, então não são conferidos.
+- Sem migração do banco.
+
 ### Armazenamentos do navegador atrás de um leitor só (#73)
 
 - **Os schemas não estão mais presos ao IndexedDB.** De onde vêm os registros ficou separado de como eles viram mensagem: cada armazenamento do navegador tem um leitor que entrega os mesmos registros (tipo, origem, namespace, contêiner e o valor decodificado), e os leitores do IndexedDB do Chromium e do Firefox são os primeiros. Um armazenamento novo (localStorage, OPFS, cache HTTP, Cache API: #74, #75) só precisa de um leitor; o coletor, a descoberta e o schema ficam como estão (um teste mostra isso com um leitor falso).

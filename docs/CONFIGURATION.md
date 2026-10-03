@@ -105,7 +105,28 @@ Point `sources.teams_indexeddb_dirs` at the IndexedDB directory of your Teams pr
 
 Apps that keep their data in the browser's IndexedDB can be ingested without code of their own. The local model writes a **schema** once per app: a JSON file saying which store holds the messages and where each field comes from. Ingestion reads with the schema and never runs the model. Chromium profiles (`*.indexeddb.leveldb`) and Firefox and Floorp profiles (`storage/default/<origin>/idb`) are both read.
 
-A schema names the browser storage it reads (`records.kind`). IndexedDB (`indexeddb`) is the only one cade reads today; `local_storage`, `opfs`, `http_cache` and `cache_api` are accepted in a schema and will be read as their readers arrive. The commands find which storage a directory holds by its layout.
+A schema names the browser storage it reads (`records.kind`). cade reads IndexedDB (`indexeddb`), the HTTP cache (`http_cache`) and the Cache API (`cache_api`); `local_storage` and `opfs` are accepted in a schema and will be read as their readers arrive. The commands find which storage a directory holds by its layout.
+
+**Request caches (HTTP cache and Cache API).** Some apps keep no messages in IndexedDB, but the browser caches the API responses that carry them: Discord's last messages of each channel you opened, for instance, until the browser evicts them. A request cache holds the responses of every site, so cade reads only the URLs you name in `sources.request_cache_urls`; with none, it reads nothing from these caches. Each name is what a schema's `records.container` selects, whatever ids the URL carries; the body must be JSON (gzip, deflate, br and zstd are decoded).
+
+| Storage | Chromium and Electron apps | Firefox and Floorp |
+|---|---|---|
+| HTTP cache | `Cache/Cache_Data` (e.g. `~/.config/discord/Cache/Cache_Data`) | `cache2` in the profile's cache directory (e.g. `~/.cache/floorp/<profile>/cache2`) |
+| Cache API | `Service Worker/CacheStorage/<origin hash>` | `storage/default/<origin>/cache` |
+
+For Discord, with the reviewed schema in `testdata/idb-schemas/discord.json` copied to `sources.indexeddb_schema_dir`:
+
+```json
+"request_cache_urls": {
+  "discord-messages": [
+    "https://discord.com/api/v*/channels/*/messages*",
+    "https://discordapp.com/api/v*/channels/*/messages*"
+  ]
+},
+"indexeddb_dirs": {"discord": ["~/.config/discord/Cache/Cache_Data"]}
+```
+
+Then `cade ingest discord`. Only what is still in the cache is read: the channels you opened, until the browser drops them; a message in a response cached twice is one event.
 
 1. `cade schema-discover --name whatsapp <directory>` reads the directory, asks the model (two short questions, under a grammar that only allows paths that exist) and saves `whatsapp.json` in `sources.indexeddb_schema_dir`. `--print` only shows it; `--force` replaces a saved one; `--source` names the events' source when it differs from the name.
 2. Add the directory to `sources.indexeddb_dirs` (the command prints the line) and run `cade ingest whatsapp`. Each saved schema is a source of that name; one named like a built-in source (`teams`, `git`…) is ignored.
@@ -115,7 +136,7 @@ A schema names the browser storage it reads (`records.kind`). IndexedDB (`indexe
 
 | Key | Meaning |
 |---|---|
-| `records` | `kind` is the storage (`indexeddb`…); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`). |
+| `records` | `kind` is the storage (`indexeddb`, `http_cache`, `cache_api`…); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store; in the request caches, the cache name, empty in the HTTP cache, and the `sources.request_cache_urls` name); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`). |
 | `require` | Conditions an item must meet: `in` / `not_in` (values of the text at `path`), `kind_not` (`object`, `undefined`…; a missing value is `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (required); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | field `paths` | Read in order; the first with a value wins. |

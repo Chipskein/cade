@@ -10,6 +10,14 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### The HTTP cache and the Cache API (#75)
+
+- **Apps that keep no messages in IndexedDB** can be read from the API responses the browser caches. cade reads the HTTP cache and the Cache API of Chromium and Electron apps (`Cache/Cache_Data`, `Service Worker/CacheStorage`) and of Firefox and Floorp (`cache2`, `storage/default/<origin>/cache`), with the same schemas (`records.kind` `http_cache` or `cache_api`), discovery and `schema-check`. Bodies are JSON as they came over the network: gzip, deflate, br and zstd are decoded.
+- **Only configured URLs are read.** A request cache holds every site's responses, so the new `sources.request_cache_urls` names the URL patterns cade may read (empty by default: nothing is read); the origin of a pattern is literal. For any other entry only the key (the URL) is read, never the body (a test per reader). The pattern's name is the records' container, so one schema reads every channel's URL.
+- **Discord** is indexed by schema with no code of its own: the reviewed `testdata/idb-schemas/discord.json` maps the channel message responses. On the desktop app's cache: 90 of 99 cached messages (the rest are system messages) in 7 channels. Only what is still cached is read: the channels opened, until the browser evicts them.
+- New dependency: andybalholm/brotli (MIT), for `br` bodies. Firefox's Cache API bodies are Snappy streams whose chunk checksums do not match the format's, so they are not checked.
+- No database migration.
+
 ### Browser storages behind one reader (#73)
 
 - **Schemas are no longer tied to IndexedDB.** Where the records come from is separate from how they become messages: each browser storage has a reader that gives the same records (kind, origin, namespace, container and the decoded value), and the Chromium and Firefox IndexedDB readers are the first. A new storage (localStorage, OPFS, the HTTP cache, the Cache API: #74, #75) needs only a reader; the collector, the discovery and the schema stay as they are (a test shows it with a fake reader).

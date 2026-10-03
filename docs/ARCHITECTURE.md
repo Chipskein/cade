@@ -83,6 +83,7 @@ flowchart TD
         chunking["chunking"]
         webstore["webstore<br/>registro e leitor de cada<br/>armazenamento do navegador (#73)"]
         indexeddb["indexeddb (Chromium)<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy<br/>firefoxidb + smclone (Firefox)"]
+        requestcache["requestcache (#75)<br/>escopo de URLs, resposta → registro<br/>+ httpbody, jsonvalue<br/>chromiumcache + simplecache, protoscan<br/>firefoxcache"]
         idbmap["idbmap<br/>schema de armazenamento,<br/>aplicação, deriva, histórico"]
         idbdiscovery["idbdiscovery<br/>schema pelo modelo local"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
@@ -144,6 +145,7 @@ flowchart TD
     sources --> webstore
     idbmap --> webstore
     indexeddb -. implementa .-> webstore
+    requestcache -. implementa .-> webstore
     ingest --> chunking
     ingest --> llm
     ingest --> storage
@@ -183,7 +185,7 @@ flowchart LR
         loadDescriber["LoadImageDescriber → llamacpp gerador + mmproj<br/>(só o ingest com imagens)"]
         sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams<br/>+ uma fonte por schema salvo"]
         loadConfig["LoadConfig / WriteConfig"]
-        readIDB["StoreReaders → storeReaders()<br/>webstore.Readers: indexeddb.ChromiumReader,<br/>firefoxidb.Reader"]
+        readIDB["StoreReaders → storeReaders(cfg.Sources)<br/>webstore.Readers: caches de requisições<br/>(escopo de request_cache_urls),<br/>indexeddb.ChromiumReader, firefoxidb.Reader"]
         schemaFiles["SchemaFiles → idbmap.OSSchemaFiles"]
     end
 
@@ -295,7 +297,7 @@ flowchart LR
     idbsrc -->|"emit(event.Event)"| pipeline
 ```
 
-O `idbsource` não sabe de onde os registros vêm: cada armazenamento do navegador tem um `webstore.Reader` (tipo, `Recognizes` pela estrutura do diretório e `Read`), e o `cmd/cade` junta os leitores em `storeReaders()`. O coletor lê com o leitor do `records.kind` do schema; a descoberta acha o leitor pela estrutura do diretório e grava o tipo no schema. Os registros de qualquer armazenamento têm a mesma forma (`webstore.Record`: tipo, origem, namespace e contêiner, valor no modelo do `v8value`), então um armazenamento novo entra só com um leitor, sem mexer no coletor, na descoberta nem no `idbmap`. Hoje os leitores são os do IndexedDB do Chromium e do Firefox.
+O `idbsource` não sabe de onde os registros vêm: cada armazenamento do navegador tem um `webstore.Reader` (tipo, `Recognizes` pela estrutura do diretório e `Read`), e o `cmd/cade` junta os leitores em `storeReaders()`. O coletor lê com o leitor do `records.kind` do schema; a descoberta acha o leitor pela estrutura do diretório e grava o tipo no schema. Os registros de qualquer armazenamento têm a mesma forma (`webstore.Record`: tipo, origem, namespace e contêiner, valor no modelo do `v8value`), então um armazenamento novo entra só com um leitor, sem mexer no coletor, na descoberta nem no `idbmap`. Hoje os leitores são os do IndexedDB do Chromium e do Firefox e os dos caches de requisições (#75): cache HTTP e Cache API do Chromium (`chromiumcache`, sobre o `simplecache`) e do Firefox (`firefoxcache`). Esses leitores recebem no construtor o `requestcache.Scope` de `sources.request_cache_urls`, leem a chave de cada entrada e só leem o corpo de uma URL do escopo; o contêiner do registro é o nome do padrão que a URL casou, e o corpo passa pelo `httpbody` (Content-Encoding) e pelo `jsonvalue` (JSON → árvore do `v8value`). Os leitores de cache vêm antes dos do IndexedDB em `storeReaders()`, porque a pasta da Cache API do Firefox também tem um `.sqlite`.
 
 O schema de um aplicativo sai do `cade schema-discover`: o `idbdiscovery` monta um catálogo dos stores (caminhos, tipos e amostras mascaradas), pergunta ao modelo duas vezes sob gramáticas geradas a partir desses caminhos e aplica o schema proposto aos próprios registros antes de salvá-lo. O `cade schema-check` mede a deriva contra a impressão digital do schema e, com `--update`, regenera, compara (`idbmap.CompareSchemas`) e troca guardando a revisão anterior; com `--rekey`, renomeia os UIDs já indexados (`storage.EventStore.RekeyEvents`, com cópia do banco).
 

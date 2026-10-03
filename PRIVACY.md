@@ -28,7 +28,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
 | `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
 | `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*` | copies of the browser history and of an IndexedDB (Chromium or Firefox) while one command reads it; removed when it ends | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox) and of Firefox's Cache API database while one command reads it; removed when it ends | `700` |
 
 Backups of your home directory include `cade.db`.
 
@@ -68,6 +68,7 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 - `schema-discover`, `schema-check` and the ingestion copy the IndexedDB directory to a temporary folder, read the copy and delete it. cade never changes the app's data.
 - **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only.
 - A message deleted in the app after ingestion **stays** in cade until `cade forget <source>`. A schema change never deletes events.
+- **The browser's HTTP cache and Cache API hold the responses of every site you visit,** not only the app's. cade reads from them only the URLs you name in `sources.request_cache_urls`, which is empty by default; a pattern's origin cannot have a wildcard, so it never reaches another site. For every other entry cade reads only its key (the URL) and never its body; Firefox's Cache API database is copied to a temporary folder and deleted, the bodies are read in place, and nothing in these caches is changed.
 
 ## What the local model sees
 
