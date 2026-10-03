@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // percentScale turns an overlap ratio into the percentage printed.
@@ -134,7 +135,7 @@ func (c *schemaChecker) printDrift(name, dir string, drift idbmap.Drift) {
 
 // regenerate replaces the schema when the comparison accepts the new one,
 // and otherwise saves it as a candidate for review.
-func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, records []indexeddb.Record, drift idbmap.Drift) (bool, error) {
+func (c *schemaChecker) regenerate(ctx context.Context, current idbmap.Schema, records []webstore.Record, drift idbmap.Drift) (bool, error) {
 	generator, err := c.loadedGenerator()
 	if err != nil {
 		return false, err
@@ -170,7 +171,7 @@ func identityOnly(comparison idbmap.Comparison) bool {
 
 // rekeyAndReplace gives the indexed messages the UIDs next assigns them,
 // then replaces the schema; the store copies the database first.
-func (c *schemaChecker) rekeyAndReplace(ctx context.Context, current, next idbmap.Schema, records []indexeddb.Record) error {
+func (c *schemaChecker) rekeyAndReplace(ctx context.Context, current, next idbmap.Schema, records []webstore.Record) error {
 	changes, err := idbmap.UIDChanges(current, next, records)
 	if err != nil {
 		return err

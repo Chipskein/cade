@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/v8value"
 	"github.com/chipskein/cade/internal/webstore"
@@ -19,13 +18,13 @@ const (
 	whatsappDir         = "/home/ana/.floorp/p/storage/default/https+++web.whatsapp.com/idb"
 )
 
-func chatRecord(id string) indexeddb.Record {
+func chatRecord(id string) webstore.Record {
 	text := func(value string) *v8value.Value { return &v8value.Value{Kind: v8value.KindString, Text: value} }
 	value := &v8value.Value{Kind: v8value.KindObject, Properties: []v8value.Property{
 		{Key: "id", Value: text(id)}, {Key: "from", Value: text("55@c.us")}, {Key: "body", Value: text("oi")},
 		{Key: "t", Value: &v8value.Value{Kind: v8value.KindNumber, Number: 1727280000}},
 	}}
-	return indexeddb.Record{Kind: webstore.KindIndexedDB, Namespace: "model-storage", Container: "message", Value: value}
+	return webstore.Record{Kind: webstore.KindIndexedDB, Namespace: "model-storage", Container: "message", Value: value}
 }
 
 // discoverWorld is a world whose IndexedDB holds two chat messages and
@@ -34,7 +33,7 @@ func discoverWorld(t *testing.T, fieldsReply string) *fakeWorld {
 	t.Helper()
 	world := newFakeWorld()
 	world.cfg.Sources.IndexedDBSchemaDir = t.TempDir()
-	world.indexedDBRecords = []indexeddb.Record{chatRecord("A"), chatRecord("B")}
+	world.indexedDBRecords = []webstore.Record{chatRecord("A"), chatRecord("B")}
 	world.generator.StructuredReplies = []string{discoverStoreReply, fieldsReply}
 	return world
 }

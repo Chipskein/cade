@@ -12,7 +12,6 @@ import (
 
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
 	"github.com/chipskein/cade/internal/webstore"
 )
@@ -64,7 +63,7 @@ type PathView struct {
 // stores and most frequent paths.
 //
 //	catalog := idbdiscovery.BuildCatalog(records, idbdiscovery.DefaultCatalogLimits)
-func BuildCatalog(records []indexeddb.Record, limits CatalogLimits) Catalog {
+func BuildCatalog(records []webstore.Record, limits CatalogLimits) Catalog {
 	groups := groupByStore(records)
 	slices.SortStableFunc(groups, func(a, b storeGroup) int { return cmp.Compare(len(b.records), len(a.records)) })
 	var catalog Catalog
@@ -92,11 +91,11 @@ func (c Catalog) Store(label string) (StoreView, error) {
 type storeGroup struct {
 	kind            webstore.Kind
 	database, store string
-	records         []indexeddb.Record
+	records         []webstore.Record
 }
 
 // groupByStore keeps decoded records only, in first-seen store order.
-func groupByStore(records []indexeddb.Record) []storeGroup {
+func groupByStore(records []webstore.Record) []storeGroup {
 	index := map[[2]string]int{}
 	var groups []storeGroup
 	for _, record := range records {

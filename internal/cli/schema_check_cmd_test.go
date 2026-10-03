@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // checkWorld has a whatsapp schema discovered on chat records, with its
@@ -23,7 +23,7 @@ func checkWorld(t *testing.T) *fakeWorld {
 }
 
 // renameField renames a field in every record, as an app update would.
-func renameField(records []indexeddb.Record, from, to string) []indexeddb.Record {
+func renameField(records []webstore.Record, from, to string) []webstore.Record {
 	for _, record := range records {
 		for i := range record.Value.Properties {
 			if record.Value.Properties[i].Key == from {
@@ -43,7 +43,7 @@ func TestSchemaCheckReportsAMatchingSchema(t *testing.T) {
 
 func TestSchemaCheckFailsOnDriftWithoutUpdate(t *testing.T) {
 	world := checkWorld(t)
-	world.indexedDBRecords = renameField([]indexeddb.Record{chatRecord("A"), chatRecord("B")}, "t", "ts")
+	world.indexedDBRecords = renameField([]webstore.Record{chatRecord("A"), chatRecord("B")}, "t", "ts")
 	loadsBefore := world.generatorLoads
 	code, stdout, stderr := world.run("schema-check", "whatsapp")
 	if code != 1 || !strings.Contains(stdout, "mudou: 1 caminho sumiu") || !strings.Contains(stdout, "message $.t") || !strings.Contains(stderr, "não resolvida") {
@@ -56,7 +56,7 @@ func TestSchemaCheckFailsOnDriftWithoutUpdate(t *testing.T) {
 
 func TestSchemaCheckUpdateReplacesAnAcceptedSchema(t *testing.T) {
 	world := checkWorld(t)
-	world.indexedDBRecords = renameField([]indexeddb.Record{chatRecord("A"), chatRecord("B")}, "t", "ts")
+	world.indexedDBRecords = renameField([]webstore.Record{chatRecord("A"), chatRecord("B")}, "t", "ts")
 	world.generator.StructuredReplies = []string{discoverStoreReply, strings.Replace(discoverFieldsReply, `["$.t"]`, `["$.ts"]`, 1)}
 	code, stdout, stderr := world.run("schema-check", "--update")
 	if code != 0 || !strings.Contains(stdout, "substituído pela revisão 2: 2 mensagens, 100% dos UIDs mantidos") {
@@ -74,7 +74,7 @@ func TestSchemaCheckUpdateReplacesAnAcceptedSchema(t *testing.T) {
 // indexed messages new UIDs: it is kept as a candidate, not swapped in.
 func TestSchemaCheckUpdateKeepsARefusedSchemaAsCandidate(t *testing.T) {
 	world := checkWorld(t)
-	world.indexedDBRecords = renameField([]indexeddb.Record{chatRecord("A"), chatRecord("B")}, "body", "texto")
+	world.indexedDBRecords = renameField([]webstore.Record{chatRecord("A"), chatRecord("B")}, "body", "texto")
 	for _, record := range world.indexedDBRecords {
 		record.Value.Properties = append(record.Value.Properties, v8value.Property{Key: "chat", Value: &v8value.Value{Kind: v8value.KindString, Text: "outro@c.us"}})
 	}
@@ -90,7 +90,7 @@ func TestSchemaCheckUpdateKeepsARefusedSchemaAsCandidate(t *testing.T) {
 
 func TestSchemaCheckUpdateRekeysWhenAsked(t *testing.T) {
 	world := checkWorld(t)
-	world.indexedDBRecords = renameField([]indexeddb.Record{chatRecord("A"), chatRecord("B")}, "body", "texto")
+	world.indexedDBRecords = renameField([]webstore.Record{chatRecord("A"), chatRecord("B")}, "body", "texto")
 	for _, record := range world.indexedDBRecords {
 		record.Value.Properties = append(record.Value.Properties, v8value.Property{Key: "chat", Value: &v8value.Value{Kind: v8value.KindString, Text: "outro@c.us"}})
 	}

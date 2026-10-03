@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 func object(properties ...v8value.Property) *v8value.Value {
@@ -26,17 +26,17 @@ func field(summary StoreSummary, path string) *FieldStat {
 	return nil
 }
 
-func chainRecord() indexeddb.Record {
+func chainRecord() webstore.Record {
 	message := object(v8value.Property{Key: "content", Value: text("segredo")})
 	chain := object(v8value.Property{Key: "messageMap", Value: object(
 		v8value.Property{Key: "1727280000000", Value: message},
 		v8value.Property{Key: "1727283600000", Value: message},
 	)})
-	return indexeddb.Record{Namespace: "Teams:rc:0b0e1f2a-1111-2222-3333-444455556666", Container: "replychains", Value: chain}
+	return webstore.Record{Namespace: "Teams:rc:0b0e1f2a-1111-2222-3333-444455556666", Container: "replychains", Value: chain}
 }
 
 func TestSummarizeCollapsesIDKeys(t *testing.T) {
-	summaries := Summarize([]indexeddb.Record{chainRecord()})
+	summaries := Summarize([]webstore.Record{chainRecord()})
 	stat := field(summaries[0], "$.messageMap.<id>.content")
 	if stat == nil || stat.Count != 2 || stat.Kinds[v8value.KindString] != 2 {
 		t.Fatalf("expected the id-keyed path counted twice, got %+v", summaries[0].Fields)
@@ -44,14 +44,14 @@ func TestSummarizeCollapsesIDKeys(t *testing.T) {
 }
 
 func TestSummarizeMasksDatabaseName(t *testing.T) {
-	summary := Summarize([]indexeddb.Record{chainRecord()})[0]
+	summary := Summarize([]webstore.Record{chainRecord()})[0]
 	if summary.Database != "Teams:rc:<guid>" || summary.Store != "replychains" {
 		t.Fatalf("expected masked database name, got %q / %q", summary.Database, summary.Store)
 	}
 }
 
 func TestSummarizeNeverIncludesValues(t *testing.T) {
-	for _, stat := range Summarize([]indexeddb.Record{chainRecord()})[0].Fields {
+	for _, stat := range Summarize([]webstore.Record{chainRecord()})[0].Fields {
 		if strings.Contains(stat.Path, "segredo") {
 			t.Fatalf("value leaked into path %q", stat.Path)
 		}
@@ -59,9 +59,9 @@ func TestSummarizeNeverIncludesValues(t *testing.T) {
 }
 
 func TestSummarizeCountsFailuresAndBlobs(t *testing.T) {
-	records := []indexeddb.Record{
+	records := []webstore.Record{
 		{Namespace: "d", Container: "s", DecodeErr: errors.New("bad tag")},
-		{Namespace: "d", Container: "s", DecodeErr: indexeddb.ErrBlobWrapped},
+		{Namespace: "d", Container: "s", DecodeErr: webstore.ErrExternalValue},
 	}
 	summary := Summarize(records)[0]
 	if summary.Records != 2 || summary.Failed != 1 || summary.BlobWrapped != 1 {
@@ -70,7 +70,7 @@ func TestSummarizeCountsFailuresAndBlobs(t *testing.T) {
 }
 
 func TestSummarizeKeepsStoreOrder(t *testing.T) {
-	records := []indexeddb.Record{{Namespace: "d", Container: "b", Value: text("x")}, {Namespace: "d", Container: "a", Value: text("y")}}
+	records := []webstore.Record{{Namespace: "d", Container: "b", Value: text("x")}, {Namespace: "d", Container: "a", Value: text("y")}}
 	summaries := Summarize(records)
 	if len(summaries) != 2 || summaries[0].Store != "b" {
 		t.Fatalf("expected first-seen order, got %+v", summaries)

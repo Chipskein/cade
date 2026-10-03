@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // FakeSchemaGenerator answers the discovery's calls in order and records
@@ -34,7 +35,7 @@ func (f *FakeSchemaGenerator) GenerateStructured(_ context.Context, messages []l
 
 const teamsFieldsReply = `{"message_id": ["$.id"], "conversation_id": ["$.conversationId"], "sent_at": ["$.originalArrivalTime", "$.clientArrivalTime"], "time_format": "unix_ms", "sender": ["$.imDisplayName"], "sender_id": ["$.creator"], "conversation": [], "text": ["$.content"], "text_format": "html_text", "sent_by_me": ["$.isSentByCurrentUser"], "keep": {"path": "$.messageType", "in": ["Text", "RichText/Html"]}, "sender_lookup": {"store": "PROFILES", "key": "$.creator", "match": "$.mri", "value": "$.displayName"}}`
 
-func teamsRecords(t *testing.T) []indexeddb.Record {
+func teamsRecords(t *testing.T) []webstore.Record {
 	t.Helper()
 	records, err := indexeddb.ReadDirectory(teamsSampleDir)
 	if err != nil {
