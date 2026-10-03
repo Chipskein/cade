@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Privacy laws: requirements, gaps and rules (#25)
+
+- **PRIVACY compares cade with the LGPD and the GDPR** without tying it to either: the personal data each source holds (yours and other people's, and where sensitive data can appear), a table of requirements, how cade meets each and what is missing, and five rules for sensitive and biometric data that bind people entities (#20) and faces (#23).
+- **Three gaps became issues:** a full export (#85), erasing and exporting everything about one person (#86), and migration copies that keep forgotten data (#87).
+- **sessionStorage and cookies are not read (#76).** A survey (names, hosts and sizes only) found no messages in either: cookies hold consent, anti-bot state, ids and session tokens, Chrome's are encrypted with the keyring key, and Firefox's `recovery.jsonlz4`, where sessionStorage lives, also holds the session cookies. The decision is in the roadmap.
+- No code change and no database migration.
+
 ### localStorage and OPFS (#74)
 
 - **Sites' own storages are read** with the same schemas, discovery and `schema-check`: localStorage (`records.kind` `local_storage`) of Chromium and Electron apps (`Local Storage/leveldb`) and of Firefox and Floorp (`storage/default/<origin>/ls`), and the Origin Private File System (`opfs`) of both (`File System/<number>`, `storage/default/<origin>/fs`). A localStorage item is a record keyed by its key, a tree when it is JSON; an OPFS JSON file is a record located by its directory and name.

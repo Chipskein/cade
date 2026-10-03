@@ -36,7 +36,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 24a | [Compactar os vetores](#fase-24a--compactar-os-vetores) | [#65](https://github.com/Chipskein/cade/issues/65) | feito | médio | baixo |
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | feito | alto | médio |
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | feito | médio | alto |
-| 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | a fazer | alto | baixo |
+| 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | feito | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
@@ -200,6 +200,7 @@ flowchart LR
 - **Problema:** muito já existe (tudo local, PRIVACY, `forget` por fonte, UID, texto e período, `secure_delete`, banco só do dono), mas ninguém comparou isso com a LGPD e o GDPR. Falta, por exemplo, exportar os dados de uma pessoa ou de uma fonte.
 - **Mudança:** tabela "requisito → como o `cade` atende → lacuna" no PRIVACY (EN e PT), sem amarrar o `cade` a uma lei. Cada lacuna vira uma issue. As regras para a entidade `Person` (fase 26) e para dados biométricos (rostos, v0.3.0) ficam definidas aqui.
 - **Aceite:** a tabela no PRIVACY; uma issue por lacuna; as regras para `Person` definidas antes da fase 26 começar.
+- **Resultado** ([PRIVACY](../PRIVACY.pt-BR.md#dados-pessoais-e-leis-de-privacidade)): os dados pessoais por fonte (seus e de outras pessoas, e onde pode haver dado sensível), a tabela de requisitos e lacunas e cinco regras para dados sensíveis e biométricos, que valem para a fase 26 e para a #23: opt-in por tipo, nada sensível deduzido, biometria numa tabela à parte e só comparada com os seus arquivos, derivados apagados com o evento, e exportação com os derivados. Três lacunas viraram issues da v0.3.0: exportação ([#85](https://github.com/Chipskein/cade/issues/85)), apagar e exportar por pessoa ([#86](https://github.com/Chipskein/cade/issues/86)) e as cópias de migração que guardam o que foi esquecido ([#87](https://github.com/Chipskein/cade/issues/87)); a criptografia continua na #57.
 
 ---
 
@@ -269,11 +270,21 @@ flowchart LR
 | [#73](https://github.com/Chipskein/cade/issues/73) | Abstração das fontes de mensagens do navegador | **feito:** pacote `webstore` (registro e leitor por armazenamento, IndexedDB do Chromium e do Firefox como primeiros leitores), schema versão 2 com `records.kind` e `namespace_prefix`/`container` (a versão 1 continua lida), `schema-discover` e `schema-check` com `idb-*` como alias |
 | [#74](https://github.com/Chipskein/cade/issues/74) | localStorage e OPFS | **feito:** leitores do localStorage e do OPFS do Chromium/Electron e do Firefox/Floorp, só as origens de `sources.storage_origins`; o levantamento só achou mensagens nos rascunhos do ChatGPT (schema revisado); SQLite no OPFS fica para outra issue |
 | [#75](https://github.com/Chipskein/cade/issues/75) | Cache HTTP e Cache API (Discord) | **feito:** leitores do cache HTTP e da Cache API do Chromium/Electron e do Firefox/Floorp, só as URLs de `sources.request_cache_urls`, schema revisado do Discord (90 de 99 mensagens do cache do app desktop) |
-| [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | investigação sem código; cookies guardam tokens de sessão |
+| [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | **feito:** decisão de não ler nenhum dos dois ([abaixo](#decisão-sessionstorage-e-cookies-76)) |
 | [#77](https://github.com/Chipskein/cade/issues/77) | Importar a conversa exportada do WhatsApp | completa o texto das mensagens que a fase 30 indexa só por metadados |
 | [#78](https://github.com/Chipskein/cade/issues/78) | Caminhos `^.` para mensagens aninhadas (ChatGPT) | a linguagem do schema só cresce com caso real; este é o próximo |
 | [#79](https://github.com/Chipskein/cade/issues/79) | Textos cifrados pelos apps | investigação sem código; decifrar fica fora |
 | [#80](https://github.com/Chipskein/cade/issues/80) | Buscar mensagens no servidor do app | investigação sem código; bate no princípio de não usar rede em tempo de execução |
+
+### Decisão: sessionStorage e cookies (#76)
+
+**O `cade` não lê cookies nem sessionStorage, e nenhum dos dois entra na descoberta.** O levantamento de 2026-10-03, nesta máquina (Floorp, Chrome e Discord desktop), olhou só nomes, hosts e tamanhos, nunca valores:
+
+- **Cookies sem mensagens.** O Floorp tem 1.964 cookies de 693 hosts em `cookies.sqlite`, em texto puro; o Chrome, 2.412 de 610 hosts em `Cookies`, todos cifrados (`v10`/`v11`, com a chave no keyring); o Discord, 7 cookies vazios do Cloudflare. Os 63 hosts com valores que parecem frase guardam consentimento (`OptanonConsent`), proteção contra robôs (`_abck`, `bm_*`) e rastreio de campanha. O resto são identificadores e credenciais (`session-token`, `jwt_token`, `SID`, `__Secure-*-BearerToken`). No Chromium, ler o conteúdo exigiria decifrar com a chave do keyring, o mesmo que tirar as senhas de sessão do navegador.
+- **sessionStorage sem mensagens e passageiro.** O Firefox e o Floorp só o gravam em `sessionstore-backups/recovery.jsonlz4`, para restaurar as abas abertas: com o Floorp aberto, uma origem (GitHub, 8 itens de estado da tela) e nenhum formulário. O mesmo arquivo traz 1.079 cookies de sessão em texto puro, então lê-lo é tocar em credenciais. No Chromium, `Session Storage/` estava vazio no Chrome e com um mapa vazio no Discord. A especificação apaga o sessionStorage ao fechar a aba, então o que estiver ali some antes do próximo `ingest`; o que um app de mensagens quer manter vai para o IndexedDB ou o localStorage, que o `cade` já lê.
+- **Risco sem ganho.** Não há uma regra que separe token de conteúdo pelo nome ou pelo formato; o mascaramento do `ingest.redact` reconhece formatos conhecidos, não todos. Sem mensagens para ganhar, não existe filtro aceitável.
+
+Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue nova começa por esse app e tem a regra de nunca indexar nem mostrar ao modelo um cookie ou o `recovery.jsonlz4` inteiro. Usar cookies para se autenticar no servidor do app é a #80.
 
 ---
 
@@ -305,6 +316,9 @@ Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.
 | [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
 | [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
 | [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
+| [#85](https://github.com/Chipskein/cade/issues/85) | Exportar os dados guardados (`cade export`) | lacuna de acesso e portabilidade da fase 25; os derivados das fases 26 a 28 entram na exportação |
+| [#86](https://github.com/Chipskein/cade/issues/86) | Apagar e exportar tudo sobre uma pessoa | lacuna da fase 25; parte da entidade `Person` da fase 26 e da #85 |
+| [#87](https://github.com/Chipskein/cade/issues/87) | Cópias de migração com dados esquecidos | lacuna da fase 25; o PRIVACY já avisa para apagá-las à mão |
 
 ---
 

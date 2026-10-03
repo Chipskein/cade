@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Leis de privacidade: requisitos, lacunas e regras (#25)
+
+- **O PRIVACY compara o cade com a LGPD e o GDPR** sem amarrá-lo a nenhuma: os dados pessoais de cada fonte (seus e de outras pessoas, e onde pode haver dado sensível), uma tabela de requisitos, como o cade atende cada um e o que falta, e cinco regras para dados sensíveis e biométricos que valem para as entidades de pessoa (#20) e os rostos (#23).
+- **Três lacunas viraram issues:** exportação completa (#85), apagar e exportar tudo sobre uma pessoa (#86) e as cópias de migração que guardam dados esquecidos (#87).
+- **sessionStorage e cookies não são lidos (#76).** Um levantamento (só nomes, hosts e tamanhos) não achou mensagens em nenhum dos dois: os cookies guardam consentimento, estado anti-robô, ids e tokens de sessão, os do Chrome são cifrados com a chave do keyring, e o `recovery.jsonlz4` do Firefox, onde fica o sessionStorage, também guarda os cookies de sessão. A decisão está no roadmap.
+- Nenhuma mudança de código nem migração do banco.
+
 ### localStorage e OPFS (#74)
 
 - **Os armazenamentos dos próprios sites são lidos** com os mesmos schemas, descoberta e `schema-check`: o localStorage (`records.kind` `local_storage`) do Chromium e de apps Electron (`Local Storage/leveldb`) e do Firefox e do Floorp (`storage/default/<origem>/ls`), e o Origin Private File System (`opfs`) dos dois (`File System/<número>`, `storage/default/<origem>/fs`). Um item do localStorage é um registro com a chave dele, em árvore quando é JSON; um arquivo JSON do OPFS é um registro localizado pelo diretório e pelo nome.

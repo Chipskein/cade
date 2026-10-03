@@ -109,3 +109,46 @@ Both models run in-process through llama.cpp.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - `forget --uid` and confirmed `forget --match` remove the event, chunks, embeddings, keyword and people indexes, and file history; only its UID and deletion date remain to prevent re-ingestion. `forget <source>` clears that forgotten-UID list. Retention is off by default; set `ingest.retention.max_age_days` per source to opt in.
+
+## Personal data and privacy laws
+
+cade does not pick a law for you. This section compares what it does with the rights and duties that Brazil's LGPD and the EU's GDPR share, and lists what is missing. It is not legal advice.
+
+- **You process the data, on your machine.** Nothing reaches the project or anyone else. Both laws leave out processing by a person for purely personal ends (LGPD art. 4, I; GDPR art. 2(2)(c)); work messages are not purely personal, so your organization's rules apply to them (see [Teams](#teams)).
+- **Other people's data is in it:** senders of messages, authors of commits, names in page and conversation titles, people in your files and images.
+
+### Personal data by source
+
+| Source | Yours | Other people's | Sensitive data possible |
+|---|---|---|---|
+| **git** | name, e-mail, commit messages | other authors' names, e-mails and messages (`timeline` shows them only with `--all-authors`) | rarely |
+| **browser** | every page visited, its title and time | names in page titles (profiles, chats) | yes: health, religion or politics can be inferred from the sites visited |
+| **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
+| **teams** and **apps through a schema** | your messages | other people's messages, names and ids | yes, whatever people write |
+| **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
+
+### Requirements and gaps
+
+| Requirement | How cade meets it today | Gap |
+|---|---|---|
+| Transparency | this page; `cade init` asks before each source | — |
+| Minimization | Teams, images, `sources.storage_origins` and `sources.request_cache_urls` are off or empty by default; secret masking; URL credential parameters dropped; ignored file globs; cookies and sessionStorage are never read ([#76](https://github.com/Chipskein/cade/issues/76)) | — |
+| Purpose limitation | local search only: no network at run time, no telemetry, and the model has no tools | — |
+| Storage limitation | `ingest.retention.max_age_days` per source | off by default, by choice: the history is the point |
+| Access and portability | `ask`, `timeline`, `tasks` and listings show the data | no complete, machine-readable copy: `ask --json` returns at most `top_k` events and `timeline` prints text → [#85](https://github.com/Chipskein/cade/issues/85) |
+| Rectification | an edited message or file replaces the stored text on the next ingestion | cade never edits text itself: correct the source and ingest again |
+| Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL | nothing erases everything about one person, though `event_people` knows where they appear → [#86](https://github.com/Chipskein/cade/issues/86); migration and rekey copies keep forgotten data → [#87](https://github.com/Chipskein/cade/issues/87) |
+| Deletion at the source | an edit replaces the text | a message deleted in the app stays until `forget`; an expired cache cannot tell cade it was deleted |
+| Security | owner-only files, no network, temporary copies removed | the database is not encrypted → [#57](https://github.com/Chipskein/cade/issues/57) |
+| Sensitive data (LGPD art. 11, GDPR art. 9) | stored like any text; never detected, labelled or inferred | rules below |
+| Biometric data | none: an image description says what a picture shows, not who is in it | rules below, before [#23](https://github.com/Chipskein/cade/issues/23) |
+
+### Rules for sensitive and biometric data
+
+These bind the work that adds personal data, starting with people as entities ([#20](https://github.com/Chipskein/cade/issues/20)) and faces ([#23](https://github.com/Chipskein/cade/issues/23)):
+
+1. **Opt-in per kind.** A new kind of personal data (face vectors, anything a person entity holds beyond the names events already have) is off until you turn it on in `cade init` or the configuration. Turning it off stops collecting it, and one command deletes what was kept.
+2. **Nothing sensitive is inferred.** cade never derives health, religion, politics, ethnicity, sex life or similar traits, and never asks a model to. A person entity holds only what a source states: names and ids found in events.
+3. **Biometrics stay apart.** Face vectors live in their own table, never in event text or image descriptions, never reach the generation model, and are compared only with faces from your own files. A face gets a name only from you.
+4. **What is derived follows its event.** `forget` of an event deletes the entities, relations, representations and face vectors that came only from it, and a person left with no event is deleted.
+5. **Same local rules:** no network, owner-only files, and the export ([#85](https://github.com/Chipskein/cade/issues/85)) includes the derived data, so you can see everything kept about a person.
