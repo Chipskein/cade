@@ -100,11 +100,10 @@ func groupByStore(records []indexeddb.Record) []storeGroup {
 		if record.DecodeErr != nil {
 			continue
 		}
-		namespace, container := record.Location()
-		key := [2]string{namespace, container}
+		key := [2]string{record.Namespace, record.Container}
 		if _, seen := index[key]; !seen {
 			index[key] = len(groups)
-			groups = append(groups, storeGroup{database: namespace, store: container})
+			groups = append(groups, storeGroup{database: record.Namespace, store: record.Container})
 		}
 		groups[index[key]].records = append(groups[index[key]].records, record)
 	}

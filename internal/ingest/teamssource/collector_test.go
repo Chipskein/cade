@@ -57,12 +57,12 @@ func replyChain(messages ...*v8value.Value) indexeddb.Record {
 	for _, m := range messages {
 		messageMap.Properties = append(messageMap.Properties, v8value.Property{Key: m.Get("id").String(), Value: m})
 	}
-	return indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, Value: obj("messageMap", messageMap)}
+	return indexeddb.Record{Namespace: testReplyChainDB, Container: replyChainStore, Value: obj("messageMap", messageMap)}
 }
 
 func conversationRecord() indexeddb.Record {
 	conversation := obj("id", str(testConversationID), "type", str("Chat"), "threadProperties", obj("topic", str("Release 2.0")))
-	return indexeddb.Record{Database: testConversationDB, Store: conversationStore, Value: conversation}
+	return indexeddb.Record{Namespace: testConversationDB, Container: conversationStore, Value: conversation}
 }
 
 func collectTeams(t *testing.T, reader FakeIndexedDBReader) ([]event.Event, error) {
@@ -111,8 +111,8 @@ func TestCollectSkipsDeletedAndEmptyMessages(t *testing.T) {
 
 func TestCollectIgnoresOtherStores(t *testing.T) {
 	pinned := replyChain(message("1", "Text", "oi"))
-	pinned.Store = "pinned-messages-store"
-	failed := indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, DecodeErr: errors.New("bad")}
+	pinned.Container = "pinned-messages-store"
+	failed := indexeddb.Record{Namespace: testReplyChainDB, Container: replyChainStore, DecodeErr: errors.New("bad")}
 	valid := replyChain(message("2", "Text", "tchau"))
 	events, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{pinned, failed, valid}})
 	if err != nil || len(events) != 1 || !strings.Contains(events[0].Content, "tchau") {
@@ -124,7 +124,7 @@ func TestCollectIgnoresOtherStores(t *testing.T) {
 // ingestion report "0 novos" silently.
 func TestCollectFailsWhenMessageStoreIsMissing(t *testing.T) {
 	renamed := replyChain(message("1", "Text", "oi"))
-	renamed.Store = "replychains-v2"
+	renamed.Container = "replychains-v2"
 	_, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{conversationRecord(), renamed}})
 	if err == nil || !strings.Contains(err.Error(), `none in store "replychains"`) || !strings.Contains(err.Error(), "cade teams-schema") {
 		t.Fatalf("expected an unrecognized-format error pointing to teams-schema, got %v", err)
@@ -200,8 +200,8 @@ func TestCollectMarksChannelPosts(t *testing.T) {
 	channel := obj("id", str(testConversationID), "type", str("Topic"), "teamId", str("19:team@thread.tacv2"),
 		"threadProperties", obj("topic", str("Avisos")))
 	records := []indexeddb.Record{
-		{Database: testConversationDB, Store: conversationStore, Value: team},
-		{Database: testConversationDB, Store: conversationStore, Value: channel},
+		{Namespace: testConversationDB, Container: conversationStore, Value: team},
+		{Namespace: testConversationDB, Container: conversationStore, Value: channel},
 		replyChain(message("1", "Text", "antecipem os apontamentos")),
 	}
 	events, _ := collectTeams(t, FakeIndexedDBReader{Records: records})
@@ -214,7 +214,7 @@ func TestCollectMarksChannelPosts(t *testing.T) {
 func TestCollectResolvesSenderFromProfiles(t *testing.T) {
 	anonymous := obj("id", str("1"), "conversationId", str(testConversationID), "messageType", str("Text"),
 		"content", str("oi"), "creator", str("8:orgid:ana"), "originalArrivalTime", num(float64(sentAt.UnixMilli())))
-	profile := indexeddb.Record{Database: "Teams:profiles:react-web-client:t:u:en-us", Store: "profiles",
+	profile := indexeddb.Record{Namespace: "Teams:profiles:react-web-client:t:u:en-us", Container: "profiles",
 		Value: obj("mri", str("8:orgid:ana"), "displayName", str("Ana Prado"))}
 	events, _ := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{profile, replyChain(anonymous)}})
 	if len(events) != 1 || events[0].Metadata["sender"] != "Ana Prado" {
@@ -234,7 +234,7 @@ func TestCollectCarriesVersionAsRevision(t *testing.T) {
 // Regression: a reply chain without messageMap panicked with a nil pointer
 // (found by the format sample test).
 func TestReplyChainWithoutMessageMapIsSkipped(t *testing.T) {
-	bare := indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, Value: obj("id", str("19:big@thread.v2"))}
+	bare := indexeddb.Record{Namespace: testReplyChainDB, Container: replyChainStore, Value: obj("id", str("19:big@thread.v2"))}
 	events, err := collectTeams(t, FakeIndexedDBReader{Records: []indexeddb.Record{bare, replyChain(message("1", "Text", "oi"))}})
 	if err != nil || len(events) != 1 {
 		t.Fatalf("expected the other chain's message and no error, got %d events, %v", len(events), err)

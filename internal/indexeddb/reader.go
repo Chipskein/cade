@@ -22,7 +22,7 @@ type Record = webstore.Record
 //
 //	record := indexeddb.NewRecord("model-storage", "message")
 func NewRecord(database, store string) Record {
-	return Record{Kind: webstore.KindIndexedDB, Namespace: database, Container: store, Database: database, Store: store}
+	return Record{Kind: webstore.KindIndexedDB, Namespace: database, Container: store}
 }
 
 // ReadDirectory snapshots dir (the browser keeps it locked and writing)

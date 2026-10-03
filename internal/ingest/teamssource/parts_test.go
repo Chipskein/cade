@@ -62,7 +62,7 @@ func TestChannelTitleWithoutTeam(t *testing.T) {
 }
 
 func TestProfileNames(t *testing.T) {
-	record := indexeddb.Record{Database: "Teams:profiles:x", Store: "profiles", Value: obj("mri", str("8:orgid:a"), "displayName", str("Ana"))}
+	record := indexeddb.Record{Namespace: "Teams:profiles:x", Container: "profiles", Value: obj("mri", str("8:orgid:a"), "displayName", str("Ana"))}
 	if names := profileNames([]indexeddb.Record{record}); names["8:orgid:a"] != "Ana" {
 		t.Fatalf("unexpected profile names %v", names)
 	}
@@ -73,7 +73,7 @@ func TestConversationTitleFromParticipants(t *testing.T) {
 		obj("displayName", str("Ana")), nil, obj("displayName", str("Bruno")),
 	}}
 	conversation := obj("id", str("c1"), "type", str("Chat"), "chatTitle", obj("avatarUsersInfo", users))
-	infos := conversationInfos([]indexeddb.Record{{Database: testConversationDB, Store: conversationStore, Value: conversation}})
+	infos := conversationInfos([]indexeddb.Record{{Namespace: testConversationDB, Container: conversationStore, Value: conversation}})
 	if infos["c1"].title != "Ana, Bruno" {
 		t.Fatalf("expected participant names, got %q", infos["c1"].title)
 	}

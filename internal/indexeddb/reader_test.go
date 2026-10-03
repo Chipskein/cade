@@ -83,7 +83,7 @@ func TestReadDirectoryHonoursLaterSession(t *testing.T) {
 	records := fixtureRecords(t)
 	late := recordWithID(records, "19:late@thread.v2")
 	for _, record := range records {
-		if record.Store == "people" && record.Value.Get("displayName").String() != "Bruno" {
+		if record.Container == "people" && record.Value.Get("displayName").String() != "Bruno" {
 			t.Fatalf("deleted person must be gone, found %q", record.Value.Get("displayName").String())
 		}
 	}
@@ -101,7 +101,7 @@ func TestReadDirectoryMissing(t *testing.T) {
 func TestDecodeRecordsReportsUndecodableValues(t *testing.T) {
 	entries := []leveldbraw.Entry{{Key: []byte{0x00, 1, 1, 1, 0x01}, Value: []byte{0x02, 0x00}}}
 	records := decodeRecords(entries)
-	if len(records) != 1 || records[0].DecodeErr == nil || records[0].Database != "#1" {
+	if len(records) != 1 || records[0].DecodeErr == nil || records[0].Namespace != "#1" {
 		t.Fatalf("expected one failed record under #1, got %+v", records)
 	}
 }
