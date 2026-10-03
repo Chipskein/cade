@@ -44,7 +44,7 @@ func mustMapper(t *testing.T, raw string) Mapper {
 }
 
 func record(database, store string, value *v8value.Value) indexeddb.Record {
-	return indexeddb.Record{Database: database, Store: store, Value: value}
+	return indexeddb.Record{Namespace: database, Container: store, Value: value}
 }
 
 func chainMessage(id, messageType, content string, pairs ...any) *v8value.Value {

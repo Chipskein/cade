@@ -32,7 +32,7 @@ func chainRecord() indexeddb.Record {
 		v8value.Property{Key: "1727280000000", Value: message},
 		v8value.Property{Key: "1727283600000", Value: message},
 	)})
-	return indexeddb.Record{Database: "Teams:rc:0b0e1f2a-1111-2222-3333-444455556666", Store: "replychains", Value: chain}
+	return indexeddb.Record{Namespace: "Teams:rc:0b0e1f2a-1111-2222-3333-444455556666", Container: "replychains", Value: chain}
 }
 
 func TestSummarizeCollapsesIDKeys(t *testing.T) {
@@ -60,8 +60,8 @@ func TestSummarizeNeverIncludesValues(t *testing.T) {
 
 func TestSummarizeCountsFailuresAndBlobs(t *testing.T) {
 	records := []indexeddb.Record{
-		{Database: "d", Store: "s", DecodeErr: errors.New("bad tag")},
-		{Database: "d", Store: "s", DecodeErr: indexeddb.ErrBlobWrapped},
+		{Namespace: "d", Container: "s", DecodeErr: errors.New("bad tag")},
+		{Namespace: "d", Container: "s", DecodeErr: indexeddb.ErrBlobWrapped},
 	}
 	summary := Summarize(records)[0]
 	if summary.Records != 2 || summary.Failed != 1 || summary.BlobWrapped != 1 {
@@ -70,7 +70,7 @@ func TestSummarizeCountsFailuresAndBlobs(t *testing.T) {
 }
 
 func TestSummarizeKeepsStoreOrder(t *testing.T) {
-	records := []indexeddb.Record{{Database: "d", Store: "b", Value: text("x")}, {Database: "d", Store: "a", Value: text("y")}}
+	records := []indexeddb.Record{{Namespace: "d", Container: "b", Value: text("x")}, {Namespace: "d", Container: "a", Value: text("y")}}
 	summaries := Summarize(records)
 	if len(summaries) != 2 || summaries[0].Store != "b" {
 		t.Fatalf("expected first-seen order, got %+v", summaries)

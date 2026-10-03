@@ -96,8 +96,8 @@ func teamsEdgeCases() []indexeddb.Record {
 		"10", obj("id", str("10"), "conversationId", str("19:c@thread.v2"), "messageType", str("Text"), "content", str("sem hora")),
 	)
 	return []indexeddb.Record{
-		{Database: "Teams:replychain-manager:x", Store: "replychains", Value: obj("id", str("19:c@thread.v2"), "messageMap", messages)},
-		{Database: "Teams:profiles:x", Store: "profiles", Value: obj("mri", str("8:orgid:carla"), "displayName", str(" Carla Dias "))},
+		{Namespace: "Teams:replychain-manager:x", Container: "replychains", Value: obj("id", str("19:c@thread.v2"), "messageMap", messages)},
+		{Namespace: "Teams:profiles:x", Container: "profiles", Value: obj("mri", str("8:orgid:carla"), "displayName", str(" Carla Dias "))},
 	}
 }
 

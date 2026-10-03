@@ -15,7 +15,7 @@ func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
 		record("model-storage", "contact", obj("id", str("2@c.us"))),
 		record("model-storage", "contact", obj("id", str("4@c.us"), "pushname", str(" Bia "))),
 		record("model-storage", "chat", obj("id", str("3@c.us"), "name", str("Grupo"))),
-		{Database: "model-storage", Store: "contact", DecodeErr: errors.New("corrupt")},
+		{Namespace: "model-storage", Container: "contact", DecodeErr: errors.New("corrupt")},
 	}
 	index, err := buildLookup(lookup, records)
 	if err != nil || len(index.values) != 2 {

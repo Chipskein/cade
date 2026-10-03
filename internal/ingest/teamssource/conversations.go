@@ -26,7 +26,7 @@ type conversationInfo struct {
 }
 
 func isStore(record indexeddb.Record, databasePrefix, store string) bool {
-	return record.DecodeErr == nil && record.Store == store && strings.HasPrefix(record.Database, databasePrefix)
+	return record.InContainer(databasePrefix, store)
 }
 
 // conversationInfos maps conversation ids to their kind and readable name.

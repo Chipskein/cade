@@ -22,7 +22,7 @@ func (w *fakeWorld) readIndexedDB(dir string) ([]indexeddb.Record, error) {
 	message := &v8value.Value{Kind: v8value.KindObject, Properties: []v8value.Property{
 		{Key: "content", Value: &v8value.Value{Kind: v8value.KindString, Text: "conteúdo privado"}},
 	}}
-	return []indexeddb.Record{{Database: "Teams:replychain-manager", Store: "replychains", Value: message}}, nil
+	return []indexeddb.Record{{Namespace: "Teams:replychain-manager", Container: "replychains", Value: message}}, nil
 }
 
 func TestTeamsSchemaPrintsStructureOnly(t *testing.T) {

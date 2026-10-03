@@ -84,7 +84,7 @@ func TestMeasureDriftFindsMissingAndChangedPaths(t *testing.T) {
 func TestMeasureDriftReportsAGoneStoreEvenWithoutFingerprint(t *testing.T) {
 	records := chainRecords()
 	for i := range records {
-		records[i].Store = strings.ToUpper(records[i].Store)
+		records[i].Container = strings.ToUpper(records[i].Container)
 	}
 	drift, err := MeasureDrift(mustMapper(t, chainSchema).schema, records)
 	if err != nil || drift.Format == nil || !drift.Drifted() || len(drift.Missing) != 0 {

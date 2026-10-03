@@ -18,7 +18,7 @@ const whatsappSchemaPath = "../../../testdata/idb-schemas/whatsapp.json"
 func whatsappMessage(id, messageType string, pairs ...any) indexeddb.Record {
 	encrypted := obj("_data", &v8value.Value{Kind: v8value.KindBinary, Bytes: []byte{1, 2}}, "_keyId", num(7))
 	base := []any{"id", str(id), "type", str(messageType), "t", num(1727280000), "from", str("5500000000001@c.us"), "msgRowOpaqueData", encrypted}
-	return indexeddb.Record{Database: "model-storage", Store: "message", Value: obj(append(base, pairs...)...)}
+	return indexeddb.Record{Namespace: "model-storage", Container: "message", Value: obj(append(base, pairs...)...)}
 }
 
 func whatsappBase() []indexeddb.Record {
@@ -28,9 +28,9 @@ func whatsappBase() []indexeddb.Record {
 		whatsappMessage("false_120000000000000001@g.us_CCCC_5500000000002@c.us", "chat",
 			"from", str("120000000000000001@g.us"), "author", obj("_serialized", str("5500000000002@c.us"))),
 		whatsappMessage("false_120000000000000001@g.us_DDDD", "gp2", "from", str("120000000000000001@g.us")),
-		{Database: "model-storage", Store: "contact", Value: obj("id", str("5500000000001@c.us"), "pushname", str("Ana"))},
-		{Database: "model-storage", Store: "contact", Value: obj("id", str("5500000000002@c.us"), "name", str("Carla Dias"), "pushname", str("Carlinha"))},
-		{Database: "model-storage", Store: "chat", Value: obj("id", str("120000000000000001@g.us"), "name", str("Família"))},
+		{Namespace: "model-storage", Container: "contact", Value: obj("id", str("5500000000001@c.us"), "pushname", str("Ana"))},
+		{Namespace: "model-storage", Container: "contact", Value: obj("id", str("5500000000002@c.us"), "name", str("Carla Dias"), "pushname", str("Carlinha"))},
+		{Namespace: "model-storage", Container: "chat", Value: obj("id", str("120000000000000001@g.us"), "name", str("Família"))},
 	}
 }
 

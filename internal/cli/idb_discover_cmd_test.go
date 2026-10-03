@@ -23,7 +23,7 @@ func chatRecord(id string) indexeddb.Record {
 		{Key: "id", Value: text(id)}, {Key: "from", Value: text("55@c.us")}, {Key: "body", Value: text("oi")},
 		{Key: "t", Value: &v8value.Value{Kind: v8value.KindNumber, Number: 1727280000}},
 	}}
-	return indexeddb.Record{Database: "model-storage", Store: "message", Value: value}
+	return indexeddb.Record{Namespace: "model-storage", Container: "message", Value: value}
 }
 
 // discoverWorld is a world whose IndexedDB holds two chat messages and
