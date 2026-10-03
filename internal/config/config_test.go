@@ -223,3 +223,19 @@ func TestDefaultsIndexedDBDirsStayEmptyAfterLoad(t *testing.T) {
 		t.Fatal("loading must not change the defaults")
 	}
 }
+
+func TestLoadRejectsARequestCachePatternWithAWildcardOrigin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"request_cache_urls": {"chat": ["https://*.discord.com/api/*"]}}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sources.request_cache_urls") || !strings.Contains(err.Error(), "https://*.discord.com/api/*") {
+		t.Fatalf("expected the pattern rejected by setting and value, got %v", err)
+	}
+}
+
+func TestLoadAcceptsRequestCacheURLs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"request_cache_urls": {"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}}}`), 0o600))
+	if cfg, err := Load(path); err != nil || len(cfg.Sources.RequestCacheURLs["discord-messages"]) != 1 {
+		t.Fatalf("expected the discord pattern loaded, got %+v %v", cfg.Sources.RequestCacheURLs, err)
+	}
+}

@@ -47,6 +47,7 @@
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
 | `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade schema-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
 | `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
+| `sources.request_cache_urls` | As únicas URLs lidas do cache HTTP e da Cache API dos navegadores, como padrões com nome, ex.: `{"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}`; `*` casa qualquer sequência de caracteres, e a origem é literal. Vazio (o padrão) não lê nada desses caches. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
 | `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
