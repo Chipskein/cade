@@ -47,19 +47,33 @@ func (a *Answerer) rankAmong(ctx context.Context, embedding []float32, query que
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 
-// resolveFilter is the question's period (or all time), source, folder and
-// criteria, with each name resolved against the stored events.
+// resolveFilter is the question's period (or all time), source, folder,
+// modality and criteria, with each name resolved against the stored
+// events, widened through the graph when the question asks for others.
 func (a *Answerer) resolveFilter(ctx context.Context, query queryplan.Query, observer AnswerObserver) (storage.EventFilter, error) {
-	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source, Folder: query.Folder}
-	if query.Days != nil {
-		scope.From, scope.To = query.Days.Start(), query.Days.End()
-	}
-	filter, resolution, err := storage.ResolveCriteria(ctx, a.store, scope, query.Criteria)
+	filter, resolution, err := storage.ResolveCriteria(ctx, a.store, a.scopeOf(query), query.Criteria)
 	if err != nil {
 		return storage.EventFilter{}, err
 	}
-	observer.notifyPeople(resolution.Matched, resolution.Unknown)
-	return filter, nil
+	filter, unknownEntities, err := storage.ResolveAppearing(ctx, a.store, filter, query.Entities)
+	if err != nil {
+		return storage.EventFilter{}, err
+	}
+	observer.notifyPeople(resolution.Matched, append(resolution.Unknown, unknownEntities...))
+	if !query.Related {
+		return filter, nil
+	}
+	return a.widenByRelations(ctx, filter)
+}
+
+// scopeOf is what the question restricts before any name is resolved.
+func (a *Answerer) scopeOf(query queryplan.Query) storage.EventFilter {
+	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source, Folder: query.Folder,
+		Graph: storage.GraphFilter{Modality: query.Modality}}
+	if query.Days != nil {
+		scope.From, scope.To = query.Days.Start(), query.Days.End()
+	}
+	return scope
 }
 
 // tooManyToRank reports whether more events match than

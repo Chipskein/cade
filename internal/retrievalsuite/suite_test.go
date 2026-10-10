@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/rag"
@@ -70,6 +72,9 @@ func TestNewSuiteRejectsUnknownGroup(t *testing.T) {
 	if _, err := NewSuite(corpus, CaseSet{Cases: []Case{{Question: "q", Direction: "para"}}}); err == nil || !strings.Contains(err.Error(), `"para"`) {
 		t.Fatalf("expected an error naming the direction, got %v", err)
 	}
+	if _, err := NewSuite(corpus, CaseSet{Cases: []Case{{Question: "q", Modality: "video"}}}); err == nil || !strings.Contains(err.Error(), `"video"`) {
+		t.Fatalf("expected an error naming the modality, got %v", err)
+	}
 }
 
 func TestNewSuiteRejectsMalformedPendingIssue(t *testing.T) {
@@ -88,6 +93,13 @@ func TestLoadersRequireContent(t *testing.T) {
 	}
 	if _, err := LoadCases(strings.NewReader(`{"cases": []}`)); err == nil {
 		t.Error("expected an empty case set rejected")
+	}
+}
+
+func TestCaseQueryCarriesTheGraphFields(t *testing.T) {
+	query := Case{Question: "imagens do João", Entities: []string{"João"}, Modality: "imagem", Related: true}.Query(time.Now())
+	if len(query.Entities) != 1 || query.Modality != entity.TypeImage || !query.Related {
+		t.Fatalf("expected the entity, modality and widening in the query, got %+v", query)
 	}
 }
 

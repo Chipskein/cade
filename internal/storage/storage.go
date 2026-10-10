@@ -104,6 +104,10 @@ type EventStore interface {
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	VectorCompactor
+	// EntityIndex and RelationIndex let retrieval widen a question
+	// through the graph (#24).
+	EntityIndex
+	RelationIndex
 	Close() error
 }
 
