@@ -26,7 +26,7 @@ Real questions are the best cases: they show what actually goes wrong. But this 
 
 1. **Write down the problem, not the data.** For example: "a client name was read as a person", "a group message that @mentions someone else was listed as received", "a misspelled name found nobody".
 2. **Replace every identifying detail:**
-   - **People:** use fictional names already in the suites (Ana Souza, Carla Dias, Rui Costa, Marcos Lima, Juliana Prado, Pedro Alves, Beatriz Nunes, Leandro Silva, Fernanda Rocha, Sofia, Tiago, Vitor Alves).
+   - **People:** use fictional names already in the suites (Ana Souza, Carla Dias, Rui Costa, Marcos Lima, Juliana Prado, Pedro Alves, Beatriz Nunes, Leandro Silva, Fernanda Rocha, João Mendes, Sofia, Tiago, Vitor Alves).
    - **Companies, clients, projects:** Acme, Zenite, Globex, Orion, Atlas, Hermes, Norteagro, Solaris.
    - **URLs:** keep public documentation as is; use `example.com` for anything internal.
    - **Task IDs, hashes, PR numbers:** change the digits, but keep the format (`PROJ-481`, a 10-character hex hash).
@@ -58,7 +58,7 @@ Perguntas reais são os melhores casos, porque mostram o que dá errado de verda
 
 1. **Descreva o problema, não os dados.** Por exemplo: "nome de cliente lido como pessoa", "mensagem de grupo que marca outra pessoa listada como recebida", "nome escrito errado não achou ninguém".
 2. **Troque todo detalhe que identifique alguém:**
-   - **Pessoas:** use os nomes fictícios que já estão nas suítes (Ana Souza, Carla Dias, Rui Costa, Marcos Lima, Juliana Prado, Pedro Alves, Beatriz Nunes, Leandro Silva, Fernanda Rocha, Sofia, Tiago, Vitor Alves).
+   - **Pessoas:** use os nomes fictícios que já estão nas suítes (Ana Souza, Carla Dias, Rui Costa, Marcos Lima, Juliana Prado, Pedro Alves, Beatriz Nunes, Leandro Silva, Fernanda Rocha, João Mendes, Sofia, Tiago, Vitor Alves).
    - **Empresas, clientes, projetos:** Acme, Zenite, Globex, Orion, Atlas, Hermes, Norteagro, Solaris.
    - **URLs:** documentação pública pode ficar; o que for interno vira `example.com`.
    - **IDs de tarefa, hashes, números de PR:** troque os dígitos, mas mantenha o formato (`PROJ-481`, hash hexadecimal de 10 caracteres).

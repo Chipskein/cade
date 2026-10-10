@@ -255,6 +255,60 @@
    ],
    "topic": "retry do ERP",
    "pending_issue": "#24"
+  },
+  {
+   "question": "imagens em que o João aparece",
+   "topic": "João",
+   "relevant": [
+    "img-orion",
+    "comprovante"
+   ]
+  },
+  {
+   "question": "imagens do projeto Orion",
+   "topic": "projeto Orion",
+   "relevant": [
+    "img-orion"
+   ]
+  },
+  {
+   "question": "imagens que o Pedro me mandou",
+   "people": [
+    "Pedro"
+   ],
+   "direction": "recebidas",
+   "relevant": [
+    "comprovante"
+   ]
+  },
+  {
+   "question": "imagens do João que o Pedro me mandou",
+   "people": [
+    "Pedro"
+   ],
+   "direction": "recebidas",
+   "topic": "João",
+   "relevant": [
+    "comprovante"
+   ],
+   "pending_issue": "#24"
+  },
+  {
+   "question": "quais commits mexeram no arquivo do retry do ERP?",
+   "source": "git",
+   "topic": "arquivo do retry do ERP",
+   "relevant": [
+    "gr1",
+    "gr3"
+   ]
+  },
+  {
+   "question": "qual era o erro naquele print?",
+   "topic": "erro naquele print",
+   "relevant": [
+    "img-deploy"
+   ],
+   "pending_issue": "#24"
   }
  ],
  "maximum_redundancy": 0.0

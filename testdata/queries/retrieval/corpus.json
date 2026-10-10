@@ -3937,6 +3937,58 @@
    "image": "page-backup-injection.png"
   },
   {
+   "id": "img-orion",
+   "source": "file",
+   "at": "2026-09-23T14:00:00-03:00",
+   "content": "",
+   "metadata": {
+    "path": "/home/eu/prints/slide-orion.png"
+   },
+   "image": "slide-orion.png"
+  },
+  {
+   "id": "wa-comprovante",
+   "group": "comprovante",
+   "source": "whatsapp",
+   "at": "2026-09-24T18:05:00-03:00",
+   "content": "Pedro Alves: \nConversa: conversa Pedro Alves\nRecebida por você",
+   "metadata": {
+    "sender": "Pedro Alves",
+    "conversation": "Pedro Alves",
+    "conversation_kind": "conversa",
+    "sent_by_me": "false",
+    "conversation_id": "5511900000007@c.us",
+    "message_id": "false_5511900000007@c.us_3EB0A1",
+    "attachment": "IMG-20260924-WA0007.png"
+   }
+  },
+  {
+   "id": "img-comprovante",
+   "group": "comprovante",
+   "source": "file",
+   "at": "2026-09-24T18:06:00-03:00",
+   "content": "",
+   "metadata": {
+    "path": "/home/eu/WhatsApp/Media/WhatsApp Images/IMG-20260924-WA0007.png"
+   },
+   "image": "page-comprovante.png"
+  },
+  {
+   "id": "wa-joao",
+   "source": "whatsapp",
+   "at": "2026-09-24T18:07:00-03:00",
+   "content": "Pedro Alves: o João já devolveu a van, pode fechar a conta da Hermes\nConversa: conversa Pedro Alves\nRecebida por você",
+   "metadata": {
+    "sender": "Pedro Alves",
+    "conversation": "Pedro Alves",
+    "conversation_kind": "conversa",
+    "sent_by_me": "false",
+    "conversation_id": "5511900000007@c.us",
+    "message_id": "false_5511900000007@c.us_3EB0A2",
+    "text": "o João já devolveu a van, pode fechar a conta da Hermes"
+   }
+  },
+  {
    "id": "t-backup",
    "source": "teams",
    "at": "2026-09-25T08:30:00-03:00",
