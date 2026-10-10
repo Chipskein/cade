@@ -199,13 +199,47 @@ func (p *Planner) alreadySettled(ctx context.Context, absolutePath string, info 
 
 func (p *Planner) imageFor(ctx context.Context, files fs.FS, path string, info fs.FileInfo) (event.Image, outcome, error) {
 	if info.Size() > p.settings.MaxImageBytes {
-		p.logger.Debug("image too large to describe", "path", path, "bytes", info.Size(), "max_bytes", p.settings.MaxImageBytes)
-		return event.Image{Status: event.CaptionUnreadable}, outcomeUnreadable, nil
+		return p.tooLarge(path, info.Size())
 	}
 	raw, err := fs.ReadFile(files, path)
 	if err != nil {
 		return event.Image{}, outcomeUnreadable, err
 	}
+	return p.imageOfBytes(ctx, path, raw)
+}
+
+// PlanImageBytes plans a picture that is not a file, under key, its
+// address: an image shown in a Teams message, read from the browser's
+// cache (#24). Captions then holds it by that key.
+//
+//	err := planner.PlanImageBytes(ctx, "https://us-api.asm.skype.com/v1/objects/…/views/imgo", raw)
+func (p *Planner) PlanImageBytes(ctx context.Context, key string, raw []byte) error {
+	image, result, err := p.imageWithin(ctx, key, raw)
+	if err != nil {
+		return fmt.Errorf("describe image %q: %w", key, err)
+	}
+	p.captions[key] = image
+	p.tally.add(result)
+	p.progress(p.tally)
+	return nil
+}
+
+// imageWithin is imageOfBytes for a picture within max_image_bytes.
+func (p *Planner) imageWithin(ctx context.Context, key string, raw []byte) (event.Image, outcome, error) {
+	if int64(len(raw)) > p.settings.MaxImageBytes {
+		return p.tooLarge(key, int64(len(raw)))
+	}
+	return p.imageOfBytes(ctx, key, raw)
+}
+
+func (p *Planner) tooLarge(name string, size int64) (event.Image, outcome, error) {
+	p.logger.Debug("image too large to describe", "path", name, "bytes", size, "max_bytes", p.settings.MaxImageBytes)
+	return event.Image{Status: event.CaptionUnreadable}, outcomeUnreadable, nil
+}
+
+// imageOfBytes reuses the description of the same bytes stored before, or
+// describes them while the run's limit allows; past it the image waits.
+func (p *Planner) imageOfBytes(ctx context.Context, name string, raw []byte) (event.Image, outcome, error) {
 	hash := sha256Hex(raw)
 	reused, found, err := p.store.DescribedImage(ctx, hash)
 	if err != nil || found {
@@ -216,7 +250,7 @@ func (p *Planner) imageFor(ctx context.Context, files fs.FS, path string, info f
 		return event.Image{SHA256: hash, Status: event.CaptionPending}, outcomePending, nil
 	}
 	p.attempts++
-	return p.describer.imageFor(ctx, path, raw, hash)
+	return p.describer.imageFor(ctx, name, raw, hash)
 }
 
 func sha256Hex(raw []byte) string {
