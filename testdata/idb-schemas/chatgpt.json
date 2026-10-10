@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "target": "message/1",
+  "name": "chatgpt",
+  "source": "chatgpt",
+  "revision": 1,
+  "records": {
+    "kind": "indexeddb",
+    "namespace_prefix": "ConversationsDatabase",
+    "container": "conversations",
+    "each": "$.messages[]"
+  },
+  "fields": {
+    "message_id": {
+      "paths": ["$.id"]
+    },
+    "conversation_id": {
+      "paths": ["^.id"]
+    },
+    "conversation": {
+      "paths": ["^.title"],
+      "transform": "trim"
+    },
+    "text": {
+      "paths": ["$.text"],
+      "transform": "trim",
+      "required": true
+    },
+    "sent_at": {
+      "paths": ["^.updateTime"],
+      "transform": "unix_s"
+    }
+  }
+}
