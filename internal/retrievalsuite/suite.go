@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
@@ -82,7 +83,14 @@ type Case struct {
 	Direction string       `json:"direction"`
 	Topic     string       `json:"topic"`
 	Relevant  []string     `json:"relevant"`
+	// PendingIssue ("#24") marks a case that fails today and waits for that
+	// issue: it is run and reported, but kept out of the floors, so a
+	// measurement can be recorded before the work that should fix it.
+	PendingIssue string `json:"pending_issue,omitempty"`
 }
+
+// pendingIssuePattern is the shape of Case.PendingIssue.
+var pendingIssuePattern = regexp.MustCompile(`^#[0-9]+$`)
 
 var directions = map[string]listing.Direction{"": listing.AnyDirection, "recebidas": listing.Received, "enviadas": listing.Sent}
 
@@ -139,6 +147,9 @@ func NewSuite(corpus Corpus, set CaseSet) (Suite, error) {
 func validateCase(suiteCase Case, groups map[string]bool) error {
 	if _, known := directions[suiteCase.Direction]; !known {
 		return fmt.Errorf("direction %q, expected \"\", \"recebidas\" or \"enviadas\"", suiteCase.Direction)
+	}
+	if suiteCase.PendingIssue != "" && !pendingIssuePattern.MatchString(suiteCase.PendingIssue) {
+		return fmt.Errorf("pending_issue %q, expected an issue number like \"#24\"", suiteCase.PendingIssue)
 	}
 	for _, group := range suiteCase.Relevant {
 		if !groups[group] {

@@ -91,7 +91,8 @@ func runCase(ctx context.Context, retriever caseRetriever, suite Suite, suiteCas
 	}
 	groups, distances := hitGroups(suite, hits)
 	gated := !query.IsScoped() && !rag.HasIdentifier(suiteCase.Question)
-	return CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: groups, Distances: distances, Gated: gated}, nil
+	return CaseResult{Question: suiteCase.Question, Relevant: suiteCase.Relevant, Retrieved: groups, Distances: distances, Gated: gated,
+		PendingIssue: suiteCase.PendingIssue}, nil
 }
 
 func hitGroups(suite Suite, hits []storage.ScoredEvent) ([]string, []float64) {
