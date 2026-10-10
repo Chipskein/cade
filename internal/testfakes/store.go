@@ -60,6 +60,9 @@ type FakeEventStore struct {
 	Compactions    int
 	// entityIDs keeps each entity's id once given, as the real store does.
 	entityIDs map[entityIdentity]int64
+	// Representations back the storage.RepresentationIndex methods.
+	Representations     map[storage.EntityKey][]storage.StoredRepresentation
+	representationCount int64
 }
 
 // NewFakeEventStore returns an empty store.

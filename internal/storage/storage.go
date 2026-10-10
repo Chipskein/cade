@@ -10,6 +10,7 @@ import (
 	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/representation"
 )
 
 // EventWriter is what ingestion reads and writes for each collected event.
@@ -364,4 +365,27 @@ type RelationIndex interface {
 	// either direction, nearest first; hops above MaxRelationHops are
 	// capped, and the entity itself is left out.
 	Reachable(ctx context.Context, entityID int64, hops int) ([]ReachedEntity, error)
+}
+
+// EntityKey names an entity by what callers know of it: an image's
+// SHA-256, a file's path.
+type EntityKey struct {
+	Type entity.Type
+	Key  string
+}
+
+// StoredRepresentation is a representation as stored, with its id.
+type StoredRepresentation struct {
+	ID int64
+	representation.Representation
+}
+
+// RepresentationIndex keeps what models derived from entities (#22).
+type RepresentationIndex interface {
+	// SaveRepresentation stores rep for the entity owner, replacing the
+	// one of the same modality and kind; the entity must be stored.
+	SaveRepresentation(ctx context.Context, owner EntityKey, rep representation.Representation) (int64, error)
+	// RepresentationsOf lists the entity's representations by modality and
+	// kind; none for an unknown entity.
+	RepresentationsOf(ctx context.Context, owner EntityKey) ([]StoredRepresentation, error)
 }
