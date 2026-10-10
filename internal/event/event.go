@@ -96,6 +96,20 @@ func (e Event) Attachment() string {
 	return e.Metadata[AttachmentKey]
 }
 
+// ImageURLsKey holds the addresses of the images a Teams message shows,
+// one per line, so their descriptions can be found in the browser's cache
+// (#24).
+const ImageURLsKey = "image_urls"
+
+// ImageURLs are the images the message shows, in order; none when it
+// shows none.
+func (e Event) ImageURLs() []string {
+	if e.Metadata[ImageURLsKey] == "" {
+		return nil
+	}
+	return strings.Split(e.Metadata[ImageURLsKey], "\n")
+}
+
 // TextFromBackup reports a message whose text came from the Android
 // database, which a later reading without text must not erase.
 func (e Event) TextFromBackup() bool {

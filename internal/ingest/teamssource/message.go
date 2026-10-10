@@ -34,28 +34,34 @@ type teamsMessage struct {
 	text           string
 	sentAt         time.Time
 	sentByMe       bool
+	// images are the AMS images the message shows (images.go).
+	images []string
 	// version changes on every edit (a millisecond stamp); it becomes the
 	// event revision, so a re-ingest replaces the text with the newest.
 	version string
 }
 
 // parseMessage extracts a conversation message, reporting false for
-// system messages, deleted messages and messages without text.
+// system messages, deleted messages and messages with neither text nor an
+// image.
 func parseMessage(value *v8value.Value, senders map[string]string) (teamsMessage, bool) {
 	if !isConversationMessage(value) {
 		return teamsMessage{}, false
 	}
+	html := value.Get("content").String()
 	message := teamsMessage{
 		id:             value.Get("id").String(),
 		conversationID: value.Get("conversationId").String(),
 		sender:         senderName(value, senders),
 		senderMRI:      value.Get("creator").String(),
-		text:           htmltext.ToText(value.Get("content").String()),
+		text:           htmltext.ToText(html),
+		images:         imageURLs(html),
 		sentAt:         arrivalTime(value),
 		sentByMe:       value.Get("isSentByCurrentUser").IsTrue(),
 		version:        value.Get("version").String(),
 	}
-	valid := message.id != "" && message.conversationID != "" && message.text != "" && !message.sentAt.IsZero()
+	hasContent := message.text != "" || len(message.images) > 0
+	valid := message.id != "" && message.conversationID != "" && hasContent && !message.sentAt.IsZero()
 	return message, valid
 }
 
@@ -100,11 +106,15 @@ func arrivalTime(value *v8value.Value) time.Time {
 func (m teamsMessage) toEvent(conversation conversationInfo, origin string) event.Event {
 	message := event.Message{ConversationID: m.conversationID, Conversation: conversation.title, Kind: conversation.kind,
 		MessageID: m.id, Sender: m.sender, SenderMRI: m.senderMRI, SentByMe: m.sentByMe, Origin: origin, Revision: m.version, Text: m.text}
+	metadata := message.Metadata()
+	if len(m.images) > 0 {
+		metadata[event.ImageURLsKey] = strings.Join(m.images, "\n")
+	}
 	return event.Event{
 		UID:       event.StableID(event.SourceTeams, m.conversationID, m.id),
 		Timestamp: m.sentAt,
 		Source:    event.SourceTeams,
 		Content:   message.Content(),
-		Metadata:  message.Metadata(),
+		Metadata:  metadata,
 	}
 }
