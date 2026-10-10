@@ -3,6 +3,7 @@ package queryplan
 import (
 	"testing"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 )
@@ -41,6 +42,8 @@ func TestPlanByRulesReadsPlainQuestions(t *testing.T) {
 		"show everything from yesterday":     {Mode: ModeList, Period: "yesterday"},
 		"liste os commits de 20/09":          {Mode: ModeList, Period: "20/09", Source: event.SourceGit},
 		"list the commits from 9/20":         {Mode: ModeList, Period: "9/20", Source: event.SourceGit},
+		"liste as imagens de ontem":          {Mode: ModeList, Period: "ontem", Modality: entity.TypeImage},
+		"prints de hoje":                     {Mode: ModeList, Period: "hoje", Modality: entity.TypeImage},
 	}
 	for question, expected := range cases {
 		expected.ReadByRules = true
@@ -53,7 +56,8 @@ func TestPlanByRulesReadsPlainQuestions(t *testing.T) {
 
 func samePlan(a, b Plan) bool {
 	return a.Mode == b.Mode && a.Period == b.Period && a.Source == b.Source && a.Criteria.Direction == b.Criteria.Direction &&
-		len(a.Criteria.People) == len(b.Criteria.People) && a.Topic == b.Topic && a.TaskStatus == b.TaskStatus && a.ReadByRules == b.ReadByRules
+		len(a.Criteria.People) == len(b.Criteria.People) && a.Topic == b.Topic && a.TaskStatus == b.TaskStatus && a.ReadByRules == b.ReadByRules &&
+		a.Modality == b.Modality
 }
 
 // Each of these needs the model: a name, a topic, a number, two sources,
@@ -68,6 +72,9 @@ func TestPlanByRulesLeavesTheRestToTheModel(t *testing.T) {
 		"tarefas nos commits de hoje",
 		"o que tem nas mensagens de ontem?",
 		"liste os commits do Atlas",
+		"tarefas com prints de ontem",
+		"o que tem nas imagens de ontem?",
+		"imagens do João",
 	} {
 		if plan, ok := PlanByRules(question); ok {
 			t.Errorf("PlanByRules(%q) = %+v, expected the model to read it", question, plan)

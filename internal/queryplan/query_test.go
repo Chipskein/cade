@@ -3,6 +3,7 @@ package queryplan
 import (
 	"testing"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/timeline"
@@ -75,6 +76,17 @@ func TestIsScoped(t *testing.T) {
 	}
 	if (Query{}).IsScoped() {
 		t.Error("expected an empty query to be unscoped")
+	}
+}
+
+func TestResolveCarriesTheGraphFields(t *testing.T) {
+	plan := Plan{Entities: []string{"João"}, Modality: entity.TypeImage, Related: true}
+	query := Resolve("imagens do João", plan, Overrides{}, suiteNow)
+	if len(query.Entities) != 1 || query.Modality != entity.TypeImage || !query.Related || !query.NeedsGraph() || !query.NeedsExactSelection() {
+		t.Fatalf("expected the entity, modality and widening to reach the query, got %+v", query)
+	}
+	if Resolve("o que fiz sobre cache?", Plan{Topic: "cache"}, Overrides{}, suiteNow).NeedsGraph() {
+		t.Error("expected a question without entities to keep the old path")
 	}
 }
 

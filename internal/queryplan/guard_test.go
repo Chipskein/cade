@@ -3,6 +3,7 @@ package queryplan
 import (
 	"testing"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/listing"
 )
 
@@ -87,5 +88,48 @@ func TestGuardTaskReport(t *testing.T) {
 		if got.Mode != c.mode || got.TaskStatus != c.status {
 			t.Errorf("guardPlan(%q): expected mode %d status %d, got %d %d", c.question, c.mode, c.status, got.Mode, got.TaskStatus)
 		}
+	}
+}
+
+func imagePlan(entities ...string) Plan {
+	return Plan{Modality: entity.TypeImage, Entities: entities}
+}
+
+func TestGuardKeepsNamedEntitiesBesideImages(t *testing.T) {
+	got := guardPlan(imagePlan("João Mendes", "projeto Orion"), "imagens do João sobre o projeto Orion?")
+	if got.Modality != entity.TypeImage || len(got.Entities) != 2 {
+		t.Fatalf("expected the image filter and both entities, got %+v", got)
+	}
+}
+
+// A company in an ordinary question stays a topic: entities need images,
+// images need a word for them, and an entity the question lacks is dropped.
+func TestGuardDropsUnsupportedEntitiesAndModality(t *testing.T) {
+	cases := map[string]Plan{
+		"quais problemas tivemos com a Acme?": imagePlan("Acme"),
+		"imagens do deploy":                   imagePlan("Zenite"),
+	}
+	cases["o que a Acme pediu?"] = Plan{Entities: []string{"Acme"}}
+	for question, plan := range cases {
+		got := guardPlan(plan, question)
+		if len(got.Entities) != 0 {
+			t.Errorf("guardPlan(%q) kept entities %v", question, got.Entities)
+		}
+	}
+	if got := guardPlan(imagePlan(), "o que fiz ontem?"); got.Modality != "" {
+		t.Errorf("expected no modality without a word for images, got %q", got.Modality)
+	}
+}
+
+func TestGuardKeepsRelatedOnlyWithACueAndSomeoneNamed(t *testing.T) {
+	seeded := Plan{Related: true, Criteria: listing.Criteria{People: []string{"Rui"}}}
+	if !guardPlan(seeded, "quem mais mexeu no arquivo que o Rui alterou?").Related {
+		t.Error("expected \"quem mais\" to keep the widening")
+	}
+	if guardPlan(seeded, "o que o Rui alterou?").Related {
+		t.Error("expected no widening without a cue")
+	}
+	if guardPlan(Plan{Related: true}, "quem mais mexeu no deploy?").Related {
+		t.Error("expected no widening without someone to start from")
 	}
 }
