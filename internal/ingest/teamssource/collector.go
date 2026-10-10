@@ -18,8 +18,9 @@ type ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
 
 // Collector reads one Teams IndexedDB directory.
 type Collector struct {
-	read ReadIndexedDB
-	dir  string
+	read     ReadIndexedDB
+	dir      string
+	captions ingest.ImageCaptions
 }
 
 // NewCollector reads dir (e.g. .../IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb).
@@ -27,6 +28,24 @@ type Collector struct {
 //	collector := teamssource.NewCollector(indexeddb.ReadDirectory, dir)
 func NewCollector(read ReadIndexedDB, dir string) *Collector {
 	return &Collector{read: read, dir: dir}
+}
+
+// WithCaptions gives the messages the pictures planned for them, by
+// address (imagecaption.Planner.PlanImageBytes).
+func (c *Collector) WithCaptions(captions ingest.ImageCaptions) *Collector {
+	c.captions = captions
+	return c
+}
+
+// ImageURLs are the addresses of the pictures the cached messages show,
+// for planning their descriptions before the messages are collected.
+func (c *Collector) ImageURLs(ctx context.Context) ([]string, error) {
+	var urls []string
+	err := c.CollectEvents(ctx, func(ev event.Event) error {
+		urls = append(urls, ev.ImageURLs()...)
+		return nil
+	})
+	return urls, err
 }
 
 // CollectEvents emits one event per cached conversation message.
@@ -39,6 +58,7 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 		conversations: conversationInfos(records),
 		senders:       profileNames(records),
 		origin:        indexeddb.OriginName(c.dir),
+		captions:      c.captions,
 	}
 	tally := formatTally{records: len(records)}
 	for _, record := range records {
@@ -71,7 +91,8 @@ func emitReplyChain(record indexeddb.Record, messages messageContext, emit inges
 		if !ok {
 			continue
 		}
-		if err := emit(message.toEvent(conversationFor(messages, message.conversationID), messages.origin)); err != nil {
+		ev := message.toEvent(conversationFor(messages, message.conversationID), messages.origin)
+		if err := emit(withPlannedImages(ev, messages.captions)); err != nil {
 			return err
 		}
 	}

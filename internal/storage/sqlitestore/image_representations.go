@@ -25,7 +25,7 @@ func imageOwner(sha256 string) storage.EntityKey {
 // old one. Its entities are already linked.
 func representImage(ctx context.Context, tx *sql.Tx, ev event.Event) error {
 	image := ev.Image()
-	if ev.Source != event.SourceFile || image.SHA256 == "" || image.Status != event.CaptionDescribed {
+	if image.SHA256 == "" || image.Status != event.CaptionDescribed {
 		return nil
 	}
 	owner := imageOwner(image.SHA256)

@@ -33,15 +33,23 @@ func RefsOf(ev event.Event) []Ref {
 	return refs
 }
 
-// imageRef is the image a file event holds, keyed by its SHA-256 so a
-// moved, renamed or copied image is the same entity; named after the
-// first file seen with it.
+// imageRef is the image an event holds (an image file, a picture in a
+// Teams message), keyed by its SHA-256 so a moved, renamed, copied or
+// re-sent image is the same entity; named after the first file seen with
+// it, or the first address.
 func imageRef(ev event.Event) (Ref, bool) {
 	hash := ev.Image().SHA256
-	if ev.Source != event.SourceFile || hash == "" {
+	if hash == "" {
 		return Ref{}, false
 	}
-	return Ref{Type: TypeImage, Key: hash, Name: filepath.Base(ev.File().Path), Role: RoleShows}, true
+	return Ref{Type: TypeImage, Key: hash, Name: imageName(ev), Role: RoleShows}, true
+}
+
+func imageName(ev event.Event) string {
+	if urls := ev.ImageURLs(); ev.Source != event.SourceFile && len(urls) > 0 {
+		return urls[0]
+	}
+	return filepath.Base(ev.File().Path)
 }
 
 func personRefs(ev event.Event) []Ref {

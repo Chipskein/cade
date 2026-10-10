@@ -1,9 +1,13 @@
 package teamssource
 
 import (
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/ingest"
 )
 
 // A pasted or attached picture is an <img> in the message's HTML, marked
@@ -42,4 +46,33 @@ func amsImageURL(tag string) (string, bool) {
 	}
 	url := strings.ReplaceAll(source[1], "&amp;", "&")
 	return url, amsImageAddress.MatchString(url)
+}
+
+// withPlannedImages adds to ev what was planned for its pictures: the
+// first one becomes the event's image (an event holds one), and every
+// description goes into its text, so the message is found by what its
+// pictures show.
+func withPlannedImages(ev event.Event, captions ingest.ImageCaptions) event.Event {
+	var texts []string
+	for _, url := range ev.ImageURLs() {
+		image, planned := captions[url]
+		if !planned {
+			continue
+		}
+		if ev.Image().Status == event.CaptionNone {
+			maps.Copy(ev.Metadata, image.Metadata())
+		}
+		texts = appendNonEmpty(texts, image.SearchableText())
+	}
+	if len(texts) > 0 {
+		ev.Content += "\n" + strings.Join(texts, "\n")
+	}
+	return ev
+}
+
+func appendNonEmpty(texts []string, text string) []string {
+	if text == "" {
+		return texts
+	}
+	return append(texts, text)
 }

@@ -1,10 +1,15 @@
 package teamssource
 
 import (
+	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/indexeddb"
+	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 const (
@@ -43,5 +48,37 @@ func TestAMessageWithoutImagesHasNoImageURLs(t *testing.T) {
 	message, _ := parseMessage(value, nil)
 	if ev := message.toEvent(conversationInfo{kind: event.KindChat}, "origin"); ev.ImageURLs() != nil || ev.Metadata[event.ImageURLsKey] != "" {
 		t.Fatalf("expected no image key, got %v", ev.Metadata)
+	}
+}
+
+func describedPicture(description string) event.Image {
+	return event.Image{SHA256: "sha-" + description, Width: 250, Height: 140, Status: event.CaptionDescribed, Description: description}
+}
+
+func TestCollectGivesMessagesTheirPlannedPictures(t *testing.T) {
+	reader := FakeIndexedDBReader{Records: []indexeddb.Record{replyChain(
+		message("1", "RichText/Html", "<p>olha</p>"+amsTag(pastedImage)+amsTag(otherImage)),
+		message("2", "Text", "sem imagem"),
+	)}}
+	collector := NewCollector(reader.Read, "/p/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb")
+	urls, err := collector.ImageURLs(context.Background())
+	if err != nil || !slices.Equal(urls, []string{pastedImage, otherImage}) {
+		t.Fatalf("expected both pictures to plan, got %v (err %v)", urls, err)
+	}
+	collector.WithCaptions(ingest.ImageCaptions{pastedImage: describedPicture("print do erro 502"), otherImage: describedPicture("diagrama da fila")})
+	var events []event.Event
+	testcheck.NoError(t, collector.CollectEvents(context.Background(), func(ev event.Event) error { events = append(events, ev); return nil }))
+	pictured := events[slices.IndexFunc(events, func(ev event.Event) bool { return ev.ImageURLs() != nil })]
+	if pictured.Image().SHA256 != "sha-print do erro 502" || !strings.Contains(pictured.Content, "Imagem: print do erro 502") ||
+		!strings.Contains(pictured.Content, "Imagem: diagrama da fila") {
+		t.Fatalf("expected the first picture as the event's image and both descriptions in its text, got %q %+v", pictured.Content, pictured.Image())
+	}
+}
+
+func TestWithPlannedImagesLeavesUnplannedAndPendingOutOfTheText(t *testing.T) {
+	ev := event.Event{Content: "Ana: olha", Metadata: event.Metadata{event.ImageURLsKey: pastedImage + "\n" + otherImage}}
+	got := withPlannedImages(ev, ingest.ImageCaptions{pastedImage: {SHA256: "sha-1", Status: event.CaptionPending}})
+	if got.Content != "Ana: olha" || got.Image().Status != event.CaptionPending || got.Image().SHA256 != "sha-1" {
+		t.Fatalf("expected a pending picture held without text, got %q %+v", got.Content, got.Image())
 	}
 }

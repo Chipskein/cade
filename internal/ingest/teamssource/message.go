@@ -6,6 +6,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/htmltext"
+	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/v8value"
 )
 
@@ -23,6 +24,7 @@ type messageContext struct {
 	conversations map[string]conversationInfo
 	senders       map[string]string
 	origin        string
+	captions      ingest.ImageCaptions
 }
 
 // teamsMessage holds the fields read from one messageMap entry.
