@@ -111,12 +111,16 @@ func TestCatalogStoreByLabel(t *testing.T) {
 }
 
 func TestUnderReRootsItemPaths(t *testing.T) {
-	store := StoreView{Paths: []PathView{{Path: "$.messageMap.<id>"}, {Path: "$.messageMap.<id>.content"}, {Path: "$.messageMapper"}, {Path: "$.id"}}}
+	store := StoreView{Paths: []PathView{{Path: "$.messageMap.<id>"}, {Path: "$.messageMap.<id>.content"}, {Path: "$.messageMapper"}, {Path: "$.id"}, {Path: "$.messageMap"}}}
 	items := store.Under("$.messageMap.<id>")
-	if len(items) != 1 || items[0].Path != "$.content" {
-		t.Fatalf("expected only $.content, got %+v", items)
+	got := make([]idbmap.Path, len(items))
+	for i, item := range items {
+		got[i] = item.Path
 	}
-	if len(store.Under("")) != 4 {
+	if want := []idbmap.Path{"$.content", "^.messageMapper", "^.id"}; !slices.Equal(got, want) {
+		t.Fatalf("expected %v, the item's paths then the record's, got %v", want, got)
+	}
+	if len(store.Under("")) != 5 {
 		t.Fatal("an empty each keeps every path")
 	}
 }

@@ -17,7 +17,7 @@ const storeInstructions = `Você mapeia o IndexedDB de um aplicativo para mensag
 - each: quando cada registro guarda várias mensagens (um mapa ou lista delas), o caminho cujos itens são as mensagens; null quando cada registro já é uma mensagem.
 ` + catalogNotation
 
-const fieldsInstructions = `Você preenche, para as mensagens do store escolhido, de onde vem cada campo. Os caminhos partem do item (a mensagem): "$" é a própria mensagem. Use só caminhos listados; em listas, o primeiro caminho com valor vence.
+const fieldsInstructions = `Você preenche, para as mensagens do store escolhido, de onde vem cada campo. Os caminhos partem do item (a mensagem): "$" é a própria mensagem; "^" é o registro que a contém (a conversa), para o que só existe nele, como o id, o título ou a hora da conversa. Use só caminhos listados; em listas, o primeiro caminho com valor vence.
 - message_id: id único da mensagem. conversation_id: id da conversa, chat ou canal a que ela pertence.
 - sent_at e time_format: a hora de envio; "unix_ms" para "<n:13>", "unix_s" para "<n:10>", "iso8601" para texto como "2026-09-25T15:00:00Z", "date" para "<date>".
 - sender: o nome legível de quem enviou; sender_id: o id de quem enviou. conversation: o nome ou título da conversa, [] se não houver.
@@ -56,7 +56,7 @@ S2 — banco "chat-app:<guid>" · store "threads" · 40 registros
   $.html                      string  "<p>bom dia <b>time</b></p>"
   $.kind                      string  "post", "join"
   $.postId                    string  "p-<n>"
-  $.thread                    string  "<email>"
+  ^.id                        string  "<email>"
 
 Outros stores:
 S1 — banco "notas-app" · store "drafts" · 12 registros
@@ -64,7 +64,7 @@ S1 — banco "notas-app" · store "drafts" · 12 registros
 S3 — banco "chat-app:<guid>" · store "people" · 9 registros
   $.uid                       string  "u-81"
   $.fullName                  string  "Carla Dias"`
-	exampleFieldsReply = `{"message_id": ["$.postId"], "conversation_id": ["$.thread"], "sent_at": ["$.at"], "time_format": "iso8601", "sender": [], "sender_id": ["$.author"], "conversation": [], "text": ["$.html"], "text_format": "html_text", "sent_by_me": [], "keep": {"path": "$.kind", "in": ["post"]}, "sender_lookup": {"store": "S3", "key": "$.author", "match": "$.uid", "value": "$.fullName"}}`
+	exampleFieldsReply = `{"message_id": ["$.postId"], "conversation_id": ["^.id"], "sent_at": ["$.at"], "time_format": "iso8601", "sender": [], "sender_id": ["$.author"], "conversation": [], "text": ["$.html"], "text_format": "html_text", "sent_by_me": [], "keep": {"path": "$.kind", "in": ["post"]}, "sender_lookup": {"store": "S3", "key": "$.author", "match": "$.uid", "value": "$.fullName"}}`
 )
 
 // storeMessages asks for the store; note, when not empty, tells the model

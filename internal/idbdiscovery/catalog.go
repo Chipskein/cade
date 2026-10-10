@@ -153,20 +153,38 @@ func valueKinds(counts map[v8value.Kind]int) []v8value.Kind {
 }
 
 // Under re-roots the store's paths at each: the paths of one item the
-// each path selects, written from "$". An empty each keeps every path.
+// each path selects, written from "$", then the record's own single
+// values outside the item, written from "^" (#78: a ChatGPT message has
+// no time, its conversation does). An empty each keeps every path.
 func (s StoreView) Under(each idbmap.Path) []PathView {
 	if each == "" {
 		return s.Paths
 	}
-	var items []PathView
+	var items, outer []PathView
 	for _, path := range s.Paths {
-		rest, found := strings.CutPrefix(string(path.Path), string(each))
-		if found && startsAStep(rest) {
+		if rest, found := cutParent(each, path.Path); found {
 			path.Path = idbmap.Path("$" + rest)
 			items = append(items, path)
+		} else if isRecordValue(each, path.Path) {
+			path.Path = path.Path.FromRecord()
+			outer = append(outer, path)
 		}
 	}
-	return items
+	return append(items, outer...)
+}
+
+// cutParent returns what follows parent in path when parent is a whole
+// step prefix of it ("$.a" is not a parent of "$.ab").
+func cutParent(parent, path idbmap.Path) (string, bool) {
+	rest, found := strings.CutPrefix(string(path), string(parent))
+	return rest, found && startsAStep(rest)
+}
+
+// isRecordValue keeps a record path an item can read as one value: not
+// the record itself, not each or its parents, and with no wildcard.
+func isRecordValue(each, path idbmap.Path) bool {
+	_, holdsEach := cutParent(path, each)
+	return path != "$" && path != each && !holdsEach && path.ReachesOne()
 }
 
 // pathStepStarts are how a step begins in the summary notation; a prefix

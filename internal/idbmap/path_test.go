@@ -106,6 +106,21 @@ func TestReadsRecord(t *testing.T) {
 	}
 }
 
+func TestFromRecord(t *testing.T) {
+	if got := Path("$.title").FromRecord(); got != "^.title" {
+		t.Fatalf("got %q, want ^.title", got)
+	}
+}
+
+func TestReachesOne(t *testing.T) {
+	cases := map[Path]bool{"$": true, "$.a.b": true, "^.a": true, "$.list[]": false, "$.map.<id>.a": false, "$.m{}": false, "a": false}
+	for path, want := range cases {
+		if got := path.ReachesOne(); got != want {
+			t.Errorf("%q: got %v, want %v", path, got, want)
+		}
+	}
+}
+
 func TestCompilePathRejectsMalformedPaths(t *testing.T) {
 	for _, path := range []Path{"", "content", "$content", "$.", "$..a", "^title", "^.", "$^.a"} {
 		if _, err := CompilePath(path); err == nil {

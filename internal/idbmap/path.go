@@ -2,6 +2,7 @@ package idbmap
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/chipskein/cade/internal/idbschema"
@@ -23,6 +24,22 @@ type Path string
 // ReadsRecord reports a path that starts at the record holding the item.
 func (p Path) ReadsRecord() bool {
 	return strings.HasPrefix(string(p), pathRecordRoot)
+}
+
+// FromRecord writes a path of the record as its items read it: "$.title"
+// becomes "^.title".
+func (p Path) FromRecord() Path {
+	return pathRecordRoot + Path(strings.TrimPrefix(string(p), pathRoot))
+}
+
+// ReachesOne reports a valid path with no wildcard: it reaches at most one
+// value wherever it is read.
+func (p Path) ReachesOne() bool {
+	compiled, err := CompilePath(p)
+	if err != nil {
+		return false
+	}
+	return !slices.ContainsFunc(compiled.steps, func(step pathStep) bool { return step.kind != stepProperty })
 }
 
 // Path syntax, shared with idbschema's walk.
