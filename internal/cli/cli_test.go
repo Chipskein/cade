@@ -12,6 +12,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
@@ -323,6 +324,14 @@ func TestDescribePlan(t *testing.T) {
 	query := queryplan.Query{Mode: queryplan.ModeList, Topic: "redis", Source: event.SourceTeams,
 		Criteria: listing.Criteria{Direction: listing.Received, People: []string{"Ana"}}}
 	if got := describeQuery(query, Portuguese); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
+		t.Fatalf("unexpected description %q", got)
+	}
+}
+
+func TestDescribePlanWithTheGraphFields(t *testing.T) {
+	query := queryplan.Query{Mode: queryplan.ModeAnswer, Entities: []string{"João"}, Modality: entity.TypeImage, Related: true,
+		Criteria: listing.Criteria{People: []string{"Pedro"}}}
+	if got := describeQuery(query, English); got != "answer · people: Pedro · images · appearing: João · related" {
 		t.Fatalf("unexpected description %q", got)
 	}
 }

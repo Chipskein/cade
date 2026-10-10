@@ -34,6 +34,9 @@ type planReport struct {
 	Topic        string   `json:"topic,omitempty"`
 	TaskStatus   string   `json:"task_status,omitempty"`
 	SemanticText string   `json:"semantic_text,omitempty"`
+	Modality     string   `json:"modality,omitempty"`
+	Entities     []string `json:"entities,omitempty"`
+	Related      bool     `json:"related,omitempty"`
 }
 
 type answerReport struct {
@@ -98,6 +101,7 @@ func newAskReport(query queryplan.Query) askReport {
 		Mode: planCodes.modes[query.Mode], Source: string(query.Source), Period: describeDays(query.Days),
 		People: query.Criteria.People, Direction: planCodes.directions[query.Criteria.Direction], Folder: query.Folder, Topic: query.Topic,
 		TaskStatus: planCodes.statuses[query.TaskStatus], SemanticText: query.SemanticText,
+		Modality: planCodes.modalities[query.Modality], Entities: query.Entities, Related: query.Related,
 	}}
 }
 

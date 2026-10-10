@@ -50,3 +50,33 @@ func TestEventsMentioningAllWithoutTermsKeepsAll(t *testing.T) {
 		t.Fatalf("expected every event, got %d", len(kept))
 	}
 }
+
+func imageEvent(when time.Time, path, description string) event.Event {
+	metadata := event.File{Path: path}.Metadata()
+	for key, value := range (event.Image{SHA256: path, Status: event.CaptionDescribed}).Metadata() {
+		metadata[key] = value
+	}
+	return event.Event{UID: path, Source: event.SourceFile, Timestamp: when, Content: path + "\nImagem: " + description, Metadata: metadata}
+}
+
+func TestAskListImagesWhereSomeoneAppears(t *testing.T) {
+	world := newFakeWorld()
+	yesterday := time.Date(2026, 9, 25, 9, 0, 0, 0, time.UTC)
+	world.store.Events = []event.Event{
+		imageEvent(yesterday, "/prints/orion.png", "slide apresentado por João Mendes"),
+		imageEvent(yesterday, "/prints/panic.png", "terminal com panic"),
+		sentMessage(yesterday, "Eu, João Mendes", "João, viu o slide?"),
+	}
+	world.generator.StructuredReply = `{"tipo": "listar", "periodo": "ontem", "fonte": null, "pessoas": [], "direcao": null, "assunto": null, "status": null, "entidades": ["João"], "modalidade": "imagem", "relacionadas": false}`
+	_, stdout, stderr := world.run("ask", "prints de ontem em que o João aparece")
+	if !strings.Contains(stdout, "1 evento\n") || !strings.Contains(stdout, "orion.png") || !strings.Contains(stderr, "imagens · aparecem: João") {
+		t.Fatalf("expected only the slide naming João, got %q:\n%s", stderr, stdout)
+	}
+}
+
+func TestEventsHoldingWithoutModalityKeepsAll(t *testing.T) {
+	events := []event.Event{{Content: "a"}, {Content: "b"}}
+	if kept := eventsHolding(events, ""); len(kept) != 2 {
+		t.Fatalf("expected every event, got %d", len(kept))
+	}
+}
