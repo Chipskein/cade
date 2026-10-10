@@ -47,6 +47,9 @@ type ExpectedPlan struct {
 	Direction string   `json:"direction"`
 	Topic     string   `json:"topic"`
 	Status    string   `json:"status"`
+	Entities  []string `json:"entities"`
+	Modality  string   `json:"modality"`
+	Related   bool     `json:"related"`
 }
 
 // Field names one scored part of a plan.
@@ -60,10 +63,14 @@ const (
 	FieldDirection Field = "direction"
 	FieldTopic     Field = "topic"
 	FieldStatus    Field = "status"
+	FieldEntities  Field = "entities"
+	FieldModality  Field = "modality"
+	FieldRelated   Field = "related"
 )
 
 // scoredFields fixes the order fields are reported in.
-var scoredFields = []Field{FieldMode, FieldDays, FieldSource, FieldPeople, FieldDirection, FieldTopic, FieldStatus}
+var scoredFields = []Field{FieldMode, FieldDays, FieldSource, FieldPeople, FieldDirection, FieldTopic, FieldStatus,
+	FieldEntities, FieldModality, FieldRelated}
 
 var sources = map[string]bool{"": true, "git": true, "browser": true, "file": true, "teams": true}
 
@@ -144,6 +151,7 @@ func expectationChecks(expect ExpectedPlan) []expectationCheck {
 		{"source", expect.Source, sources[expect.Source]},
 		{"direction", expect.Direction, expect.Direction == "" || hasKey(directions, expect.Direction)},
 		{"status", expect.Status, expect.Status == "" || hasKey(taskStatuses, expect.Status)},
+		{"modality", expect.Modality, expect.Modality == "" || hasKey(modalities, expect.Modality)},
 	}
 }
 
