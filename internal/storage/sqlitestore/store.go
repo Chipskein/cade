@@ -87,6 +87,9 @@ func saveEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []stora
 	if err := indexPeople(ctx, tx, eventID, ev); err != nil {
 		return false, err
 	}
+	if err := linkEntities(ctx, tx, eventID, ev); err != nil {
+		return false, err
+	}
 	if err := indexEventIdentifier(ctx, tx, eventID, ev); err != nil {
 		return false, err
 	}

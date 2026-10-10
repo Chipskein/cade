@@ -76,13 +76,22 @@ func buildPeopleIndex(ctx context.Context, tx *sql.Tx) error {
 			return fmt.Errorf("create people index: %w", err)
 		}
 	}
+	return forEachStoredEvent(ctx, tx, indexPeople)
+}
+
+// storedEventVisit is what a migration does with each stored event.
+type storedEventVisit func(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event) error
+
+// forEachStoredEvent calls visit on every stored event in id order, a
+// page at a time, for migrations that derive data from the events.
+func forEachStoredEvent(ctx context.Context, tx *sql.Tx, visit storedEventVisit) error {
 	for after := int64(0); ; {
 		ids, events, err := eventPageAfter(ctx, tx, after)
 		if err != nil || len(events) == 0 {
 			return err
 		}
 		for i, ev := range events {
-			if err := indexPeople(ctx, tx, ids[i], ev); err != nil {
+			if err := visit(ctx, tx, ids[i], ev); err != nil {
 				return err
 			}
 		}
