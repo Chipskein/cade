@@ -152,7 +152,7 @@ Uma origem particionada (um site dentro de outro, `^partitionKey=` no Firefox) o
 
 | Chave | Significado |
 |---|---|
-| `records` | `kind` é o armazenamento (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store; no localStorage, nada e a chave do item; no OPFS, o diretório e o nome do arquivo; nos caches de requisições, o nome do cache, vazio no cache HTTP, e o nome em `sources.request_cache_urls`); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`). |
+| `records` | `kind` é o armazenamento (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store; no localStorage, nada e a chave do item; no OPFS, o diretório e o nome do arquivo; nos caches de requisições, o nome do cache, vazio no cache HTTP, e o nome em `sources.request_cache_urls`); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`), cujos caminhos podem então ler o registro com `^`. |
 | `require` | Condições que um item precisa cumprir: `in` / `not_in` (valores do texto em `path`), `kind_not` (`object`, `undefined`…; um valor ausente é `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (obrigatórios); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | `paths` do campo | Lidos em ordem; o primeiro com valor vence. |
@@ -164,6 +164,14 @@ Uma origem particionada (um site dentro de outro, `^partitionKey=` no Firefox) o
 Schemas salvos como `version` 1 (de antes do `kind`) continuam funcionando sem edição: são lidos como `indexeddb`, com `database_prefix` e `store` no lugar de `namespace_prefix` e `container`, e uma substituição os grava como versão 2.
 
 Os caminhos usam a notação que o `cade teams-schema` mostra: `$` é o registro ou o item, `.chave`, `[]` itens de lista, `{}` valores de Map, `<>` membros de Set, e `.<id>` / `.<text>` para chaves que são dados (casam com toda chave assim). O UID de uma mensagem é a fonte, o id da conversa e o id da mensagem, então a mesma mensagem lida duas vezes continua um evento só.
+
+Com `each`, um caminho que começa com `^` lê o registro que contém o item, não o item (`^.title`), para o que só o registro tem: o ChatGPT guarda o id e o texto de cada mensagem dentro da conversa, e o id, o título e a hora só na conversa. O `^` é recusado sem `each`, no próprio `each` e no `match` e nos `values` de um lookup; o `schema-discover` oferece assim os valores únicos do registro. Para as conversas do ChatGPT no Chrome, com o schema revisado de `testdata/idb-schemas/chatgpt.json` copiado para `sources.indexeddb_schema_dir`:
+
+```json
+"indexeddb_dirs": {"chatgpt": ["~/.config/google-chrome/Default/IndexedDB/https_chatgpt.com_0.indexeddb.leveldb"]}
+```
+
+O ChatGPT não guarda hora nem autor por mensagem, então toda mensagem fica com a última atualização da conversa como hora e sem remetente.
 
 **Quando o aplicativo muda.** Aplicativos mudam o jeito de guardar os dados sem aviso. Um schema feito pelo `schema-discover` guarda uma impressão digital: os caminhos que ele lê com os tipos, sem valores.
 

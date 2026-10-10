@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Mensagens aninhadas leem o seu registro (#78)
+
+- **Um caminho de schema que começa com `^` lê o registro que contém o item** (`^.updateTime`), não o item: apps que aninham as mensagens dentro da conversa guardam a hora e o título só na conversa. Só é aceito com `records.each`, nunca no próprio `each` nem no `match` e nos `values` de um lookup; schemas sem `^` mapeiam como antes, e a impressão digital de mudanças guarda os caminhos `^` na raiz do registro.
+- **O `schema-discover` oferece os valores únicos do registro** como caminhos `^` quando o store tem `each`.
+- **O ChatGPT** é indexado por schema, sem código próprio: o `testdata/idb-schemas/chatgpt.json` revisado lê o `ConversationsDatabase` do Chrome. Num cache real, 918 de 1.050 mensagens em 132 conversas mapeiam; as outras 132 não têm texto. O ChatGPT não guarda hora nem autor por mensagem, então cada mensagem fica com a última atualização da conversa como hora e sem remetente.
+- Sem migração do banco.
+
 ### WhatsApp do Android (#77)
 
 - **`cade ingest whatsapp-backup`** lê o `msgstore.db` do WhatsApp para Android, decifrado por você (`sources.whatsapp_backups`). O cade nunca decifra o backup `.crypt15` e nunca vê a chave.
