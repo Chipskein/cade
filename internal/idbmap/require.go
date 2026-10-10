@@ -36,8 +36,8 @@ func stringSet(values []string) map[string]bool {
 
 // keeps reports whether item passes the condition. A missing value has
 // kind undefined, as reading a missing property does in JavaScript.
-func (c compiledCondition) keeps(item *v8value.Value) bool {
-	value := c.path.First(item)
+func (c compiledCondition) keeps(item scopedItem) bool {
+	value := c.path.FirstIn(item)
 	if c.kindNot != noKind && kindOf(value) == c.kindNot {
 		return false
 	}
@@ -55,7 +55,7 @@ func kindOf(value *v8value.Value) v8value.Kind {
 	return value.Kind
 }
 
-func keepsAll(conditions []compiledCondition, item *v8value.Value) bool {
+func keepsAll(conditions []compiledCondition, item scopedItem) bool {
 	for _, condition := range conditions {
 		if !condition.keeps(item) {
 			return false

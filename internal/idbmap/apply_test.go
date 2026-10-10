@@ -235,3 +235,42 @@ func TestParseRejectsChainedKeyFields(t *testing.T) {
 		t.Fatalf("expected a chained key_field error, got %v", err)
 	}
 }
+
+// nestedSchema reads ChatGPT-like conversations (#78): the messages hold
+// only id and text, the conversation id, title and time are on the record.
+const nestedSchema = `{
+  "version": 2, "target": "message/1", "name": "chat-ai", "source": "chat-ai",
+  "records": {"kind": "indexeddb", "container": "conversations", "each": "$.messages[]"},
+  "require": [{"path": "^.state", "not_in": ["archived"]}],
+  "fields": {
+    "message_id": {"paths": ["$.id"]},
+    "conversation_id": {"paths": ["^.id"]},
+    "conversation": {"paths": ["^.title"]},
+    "text": {"paths": ["$.text"]},
+    "sent_at": {"paths": ["^.updateTime"], "transform": "unix_ms"}
+  }
+}`
+
+func conversationRecord(id, state string, messageIDs ...string) webstore.Record {
+	messages := &v8value.Value{Kind: v8value.KindArray}
+	for _, messageID := range messageIDs {
+		messages.Items = append(messages.Items, obj("id", str(messageID), "text", str("texto "+messageID)))
+	}
+	return record("db", "conversations", obj("id", str(id), "title", str("Título "+id), "updateTime", num(1727280000000),
+		"state", str(state), "messages", messages))
+}
+
+func TestApplyReadsTheRecordHoldingEachItem(t *testing.T) {
+	records := []webstore.Record{conversationRecord("c1", "open", "m1", "m2"), conversationRecord("c2", "archived", "m3")}
+	events, tally, err := mustMapper(t, nestedSchema).Apply(records)
+	if err != nil || len(events) != 2 || tally.Items != 3 {
+		t.Fatalf("expected the two messages of c1, got %d events, %+v (err %v)", len(events), tally, err)
+	}
+	second := events[1].Message()
+	if second.MessageID != "m2" || second.ConversationID != "c1" || second.Conversation != "Título c1" || second.Text != "texto m2" {
+		t.Fatalf("unexpected message %+v", second)
+	}
+	if !events[1].Timestamp.Equal(time.UnixMilli(1727280000000)) {
+		t.Fatalf("timestamp %v, want the conversation's updateTime", events[1].Timestamp)
+	}
+}

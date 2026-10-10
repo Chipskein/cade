@@ -130,16 +130,21 @@ func (m Mapper) mapRecord(root *v8value.Value, lookups map[Field]lookupIndex, or
 	return events
 }
 
-func (m Mapper) items(root *v8value.Value) []*v8value.Value {
+func (m Mapper) items(record *v8value.Value) []scopedItem {
 	if m.each == nil {
-		return []*v8value.Value{root}
+		return []scopedItem{{value: record, record: record}}
 	}
-	return m.each.Resolve(root)
+	found := m.each.Resolve(record)
+	items := make([]scopedItem, len(found))
+	for i, value := range found {
+		items[i] = scopedItem{value: value, record: record}
+	}
+	return items
 }
 
 // mapItem builds the event, keyed like the Teams collector on conversation
 // and message id so a re-ingest or a second origin stays one event.
-func (m Mapper) mapItem(item *v8value.Value, lookups map[Field]lookupIndex, origin string) (event.Event, bool) {
+func (m Mapper) mapItem(item scopedItem, lookups map[Field]lookupIndex, origin string) (event.Event, bool) {
 	message := m.message(item, lookups, origin)
 	sentAt, hasTime := m.time(item)
 	if message.MessageID == "" || message.ConversationID == "" || !hasTime || m.missesRequired(item, lookups) {
@@ -157,7 +162,7 @@ func (m Mapper) mapItem(item *v8value.Value, lookups map[Field]lookupIndex, orig
 	}, true
 }
 
-func (m Mapper) message(item *v8value.Value, lookups map[Field]lookupIndex, origin string) event.Message {
+func (m Mapper) message(item scopedItem, lookups map[Field]lookupIndex, origin string) event.Message {
 	text := func(field Field) string { return m.text(field, item, lookups) }
 	return event.Message{
 		MessageID: text(FieldMessageID), ConversationID: text(FieldConversationID), Conversation: text(FieldConversation),
@@ -168,10 +173,10 @@ func (m Mapper) message(item *v8value.Value, lookups map[Field]lookupIndex, orig
 
 // text fills a text field: the first path with a value, then the lookup,
 // then the default.
-func (m Mapper) text(field Field, item *v8value.Value, lookups map[Field]lookupIndex) string {
+func (m Mapper) text(field Field, item scopedItem, lookups map[Field]lookupIndex) string {
 	rule := m.rules[field]
 	for _, path := range rule.paths {
-		if text := ruleText(path.First(item), rule.rule); text != "" {
+		if text := ruleText(path.FirstIn(item), rule.rule); text != "" {
 			return text
 		}
 	}
@@ -183,7 +188,7 @@ func (m Mapper) text(field Field, item *v8value.Value, lookups map[Field]lookupI
 
 // lookedUp finds field's value in its lookup store, keyed by a path of the
 // item or by another field's value (validated not to loop).
-func (m Mapper) lookedUp(field Field, item *v8value.Value, lookups map[Field]lookupIndex) string {
+func (m Mapper) lookedUp(field Field, item scopedItem, lookups map[Field]lookupIndex) string {
 	index, ok := lookups[field]
 	if !ok {
 		return ""
@@ -195,7 +200,7 @@ func (m Mapper) lookedUp(field Field, item *v8value.Value, lookups map[Field]loo
 }
 
 // missesRequired reports a required text field left empty.
-func (m Mapper) missesRequired(item *v8value.Value, lookups map[Field]lookupIndex) bool {
+func (m Mapper) missesRequired(item scopedItem, lookups map[Field]lookupIndex) bool {
 	for field, rule := range m.rules {
 		if rule.rule.Required && fieldShapes[field] == shapeText && m.text(field, item, lookups) == "" {
 			return true
@@ -204,20 +209,20 @@ func (m Mapper) missesRequired(item *v8value.Value, lookups map[Field]lookupInde
 	return false
 }
 
-func (m Mapper) time(item *v8value.Value) (time.Time, bool) {
+func (m Mapper) time(item scopedItem) (time.Time, bool) {
 	rule := m.rules[FieldSentAt]
 	for _, path := range rule.paths {
-		if sentAt, ok := readTime(path.First(item), rule.rule.Transform); ok {
+		if sentAt, ok := readTime(path.FirstIn(item), rule.rule.Transform); ok {
 			return sentAt, true
 		}
 	}
 	return time.Time{}, false
 }
 
-func (m Mapper) flag(field Field, item *v8value.Value) bool {
+func (m Mapper) flag(field Field, item scopedItem) bool {
 	rule := m.rules[field]
 	for _, path := range rule.paths {
-		if ruleFlag(path.First(item), rule.rule) {
+		if ruleFlag(path.FirstIn(item), rule.rule) {
 			return true
 		}
 	}

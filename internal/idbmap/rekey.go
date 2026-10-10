@@ -64,7 +64,7 @@ func (p itemPair) collect(root *v8value.Value, changes map[string]string) {
 }
 
 // keptEvent maps an item that passes the conditions.
-func (m Mapper) keptEvent(item *v8value.Value, lookups map[Field]lookupIndex) (event.Event, bool) {
+func (m Mapper) keptEvent(item scopedItem, lookups map[Field]lookupIndex) (event.Event, bool) {
 	if !keepsAll(m.conditions, item) {
 		return event.Event{}, false
 	}
