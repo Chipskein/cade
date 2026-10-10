@@ -37,7 +37,7 @@ func graphCorpus() []event.Event {
 	return []event.Event{
 		image("img-orion", "/prints/orion.png", "a1", "slide do projeto Orion apresentado por Joao Mendes"),
 		image("img-receipt", "/whatsapp/IMG-1.png", "b2", "comprovante de transferência para João Mendes"),
-		attached("wa-photo", "IMG-1.JPG"), attached("wa-doc", "contrato.pdf"),
+		attached("wa-photo", "IMG-1.png"), attached("wa-doc", "contrato.pdf"),
 		{UID: "teams-cited", Source: event.SourceTeams, Timestamp: baseTime, Content: cited.Content(), Metadata: cited.Metadata()},
 		commit("git-rui", "Rui Costa", "erp/retry.go"), commit("git-carla", "Carla Dias", "erp/retry.go"),
 		commit("git-cache", "Rui Costa", "catalog/cache.go"),
@@ -54,12 +54,16 @@ func storeWithGraphCorpus(t *testing.T) (*Store, []event.Event) {
 }
 
 // keptInMemory is the reference: GraphFilter.Keeps over the corpus, with
-// each event's entity links as the store recorded them.
+// each event's links as the store recorded them.
 func keptInMemory(t *testing.T, store *Store, corpus []event.Event, graph storage.GraphFilter) []string {
 	t.Helper()
+	contents := map[string]string{}
+	for _, ev := range corpus {
+		contents[ev.UID] = ev.Content
+	}
 	var kept []string
 	for _, ev := range corpus {
-		if graph.Keeps(ev, linkedIDs(t, store, ev.UID)) {
+		if graph.Keeps(ev, graphLinks(t, store, ev.UID, contents)) {
 			kept = append(kept, ev.UID)
 		}
 	}
@@ -67,15 +71,31 @@ func keptInMemory(t *testing.T, store *Store, corpus []event.Event, graph storag
 	return kept
 }
 
-func linkedIDs(t *testing.T, store *Store, uid string) []int64 {
+// graphLinks reads uid's entities and the contents of the other events
+// showing its images.
+func graphLinks(t *testing.T, store *Store, uid string, contents map[string]string) storage.GraphLinks {
 	t.Helper()
 	links, err := store.EntitiesOfEvent(context.Background(), uid)
 	testcheck.NoError(t, err)
-	var ids []int64
+	var graph storage.GraphLinks
 	for _, link := range links {
-		ids = append(ids, link.ID)
+		graph.EntityIDs = append(graph.EntityIDs, link.ID)
+		if link.Role == entity.RoleShows {
+			graph.ShownTexts = append(graph.ShownTexts, showingContents(t, store, link.ID, contents)...)
+		}
 	}
-	return ids
+	return graph
+}
+
+func showingContents(t *testing.T, store *Store, entityID int64, contents map[string]string) []string {
+	t.Helper()
+	uids, err := store.EventsOfEntity(context.Background(), entityID)
+	testcheck.NoError(t, err)
+	var texts []string
+	for _, uid := range uids {
+		texts = append(texts, contents[uid])
+	}
+	return texts
 }
 
 func keptInStore(t *testing.T, store *Store, graph storage.GraphFilter) []string {
@@ -110,6 +130,7 @@ func TestEventsMatchingSelectsWhatTheGraphFilterKeeps(t *testing.T) {
 		"projeto do Orion": {Appearing: []string{"projeto do Orion"}},
 		"João in images":   {Modality: entity.TypeImage, Appearing: []string{"João"}},
 		"João and Pedro":   {Appearing: []string{"João", "Pedro"}},
+		"Pedro's images":   {Modality: entity.TypeImage, Appearing: []string{"Pedro", "transferência"}},
 		"no words":         {Appearing: []string{"Zé"}},
 		"retry file":       {EntityIDs: []int64{retryFileID(t, store)}},
 	}
@@ -125,14 +146,17 @@ func TestEventsMatchingSelectsWhatTheGraphFilterKeeps(t *testing.T) {
 func TestGraphFilterKeepsImagesAndTheNamesInThem(t *testing.T) {
 	store, _ := storeWithGraphCorpus(t)
 	cases := map[string][]string{
-		"images":         keptInStore(t, store, storage.GraphFilter{Modality: entity.TypeImage}),
-		"João in images": keptInStore(t, store, storage.GraphFilter{Modality: entity.TypeImage, Appearing: []string{"João"}}),
-		"retry file":     keptInStore(t, store, storage.GraphFilter{EntityIDs: []int64{retryFileID(t, store)}}),
+		"images":          keptInStore(t, store, storage.GraphFilter{Modality: entity.TypeImage}),
+		"João in images":  keptInStore(t, store, storage.GraphFilter{Modality: entity.TypeImage, Appearing: []string{"João"}}),
+		"Pedro's of João": keptInStore(t, store, storage.GraphFilter{Appearing: []string{"João", "Pedro"}}),
+		"retry file":      keptInStore(t, store, storage.GraphFilter{EntityIDs: []int64{retryFileID(t, store)}}),
 	}
 	want := map[string][]string{
 		"images":         {"img-orion", "img-receipt", "wa-photo"},
-		"João in images": {"img-orion", "img-receipt"},
-		"retry file":     {"git-carla", "git-rui"},
+		"João in images": {"img-orion", "img-receipt", "wa-photo"},
+		// The file is the same picture Pedro sent, so it counts too.
+		"Pedro's of João": {"img-receipt", "wa-photo"},
+		"retry file":      {"git-carla", "git-rui"},
 	}
 	for name, got := range cases {
 		if !slices.Equal(got, want[name]) {

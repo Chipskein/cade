@@ -92,3 +92,18 @@ func TestUnknownEntitiesAreReportedAndDropped(t *testing.T) {
 		t.Fatalf("expected both images and Beatriz reported unknown, got %d hits, unknown %v (err %v)", len(hits), unknown, err)
 	}
 }
+
+// Copies of one picture show the same Image: the best ranked stands for
+// them all.
+func TestRetrieveFoldsHitsShowingTheSameImage(t *testing.T) {
+	store := graphStore()
+	copyOfSlide := imageFile("slide-copy", "slide do projeto Orion apresentado por João Mendes")
+	copyOfSlide.Metadata[event.ImageSHA256Key] = "slide"
+	store.Events = append(store.Events, copyOfSlide)
+	store.Embeddings["slide-copy"] = []float32{1, 0}
+	query := queryplan.Query{Question: "imagens do João", Entities: []string{"João"}, Modality: entity.TypeImage}
+	hits, err := restrictedAnswerer(store, &testfakes.FakeGenerator{}).Retrieve(context.Background(), query, AnswerObserver{})
+	if err != nil || len(hits) != 1 || hits[0].Repeats != 1 {
+		t.Fatalf("expected one hit standing for both copies, got %+v (err %v)", hits, err)
+	}
+}

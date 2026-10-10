@@ -24,7 +24,7 @@ func (f *FakeEventStore) EventsMatching(ctx context.Context, filter storage.Even
 	inPeriod, err := f.EventsBetween(ctx, filter.From, filter.To)
 	var scoped []event.Event
 	for _, ev := range inPeriod {
-		if (filter.Source == "" || ev.Source == filter.Source) && filter.Graph.Keeps(ev, f.linkedIDs(ev)) {
+		if (filter.Source == "" || ev.Source == filter.Source) && filter.Graph.Keeps(ev, storage.GraphLinks{EntityIDs: f.linkedIDs(ev)}) {
 			scoped = append(scoped, ev)
 		}
 	}
@@ -32,7 +32,8 @@ func (f *FakeEventStore) EventsMatching(ctx context.Context, filter storage.Even
 }
 
 // linkedIDs are the ids of the entities ev refers to, as EntitiesOfEvent
-// gives them.
+// gives them. Like EntitiesOfEvent, the fake derives links from each
+// event alone, so it does not link a message to the image it attaches.
 func (f *FakeEventStore) linkedIDs(ev event.Event) []int64 {
 	var ids []int64
 	for _, ref := range entity.RefsOf(ev) {

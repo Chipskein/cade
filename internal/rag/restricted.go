@@ -23,6 +23,16 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	if err != nil {
 		return nil, err
 	}
+	hits, err := a.selectAmong(ctx, embedding, query, filter)
+	if err != nil || !query.NeedsGraph() {
+		return hits, err
+	}
+	return a.foldSharedImages(ctx, hits)
+}
+
+// selectAmong ranks the filtered events exactly, or through the vector
+// index when too many match.
+func (a *Answerer) selectAmong(ctx context.Context, embedding []float32, query queryplan.Query, filter storage.EventFilter) ([]storage.ScoredEvent, error) {
 	tooMany, err := a.tooManyToRank(ctx, filter)
 	if err != nil {
 		return nil, err

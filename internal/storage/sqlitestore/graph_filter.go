@@ -45,9 +45,10 @@ func addModality(condition *sqlCondition, kind entity.Type) {
 	condition.add(`(`+shows+` OR `+strings.Join(extensions, " OR ")+`)`, args...)
 }
 
-// addAppearing keeps events with a chunk holding every word. The subquery
-// does not depend on the outer row, so the text index is searched once.
-// A name without words to look for keeps nothing, as in memory.
+// addAppearing keeps events with a chunk holding every word, or showing
+// an image some such event shows. The subqueries do not depend on the
+// outer row, so the text index is searched once. A name without words to
+// look for keeps nothing, as in memory.
 func addAppearing(condition *sqlCondition, words []string) {
 	if len(words) == 0 {
 		condition.add(`0`)
@@ -57,9 +58,20 @@ func addAppearing(condition *sqlCondition, words []string) {
 	for i, word := range words {
 		quoted[i] = `"` + word + `"`
 	}
-	condition.add(`(events.source, events.content_hash) IN (SELECT chunks.source, chunks.content_hash
-		FROM chunks_fts JOIN chunks ON chunks.id = chunks_fts.rowid WHERE chunks_fts MATCH ?)`, strings.Join(quoted, " AND "))
+	match := strings.Join(quoted, " AND ")
+	condition.add(`((events.source, events.content_hash) IN (`+matchingTexts+`) OR events.id IN (`+showingMatchingImage+`))`, match, match)
 }
+
+// matchingTexts are the texts with a chunk matching the bound FTS query.
+const matchingTexts = `SELECT chunks.source, chunks.content_hash
+	FROM chunks_fts JOIN chunks ON chunks.id = chunks_fts.rowid WHERE chunks_fts MATCH ?`
+
+// showingMatchingImage are the events showing an image that an event
+// with a matching text shows.
+var showingMatchingImage = `SELECT shown.event_id FROM event_entities AS shown
+	WHERE shown.role = ` + literal(string(entity.RoleShows)) + ` AND shown.entity_id IN (
+		SELECT other.entity_id FROM event_entities AS other JOIN events AS described ON described.id = other.event_id
+		WHERE other.role = ` + literal(string(entity.RoleShows)) + ` AND (described.source, described.content_hash) IN (` + matchingTexts + `))`
 
 // addLinkedEntities keeps events linked to any of ids.
 func addLinkedEntities(condition *sqlCondition, ids []int64) {

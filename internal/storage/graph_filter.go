@@ -53,16 +53,23 @@ func AppearingWords(name string) []string {
 	return words
 }
 
-// Keeps reports whether ev passes the modality and appearing names; links
-// lists the entity ids ev refers to, for EntityIDs.
-func (g GraphFilter) Keeps(ev event.Event, links []int64) bool {
+// GraphLinks is what Keeps needs from the rest of the store about an
+// event: the entities it links, and the text of the other events showing
+// the same images (the described file a WhatsApp photo was saved as).
+type GraphLinks struct {
+	EntityIDs  []int64
+	ShownTexts []string
+}
+
+// Keeps reports whether ev, linked as links says, passes the filter.
+func (g GraphFilter) Keeps(ev event.Event, links GraphLinks) bool {
 	if g.Modality != "" && !Holds(ev, g.Modality) {
 		return false
 	}
-	if len(g.EntityIDs) > 0 && !slices.ContainsFunc(links, func(id int64) bool { return slices.Contains(g.EntityIDs, id) }) {
+	if len(g.EntityIDs) > 0 && !slices.ContainsFunc(links.EntityIDs, func(id int64) bool { return slices.Contains(g.EntityIDs, id) }) {
 		return false
 	}
-	return appearsAll(ev, g.Appearing)
+	return appearsAll(ev, links.ShownTexts, g.Appearing)
 }
 
 // Holds reports whether ev holds an entity of kind: an image file shows an
@@ -74,17 +81,23 @@ func Holds(ev event.Event, kind entity.Type) bool {
 	return kind == entity.TypeImage && imagefile.IsDescribedImage(ev.Attachment())
 }
 
-// appearsAll looks in the whole content; the store looks chunk by chunk,
-// which differs only for words split across a long text's chunks. A name
-// without words to look for keeps nothing.
-func appearsAll(ev event.Event, names []string) bool {
-	text := " " + strings.Join(AppearingWords(ev.Content), " ") + " "
+// appearsAll keeps ev when each name is in its content or in the text of
+// an event showing the same image. It looks in whole texts; the store
+// looks chunk by chunk, which differs only for words split across a long
+// text's chunks. A name without words to look for keeps nothing.
+func appearsAll(ev event.Event, shownTexts, names []string) bool {
+	texts := append([]string{ev.Content}, shownTexts...)
 	for _, name := range names {
-		if !hasEveryWord(text, AppearingWords(name)) {
+		words := AppearingWords(name)
+		if !slices.ContainsFunc(texts, func(text string) bool { return hasEveryWord(paddedWords(text), words) }) {
 			return false
 		}
 	}
 	return true
+}
+
+func paddedWords(text string) string {
+	return " " + strings.Join(AppearingWords(text), " ") + " "
 }
 
 // hasEveryWord reports whether padded (words between spaces) has every
