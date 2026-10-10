@@ -10,6 +10,14 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Representations (#22)
+
+- **What a model derives from an entity has one place**, `representations`: modality and kind in enumerations (text, vector, object, face, audio; description, visible text, embedding, detection, transcript), the model and revision that wrote it, and its content, one per modality and kind. Saving one again replaces it in place without touching the entity; it goes with the entity.
+- **Image descriptions moved there.** An image file refers to its `Image` entity, keyed by its SHA-256; the description and the visible text are the Image's representations, with the model and prompt version, and leave the event's metadata (the status, hash and size stay). The event text keeps the description, so the search is unchanged. Copies of one image share one description. Ingestion, the reuse by hash and `reindex --captions` read and write the new layer through the store, with no change in `imagecaption`.
+- **Vectors:** a representation's vector lives in `representation_vectors` (sqlite-vec, int8, cosine), found by kind; triggers drop it with its representation and when its content changes. Nothing writes one yet: a visual embedding is future work.
+- **Measured:** `go tool mage evalCaptions` gives the same output, and the retrieval suite is unchanged. On a copy of the reference machine's database (269,999 events), 372 described image events became 342 descriptions and 246 visible texts; compacted, the database went from 804.87 to 804.85 MB (2,981 bytes per event both before and after). The cold `ask` on the suite's corpus took 1.53, 1.53, 1.59 and 1.82 s at top_k 4, 6, 8 and 12, against 1.42, 1.54, 1.56 and 1.87 s before (one run each).
+- **Upgrading:** migration 17 creates the table; migration 18 moves the descriptions and rewrites the metadata, after a `cade.db.before-v18-<date>` copy (mode `600`). On that copy it took 3.3 s, 2.0 s of them the copy. No `reindex`.
+
 ### Relationships and time neighbors (#21)
 
 - **`cade timeline --around UID [--window 2h]`** shows an event and what happened within the window before and after it, across sources, with the event marked.
