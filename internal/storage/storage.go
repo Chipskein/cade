@@ -330,3 +330,38 @@ type EntityIndex interface {
 	// oldest first; none for an unknown id.
 	EventsOfEntity(ctx context.Context, entityID int64) ([]string, error)
 }
+
+// MaxRelationHops caps how far Reachable walks: past three hops, almost
+// everything in a history is connected through some shared file or person.
+const MaxRelationHops = 3
+
+// Relationship is a stored relation between two entities (#21), with the
+// event that states it.
+type Relationship struct {
+	From     Entity
+	Relation entity.Relation
+	To       Entity
+	// Confidence is nil when the source states the relation, and set only
+	// for one inferred automatically.
+	Confidence     *float64
+	SourceEventUID string
+}
+
+// ReachedEntity is an entity Reachable found and the fewest hops to it.
+type ReachedEntity struct {
+	Entity
+	Hops int
+}
+
+// RelationIndex walks the relationships between entities. An empty
+// relation means any.
+type RelationIndex interface {
+	// RelationsFrom lists the relations whose origin is entityID.
+	RelationsFrom(ctx context.Context, entityID int64, relation entity.Relation) ([]Relationship, error)
+	// RelationsTo lists the relations whose target is entityID.
+	RelationsTo(ctx context.Context, entityID int64, relation entity.Relation) ([]Relationship, error)
+	// Reachable lists the entities within hops relations of entityID, in
+	// either direction, nearest first; hops above MaxRelationHops are
+	// capped, and the entity itself is left out.
+	Reachable(ctx context.Context, entityID int64, hops int) ([]ReachedEntity, error)
+}

@@ -26,9 +26,7 @@ func (f *FakeEventStore) EntitiesOfEvent(_ context.Context, uid string) ([]stora
 	}
 	var links []storage.EntityLink
 	for _, ref := range entity.RefsOf(f.Events[index]) {
-		identity := entityIdentity{Type: ref.Type, Key: ref.Key}
-		stored := storage.Entity{ID: f.entityID(identity), Type: ref.Type, Key: ref.Key, Name: f.firstSpelling(identity)}
-		links = append(links, storage.EntityLink{Entity: stored, Role: ref.Role})
+		links = append(links, storage.EntityLink{Entity: f.storedEntity(ref), Role: ref.Role})
 	}
 	return links, f.FailWith
 }
