@@ -81,3 +81,17 @@ func TestRefsOfCommitWithoutRepositoryNamesNoFile(t *testing.T) {
 		}
 	}
 }
+
+func TestRefsOfImageFileNamesTheFileAndItsImage(t *testing.T) {
+	metadata := event.File{Path: "/home/eu/prints/erro.png"}.Metadata()
+	for key, value := range (event.Image{SHA256: "ab12", Status: event.CaptionDescribed}).Metadata() {
+		metadata[key] = value
+	}
+	want := []Ref{
+		{Type: TypeFile, Key: "/home/eu/prints/erro.png", Name: "erro.png", Role: RoleSubject},
+		{Type: TypeImage, Key: "ab12", Name: "erro.png", Role: RoleShows},
+	}
+	if got := RefsOf(event.Event{Source: event.SourceFile, Metadata: metadata}); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}

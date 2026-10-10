@@ -501,6 +501,8 @@ flowchart LR
     entities["entities<br/>tipo, chave, nome<br/>(pessoa, arquivo)"]
     links["event_entities<br/>evento, entidade, papel"]
     relations["relationships<br/>origem, relação, destino,<br/>evento de onde saiu"]
+    reps["representations<br/>modalidade, tipo, modelo,<br/>revisão, conteúdo"]
+    repvec["representation_vectors<br/>(sqlite-vec, int8)<br/>tipo"]
     files["file_modifications<br/>versões anteriores<br/>(data, tamanho)"]
     settings["store_settings<br/>embedding_model,<br/>embedding_dimensions"]
 
@@ -513,6 +515,7 @@ flowchart LR
     events --> links --> entities
     entities --> relations
     events --> relations
+    entities --> reps --> repvec
 ```
 
 - **Pedaços por texto (#67):** eventos com o mesmo texto e a mesma fonte dividem um conjunto de `chunks`, vetores e entradas no `chunks_fts`; o evento chega a ele pelo `content_hash`. O conjunto é gravado com o primeiro evento do texto e apagado com o último (`releaseText` em `chunks.go`).
@@ -520,4 +523,5 @@ flowchart LR
 - **Identificadores por evento:** o hash de um commit e o caminho de um arquivo ficam no `event_identifiers_fts`, por evento; a busca por palavras junta os dois índices pelo BM25.
 - **Entidades (#20):** o que vários eventos citam, uma linha por tipo e chave: uma pessoa pela `listing.NameKey` (as mesmas entradas do `event_people`, sem o título da conversa), um arquivo pelo caminho. `entity.RefsOf(ev)` deriva as entidades do evento; o `SaveEvent`, o `UpdateEvent` e a migração 15 usam a mesma função, então um banco migrado fica igual a um novo, e os coletores não sabem das entidades. O `forget` e uma edição apagam a entidade que fica sem evento (`entities.go`); `storage.EntityIndex` lê os dois sentidos. Uma entidade não tem datas: elas vêm dos eventos.
 - **Relações (#21):** `entity.RelationsOf(ev)` deriva as relações que o evento afirma entre as entidades dele; hoje, o autor de um commit `changed` cada arquivo do commit (o caminho do arquivo é o do repositório mais o do commit, o mesmo `File` da fonte de arquivos). Uma relação é única por origem, relação, destino e evento; a `confidence` fica NULL quando a fonte a afirma. Apagar o evento ou uma das entidades apaga a relação (`ON DELETE CASCADE`). `storage.RelationIndex` lista as relações de saída e de entrada e percorre vários saltos nos dois sentidos com uma CTE recursiva, até `MaxRelationHops` (3).
+- **Representações (#22):** o que um modelo derivou de uma entidade, uma por modalidade e tipo (`internal/representation`), com o modelo e a revisão que a escreveram. Hoje a descrição e o texto visível de uma imagem são representações da entidade `Image` (chave = SHA-256): o store as grava a partir de `event.Image()` ao gravar e editar o evento e guarda o evento sem elas (`event.WithoutImageText`); o texto do evento continua com a descrição, então a busca não muda. `DescribedImage` (reuso pelo hash) e `OutdatedImages` (`reindex --captions`) leem as representações, então o `imagecaption` não sabe da tabela. O vetor de uma representação fica em `representation_vectors` (vec0, criada pelo primeiro vetor, com a dimensão dele); triggers o apagam junto com a representação ou quando o conteúdo muda, porque o vec0 não tem chave estrangeira. `storage.RepresentationIndex` grava, lista e busca por vetor.
 - **Vizinhos no tempo (#21):** sem tabela. `timeline --around` e o `ask` leem os eventos da janela com `EventsBetween` (`timeline/around.go`, `rag/neighbors.go`).

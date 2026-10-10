@@ -80,7 +80,7 @@ func (s *Store) SaveEvent(ctx context.Context, ev event.Event, chunks []storage.
 }
 
 func saveEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []storage.Chunk) (bool, error) {
-	eventID, inserted, err := insertEventRow(ctx, tx, ev)
+	eventID, inserted, err := insertEventRow(ctx, tx, ev.WithoutImageText())
 	if err != nil || !inserted {
 		return false, err
 	}
@@ -91,6 +91,9 @@ func saveEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []stora
 		return false, err
 	}
 	if err := relateEntities(ctx, tx, eventID, ev); err != nil {
+		return false, err
+	}
+	if err := representImage(ctx, tx, ev); err != nil {
 		return false, err
 	}
 	if err := indexEventIdentifier(ctx, tx, eventID, ev); err != nil {

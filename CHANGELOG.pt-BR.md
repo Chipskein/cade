@@ -10,6 +10,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Representações (#22)
+
+- **O que um modelo deriva de uma entidade tem um lugar só**, `representations`: modalidade e tipo em enumerações (texto, vetor, objeto, rosto, áudio; descrição, texto visível, embedding, detecção, transcrição), o modelo e a revisão que a escreveram e o conteúdo, uma por modalidade e tipo. Gravar de novo substitui no lugar, sem mexer na entidade; ela sai junto com a entidade.
+- **As descrições de imagem foram para lá.** Um arquivo de imagem cita a entidade `Image`, com o SHA-256 como chave; a descrição e o texto visível são representações da `Image`, com o modelo e a versão do prompt, e saem da metadata do evento (o status, o hash e o tamanho ficam). O texto do evento continua com a descrição, então a busca não muda. Cópias da mesma imagem dividem uma descrição. A ingestão, o reuso pelo hash e o `reindex --captions` leem e gravam a camada nova pelo store, sem mudança no `imagecaption`.
+- **Vetores:** o vetor de uma representação fica em `representation_vectors` (sqlite-vec, int8, cosseno), buscado por tipo; triggers o apagam junto com a representação e quando o conteúdo muda. Nada grava um ainda: embedding visual fica para depois.
+- **Medido:** o `go tool mage evalCaptions` dá a mesma saída, e a suíte de busca não muda. Numa cópia do banco da máquina de referência (269.999 eventos), 372 eventos de imagem descrita viraram 342 descrições e 246 textos visíveis; compactado, o banco foi de 804,87 para 804,85 MB (2.981 bytes por evento antes e depois). O `ask` a frio no corpus da suíte levou 1,53, 1,53, 1,59 e 1,82 s com top_k 4, 6, 8 e 12, contra 1,42, 1,54, 1,56 e 1,87 s antes (uma execução cada).
+- **Atualização:** a migração 17 cria a tabela; a 18 move as descrições e reescreve a metadata, depois de uma cópia `cade.db.before-v18-<data>` (permissão `600`). Nessa cópia levou 3,3 s, 2,0 s deles a cópia. Sem `reindex`.
+
 ### Relacionamentos e vizinhos no tempo (#21)
 
 - **`cade timeline --around UID [--window 2h]`** mostra um evento e o que aconteceu na janela antes e depois dele, em todas as fontes, com o evento marcado.

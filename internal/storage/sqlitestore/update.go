@@ -40,7 +40,7 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 	if err != nil {
 		return err
 	}
-	eventID, err := updateEventRow(ctx, tx, ev)
+	eventID, err := updateEventRow(ctx, tx, ev.WithoutImageText())
 	if err != nil {
 		return err
 	}
@@ -51,6 +51,9 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 		return err
 	}
 	if err := rerelateEntities(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
+	if err := representImage(ctx, tx, ev); err != nil {
 		return err
 	}
 	if err := reindexEventIdentifier(ctx, tx, eventID, ev); err != nil {

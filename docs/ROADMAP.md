@@ -39,7 +39,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | feito | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | feito | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | feito | alto | médio |
-| 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
+| 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | feito | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
 | 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
@@ -234,6 +234,7 @@ flowchart LR
 - **Problema:** a descrição de imagem (fase 19) fica na metadata do evento. OCR, embeddings visuais e outras representações futuras não teriam onde ficar sem se acoplar à imagem.
 - **Mudança:** tabela `representations` (modalidade, tipo, modelo, conteúdo, vetor no `sqlite-vec`). As descrições existentes migram para ela, e o `reindex --captions` passa a gravar lá. O `forget` apaga as representações derivadas.
 - **Aceite:** a migração tem teste e `go tool mage evalCaptions` não muda; o tamanho do banco e o tempo do `ask`, antes e depois, no BENCHMARKS.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#representações-22)): `representations` por entidade (modalidade, tipo, modelo, revisão, conteúdo) e `representation_vectors` no sqlite-vec. A descrição e o texto visível de uma imagem são representações da entidade `Image` (SHA-256) e saíram da metadata; o texto do evento continua com a descrição, então a busca não muda. O store grava e lê a camada nova, então a ingestão e o `reindex --captions` não mudaram. `evalCaptions` igual; banco compactado igual (804,87 → 804,85 MB); o `ask` a frio dentro do ruído de uma execução. Os números ficaram no CHANGELOG, não no BENCHMARKS: o `ask` não lê a tabela nova, e o tempo medido é de uma execução só. Nada grava vetores ainda.
 
 ---
 
