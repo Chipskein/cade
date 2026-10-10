@@ -3977,6 +3977,45 @@
     "files": "cobranca/cnab_retorno.go",
     "authorship": "other"
    }
+  },
+  {
+   "id": "pw1",
+   "source": "git",
+   "at": "2026-09-22T15:20:00-03:00",
+   "content": "Evita cobrança duplicada no webhook de pagamento\n\nArquivos alterados: pagamentos/webhook.go",
+   "metadata": {
+    "repository": "/src/api",
+    "hash": "c7d8e9f0a1",
+    "author": "Eu",
+    "email": "eu@example.com",
+    "files": "pagamentos/webhook.go",
+    "authorship": "mine"
+   }
+  },
+  {
+   "id": "pw2",
+   "source": "browser",
+   "at": "2026-09-22T15:05:00-03:00",
+   "content": "Idempotent requests | Stripe API Reference\nhttps://docs.stripe.com/api/idempotent_requests",
+   "metadata": {
+    "browser": "chrome",
+    "url": "https://docs.stripe.com/api/idempotent_requests",
+    "title": "Idempotent requests | Stripe API Reference"
+   }
+  },
+  {
+   "id": "gr3",
+   "source": "git",
+   "at": "2026-08-11T10:00:00-03:00",
+   "content": "Ajusta backoff exponencial com jitter\n\nArquivos alterados: erp/retry.go",
+   "metadata": {
+    "repository": "/src/api",
+    "hash": "d4e5f6a7b8",
+    "author": "Carla Dias",
+    "email": "carla@example.com",
+    "files": "erp/retry.go",
+    "authorship": "other"
+   }
   }
  ]
 }
