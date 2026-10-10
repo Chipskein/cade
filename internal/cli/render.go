@@ -34,7 +34,12 @@ func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event,
 	if len(events) == 0 {
 		return
 	}
-	location := days.First.Location()
+	renderEventLines(out, days.First.Location(), events, "")
+}
+
+// renderEventLines prints events under a header per day; the event whose
+// UID is anchor, when set, is marked so it stands out from its neighbors.
+func renderEventLines(out io.Writer, location *time.Location, events []event.Event, anchor string) {
 	var currentDay string
 	for _, ev := range events {
 		local := ev.Timestamp.In(location)
@@ -42,8 +47,20 @@ func renderTimeline(out io.Writer, days timeline.DayRange, events []event.Event,
 			currentDay = day
 			fmt.Fprintf(out, "\n── %s ──\n", day)
 		}
-		fmt.Fprintf(out, "%s  %-9s %s\n", local.Format(clockLayout), "["+string(ev.Source)+"]", describeEvent(ev))
+		fmt.Fprintf(out, "%s%s  %-9s %s\n", anchorMarker(ev, anchor), local.Format(clockLayout), "["+string(ev.Source)+"]", describeEvent(ev))
 	}
+}
+
+// anchorMarker keeps the plain timeline unchanged and, around an event,
+// gives every line the same indent so the marker does not shift columns.
+func anchorMarker(ev event.Event, anchor string) string {
+	switch {
+	case anchor == "":
+		return ""
+	case ev.UID == anchor:
+		return "▶ "
+	}
+	return "  "
 }
 
 // describeEvent picks a one-line summary. Known sources get a richer line;
