@@ -58,6 +58,8 @@ type FakeEventStore struct {
 	Slots          storage.VectorSlots
 	CompactedSlots storage.VectorSlots
 	Compactions    int
+	// entityIDs keeps each entity's id once given, as the real store does.
+	entityIDs map[entityIdentity]int64
 }
 
 // NewFakeEventStore returns an empty store.

@@ -102,16 +102,7 @@ func linkedEntityIDs(ctx context.Context, tx *sql.Tx, eventID int64) ([]int64, e
 	if err != nil {
 		return nil, fmt.Errorf("read entities of event id %d: %w", eventID, err)
 	}
-	defer rows.Close()
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return collectInt64s(rows)
 }
 
 // deleteOrphanEntities deletes those of ids that no event links to any

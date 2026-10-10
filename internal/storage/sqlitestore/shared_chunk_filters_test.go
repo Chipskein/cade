@@ -241,19 +241,6 @@ func searchChunkIDs(db *sql.DB, query sharedChunkQuery) ([]int64, error) {
 	return collectInt64s(rows)
 }
 
-func collectInt64s(rows *sql.Rows) ([]int64, error) {
-	defer rows.Close()
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
-}
-
 // searchPerEvent is today's search, for the latency it is compared with:
 // one vector per event, both filters inside the KNN, k events (copies of
 // one text take several).
