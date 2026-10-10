@@ -2,6 +2,7 @@ package idbmap
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/chipskein/cade/internal/idbschema"
@@ -13,13 +14,38 @@ import (
 // "[]" every array element, "{}" every map value, "<>" every set member.
 // A masked key (".<id>", ".<text>") matches every property the summary
 // would mask the same way, so a summary path is always a valid Path.
+// "^" starts a path at the record holding the item instead of the item
+// (#78: ChatGPT keeps the time and title on the conversation only).
 //
 //	"$.messageMap.<id>.content"
+//	"^.updateTime"
 type Path string
+
+// ReadsRecord reports a path that starts at the record holding the item.
+func (p Path) ReadsRecord() bool {
+	return strings.HasPrefix(string(p), pathRecordRoot)
+}
+
+// FromRecord writes a path of the record as its items read it: "$.title"
+// becomes "^.title".
+func (p Path) FromRecord() Path {
+	return pathRecordRoot + Path(strings.TrimPrefix(string(p), pathRoot))
+}
+
+// ReachesOne reports a valid path with no wildcard: it reaches at most one
+// value wherever it is read.
+func (p Path) ReachesOne() bool {
+	compiled, err := CompilePath(p)
+	if err != nil {
+		return false
+	}
+	return !slices.ContainsFunc(compiled.steps, func(step pathStep) bool { return step.kind != stepProperty })
+}
 
 // Path syntax, shared with idbschema's walk.
 const (
 	pathRoot       = "$"
+	pathRecordRoot = "^"
 	pathProperty   = "."
 	pathArrayItems = "[]"
 	pathMapValues  = "{}"
@@ -47,7 +73,23 @@ type pathStep struct {
 // CompiledPath is a parsed Path, resolved many times while applying a
 // schema.
 type CompiledPath struct {
-	steps []pathStep
+	steps      []pathStep
+	fromRecord bool
+}
+
+// scopedItem is one item a schema maps with the record it was found in;
+// both are the same value when the schema has no each.
+type scopedItem struct {
+	value, record *v8value.Value
+}
+
+// FirstIn returns the first value the path reaches from the item, or from
+// its record when the path starts with "^".
+func (c CompiledPath) FirstIn(item scopedItem) *v8value.Value {
+	if c.fromRecord {
+		return c.First(item.record)
+	}
+	return c.First(item.value)
 }
 
 // CompilePath parses path.
@@ -55,10 +97,13 @@ type CompiledPath struct {
 //	compiled, err := idbmap.CompilePath("$.author._serialized")
 func CompilePath(path Path) (CompiledPath, error) {
 	rest, found := strings.CutPrefix(string(path), pathRoot)
-	if !found {
-		return CompiledPath{}, fmt.Errorf("path %q, expected it to start with %q", path, pathRoot)
+	if path.ReadsRecord() {
+		rest, found = strings.CutPrefix(string(path), pathRecordRoot)
 	}
-	var compiled CompiledPath
+	if !found {
+		return CompiledPath{}, fmt.Errorf("path %q, expected it to start with %q (the item) or %q (the record holding it)", path, pathRoot, pathRecordRoot)
+	}
+	compiled := CompiledPath{fromRecord: path.ReadsRecord()}
 	for rest != "" {
 		step, remaining, err := nextStep(rest)
 		if err != nil {

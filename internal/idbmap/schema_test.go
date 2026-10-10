@@ -36,18 +36,20 @@ func TestParseAcceptsAMetadataOnlySchema(t *testing.T) {
 
 func TestParseRejectsInvalidSchemas(t *testing.T) {
 	cases := map[string]struct{ old, new, mention string }{
-		"newer version":       {`"version": 1`, `"version": 3`, "version 3"},
-		"other target":        {`"target": "message/1"`, `"target": "document/1"`, "document/1"},
-		"name with spaces":    {`"name": "whatsapp"`, `"name": "Whats App"`, "Whats App"},
-		"no store":            {`"store": "message"}`, `"store": ""}`, "records.container"},
-		"missing sent_at":     {`"sent_at"`, `"text"`, `"sent_at" is missing`},
-		"unknown field":       {`"sent_at": {`, `"subject": {"paths": ["$.x"]}, "sent_at": {`, "unknown field"},
-		"time transform":      {`"transform": "unix_s"`, `"transform": "html_text"`, "html_text"},
-		"relative path":       {`["$.from"]`, `["from"]`, `"from"`},
-		"unknown kind":        {`"kind_not": "undefined"`, `"kind_not": "indefinido"`, "indefinido"},
-		"incomplete lookup":   {`"match": "$.id", `, ``, "lookup"},
-		"typo in a key":       {`"default": "desconhecido"`, `"defualt": "desconhecido"`, "defualt"},
-		"field with no rules": {`{"paths": ["$.id"]}`, `{}`, "no paths, lookup or default"},
+		"newer version":        {`"version": 1`, `"version": 3`, "version 3"},
+		"other target":         {`"target": "message/1"`, `"target": "document/1"`, "document/1"},
+		"name with spaces":     {`"name": "whatsapp"`, `"name": "Whats App"`, "Whats App"},
+		"no store":             {`"store": "message"}`, `"store": ""}`, "records.container"},
+		"missing sent_at":      {`"sent_at"`, `"text"`, `"sent_at" is missing`},
+		"unknown field":        {`"sent_at": {`, `"subject": {"paths": ["$.x"]}, "sent_at": {`, "unknown field"},
+		"time transform":       {`"transform": "unix_s"`, `"transform": "html_text"`, "html_text"},
+		"relative path":        {`["$.from"]`, `["from"]`, `"from"`},
+		"unknown kind":         {`"kind_not": "undefined"`, `"kind_not": "indefinido"`, "indefinido"},
+		"incomplete lookup":    {`"match": "$.id", `, ``, "lookup"},
+		"typo in a key":        {`"default": "desconhecido"`, `"defualt": "desconhecido"`, "defualt"},
+		"field with no rules":  {`{"paths": ["$.id"]}`, `{}`, "no paths, lookup or default"},
+		"record path, no each": {`["$.from"]`, `["^.from"]`, "records.each is empty"},
+		"record lookup match":  {`"match": "$.id"`, `"match": "^.id"`, "outer record"},
 	}
 	for name, tc := range cases {
 		raw := strings.Replace(metadataOnlySchema, tc.old, tc.new, 1)
@@ -55,6 +57,19 @@ func TestParseRejectsInvalidSchemas(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), tc.mention) {
 			t.Errorf("%s: expected an error mentioning %q, got %v", name, tc.mention, err)
 		}
+	}
+}
+
+// #78: items under each may read their record with "^"; each itself
+// cannot, as nothing holds the record.
+func TestParseRecordPathsUnderEach(t *testing.T) {
+	underEach := strings.Replace(chainSchema, `["$.conversationId"]`, `["^.id"]`, 1)
+	if _, err := Parse([]byte(underEach)); err != nil {
+		t.Fatalf("record path under each: %v", err)
+	}
+	recordEach := strings.Replace(chainSchema, `"each": "$.messageMap`, `"each": "^.messageMap`, 1)
+	if _, err := Parse([]byte(recordEach)); err == nil || !strings.Contains(err.Error(), "^.messageMap") {
+		t.Fatalf("each from the record: expected an error naming the path, got %v", err)
 	}
 }
 

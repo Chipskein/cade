@@ -152,7 +152,7 @@ A partitioned origin (a site inside another, `^partitionKey=` in Firefox) or one
 
 | Key | Meaning |
 |---|---|
-| `records` | `kind` is the storage (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store; in localStorage, nothing and the item's key; in OPFS, the file's directory and name; in the request caches, the cache name, empty in the HTTP cache, and the `sources.request_cache_urls` name); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`). |
+| `records` | `kind` is the storage (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` and `container` select the records (in IndexedDB, the start of the database name and the object store; in localStorage, nothing and the item's key; in OPFS, the file's directory and name; in the request caches, the cache name, empty in the HTTP cache, and the `sources.request_cache_urls` name); `each`, when set, the items inside each record that are messages (`$.messageMap.<id>`), whose paths may then read the record with `^`. |
 | `require` | Conditions an item must meet: `in` / `not_in` (values of the text at `path`), `kind_not` (`object`, `undefined`…; a missing value is `undefined`). |
 | `fields` | `message_id`, `conversation_id`, `sent_at` (required); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
 | field `paths` | Read in order; the first with a value wins. |
@@ -164,6 +164,14 @@ A partitioned origin (a site inside another, `^partitionKey=` in Firefox) or one
 Schemas saved as `version` 1 (before `kind`) still work unedited: they are read as `indexeddb`, with `database_prefix` and `store` in place of `namespace_prefix` and `container`, and a replacement writes them as version 2.
 
 Paths use the notation `cade teams-schema` prints: `$` the record or item, `.key`, `[]` list items, `{}` map values, `<>` set members, and `.<id>` / `.<text>` for keys that are data (they match every such key). A message's UID is the source, the conversation id and the message id, so the same message read twice stays one event.
+
+With `each`, a path starting with `^` reads the record holding the item instead of the item (`^.title`), for what only the record has: ChatGPT keeps each message's id and text inside the conversation and the conversation's id, title and time only on the conversation. `^` is refused without `each`, in `each` itself and in a lookup's `match` and `values`; `schema-discover` offers the record's single values this way. For ChatGPT's conversations in Chrome, with the reviewed schema in `testdata/idb-schemas/chatgpt.json` copied to `sources.indexeddb_schema_dir`:
+
+```json
+"indexeddb_dirs": {"chatgpt": ["~/.config/google-chrome/Default/IndexedDB/https_chatgpt.com_0.indexeddb.leveldb"]}
+```
+
+ChatGPT stores no time and no author per message, so every message takes its conversation's last update as its time and has no sender.
 
 **When the app changes.** Apps change how they store data without notice. A schema made by `schema-discover` keeps a fingerprint: the paths it reads with their types, no values.
 

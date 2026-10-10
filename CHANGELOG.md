@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Nested messages read their record (#78)
+
+- **A schema path starting with `^` reads the record holding the item** (`^.updateTime`), not the item: apps that nest messages inside a conversation keep the time and the title only on the conversation. It is accepted only with `records.each`, never in `each` itself or in a lookup's `match` and `values`; schemas without `^` map as before, and the drift fingerprint records `^` paths at the record's root.
+- **`schema-discover` offers the record's single values** as `^` paths when the store has `each`.
+- **ChatGPT** is indexed by schema with no code of its own: the reviewed `testdata/idb-schemas/chatgpt.json` reads Chrome's `ConversationsDatabase`. On a real cache, 918 of 1,050 messages in 132 conversations map; the other 132 have no text. ChatGPT keeps no time or author per message, so each message takes its conversation's last update as its time and has no sender.
+- No database migration.
+
 ### WhatsApp from Android (#77)
 
 - **`cade ingest whatsapp-backup`** reads the `msgstore.db` of WhatsApp for Android, decrypted by you (`sources.whatsapp_backups`). cade never decrypts the `.crypt15` backup and never sees the key.

@@ -21,13 +21,13 @@ func TestBuildLookupIndexesOnlyItsStore(t *testing.T) {
 	if err != nil || len(index.values) != 2 {
 		t.Fatalf("expected Ana and Bia indexed, got %v (err %v)", index.values, err)
 	}
-	if got := index.findByPath(obj("author", str("1@c.us"))); got != "Ana" {
+	if got := index.findByPath(soleItem(obj("author", str("1@c.us")))); got != "Ana" {
 		t.Errorf("expected Ana, got %q", got)
 	}
-	if got := index.findByPath(obj("author", str("4@c.us"))); got != "Bia" {
+	if got := index.findByPath(soleItem(obj("author", str("4@c.us")))); got != "Bia" {
 		t.Errorf("expected the trimmed second value, got %q", got)
 	}
-	if got := index.findByPath(obj("author", str("3@c.us"))); got != "" {
+	if got := index.findByPath(soleItem(obj("author", str("3@c.us")))); got != "" {
 		t.Errorf("expected nothing from another store, got %q", got)
 	}
 }
@@ -58,7 +58,7 @@ func TestConditions(t *testing.T) {
 		"deleted flag false": {obj("type", str("chat"), "deleted", &v8value.Value{Kind: v8value.KindBool}), true},
 	}
 	for name, tc := range cases {
-		if got := keepsAll(conditions, tc.item); got != tc.keep {
+		if got := keepsAll(conditions, soleItem(tc.item)); got != tc.keep {
 			t.Errorf("%s: keep = %v, want %v", name, got, tc.keep)
 		}
 	}
@@ -68,7 +68,7 @@ func TestConditions(t *testing.T) {
 // field to exist.
 func TestConditionKindNotUndefinedRequiresTheField(t *testing.T) {
 	conditions, _ := compileConditions([]Condition{{Path: "$.body", KindNot: "undefined"}})
-	if keepsAll(conditions, obj()) || !keepsAll(conditions, obj("body", str("x"))) {
+	if keepsAll(conditions, soleItem(obj())) || !keepsAll(conditions, soleItem(obj("body", str("x")))) {
 		t.Fatal("expected a missing field to fail kind_not undefined")
 	}
 }

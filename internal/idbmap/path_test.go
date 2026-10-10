@@ -32,6 +32,11 @@ func texts(values []*v8value.Value) string {
 	return strings.Join(parts, ",")
 }
 
+// soleItem is an item that is its own record, as when a schema has no each.
+func soleItem(value *v8value.Value) scopedItem {
+	return scopedItem{value: value, record: value}
+}
+
 func mustCompile(t *testing.T, path Path) CompiledPath {
 	t.Helper()
 	compiled, err := CompilePath(path)
@@ -80,8 +85,44 @@ func TestResolveContainers(t *testing.T) {
 	}
 }
 
+// #78: a "^" path reads the record holding the item, a "$" path the item.
+func TestFirstInReadsTheItemOrItsRecord(t *testing.T) {
+	message := obj("id", str("m1"))
+	item := scopedItem{value: message, record: obj("id", str("c1"), "messages", message)}
+	if got := scalarText(mustCompile(t, "$.id").FirstIn(item)); got != "m1" {
+		t.Errorf("$.id: got %q, want the item's m1", got)
+	}
+	if got := scalarText(mustCompile(t, "^.id").FirstIn(item)); got != "c1" {
+		t.Errorf("^.id: got %q, want the record's c1", got)
+	}
+	if got := mustCompile(t, "^").FirstIn(item); got != item.record {
+		t.Error("^ must resolve to the record itself")
+	}
+}
+
+func TestReadsRecord(t *testing.T) {
+	if !Path("^.title").ReadsRecord() || Path("$.title").ReadsRecord() || Path("").ReadsRecord() {
+		t.Fatal("only paths starting with ^ read the record")
+	}
+}
+
+func TestFromRecord(t *testing.T) {
+	if got := Path("$.title").FromRecord(); got != "^.title" {
+		t.Fatalf("got %q, want ^.title", got)
+	}
+}
+
+func TestReachesOne(t *testing.T) {
+	cases := map[Path]bool{"$": true, "$.a.b": true, "^.a": true, "$.list[]": false, "$.map.<id>.a": false, "$.m{}": false, "a": false}
+	for path, want := range cases {
+		if got := path.ReachesOne(); got != want {
+			t.Errorf("%q: got %v, want %v", path, got, want)
+		}
+	}
+}
+
 func TestCompilePathRejectsMalformedPaths(t *testing.T) {
-	for _, path := range []Path{"", "content", "$content", "$.", "$..a"} {
+	for _, path := range []Path{"", "content", "$content", "$.", "$..a", "^title", "^.", "$^.a"} {
 		if _, err := CompilePath(path); err == nil {
 			t.Errorf("%q: expected an error", path)
 		}

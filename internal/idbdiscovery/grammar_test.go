@@ -118,3 +118,21 @@ func ruleLine(grammar, rule string) string {
 	}
 	return ""
 }
+
+// #78: with each, the record's own values are offered as "^" paths, so a
+// message can take its conversation's time; without each, none is.
+func TestFieldsGrammarOffersRecordPathsUnderEach(t *testing.T) {
+	store := StoreView{Label: "S1", Paths: []PathView{
+		{Path: "$.updateTime", Kinds: []v8value.Kind{v8value.KindNumber}},
+		{Path: "$.messages[]", Kinds: []v8value.Kind{v8value.KindObject}},
+		{Path: "$.messages[].id", Kinds: []v8value.Kind{v8value.KindString}},
+	}}
+	nested, err := fieldsGrammar(Catalog{Stores: []StoreView{store}}, store, "$.messages[]")
+	if err != nil || !strings.Contains(ruleLine(nested, "time-path"), `"\"^.updateTime\""`) {
+		t.Fatalf("expected ^.updateTime among the time paths, got %q (err %v)", ruleLine(nested, "time-path"), err)
+	}
+	flat, err := fieldsGrammar(Catalog{Stores: []StoreView{store}}, store, "")
+	if err != nil || strings.Contains(flat, "^.") {
+		t.Fatalf("expected no ^ path without each (err %v)", err)
+	}
+}

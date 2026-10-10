@@ -45,11 +45,11 @@ func firstText(paths []CompiledPath, root *v8value.Value) string {
 }
 
 // findByPath returns the looked-up value for item's KeyPath, or "".
-func (l lookupIndex) findByPath(item *v8value.Value) string {
+func (l lookupIndex) findByPath(item scopedItem) string {
 	if l.keyPath == nil {
 		return ""
 	}
-	return l.values[readText(l.keyPath.First(item), TransformNone)]
+	return l.values[readText(l.keyPath.FirstIn(item), TransformNone)]
 }
 
 func compilePaths(paths ...Path) ([]CompiledPath, error) {

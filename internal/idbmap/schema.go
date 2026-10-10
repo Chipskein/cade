@@ -182,12 +182,12 @@ func (s Schema) validateRecords() error {
 	if s.Records.Container == "" {
 		return fmt.Errorf("records.container is empty, expected the container holding the messages (the object store, in IndexedDB)")
 	}
-	return validatePaths(s.Records.Each)
+	return validateStorePaths(s.Records.Each)
 }
 
 func (s Schema) validateConditions() error {
 	for _, condition := range s.Require {
-		if err := validatePaths(condition.Path); err != nil {
+		if err := s.validateItemPaths(condition.Path); err != nil {
 			return err
 		}
 		if _, err := parseKind(condition.KindNot); err != nil {
@@ -204,14 +204,14 @@ func (s Schema) validateFields() error {
 		}
 	}
 	for field, rule := range s.Fields {
-		if err := validateRule(field, rule, s.Fields); err != nil {
+		if err := s.validateRule(field, rule); err != nil {
 			return fmt.Errorf("field %q: %w", field, err)
 		}
 	}
 	return nil
 }
 
-func validateRule(field Field, rule FieldRule, fields map[Field]FieldRule) error {
+func (s Schema) validateRule(field Field, rule FieldRule) error {
 	shape, known := fieldShapes[field]
 	if !known {
 		return fmt.Errorf("unknown field, expected one of %s", joinFields(sortedFields()))
@@ -222,26 +222,29 @@ func validateRule(field Field, rule FieldRule, fields map[Field]FieldRule) error
 	if err := validateTransform(shape, rule.Transform); err != nil {
 		return err
 	}
-	if err := validatePaths(rule.Paths...); err != nil {
+	if err := s.validateItemPaths(rule.Paths...); err != nil {
 		return err
 	}
 	if rule.Split != nil && (rule.Split.Separator == "" || rule.Split.Index < 0) {
 		return fmt.Errorf("split %+v, expected a separator and an index of 0 or more", *rule.Split)
 	}
-	return validateLookup(field, rule.Lookup, fields)
+	return s.validateLookup(field, rule.Lookup)
 }
 
-func validateLookup(field Field, lookup *Lookup, fields map[Field]FieldRule) error {
+func (s Schema) validateLookup(field Field, lookup *Lookup) error {
 	if lookup == nil {
 		return nil
 	}
 	if lookup.Container == "" || lookup.Match == "" || len(lookup.Values) == 0 || (lookup.KeyPath == "") == (lookup.KeyField == "") {
 		return fmt.Errorf("lookup %+v, expected store, match, values and one of key_path or key_field", *lookup)
 	}
-	if err := validateKeyField(field, lookup.KeyField, fields); err != nil {
+	if err := validateKeyField(field, lookup.KeyField, s.Fields); err != nil {
 		return err
 	}
-	return validatePaths(append([]Path{lookup.KeyPath, lookup.Match}, lookup.Values...)...)
+	if err := s.validateItemPaths(lookup.KeyPath); err != nil {
+		return err
+	}
+	return validateStorePaths(append([]Path{lookup.Match}, lookup.Values...)...)
 }
 
 // validateKeyField allows one level of lookup by field: the key field must
@@ -258,6 +261,28 @@ func validateKeyField(field, keyField Field, fields map[Field]FieldRule) error {
 		return fmt.Errorf("lookup key_field %q is itself looked up by field, expected a field read from paths", keyField)
 	}
 	return nil
+}
+
+// validateItemPaths checks paths read from an item; one from its record
+// ("^") only makes sense when the record holds several items.
+func (s Schema) validateItemPaths(paths ...Path) error {
+	for _, path := range paths {
+		if path.ReadsRecord() && s.Records.Each == "" {
+			return fmt.Errorf("path %q reads the record holding the item, but records.each is empty; expected a %q path when each record is one item", path, pathRoot)
+		}
+	}
+	return validatePaths(paths...)
+}
+
+// validateStorePaths checks paths read from a whole record (each, a
+// lookup's match and values), where no outer record exists.
+func validateStorePaths(paths ...Path) error {
+	for _, path := range paths {
+		if path.ReadsRecord() {
+			return fmt.Errorf("path %q reads an outer record, expected a %q path: it is read from the record itself", path, pathRoot)
+		}
+	}
+	return validatePaths(paths...)
 }
 
 func validatePaths(paths ...Path) error {
