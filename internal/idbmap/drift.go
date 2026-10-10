@@ -80,8 +80,12 @@ func (u *usedPathList) add(store Location, root Path, paths ...Path) {
 }
 
 // underRoot writes an item path from the record: "$.content" under
-// "$.messageMap.<id>" is "$.messageMap.<id>.content".
+// "$.messageMap.<id>" is "$.messageMap.<id>.content", and "^.title",
+// already read from the record, is "$.title".
 func underRoot(root, path Path) Path {
+	if path.ReadsRecord() {
+		return pathRoot + Path(strings.TrimPrefix(string(path), pathRecordRoot))
+	}
 	if root == "" {
 		return path
 	}

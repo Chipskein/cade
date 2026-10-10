@@ -91,3 +91,22 @@ func TestMeasureDriftReportsAGoneStoreEvenWithoutFingerprint(t *testing.T) {
 		t.Fatalf("expected only the format error, got %+v (err %v)", drift, err)
 	}
 }
+
+// #78: a path read from the record is fingerprinted at the record's root,
+// not under each.
+func TestTakeFingerprintPlacesRecordPathsAtTheRecord(t *testing.T) {
+	schema := mustMapper(t, nestedSchema).schema
+	records := []webstore.Record{conversationRecord("c1", "open", "m1")}
+	shapes := TakeFingerprint(schema, records)
+	cases := map[Path][]string{"$.updateTime": {"number"}, "$.title": {"string"}, "$.messages[].text": {"string"}}
+	for path, kinds := range cases {
+		shape, found := shapeOf(shapes, "conversations", path)
+		if !found || !slices.Equal(shape.Kinds, kinds) {
+			t.Errorf("%s: expected kinds %v, got %+v (found %v)", path, kinds, shape, found)
+		}
+	}
+	schema.Fingerprint = shapes
+	if drift, err := MeasureDrift(schema, records); err != nil || drift.Drifted() {
+		t.Fatalf("expected no drift on the same records, got %+v (err %v)", drift, err)
+	}
+}
