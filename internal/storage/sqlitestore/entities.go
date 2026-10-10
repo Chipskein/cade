@@ -69,10 +69,70 @@ func upsertEntity(ctx context.Context, tx *sql.Tx, ref entity.Ref) (int64, error
 }
 
 // relinkEntities replaces the event's links, as an edit replaces its
-// people index entries.
+// people index entries; a name the edit removed goes with its last event.
 func relinkEntities(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event) error {
+	previous, err := linkedEntityIDs(ctx, tx, eventID)
+	if err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_entities WHERE event_id = ?`, eventID); err != nil {
 		return fmt.Errorf("unlink entities of event %q: %w", ev.UID, err)
 	}
-	return linkEntities(ctx, tx, eventID, ev)
+	if err := linkEntities(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
+	return deleteOrphanEntities(ctx, tx, previous)
+}
+
+// unlinkEntities removes the event's links and the entities only it
+// referred to (PRIVACY, rule 4), before the event is forgotten.
+func unlinkEntities(ctx context.Context, tx *sql.Tx, eventID int64) error {
+	linked, err := linkedEntityIDs(ctx, tx, eventID)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_entities WHERE event_id = ?`, eventID); err != nil {
+		return fmt.Errorf("unlink entities of event id %d: %w", eventID, err)
+	}
+	return deleteOrphanEntities(ctx, tx, linked)
+}
+
+func linkedEntityIDs(ctx context.Context, tx *sql.Tx, eventID int64) ([]int64, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT entity_id FROM event_entities WHERE event_id = ?`, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("read entities of event id %d: %w", eventID, err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// deleteOrphanEntities deletes those of ids that no event links to any
+// more; checking only the candidates keeps an edit from scanning every
+// entity.
+func deleteOrphanEntities(ctx context.Context, tx *sql.Tx, ids []int64) error {
+	for _, id := range ids {
+		_, err := tx.ExecContext(ctx, `DELETE FROM entities WHERE id = ? AND NOT EXISTS (SELECT 1 FROM event_entities WHERE entity_id = ?)`, id, id)
+		if err != nil {
+			return fmt.Errorf("delete entity id %d left without events: %w", id, err)
+		}
+	}
+	return nil
+}
+
+// deleteEveryOrphanEntity runs after a whole source is forgotten, when
+// the candidates are most entities anyway.
+func deleteEveryOrphanEntity(ctx context.Context, tx *sql.Tx) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM entities WHERE NOT EXISTS (SELECT 1 FROM event_entities WHERE entity_id = entities.id)`)
+	if err != nil {
+		return fmt.Errorf("delete entities left without events: %w", err)
+	}
+	return nil
 }
