@@ -90,6 +90,9 @@ func saveEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []stora
 	if err := linkEntities(ctx, tx, eventID, ev); err != nil {
 		return false, err
 	}
+	if err := linkAttachedImages(ctx, tx, eventID, ev); err != nil {
+		return false, err
+	}
 	if err := relateEntities(ctx, tx, eventID, ev); err != nil {
 		return false, err
 	}

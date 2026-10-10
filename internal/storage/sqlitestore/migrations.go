@@ -47,6 +47,7 @@ var schemaMigrations = []migration{
 	{version: 16, description: "relationships between entities, from the events that state them", apply: relateStoredEvents},
 	{version: 17, description: "representations a model derived from an entity", apply: createRepresentations},
 	{version: 18, description: "image descriptions move from event metadata to representations", backup: true, apply: moveImageTexts},
+	{version: 19, description: "messages linked to the images they attach", apply: linkStoredAttachments},
 }
 
 func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {
