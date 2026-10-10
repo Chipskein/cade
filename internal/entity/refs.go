@@ -17,12 +17,12 @@ var personRoles = map[listing.Role]Role{
 }
 
 // RefsOf lists the entities ev refers to, once per role: the people the
-// people index keeps (same names, same keys; the first spelling wins) and,
-// for a file event, the file.
+// people index keeps (same names, same keys; the first spelling wins), for
+// a file event its file, and for a commit the files it changed.
 //
 //	refs := entity.RefsOf(ev) // [{person "ana prado" "ana prado" sender}]
 func RefsOf(ev event.Event) []Ref {
-	refs := personRefs(ev)
+	refs := append(personRefs(ev), changedFileRefs(ev)...)
 	if file, found := fileRef(ev); found {
 		refs = append(refs, file)
 	}
@@ -50,4 +50,25 @@ func fileRef(ev event.Event) (Ref, bool) {
 		return Ref{}, false
 	}
 	return Ref{Type: TypeFile, Key: path, Name: filepath.Base(path), Role: RoleSubject}, true
+}
+
+// changedFileRefs are a commit's files as File entities. The key is the
+// path under the repository, so a file the files source also indexes is
+// the same entity in both.
+func changedFileRefs(ev event.Event) []Ref {
+	commit := ev.Commit()
+	if ev.Source != event.SourceGit || commit.Repository == "" {
+		return nil
+	}
+	var refs []Ref
+	seen := map[string]bool{}
+	for _, file := range commit.Files {
+		path := filepath.Join(commit.Repository, file)
+		if file == "" || seen[path] {
+			continue
+		}
+		seen[path] = true
+		refs = append(refs, Ref{Type: TypeFile, Key: path, Name: filepath.Base(path), Role: RoleChanged})
+	}
+	return refs
 }
