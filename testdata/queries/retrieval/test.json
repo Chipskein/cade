@@ -242,8 +242,7 @@
    "relevant": [
     "pw2"
    ],
-   "topic": "webhook de pagamento",
-   "pending_issue": "#21"
+   "topic": "webhook de pagamento"
   },
   {
    "question": "quem mais mexeu no arquivo do retry do ERP que o Rui alterou?",
