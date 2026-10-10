@@ -22,7 +22,7 @@ func storeAtVersion14(t *testing.T, path string) []string {
 		mustSave(t, store, ev, nil)
 	}
 	links := storedLinks(t, store.db)
-	for _, statement := range []string{`DROP TABLE event_entities`, `DROP TABLE entities`, `PRAGMA user_version = 14`} {
+	for _, statement := range []string{`DROP TABLE relationships`, `DROP TABLE event_entities`, `DROP TABLE entities`, `PRAGMA user_version = 14`} {
 		_, err := store.db.Exec(statement)
 		testcheck.NoError(t, err)
 	}
