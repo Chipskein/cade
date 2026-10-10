@@ -112,6 +112,7 @@ Both models run in-process through llama.cpp.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
 - Events with the same text (a page visited several times) share one set of chunks, embeddings and keyword entries. `forget` of one of them deletes that event, its hash or path entry and its date from the embedding; the shared chunks stay while another event has the text, and go with the last one.
 - The people index (`event_people`) holds the names in each message and commit (sender or author, conversation title, first names after "@"), so a question about a person is filtered in the database. It follows the events: an edit replaces an event's names, and `forget` deletes them with the events.
+- Entities (`entities`, `event_entities`) name what several events refer to: a person by the same names the people index keeps (not conversation titles), a file by its path. A person entity holds only a name found in an event, no e-mail or id and nothing inferred. `forget` and an edit delete an entity once no event refers to it (rule 4 below); while another event does, it keeps the first spelling stored.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`. For an image, that includes its description, which a copy of the same image found later reuses.
 - `forget file` and `forget --uid` delete an image's description with its event; nothing about it is kept elsewhere. `cade reindex --captions` replaces descriptions in place, zeroing the old text.
@@ -135,6 +136,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
 | **teams**, **apps through a schema** and **whatsapp-backup** | your messages | other people's messages, names and ids | yes, whatever people write |
 | **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
+| **entities** (`entities`) | your name, your files' paths | the same names as the people index, without conversation titles | no |
 
 ### Requirements and gaps
 
@@ -159,5 +161,5 @@ These bind the work that adds personal data, starting with people as entities ([
 1. **Opt-in per kind.** A new kind of personal data (face vectors, anything a person entity holds beyond the names events already have) is off until you turn it on in `cade init` or the configuration. Turning it off stops collecting it, and one command deletes what was kept.
 2. **Nothing sensitive is inferred.** cade never derives health, religion, politics, ethnicity, sex life or similar traits, and never asks a model to. A person entity holds only what a source states: names and ids found in events.
 3. **Biometrics stay apart.** Face vectors live in their own table, never in event text or image descriptions, never reach the generation model, and are compared only with faces from your own files. A face gets a name only from you.
-4. **What is derived follows its event.** `forget` of an event deletes the entities, relations, representations and face vectors that came only from it, and a person left with no event is deleted.
+4. **What is derived follows its event.** `forget` of an event deletes the entities, relations, representations and face vectors that came only from it, and a person left with no event is deleted. Entities follow this since migration 15 (#20).
 5. **Same local rules:** no network, owner-only files, and the export ([#85](https://github.com/Chipskein/cade/issues/85)) includes the derived data, so you can see everything kept about a person.

@@ -47,6 +47,9 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 	if err := reindexPeople(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
+	if err := relinkEntities(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
 	if err := reindexEventIdentifier(ctx, tx, eventID, ev); err != nil {
 		return err
 	}

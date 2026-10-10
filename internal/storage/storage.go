@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 )
@@ -301,4 +302,31 @@ type ImageCaptionIndex interface {
 	// folder whose description another model or prompt version wrote, for
 	// `cade reindex --captions`.
 	OutdatedImages(ctx context.Context, model string, promptVersion int) ([]event.Event, error)
+}
+
+// Entity is a stored entity (phase 26, #20): what several events refer
+// to. ID is stable while some event refers to it; Name is the first
+// spelling stored.
+type Entity struct {
+	ID   int64
+	Type entity.Type
+	Key  string
+	Name string
+}
+
+// EntityLink is an entity as one event refers to it.
+type EntityLink struct {
+	Entity
+	Role entity.Role
+}
+
+// EntityIndex reads the entities the store derived from the events, the
+// base for relations (#21) and for a person's export and forget (#85, #86).
+type EntityIndex interface {
+	// EntitiesOfEvent lists what the event uid refers to, by type, key and
+	// role; none for an unknown uid.
+	EntitiesOfEvent(ctx context.Context, uid string) ([]EntityLink, error)
+	// EventsOfEntity lists the UIDs of the events referring to the entity,
+	// oldest first; none for an unknown id.
+	EventsOfEntity(ctx context.Context, entityID int64) ([]string, error)
 }

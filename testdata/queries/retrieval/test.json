@@ -224,6 +224,18 @@
    "relevant": [
     "img-earth"
    ]
+  },
+  {
+   "question": "o que a Fernanda fez sobre a conciliação de boletos?",
+   "relevant": [
+    "fr1",
+    "fr2"
+   ],
+   "people": [
+    "Fernanda"
+   ],
+   "topic": "conciliação de boletos",
+   "pending_issue": "#24"
   }
  ],
  "maximum_redundancy": 0.0

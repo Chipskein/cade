@@ -10,6 +10,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Entidades (#20)
+
+- **Pessoas e arquivos são entidades** citadas por vários eventos, em `entities` (uma linha por tipo e chave, o tipo numa enumeração, metadata livre por tipo) e `event_entities` (evento, entidade, papel). Uma pessoa tem como chave a chave de nome do índice de pessoas, então a mesma grafia numa mensagem do Teams e num commit é uma entidade só; um arquivo, o caminho. Os tipos de imagem, repositório, projeto, mensagem, URL e objeto existem, mas nada os preenche ainda.
+- **Derivadas dos eventos no store**, pela mesma `entity.RefsOf` ao gravar, ao editar e na migração: os coletores não mudam e um banco migrado fica igual a um novo. `event_people`, `file_modifications` e as descrições de imagem continuam como estão.
+- **O `forget` apaga uma entidade junto com o último evento que a cita**, e uma edição que tira um nome apaga a entidade dele (PRIVACY, regra 4). Uma entidade não tem datas próprias, então nenhuma fica para trás.
+- **Medição:** casos da suíte de busca podem esperar uma issue (`pending_issue`): rodam e aparecem no relatório, fora dos mínimos. O primeiro, a mesma pessoa como "Fernanda Rocha" no Teams e "F. Rocha" no git, falha hoje e espera a #24; só pelos nomes as duas não se juntam. O conjunto de teste não muda: recall 1,00, MRR 0,87, rejeição 1,00.
+- **Atualização:** a migração 15 cria as tabelas e liga os eventos gravados, depois de uma cópia `cade.db.before-v15-<data>` (permissão `600`). Numa cópia do banco da máquina de referência na versão 14 (269.999 eventos), levou 6,8 s, 1,7 s deles a cópia, e acrescentou 15,9 MB (767,4 → 783,3 MB): 313 pessoas, 18 delas em mais de uma fonte, e 31.728 arquivos. Sem `reindex`.
+
 ### Mensagens aninhadas leem o seu registro (#78)
 
 - **Um caminho de schema que começa com `^` lê o registro que contém o item** (`^.updateTime`), não o item: apps que aninham as mensagens dentro da conversa guardam a hora e o título só na conversa. Só é aceito com `records.each`, nunca no próprio `each` nem no `match` e nos `values` de um lookup; schemas sem `^` mapeiam como antes, e a impressão digital de mudanças guarda os caminhos `^` na raiz do registro.

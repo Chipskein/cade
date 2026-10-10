@@ -3949,6 +3949,34 @@
     "conversation_id": "19:tbackup@unq.gbl.spaces",
     "message_id": "1758901"
    }
+  },
+  {
+   "id": "fr1",
+   "source": "teams",
+   "at": "2026-09-24T14:10:00-03:00",
+   "content": "Fernanda Rocha: subi a correção do retorno CNAB do Itaú, a conciliação dos boletos pagos voltou a fechar\nConversa: chat Fernanda Rocha, Eu\nRecebida por você",
+   "metadata": {
+    "sender": "Fernanda Rocha",
+    "conversation": "Fernanda Rocha, Eu",
+    "conversation_kind": "chat",
+    "sent_by_me": "false",
+    "conversation_id": "19:fr1@unq.gbl.spaces",
+    "message_id": "1758710"
+   }
+  },
+  {
+   "id": "fr2",
+   "source": "git",
+   "at": "2026-09-24T13:40:00-03:00",
+   "content": "Corrige leitura do retorno CNAB 240 na conciliação de boletos\n\nArquivos alterados: cobranca/cnab_retorno.go",
+   "metadata": {
+    "repository": "/src/api",
+    "hash": "f0a1b2c3d4",
+    "author": "F. Rocha",
+    "email": "fernanda.rocha@example.com",
+    "files": "cobranca/cnab_retorno.go",
+    "authorship": "other"
+   }
   }
  ]
 }

@@ -498,6 +498,8 @@ flowchart LR
     fts["chunks_fts<br/>(FTS5)"]
     ids["event_identifiers_fts<br/>(FTS5) hash do commit,<br/>caminho do arquivo"]
     people["event_people<br/>nomes por evento"]
+    entities["entities<br/>tipo, chave, nome<br/>(pessoa, arquivo)"]
+    links["event_entities<br/>evento, entidade, papel"]
     files["file_modifications<br/>versões anteriores<br/>(data, tamanho)"]
     settings["store_settings<br/>embedding_model,<br/>embedding_dimensions"]
 
@@ -507,8 +509,10 @@ flowchart LR
     events --> ids
     events --> people
     events --> files
+    events --> links --> entities
 ```
 
 - **Pedaços por texto (#67):** eventos com o mesmo texto e a mesma fonte dividem um conjunto de `chunks`, vetores e entradas no `chunks_fts`; o evento chega a ele pelo `content_hash`. O conjunto é gravado com o primeiro evento do texto e apagado com o último (`releaseText` em `chunks.go`).
 - **Filtros na busca vetorial (CA9.1):** a fonte é uma coluna do vec0. A data não pode ser, porque os eventos de um texto podem estar anos distantes: o vec0 guarda a primeira e a última data deles (`first_at`, `last_at`), o KNN fica com os textos cujo intervalo cruza o período, e os eventos decidem. Se menos de k textos têm evento no período, o k aumenta até o limite do sqlite-vec (`search.go`). Cada texto achado vira um resultado por evento dele que passa nos filtros.
 - **Identificadores por evento:** o hash de um commit e o caminho de um arquivo ficam no `event_identifiers_fts`, por evento; a busca por palavras junta os dois índices pelo BM25.
+- **Entidades (#20):** o que vários eventos citam, uma linha por tipo e chave: uma pessoa pela `listing.NameKey` (as mesmas entradas do `event_people`, sem o título da conversa), um arquivo pelo caminho. `entity.RefsOf(ev)` deriva as entidades do evento; o `SaveEvent`, o `UpdateEvent` e a migração 15 usam a mesma função, então um banco migrado fica igual a um novo, e os coletores não sabem das entidades. O `forget` e uma edição apagam a entidade que fica sem evento (`entities.go`); `storage.EntityIndex` lê os dois sentidos. Uma entidade não tem datas: elas vêm dos eventos.

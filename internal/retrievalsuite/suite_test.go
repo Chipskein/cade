@@ -72,6 +72,16 @@ func TestNewSuiteRejectsUnknownGroup(t *testing.T) {
 	}
 }
 
+func TestNewSuiteRejectsMalformedPendingIssue(t *testing.T) {
+	corpus := Corpus{Events: []CorpusEvent{{ID: "a"}}}
+	if _, err := NewSuite(corpus, CaseSet{Cases: []Case{{Question: "q", PendingIssue: "24"}}}); err == nil || !strings.Contains(err.Error(), `"24"`) {
+		t.Fatalf("expected an error naming the pending issue, got %v", err)
+	}
+	if _, err := NewSuite(corpus, CaseSet{Cases: []Case{{Question: "q", PendingIssue: "#24"}}}); err != nil {
+		t.Fatalf("expected #24 accepted, got %v", err)
+	}
+}
+
 func TestLoadersRequireContent(t *testing.T) {
 	if _, err := LoadCorpus(strings.NewReader(`{"now": "2026-09-26T10:00:00Z", "events": []}`)); err == nil {
 		t.Error("expected an empty corpus rejected")
@@ -115,6 +125,35 @@ func TestScoreboardAveragesAndFloors(t *testing.T) {
 	ceiling := 0.1
 	if below := board.BelowMinimum(CaseSet{MaximumRedundancy: &ceiling}); len(below) != 1 || !strings.HasPrefix(below[0], "redundancy") {
 		t.Fatalf("expected redundancy over its ceiling, got %v", below)
+	}
+}
+
+func TestPendingCasesStayOutOfAveragesAndFloors(t *testing.T) {
+	board := Scoreboard{Results: []CaseResult{
+		{Relevant: []string{"a"}, Retrieved: []string{"a"}},
+		{Relevant: []string{"b"}, Retrieved: []string{"x", "x"}, PendingIssue: "#24"},
+		{Retrieved: []string{"y"}, PendingIssue: "#24"},
+	}}
+	if board.MeanRecall() != 1 || board.MRR() != 1 || board.Rejection() != 1 || board.Redundancy() != 0 {
+		t.Fatalf("expected pending cases ignored, got %.2f %.2f %.2f %.2f", board.MeanRecall(), board.MRR(), board.Rejection(), board.Redundancy())
+	}
+	if len(board.Counted()) != 1 || len(board.Pending()) != 2 {
+		t.Fatalf("expected 1 counted and 2 pending, got %d and %d", len(board.Counted()), len(board.Pending()))
+	}
+}
+
+func TestWriteReportListsPendingCasesApart(t *testing.T) {
+	board := Scoreboard{Results: []CaseResult{
+		{Question: "q1", Relevant: []string{"a"}, Retrieved: []string{"a"}},
+		{Question: "q2", Relevant: []string{"b"}, Retrieved: []string{"x"}, PendingIssue: "#24"},
+		{Question: "q3", Relevant: []string{"c"}, Retrieved: []string{"c"}, PendingIssue: "#24"},
+	}}
+	var out strings.Builder
+	board.WriteReport(&out)
+	for _, want := range []string{"1 perguntas, 1 corretas", "2 pendentes", "⧗ q2 (#24)", "faltou: b; veio: x", "✓ q3 (#24)", "remova pending_issue"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in the report:\n%s", want, out.String())
+		}
 	}
 }
 

@@ -28,8 +28,9 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 		return false, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+	var eventID int64
 	var source string
-	err = tx.QueryRowContext(ctx, `SELECT source FROM events WHERE uid = ?`, uid).Scan(&source)
+	err = tx.QueryRowContext(ctx, `SELECT id, source FROM events WHERE uid = ?`, uid).Scan(&eventID, &source)
 	if err == sql.ErrNoRows {
 		return false, tx.Commit()
 	}
@@ -44,6 +45,9 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 		return false, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_people WHERE event_id IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
+		return false, err
+	}
+	if err := unlinkEntities(ctx, tx, eventID); err != nil {
 		return false, err
 	}
 	if source == string(event.SourceFile) {
@@ -148,6 +152,11 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 	}
 	removed, err := result.RowsAffected()
 	if err != nil {
+		return 0, err
+	}
+	// The events' links went with them (ON DELETE CASCADE); the entities
+	// stay unless no other source refers to them.
+	if err := deleteEveryOrphanEntity(ctx, tx); err != nil {
 		return 0, err
 	}
 	return int(removed), tx.Commit()

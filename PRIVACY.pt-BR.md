@@ -112,6 +112,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 - O índice de palavras acompanha o texto: uma edição, o `reindex` e o `forget` também tiram dele as palavras antigas.
 - Eventos com o mesmo texto (uma página visitada várias vezes) dividem um conjunto de pedaços, embeddings e entradas de palavras. O `forget` de um deles apaga esse evento, a entrada do hash ou caminho dele e a data dele no embedding; os pedaços compartilhados ficam enquanto outro evento tiver o texto e saem com o último.
 - O índice de pessoas (`event_people`) guarda os nomes de cada mensagem e commit (remetente ou autor, título da conversa, primeiros nomes depois de "@"), para que uma pergunta sobre uma pessoa seja filtrada no banco. Ele acompanha os eventos: uma edição troca os nomes do evento, e o `forget` os apaga junto com os eventos.
+- As entidades (`entities`, `event_entities`) nomeiam o que vários eventos citam: uma pessoa pelos mesmos nomes que o índice de pessoas guarda (sem os títulos de conversa), um arquivo pelo caminho. Uma entidade de pessoa guarda só um nome encontrado num evento, sem e-mail, sem id e sem nada deduzido. O `forget` e uma edição apagam a entidade que fica sem nenhum evento (regra 4 abaixo); enquanto outro evento a cita, ela fica com a primeira grafia gravada.
 - Texto substituído, como o de uma mensagem editada ou de uma versão antiga de um arquivo, também é zerado (`secure_delete` do SQLite). Só a versão atual de cada arquivo fica guardada; `file_modifications` guarda a data e o tamanho de cada versão anterior, sem o texto, e o `forget file` a apaga.
 - Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`. Para uma imagem, isso inclui a descrição, que uma cópia da mesma imagem encontrada depois reaproveita.
 - `forget file` e `forget --uid` apagam a descrição de uma imagem junto com o evento; nada dela fica em outro lugar. `cade reindex --captions` substitui as descrições no lugar, zerando o texto antigo.
@@ -135,6 +136,7 @@ O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os
 | **files** | o texto dos seus arquivos e a descrição das suas imagens | o que os arquivos e imagens tiverem: nomes, documentos, fotos de pessoas | sim |
 | **teams**, **apps por schema** e **whatsapp-backup** | suas mensagens | mensagens, nomes e ids de outras pessoas | sim, o que as pessoas escreverem |
 | **índice de pessoas** (`event_people`) | seu nome | nomes de remetentes, autores e pessoas citadas depois de "@" | não |
+| **entidades** (`entities`) | seu nome, os caminhos dos seus arquivos | os mesmos nomes do índice de pessoas, sem os títulos de conversa | não |
 
 ### Requisitos e lacunas
 
@@ -159,5 +161,5 @@ Valem para o trabalho que acrescenta dados pessoais, a começar por pessoas como
 1. **Opt-in por tipo.** Um tipo novo de dado pessoal (vetores de rosto, o que uma entidade de pessoa guardar além dos nomes que os eventos já têm) fica desligado até você ligá-lo no `cade init` ou na configuração. Desligar para a coleta, e um comando apaga o que foi guardado.
 2. **Nada sensível é deduzido.** O cade nunca deduz saúde, religião, política, etnia, vida sexual ou traços parecidos, e nunca pede isso a um modelo. Uma entidade de pessoa guarda só o que uma fonte diz: nomes e ids encontrados nos eventos.
 3. **Biometria fica à parte.** Vetores de rosto ficam numa tabela própria, nunca no texto do evento nem na descrição da imagem, nunca chegam ao modelo de geração e só são comparados com rostos dos seus próprios arquivos. Um rosto só ganha nome por você.
-4. **O que é derivado acompanha o evento.** O `forget` de um evento apaga as entidades, relações, representações e vetores de rosto que vieram só dele, e uma pessoa que fica sem evento é apagada.
+4. **O que é derivado acompanha o evento.** O `forget` de um evento apaga as entidades, relações, representações e vetores de rosto que vieram só dele, e uma pessoa que fica sem evento é apagada. As entidades seguem esta regra desde a migração 15 (#20).
 5. **As mesmas regras locais:** sem rede, arquivos só do dono, e a exportação ([#85](https://github.com/Chipskein/cade/issues/85)) inclui os dados derivados, para que você veja tudo o que está guardado sobre uma pessoa.

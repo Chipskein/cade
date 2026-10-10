@@ -10,6 +10,14 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Entities (#20)
+
+- **People and files are entities** that several events refer to, in `entities` (one row per type and key, the type an enumeration, metadata free per type) and `event_entities` (event, entity, role). A person is keyed by the people index's name key, so the same spelling in a Teams message and a commit is one entity; a file by its path. The types for images, repositories, projects, messages, URLs and objects exist but nothing fills them yet.
+- **Derived from the events in the store**, by the same `entity.RefsOf` on save, on edit and in the migration: collectors are unchanged and a migrated database holds what a new one would. `event_people`, `file_modifications` and image descriptions stay as they are.
+- **`forget` deletes an entity with the last event referring to it**, and an edit that drops a name deletes its entity (PRIVACY, rule 4). An entity has no dates of its own, so none is left behind.
+- **Measurement:** retrieval cases can wait for an issue (`pending_issue`): they are run and reported, outside the floors. The first one, the same person as "Fernanda Rocha" in Teams and "F. Rocha" in git, fails today and waits for #24; names alone do not join them. The test set is unchanged: recall 1.00, MRR 0.87, rejection 1.00.
+- **Upgrading:** migration 15 creates the tables and links the stored events, after a `cade.db.before-v15-<date>` copy (mode `600`). On a copy of the reference machine's database at version 14 (269,999 events) it took 6.8 s, 1.7 s of them the copy, and added 15.9 MB (767.4 → 783.3 MB): 313 people, 18 of them in more than one source, and 31,728 files. No `reindex`.
+
 ### Nested messages read their record (#78)
 
 - **A schema path starting with `^` reads the record holding the item** (`^.updateTime`), not the item: apps that nest messages inside a conversation keep the time and the title only on the conversation. It is accepted only with `records.each`, never in `each` itself or in a lookup's `match` and `values`; schemas without `^` map as before, and the drift fingerprint records `^` paths at the record's root.

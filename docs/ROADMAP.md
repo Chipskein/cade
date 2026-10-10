@@ -37,7 +37,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 24b | [Vetores em `int8`](#fase-24b--vetores-em-int8) | [#66](https://github.com/Chipskein/cade/issues/66) | feito | alto | médio |
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | feito | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | feito | alto | baixo |
-| 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | a fazer | alto | alto |
+| 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | feito | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
@@ -212,6 +212,7 @@ flowchart LR
 - **O que já existe:** `event_people` (pessoas por evento, com as grafias juntadas por `listing.NameKey`), um evento por arquivo com as versões em `file_modifications`, e as descrições de imagem reaproveitadas pelo hash.
 - **Mudança:** tabela `entities` com identificador estável, tipo numa enumeração e metadata livre por tipo, e a associação com os eventos. `Person` e `File` são preenchidas a partir do que já existe, numa migração com backup. O `forget` apaga as associações e as entidades que ficarem sem evento.
 - **Aceite:** os casos da suíte que motivaram a fase passam; a migração tem teste; `go tool mage eval` não piora nos casos existentes.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#entidades-20)): `entities` e `event_entities`, derivadas no store por `entity.RefsOf` (coletores intocados); `Person` pela chave de nome, `File` pelo caminho; `event_people`, `file_modifications` e as descrições convivem com elas. O `forget` apaga as órfãs. A migração 15 levou 6,8 s em 269.999 eventos (+15,9 MB). O caso que motivou a fase (a mesma pessoa como "Fernanda Rocha" e "F. Rocha") ficou na suíte com `pending_issue` para a #24: os nomes sozinhos não juntam as duas grafias, e juntar por e-mail ou id pede opt-in (regra 1 do PRIVACY).
 
 ---
 

@@ -99,3 +99,16 @@ func collectStrings(rows *sql.Rows) ([]string, error) {
 	}
 	return values, rows.Err()
 }
+
+func collectInt64s(rows *sql.Rows) ([]int64, error) {
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
