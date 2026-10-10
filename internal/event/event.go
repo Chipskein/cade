@@ -87,6 +87,15 @@ const (
 	TextOriginBackup = "backup"
 )
 
+// AttachmentKey holds a chat message's attached file name (a WhatsApp
+// photo), so a message without caption still says what it was.
+const AttachmentKey = "attachment"
+
+// Attachment is the file name attached to the message, "" when none.
+func (e Event) Attachment() string {
+	return e.Metadata[AttachmentKey]
+}
+
 // TextFromBackup reports a message whose text came from the Android
 // database, which a later reading without text must not erase.
 func (e Event) TextFromBackup() bool {

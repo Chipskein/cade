@@ -7,10 +7,6 @@ import (
 	"github.com/chipskein/cade/internal/msgstore"
 )
 
-// attachmentKey holds a media message's file name, so a photo without
-// caption still says what it was.
-const attachmentKey = "attachment"
-
 // eventBuilder turns database messages into events, pairing each with
 // the stored Web event of the same message when there is one.
 type eventBuilder struct {
@@ -72,7 +68,7 @@ func backupMetadata(text event.Message, message msgstore.Message) event.Metadata
 		metadata[event.TextOriginKey] = event.TextOriginBackup
 	}
 	if message.MediaName != "" {
-		metadata[attachmentKey] = message.MediaName
+		metadata[event.AttachmentKey] = message.MediaName
 	}
 	return metadata
 }

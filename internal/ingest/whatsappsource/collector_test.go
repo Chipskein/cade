@@ -135,7 +135,7 @@ func TestAPhotoWithoutCaptionKeepsItsFileName(t *testing.T) {
 		t.Fatal(err)
 	}
 	photo := eventsByMessageID(store)["true_900000000000001@lid_BBBB"]
-	if !photo.Message().SentByMe || photo.Message().Text != "" || photo.Metadata[attachmentKey] != "IMG-1.jpg" || photo.TextFromBackup() {
+	if !photo.Message().SentByMe || photo.Message().Text != "" || photo.Attachment() != "IMG-1.jpg" || photo.TextFromBackup() {
 		t.Fatalf("expected my photo, without text, named IMG-1.jpg, got %+v", photo)
 	}
 }
