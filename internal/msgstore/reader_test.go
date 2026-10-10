@@ -3,6 +3,7 @@ package msgstore
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,14 +15,16 @@ import (
 
 var sentAt = time.Date(2026, 9, 25, 15, 30, 0, 0, time.UTC)
 
-// syntheticSchema is the part of a real msgstore.db that Read uses.
-var syntheticSchema = []string{
-	`CREATE TABLE jid (_id INTEGER PRIMARY KEY, user TEXT, server TEXT, raw_string TEXT)`,
-	`CREATE TABLE jid_map (lid_row_id INTEGER PRIMARY KEY, jid_row_id INTEGER, sort_id INTEGER)`,
-	`CREATE TABLE chat (_id INTEGER PRIMARY KEY, jid_row_id INTEGER, subject TEXT)`,
-	`CREATE TABLE message (_id INTEGER PRIMARY KEY, chat_row_id INTEGER, from_me INTEGER, key_id TEXT,
-		sender_jid_row_id INTEGER, timestamp INTEGER, message_type INTEGER, text_data TEXT)`,
-	`CREATE TABLE message_media (message_row_id INTEGER PRIMARY KEY, file_path TEXT, media_name TEXT)`,
+// syntheticSchemaPath holds the part of a real msgstore.db that Read uses.
+const syntheticSchemaPath = "../../testdata/whatsapp-msgstore/schema.sql"
+
+func syntheticSchema(t *testing.T) string {
+	t.Helper()
+	schema, err := os.ReadFile(syntheticSchemaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(schema)
 }
 
 // syntheticRows: Ana's chat (her number maps to a LID) and a group where
@@ -77,7 +80,7 @@ func readAll(t *testing.T, db *sql.DB) (map[string]Message, error) {
 
 func syntheticMessages(t *testing.T) map[string]Message {
 	t.Helper()
-	messages, err := readAll(t, buildDatabase(t, append(syntheticSchema, syntheticRows()...)...))
+	messages, err := readAll(t, buildDatabase(t, append([]string{syntheticSchema(t)}, syntheticRows()...)...))
 	if err != nil {
 		t.Fatal(err)
 	}
