@@ -107,6 +107,7 @@ func defaultSources() SourcesConfig {
 		GitIdentities:      []string{"auto"},
 		BrowserHistories:   []string{},
 		TeamsIndexedDBDirs: []string{},
+		WhatsAppBackups:    []string{},
 		IndexedDBSchemaDir: defaultIndexedDBSchemaDir,
 		IndexedDBDirs:      map[string][]string{},
 		RequestCacheURLs:   map[string][]string{},

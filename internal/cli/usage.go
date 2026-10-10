@@ -16,7 +16,8 @@ Comandos:
   doctor                                confere modelos, FTS5, banco e caminhos, e diz
                                         o que corrigir (não altera o banco)
   ingest [--gentle] <fonte|all> [ALVO...]
-                                        ingere uma fonte (git, browser, file, teams);
+                                        ingere uma fonte (git, browser, file, teams,
+                                        whatsapp-backup ou um schema salvo);
                                         sem ALVO usa os alvos configurados; --gentle
                                         usa os limites de CPU/GPU de ingest.background
   ingest start <fonte|all> [ALVO...]    o mesmo em segundo plano, com esses limites;
@@ -84,7 +85,8 @@ Commands:
   doctor                                checks models, FTS5, database and paths, and
                                         says what to fix (does not change the database)
   ingest [--gentle] <source|all> [TARGET...]
-                                        ingests a source (git, browser, file, teams);
+                                        ingests a source (git, browser, file, teams,
+                                        whatsapp-backup or a saved schema);
                                         without TARGET uses the configured targets;
                                         --gentle uses the ingest.background CPU/GPU limits
   ingest start <source|all> [TARGET...] the same in the background, with those limits;
