@@ -26,6 +26,9 @@ type Corpus struct {
 	// Now anchors relative periods ("ontem") in the questions.
 	Now    time.Time     `json:"now"`
 	Events []CorpusEvent `json:"events"`
+	// NamesFromEmail ingests with ingest.names_from_email on, the opt-in
+	// that finds "F. Rocha" as Fernanda Rocha (#24).
+	NamesFromEmail bool `json:"names_from_email"`
 }
 
 // CaseSet is one set of questions and, for the test set, its floors.

@@ -11,6 +11,7 @@
 |---|---|
 | `database_path` | Caminho do banco SQLite. |
 | `ingest.redact` | Mascara segredos reconhecidos no texto (padrão `true`). Globs de arquivos e remoção de parâmetros de URL sempre valem. |
+| `ingest.names_from_email` | Guarda em cada commit o nome que o e-mail do autor escreve (`fernanda.rocha@…` para `F. Rocha`), para o `ask` achar a pessoa no git e nas mensagens (padrão `false`). É um tipo novo de dado pessoal, então fica desligado até você ligar; o próximo `cade ingest git` preenche os commits guardados, e desligar apaga os nomes no próximo. Veja o [PRIVACY](../PRIVACY.pt-BR.md). |
 | `ingest.max_image_bytes` | Imagens maiores que isso não são descritas (padrão 20 MiB); ficam só com o nome, como os outros binários. |
 | `ingest.max_images_per_run` | Imagens novas descritas por `ingest` (padrão 50, ~20 min numa CPU de 6 núcleos); as outras ficam para as próximas execuções. |
 | `ingest.background.threads` | Threads de CPU dos dois modelos nas execuções `ingest start` e `ingest --gentle` (padrão `2`; `0` = núcleos físicos). |

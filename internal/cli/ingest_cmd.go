@@ -149,7 +149,8 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, prepare func(confi
 		for source, days := range cfg.Ingest.Retention.MaxAgeDays {
 			retention[event.Source(source)] = days
 		}
-		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger).WithRedaction(cfg.Ingest.Redact).WithRetention(retention))
+		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger).WithRedaction(cfg.Ingest.Redact).
+			WithEmailAliases(cfg.Ingest.NamesFromEmail).WithRetention(retention))
 	})
 }
 

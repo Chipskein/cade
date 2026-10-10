@@ -30,8 +30,13 @@ type Config struct {
 }
 
 type IngestConfig struct {
-	Redact    bool            `json:"redact"`
-	Retention RetentionConfig `json:"retention"`
+	Redact bool `json:"redact"`
+	// NamesFromEmail keeps on each commit the name its author's e-mail
+	// spells ("fernanda.rocha@…" for "F. Rocha"), so a person is found
+	// across sources. Off by default: it is a new kind of personal data
+	// (PRIVACY, rule 1), and turning it off deletes it on the next ingest.
+	NamesFromEmail bool            `json:"names_from_email"`
+	Retention      RetentionConfig `json:"retention"`
 	// MaxImageBytes skips larger images: they are kept, like other
 	// binaries, with their name only.
 	MaxImageBytes int64 `json:"max_image_bytes"`
