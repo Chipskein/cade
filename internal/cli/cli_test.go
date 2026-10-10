@@ -50,6 +50,8 @@ func (f FakeCollector) CollectEvents(_ context.Context, emit ingest.EmitFunc) er
 
 // fakeWorld bundles the fakes behind one Toolkit so tests can inspect them.
 type fakeWorld struct {
+	// teamsPictures are what the browser's cache holds for Teams.
+	teamsPictures map[string][]byte
 	store         *testfakes.FakeEventStore
 	embedder      *testfakes.FakeEmbedder
 	generator     *testfakes.FakeGenerator
@@ -126,6 +128,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 			return w.describer, nil
 		},
 		LoadGenerator: w.loadGenerator,
+		TeamsPictures: func(context.Context, string) (map[string][]byte, error) { return w.teamsPictures, nil },
 		Sources:       w.sources,
 		StoreReaders:  w.storeReaders,
 		SchemaFiles:   idbmap.OSSchemaFiles{},
@@ -163,6 +166,7 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: newCollector},
 		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newFileCollector},
+		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newCollector},
 	}
 }
 

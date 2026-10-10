@@ -53,6 +53,7 @@ func productionToolkit() cli.Toolkit {
 		LoadGenerator:      loadGenerator,
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
+		TeamsPictures:      teamsPictures,
 		StoreReaders:       storeReaders,
 		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),

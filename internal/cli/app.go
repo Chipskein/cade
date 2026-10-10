@@ -64,8 +64,12 @@ type Toolkit struct {
 	// LoadImageDescriber loads the generation model with its vision
 	// projector; only `ingest` with images on calls it.
 	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
-	// Sources builds the collectors; the file source reads captions, which
-	// the first stage of `ingest` fills.
+	// TeamsPictures reads the pictures the messages of a Teams IndexedDB
+	// show from the browser's cache, by address, for the first stage of
+	// `ingest` to describe (#24).
+	TeamsPictures func(ctx context.Context, indexedDBDir string) (map[string][]byte, error)
+	// Sources builds the collectors; the file and Teams sources read
+	// captions, which the first stage of `ingest` fills.
 	Sources func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
 	// StoreReaders build the readers of the browser storages schemas map:
 	// discovery finds which one a location holds, checks read the kind a

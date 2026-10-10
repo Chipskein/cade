@@ -118,3 +118,25 @@ func TestIngestOfOtherSourcesNeverLoadsTheVisionModel(t *testing.T) {
 		t.Fatalf("expected git ingestion without the vision model, got %d loads (%d %q)", world.describerLoads, code, stderr)
 	}
 }
+
+// Pictures of Teams messages are described in the same first stage as
+// image files, before the embedder loads (#24).
+func TestIngestDescribesTheCachedPicturesOfTeamsMessages(t *testing.T) {
+	world := imagesWorld(t, true)
+	world.cfg.Sources.TeamsIndexedDBDirs = []string{"/p/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"}
+	addImage(t, world, "/tmp/picture.png", 2)
+	world.teamsPictures = map[string][]byte{"https://us-api.asm.skype.com/v1/objects/0-1/views/imgo": world.files.MapFS[rootfs.Name("/tmp/picture.png")].Data}
+	code, stdout, stderr := world.run("ingest", "teams")
+	if code != 0 || world.describerLoads != 1 || world.describerOpenAtEmbedderLoad || !strings.Contains(stdout, "imagens  1 descrita") {
+		t.Fatalf("expected the picture described before the embedder, got %d loads (%d %q %q)", world.describerLoads, code, stdout, stderr)
+	}
+}
+
+func TestIngestWithImagesOffReadsNoTeamsPicture(t *testing.T) {
+	world := imagesWorld(t, false)
+	world.cfg.Sources.TeamsIndexedDBDirs = []string{"/p/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"}
+	world.teamsPictures = map[string][]byte{"https://us-api.asm.skype.com/v1/objects/0-1/views/imgo": []byte("x")}
+	if code, _, stderr := world.run("ingest", "teams"); code != 0 || world.describerLoads != 0 {
+		t.Fatalf("expected no description with images off, got %d loads (%d %q)", world.describerLoads, code, stderr)
+	}
+}
