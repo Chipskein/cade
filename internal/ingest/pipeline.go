@@ -66,6 +66,7 @@ type Pipeline struct {
 	documentPrefix string
 	logger         *slog.Logger
 	redact         bool
+	emailAliases   bool
 	retention      map[event.Source]int
 	now            func() time.Time
 	eventsPerBatch int
@@ -118,7 +119,7 @@ func (p *Pipeline) collect(ctx context.Context, collector EventCollector, progre
 	present := map[string]bool{}
 	batches := newEventBatcher(p.store, p.now, p.eventsPerBatch)
 	err := p.collectFrom(ctx, collector, func(ev event.Event) error {
-		ev = privacy.Event(ev, p.redact)
+		ev = p.aliased(privacy.Event(ev, p.redact))
 		report.Collected++
 		if ev.Source == event.SourceFile {
 			present[ev.File().Path] = true
@@ -156,6 +157,8 @@ func (p *Pipeline) applyRetention(ctx context.Context) error {
 	return nil
 }
 
+// markAuthorship marks the stored commits of an authored collector as the
+// user's or not, and gives them the author aliases the option asks for.
 func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector) error {
 	authored, marks := collector.(AuthoredCollector)
 	if !marks {
@@ -164,7 +167,10 @@ func (p *Pipeline) markAuthorship(ctx context.Context, collector EventCollector)
 	repository, identities := authored.CommitAuthorship()
 	changed, err := p.store.MarkCommitAuthorship(ctx, repository, identities)
 	p.logger.Debug("commit authorship", "repository", repository, "identities", len(identities), "changed", changed)
-	return err
+	if err != nil {
+		return err
+	}
+	return p.syncEmailAliases(ctx)
 }
 
 // markRemoved flags the files a complete snapshot no longer has; other

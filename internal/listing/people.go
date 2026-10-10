@@ -1,8 +1,10 @@
 package listing
 
 import (
+	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/textnorm"
@@ -54,11 +56,12 @@ func nameCandidates(name string) []string {
 	return []string{strings.Join(words, " "), words[0]}
 }
 
-// Matches reports whether ev has the person where p looks.
+// Matches reports whether ev has the person where p looks; a commit's
+// author alias counts as its author.
 func (p PersonMatcher) Matches(ev event.Event) bool {
 	sender := firstNonEmpty(ev.Message().Sender, ev.Commit().Author)
-	return p.AsSender && containsName(sender, p.Name) ||
-		p.InConversation && containsName(ev.Message().Conversation, p.Name)
+	asSender := containsName(sender, p.Name) || containsName(ev.Commit().AuthorAlias, p.Name)
+	return p.AsSender && asSender || p.InConversation && containsName(ev.Message().Conversation, p.Name)
 }
 
 // Key is the name as the people index stores it (see NameKey).
@@ -93,6 +96,31 @@ func matchesAnyPerson(ev event.Event, people []PersonMatcher) bool {
 func containsName(text, name string) bool {
 	joined := " " + spellingKeys(textnorm.Fold(text)) + " "
 	return strings.Contains(joined, " "+spellingKeys(name)+" ")
+}
+
+// A name read from an e-mail needs a first and a last name of two letters
+// or more, so a handle ("abfn0905", "eu") does not pass as one.
+const (
+	minEmailNameWords      = 2
+	minEmailNameWordLength = 2
+)
+
+// NameFromEmail reads a name from an e-mail's local part, folded, or ""
+// when it does not look like one.
+//
+//	listing.NameFromEmail("fernanda.rocha@example.com") // "fernanda rocha"
+func NameFromEmail(email string) string {
+	local, _, found := strings.Cut(email, "@")
+	if !found {
+		return ""
+	}
+	words := slices.DeleteFunc(nameWords(textnorm.Fold(local)), func(word string) bool {
+		return utf8.RuneCountInString(word) < minEmailNameWordLength
+	})
+	if len(words) < minEmailNameWords {
+		return ""
+	}
+	return strings.Join(words, " ")
 }
 
 func nameWords(text string) []string {
