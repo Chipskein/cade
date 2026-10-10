@@ -117,7 +117,7 @@ func (p *Pipeline) collect(ctx context.Context, collector EventCollector, progre
 	var report Report
 	present := map[string]bool{}
 	batches := newEventBatcher(p.store, p.now, p.eventsPerBatch)
-	err := collector.CollectEvents(ctx, func(ev event.Event) error {
+	err := p.collectFrom(ctx, collector, func(ev event.Event) error {
 		ev = privacy.Event(ev, p.redact)
 		report.Collected++
 		if ev.Source == event.SourceFile {
@@ -212,8 +212,12 @@ func (p *Pipeline) ingestEvent(ctx context.Context, writer storage.EventWriter, 
 // file saved again moves its date); equal revisions keep the stored event,
 // so two Teams caches holding different renderings of one version do not
 // alternate on every run, unless a newer schema read it differently.
-// Without revisions, a changed text does.
+// Without revisions, a changed text does. Text filled in from the Android
+// database is never erased by a reading without text.
 func replaces(incoming, stored event.Event) bool {
+	if keepsBackupText(incoming, stored) {
+		return false
+	}
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
 	if hasIncoming && hasStored {
