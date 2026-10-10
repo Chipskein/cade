@@ -44,6 +44,7 @@ var schemaMigrations = []migration{
 	{version: 13, description: "first and last date per vector", backup: true, compact: true, apply: spreadVectorDates},
 	{version: 14, description: "one set of chunks and vectors per text", backup: true, compact: true, apply: shareChunksByText},
 	{version: 15, description: "entities and the events that refer to them", backup: true, apply: linkStoredEvents},
+	{version: 16, description: "relationships between entities, from the events that state them", apply: relateStoredEvents},
 }
 
 func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {

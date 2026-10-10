@@ -236,6 +236,25 @@
    ],
    "topic": "conciliação de boletos",
    "pending_issue": "#24"
+  },
+  {
+   "question": "o que eu estava lendo quando corrigi o webhook de pagamento?",
+   "relevant": [
+    "pw2"
+   ],
+   "topic": "webhook de pagamento"
+  },
+  {
+   "question": "quem mais mexeu no arquivo do retry do ERP que o Rui alterou?",
+   "relevant": [
+    "gr3"
+   ],
+   "source": "git",
+   "people": [
+    "Rui"
+   ],
+   "topic": "retry do ERP",
+   "pending_issue": "#24"
   }
  ],
  "maximum_redundancy": 0.0

@@ -139,7 +139,17 @@ func (a *Answerer) generate(ctx context.Context, query queryplan.Query, hits []s
 // questions such as "what did I do?" are far from every event in embedding
 // space, and the explicit scope is already the relevance signal. The
 // model's SEM_INFORMACAO reply still guards against unrelated evidence.
+// A question about the time of something also gets the closest hit's
+// neighbors in time (withTimeNeighbors).
 func (a *Answerer) Retrieve(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]storage.ScoredEvent, error) {
+	hits, err := a.retrieveHits(ctx, query, observer)
+	if err != nil {
+		return nil, err
+	}
+	return a.withTimeNeighbors(ctx, query, hits)
+}
+
+func (a *Answerer) retrieveHits(ctx context.Context, query queryplan.Query, observer AnswerObserver) ([]storage.ScoredEvent, error) {
 	embedding, err := a.embedQuery(searchText(query))
 	if err != nil {
 		return nil, err

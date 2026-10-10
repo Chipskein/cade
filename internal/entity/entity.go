@@ -28,6 +28,17 @@ const (
 	RoleMentioned Role = "mentioned"
 	// RoleSubject is the entity the event is about: a file's own event.
 	RoleSubject Role = "subject"
+	// RoleChanged is a file a commit changed.
+	RoleChanged Role = "changed"
+)
+
+// Relation is how one entity relates to another, stored as
+// relationships.relation; each relation comes from one event.
+type Relation string
+
+const (
+	// RelationChanged: a commit's author changed one of its files.
+	RelationChanged Relation = "changed"
 )
 
 // Ref is one entity an event refers to. Key identifies the entity within
@@ -38,4 +49,11 @@ type Ref struct {
 	Key  string
 	Name string
 	Role Role
+}
+
+// RelationRef is one relation an event states between two of its refs.
+type RelationRef struct {
+	From     Ref
+	Relation Relation
+	To       Ref
 }

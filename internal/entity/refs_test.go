@@ -59,3 +59,25 @@ func boolToCount(value bool) int {
 	}
 	return 0
 }
+
+func TestRefsOfCommitNamesEachChangedFileUnderItsRepository(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Repository: "/src/api", Author: "Rui Costa",
+		Files: []string{"erp/retry.go", "erp/retry.go", "README.md"}}.Metadata()}
+	want := []Ref{
+		{Type: TypePerson, Key: "rui costa", Name: "rui costa", Role: RoleAuthor},
+		{Type: TypeFile, Key: "/src/api/erp/retry.go", Name: "retry.go", Role: RoleChanged},
+		{Type: TypeFile, Key: "/src/api/README.md", Name: "README.md", Role: RoleChanged},
+	}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfCommitWithoutRepositoryNamesNoFile(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Author: "Rui Costa", Files: []string{"a.go"}}.Metadata()}
+	for _, ref := range RefsOf(ev) {
+		if ref.Type == TypeFile {
+			t.Fatalf("expected no file without a repository to place it, got %+v", ref)
+		}
+	}
+}

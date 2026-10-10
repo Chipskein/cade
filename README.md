@@ -46,6 +46,7 @@ cade ingest all
 cade ingest start all   # long runs: detached, with CPU/GPU limits
 cade ingest status      # also: pause, resume, stop
 cade timeline yesterday
+cade timeline --around UID   # 2h before and after an event (UID from `ask --json`)
 cade tasks today
 cade ask "what did I work on yesterday?"
 cade compact            # after a large forget: returns the deleted vectors' space

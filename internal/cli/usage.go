@@ -28,6 +28,7 @@ Comandos:
                                         eventos de um dia ou intervalo (DATA: AAAA-MM-DD,
                                         hoje, ontem); commits de outros autores só com
                                         --all-authors
+  timeline --around UID [--window 2h]   o evento e o que aconteceu até 2h antes e depois
   ask [--source F] [--from D] [--to D] [--no-filters] [--json] PERGUNTA
                                         pergunta em linguagem natural (inclusive
                                         sobre tarefas: "quais tarefas finalizei?")
@@ -97,6 +98,7 @@ Commands:
                                         events of a day or range (DATE: YYYY-MM-DD,
                                         hoje, ontem); other authors' commits only with
                                         --all-authors
+  timeline --around UID [--window 2h]   the event and what happened up to 2h before and after
   ask [--source S] [--from D] [--to D] [--no-filters] [--json] QUESTION
                                         natural-language question, in English or
                                         Portuguese (also about tasks: "which tasks did I finish?")

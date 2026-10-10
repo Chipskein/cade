@@ -15,9 +15,14 @@ func runTimeline(ctx context.Context, env commandEnv, args []string) error {
 	flags := newFlagSet("timeline", env.stderr, env.language)
 	source := flags.String("source", "", env.language.pick("mostra só uma fonte (git, browser, file, teams)", "show one source only (git, browser, file, teams)"))
 	allAuthors := flags.Bool("all-authors", false, env.language.pick("inclui commits de outros autores", "include other authors' commits"))
+	around := flags.String("around", "", env.language.pick("mostra o que aconteceu perto do evento com esse UID", "show what happened near the event with this UID"))
+	window := flags.Duration("window", timeline.DefaultAroundWindow, env.language.pick("quanto antes e depois do --around", "how far before and after --around"))
 	positional, err := parseCommandFlags(flags, args)
 	if err != nil {
 		return err
+	}
+	if *around != "" {
+		return runTimelineAround(ctx, env, aroundRequest{uid: *around, window: *window, source: event.Source(*source), allAuthors: *allAuthors, extra: positional})
 	}
 	days, err := parseTimelineDays(positional, env.toolkit.Now(), env.language)
 	if err != nil {
@@ -69,11 +74,5 @@ func (env commandEnv) reportBackup(backupPath string) {
 // ownCommitsOnly drops commits known to be someone else's: the timeline is
 // the user's activity, and a team repository holds everyone's commits.
 func ownCommitsOnly(events []event.Event) []event.Event {
-	var kept []event.Event
-	for _, ev := range events {
-		if !ev.IsOthersCommit() {
-			kept = append(kept, ev)
-		}
-	}
-	return kept
+	return ownCommitsAround(events, "")
 }
