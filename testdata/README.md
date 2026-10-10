@@ -15,6 +15,7 @@
 | `chrome-indexeddb.leveldb`, `chrome-indexeddb-pages/` | Synthetic Chrome IndexedDB for the IndexedDB and LevelDB readers, written by a real Chrome from the pages. |
 | `firefox-indexeddb/`, `firefox-indexeddb-pages/` | Synthetic Firefox IndexedDB (SQLite with structured clones) for the Firefox reader and the SpiderMonkey decoder, written by a real Floorp from the page with `generate.sh`. Only the `.sqlite` is kept: the Blob and the external clone stay in the `.files` directory the reader never opens. |
 | `teams-formats/` | One Teams cache per format seen, synthetic, written the same way; the Teams reader must keep recognizing each. |
+| `whatsapp-msgstore/schema.sql` | The tables of WhatsApp Android's `msgstore.db` that cade reads, with only the columns it selects; tests fill them with invented messages. |
 | `queries/captions.json` | Words each image fixture's description must contain, and secrets it must not keep once masked (`go tool mage evalCaptions`). |
 | `queries/injection.json` | Questions whose evidence includes an event, or an image, that gives the model orders (`go tool mage evalInjection`). |
 | `images/` | Image fixtures of phase 19. The screenshots and the diagram are drawn by `go run testdata/images/generate.go` with invented text (the token and the key only have the shape of real ones). `photo-earth.jpg` is NASA's public-domain photo [The Earth seen from Apollo 17](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), scaled to 960 px. |

@@ -13,6 +13,7 @@ import (
 	"github.com/chipskein/cade/internal/ingest/gitsource"
 	"github.com/chipskein/cade/internal/ingest/idbsource"
 	"github.com/chipskein/cade/internal/ingest/teamssource"
+	"github.com/chipskein/cade/internal/ingest/whatsappsource"
 )
 
 // sourceSpecs registers every ingestable source. A new source (RF1.4
@@ -24,6 +25,7 @@ func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.Sour
 		{Name: "browser", DefaultTargets: cfg.Sources.BrowserHistories, NewCollector: newBrowserCollector},
 		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources, captions)},
 		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newTeamsCollector},
+		{Name: whatsappBackupSource, DefaultTargets: cfg.Sources.WhatsAppBackups, NewCollector: newWhatsAppBackupCollector},
 	}
 	return append(builtIn, schemaSpecs(cfg.Sources, idbmap.NewSchemaDir(idbmap.OSSchemaFiles{}, cfg.Sources.IndexedDBSchemaDir), builtIn)...)
 }
@@ -61,6 +63,15 @@ func schemaCollectorFactory(sources config.SourcesConfig, dir idbmap.SchemaDir, 
 		}
 		return idbsource.NewCollector(readers, location, schema)
 	}
+}
+
+// whatsappBackupSource is not "whatsapp": that name is the WhatsApp Web
+// schema's, which a built-in source would hide; both store their events
+// under the source whatsapp (#77).
+const whatsappBackupSource = "whatsapp-backup"
+
+func newWhatsAppBackupCollector(path string) (ingest.EventCollector, error) {
+	return whatsappsource.NewCollector(openSQLiteFile, path), nil
 }
 
 func newTeamsCollector(indexedDBDir string) (ingest.EventCollector, error) {

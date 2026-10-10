@@ -46,7 +46,7 @@ type ingestPlan struct {
 
 func (env commandEnv) planIngest(args []string) (ingestPlan, error) {
 	if len(args) == 0 {
-		return ingestPlan{}, errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|all> [TARGET...]"))
+		return ingestPlan{}, errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|whatsapp-backup|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|whatsapp-backup|all> [TARGET...]"))
 	}
 	cfg, err := env.loadConfig()
 	if err != nil {

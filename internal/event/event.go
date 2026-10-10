@@ -19,6 +19,9 @@ const (
 	SourceBrowser Source = "browser"
 	SourceFile    Source = "file"
 	SourceTeams   Source = "teams"
+	// SourceWhatsApp is the source of the WhatsApp Web schema's events
+	// and of the Android database's (#77), which complete each other.
+	SourceWhatsApp Source = "whatsapp"
 )
 
 // Metadata holds source-specific attributes (commit hash, URL, file path...).
@@ -74,6 +77,20 @@ const (
 func (e Event) SchemaRevision() (string, int64, bool) {
 	revision, err := strconv.ParseInt(e.Metadata[SchemaRevisionKey], 10, 64)
 	return e.Metadata[SchemaKey], revision, err == nil && e.Metadata[SchemaKey] != ""
+}
+
+// TextOriginKey records where an event's message text came from when not
+// from its own source: the WhatsApp Web schema maps messages without text
+// (it is encrypted), and the Android database fills it in (#77).
+const (
+	TextOriginKey    = "text_origin"
+	TextOriginBackup = "backup"
+)
+
+// TextFromBackup reports a message whose text came from the Android
+// database, which a later reading without text must not erase.
+func (e Event) TextFromBackup() bool {
+	return e.Metadata[TextOriginKey] == TextOriginBackup && e.Message().Text != ""
 }
 
 // Headline returns the first non-empty line of the content, for one-line

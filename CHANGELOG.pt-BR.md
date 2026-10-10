@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### WhatsApp do Android (#77)
+
+- **`cade ingest whatsapp-backup`** lê o `msgstore.db` do WhatsApp para Android, decifrado por você (`sources.whatsapp_backups`). O cade nunca decifra o backup `.crypt15` e nunca vê a chave.
+- **O texto que o WhatsApp Web guarda cifrado é completado.** Os dois clientes compartilham o id da mensagem, então uma mensagem que o Web indexou só por metadados mantém o evento e ganha o texto, sem evento a mais; um `ingest whatsapp` depois mantém o texto (`text_origin` nos metadados do evento). As mensagens que só estão no banco viram eventos com o id que o Web daria. Num banco real de 142.194 mensagens (2020 a 2026) e 10.391 eventos do Web: 9.276 pares (8.357 ganharam texto, o resto é mídia sem legenda), 128.254 novas, 125.080 com texto, nenhum UID duplicado; o id do Web reconstruído bateu com o do próprio Web em 95% das mensagens em comum.
+- Entram texto, mídia (legenda e nome do arquivo), contatos, localizações e enquetes; avisos do sistema, chamadas e mensagens apagadas não. O nome dos grupos vem do banco, o das pessoas dos eventos do Web (o `msgstore.db` não tem os contatos).
+- Sem migração do banco. O `.txt` exportado da conversa, proposto antes na issue, não é lido: ele não tem ids de mensagem.
+
 ### Leis de privacidade: requisitos, lacunas e regras (#25)
 
 - **O PRIVACY compara o cade com a LGPD e o GDPR** sem amarrá-lo a nenhuma: os dados pessoais de cada fonte (seus e de outras pessoas, e onde pode haver dado sensível), uma tabela de requisitos, como o cade atende cada um e o que falta, e cinco regras para dados sensíveis e biométricos que valem para as entidades de pessoa (#20) e os rostos (#23).

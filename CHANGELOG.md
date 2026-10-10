@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### WhatsApp from Android (#77)
+
+- **`cade ingest whatsapp-backup`** reads the `msgstore.db` of WhatsApp for Android, decrypted by you (`sources.whatsapp_backups`). cade never decrypts the `.crypt15` backup and never sees the key.
+- **The text WhatsApp Web keeps encrypted is filled in.** Both clients share the message id, so a message the Web indexed by metadata alone keeps its event and gets its text, with no second event; a later `ingest whatsapp` keeps the text (`text_origin` in the event's metadata). Messages only in the database become events keyed as the Web would key them. On a real database of 142,194 messages (2020 to 2026) and 10,391 Web events: 9,276 paired (8,357 got text, the rest are media without caption), 128,254 new, 125,080 with text, no duplicate UID; the rebuilt Web id matched the Web's own for 95% of the shared messages.
+- Text, media (caption and file name), contacts, locations and polls enter; system notices, calls and deleted messages do not. Group names come from the database, people's names from the Web's events (`msgstore.db` has no contacts).
+- No database migration. The `.txt` chat export the issue first proposed is not read: it has no message ids.
+
 ### Privacy laws: requirements, gaps and rules (#25)
 
 - **PRIVACY compares cade with the LGPD and the GDPR** without tying it to either: the personal data each source holds (yours and other people's, and where sensitive data can appear), a table of requirements, how cade meets each and what is missing, and five rules for sensitive and biometric data that bind people entities (#20) and faces (#23).

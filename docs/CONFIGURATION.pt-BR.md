@@ -45,6 +45,7 @@
 | `sources.git_identities` | Identidades tratadas como "você". |
 | `sources.browser_histories` | Arquivos de histórico usados no `ingest browser`. |
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
+| `sources.whatsapp_backups` | Arquivos `msgstore.db` do WhatsApp para Android, já decifrados, usados no `ingest whatsapp-backup` (veja [WhatsApp do Android](#whatsapp-do-android-experimental)). |
 | `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade schema-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
 | `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
 | `sources.request_cache_urls` | As únicas URLs lidas do cache HTTP e da Cache API dos navegadores, como padrões com nome, ex.: `{"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}`; `*` casa qualquer sequência de caracteres, e a origem é literal. Vazio (o padrão) não lê nada desses caches. |
@@ -175,7 +176,24 @@ Os caminhos usam a notação que o `cade teams-schema` mostra: `$` é o registro
 
 Uma troca de schema nunca apaga eventos já indexados. Uma revisão nova que lê uma mensagem de outro jeito a substitui na próxima ingestão, se o aplicativo ainda a tiver; uma mensagem que já saiu do cache do aplicativo fica com o que a revisão antiga leu.
 
-**Limites.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB, então as mensagens dele são indexadas só por metadados (quem, qual conversa, quando, se foi você que enviou). Os filtros de mensagem por pessoa e direção do `ask` por enquanto só funcionam para o Teams.
+**Limites.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB, então as mensagens dele são indexadas só por metadados (quem, qual conversa, quando, se foi você que enviou); o banco do Android completa o texto delas (próxima seção). Os filtros de mensagem por pessoa e direção do `ask` por enquanto só funcionam para o Teams.
+
+## WhatsApp do Android *(experimental)*
+
+O WhatsApp para Android guarda todas as mensagens no `msgstore.db` e faz o backup dele cifrado como `msgstore.db.crypt15`. O cade só lê o banco decifrado: decifre o backup você mesmo com a chave de 64 dígitos que o aplicativo mostra ao ativar o backup criptografado de ponta a ponta (por exemplo com o [wa-crypt-tools](https://github.com/ElDavoo/wa-crypt-tools): `wadecrypt <chave> msgstore.db.crypt15 msgstore.db`). O cade nunca decifra, nem pede ou guarda a chave.
+
+```json
+"whatsapp_backups": ["~/whatsapp/msgstore.db"]
+```
+
+O `cade ingest whatsapp-backup [ARQUIVO…]` lê uma cópia de cada arquivo; o arquivo em si nunca é aberto pelo SQLite. Os eventos têm a fonte `whatsapp`, a mesma do schema do WhatsApp Web:
+
+- **Mensagens que o WhatsApp Web já indexou** (só por metadados) são achadas pelo id da mensagem, que os dois clientes compartilham, na mesma conversa. Cada uma mantém o evento e ganha o texto: nenhum evento a mais. Um `ingest whatsapp` depois não apaga o texto, e importar o mesmo arquivo de novo não muda nada.
+- **As outras mensagens** viram eventos novos, com o id que o WhatsApp Web daria a elas, para que o Web, ao lê-las depois, as encontre já gravadas (o id reconstruído bateu com o do Web em 95% das mensagens de um banco real).
+- **O que entra:** texto, fotos, vídeos, áudios, documentos, figurinhas, contatos, localizações e enquetes, com a legenda quando houver e o nome do arquivo anexo. Avisos do sistema, chamadas e mensagens apagadas ficam de fora.
+- **Nomes:** o `msgstore.db` não tem os nomes dos contatos (eles ficam no `wa.db`). O nome dos grupos vem do banco; o das pessoas, dos eventos que o WhatsApp Web já indexou; quem não estiver lá fica `desconhecido`.
+
+Rode o `ingest whatsapp` antes do primeiro `ingest whatsapp-backup`, para que as mensagens que o Web tem sejam completadas em vez de ganharem id novo. Um histórico grande demora na primeira vez: o texto de cada mensagem passa pelo embedding.
 
 ## Ingestão em segundo plano
 

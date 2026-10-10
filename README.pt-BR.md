@@ -59,6 +59,12 @@ cade ingest whatsapp
 cade schema-check --update  # quando o aplicativo muda o jeito de guardar os dados
 ```
 
+O WhatsApp Web guarda o texto das mensagens cifrado, então ele é indexado só por metadados. O banco do WhatsApp para Android, depois que você decifra o backup, completa o texto e traz as mensagens mais antigas:
+
+```sh
+cade ingest whatsapp-backup ~/whatsapp/msgstore.db
+```
+
 Encontrando uma imagem pelo texto dela:
 
 ```console
