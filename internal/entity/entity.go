@@ -30,6 +30,9 @@ const (
 	RoleSubject Role = "subject"
 	// RoleChanged is a file a commit changed.
 	RoleChanged Role = "changed"
+	// RoleShows is the image a file event's file holds: copies of one
+	// image are files of their own and one Image, with one description.
+	RoleShows Role = "shows"
 )
 
 // Relation is how one entity relates to another, stored as

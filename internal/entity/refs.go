@@ -18,7 +18,8 @@ var personRoles = map[listing.Role]Role{
 
 // RefsOf lists the entities ev refers to, once per role: the people the
 // people index keeps (same names, same keys; the first spelling wins), for
-// a file event its file, and for a commit the files it changed.
+// a file event its file and the image it holds, and for a commit the files
+// it changed.
 //
 //	refs := entity.RefsOf(ev) // [{person "ana prado" "ana prado" sender}]
 func RefsOf(ev event.Event) []Ref {
@@ -26,7 +27,21 @@ func RefsOf(ev event.Event) []Ref {
 	if file, found := fileRef(ev); found {
 		refs = append(refs, file)
 	}
+	if image, found := imageRef(ev); found {
+		refs = append(refs, image)
+	}
 	return refs
+}
+
+// imageRef is the image a file event holds, keyed by its SHA-256 so a
+// moved, renamed or copied image is the same entity; named after the
+// first file seen with it.
+func imageRef(ev event.Event) (Ref, bool) {
+	hash := ev.Image().SHA256
+	if ev.Source != event.SourceFile || hash == "" {
+		return Ref{}, false
+	}
+	return Ref{Type: TypeImage, Key: hash, Name: filepath.Base(ev.File().Path), Role: RoleShows}, true
 }
 
 func personRefs(ev event.Event) []Ref {
