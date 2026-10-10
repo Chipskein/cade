@@ -59,6 +59,12 @@ cade ingest whatsapp
 cade schema-check --update  # when the app changes how it stores data
 ```
 
+WhatsApp Web keeps message text encrypted, so it is indexed by metadata only. The database of WhatsApp for Android, once you decrypt its backup, fills in the text and adds the older messages:
+
+```sh
+cade ingest whatsapp-backup ~/whatsapp/msgstore.db
+```
+
 Finding an image by its text:
 
 ```console

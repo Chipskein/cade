@@ -28,7 +28,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
 | `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
 | `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox), of Firefox's Cache API database and of a Firefox localStorage or OPFS database while one command reads it; removed when it ends | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*`, `/tmp/cade-msgstore-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox), of Firefox's Cache API database, of a Firefox localStorage or OPFS database and of WhatsApp's `msgstore.db` while one command reads it; removed when it ends | `700` |
 
 Backups of your home directory include `cade.db`.
 
@@ -41,6 +41,7 @@ Backups of your home directory include `cade.db`.
 | **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names; with `sources.images` on, a description of each png, jpeg and webp image written by the local model (what it shows and the text visible in it), with the image's SHA-256, its size in pixels, and the model and prompt version | binary contents, image pixels; configured ignored directories and credential file globs |
 | **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
 | **apps through a schema** (e.g. `whatsapp`) | what the schema maps: message and conversation ids, conversation name, sender id and name, time, whether you sent it, the text when the app keeps it readable, the schema name and revision | anything else in the app's IndexedDB; for WhatsApp Web, the text (encrypted by the app, never decrypted) and media |
+| **whatsapp-backup** | every message of the Android `msgstore.db` you decrypted: text or caption, attachment file name, message and conversation ids, group name, sender id (and name, when WhatsApp Web already had it), time, whether you sent it | media files, contacts (`wa.db`), system notices, calls, deleted messages, reactions; the decryption key |
 
 File ingestion skips `.env*`, key and certificate files, common credential files and the patterns listed in `sources.ignored_file_globs`. Browser URLs drop `token`, OAuth, signature, password and cloud signing query parameters while preserving other parameters. With `ingest.redact` enabled (default), known GitHub, GitLab, AWS and Slack tokens, JWTs and PEM private-key blocks are replaced with labels such as `[redacted:github-token]` in event text and metadata. This also applies to existing events in schema migration 8; it creates a `cade.db.before-v8-*` backup. Changed text loses its vectors until `cade reindex`.
 
@@ -66,10 +67,18 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 
 - **Same care as Teams:** a chat app's cache holds other people's messages, and ingesting it copies them into cade's database. Check the app's and your organization's terms first.
 - `schema-discover`, `schema-check` and the ingestion copy the IndexedDB directory to a temporary folder, read the copy and delete it. cade never changes the app's data.
-- **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only.
+- **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only, unless the Android database you decrypted fills in their text ([below](#whatsapp-from-android)).
 - A message deleted in the app after ingestion **stays** in cade until `cade forget <source>`. A schema change never deletes events.
 - **The browser's HTTP cache and Cache API hold the responses of every site you visit,** not only the app's. cade reads from them only the URLs you name in `sources.request_cache_urls`, which is empty by default; a pattern's origin cannot have a wildcard, so it never reaches another site. For every other entry cade reads only its key (the URL) and never its body; Firefox's Cache API database is copied to a temporary folder and deleted, the bodies are read in place, and nothing in these caches is changed.
 - **localStorage and the Origin Private File System hold every site's state,** session tokens and logins among them. cade reads only the origins you name in `sources.storage_origins`, which is empty by default; a partitioned origin or one in a Firefox container is never read. In Chromium, where one database holds every origin, the items of other origins are skipped by their key and never decoded. All items and JSON files of a configured origin are read, but only those a schema selects become events. Firefox's databases are copied to a temporary folder and deleted, OPFS files are read in place, and nothing is changed.
+
+## WhatsApp from Android
+
+- **The database holds years of other people's messages,** in every chat and group you are in, and ingesting it copies them into cade's database. Keep the decrypted `msgstore.db` as you would the phone: it is not encrypted any more, and deleting it after the ingestion leaves the copy in `cade.db` only.
+- **cade never decrypts.** You decrypt the `.crypt15` backup yourself; cade never asks for, reads or keeps the 64-digit key.
+- `ingest whatsapp-backup` copies the file to a temporary folder, reads the copy and deletes it; your file is never changed.
+- System notices, calls and deleted messages are left out. A message deleted on the phone after ingestion **stays** in cade until `cade forget`; a newer database does not remove it.
+- The rules for sensitive data below apply: health, religion or politics can be in anyone's message.
 
 ## What the local model sees
 
@@ -124,7 +133,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | **git** | name, e-mail, commit messages | other authors' names, e-mails and messages (`timeline` shows them only with `--all-authors`) | rarely |
 | **browser** | every page visited, its title and time | names in page titles (profiles, chats) | yes: health, religion or politics can be inferred from the sites visited |
 | **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
-| **teams** and **apps through a schema** | your messages | other people's messages, names and ids | yes, whatever people write |
+| **teams**, **apps through a schema** and **whatsapp-backup** | your messages | other people's messages, names and ids | yes, whatever people write |
 | **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
 
 ### Requirements and gaps

@@ -28,7 +28,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
 | `~/.local/state/cade/ingest-state.json` | o `ingest` em andamento ou o último: argumentos (fonte e alvos), etapa, última linha de progresso e erro | `600` |
 | `~/.local/state/cade/ingest.log` | saída do último `ingest start`: linhas de progresso com os alvos, o relatório, erros; substituído a cada execução em segundo plano | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*` | cópias do histórico do navegador, de um IndexedDB (Chromium ou Firefox), do banco da Cache API do Firefox e do banco do localStorage ou do OPFS do Firefox enquanto um comando o lê; apagadas ao final | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*`, `/tmp/cade-msgstore-*` | cópias do histórico do navegador, de um IndexedDB (Chromium ou Firefox), do banco da Cache API do Firefox, do banco do localStorage ou do OPFS do Firefox e do `msgstore.db` do WhatsApp enquanto um comando o lê; apagadas ao final | `700` |
 
 Backups da sua pasta pessoal incluem o `cade.db`.
 
@@ -41,6 +41,7 @@ Backups da sua pasta pessoal incluem o `cade.db`.
 | **arquivos** | caminho, tamanho, data de modificação e (para texto UTF-8 até `max_file_bytes`) o texto, exceto nomes de arquivos de credenciais ignorados; com `sources.images` ligado, uma descrição de cada imagem png, jpeg e webp escrita pelo modelo local (o que ela mostra e o texto visível nela), com o SHA-256 da imagem, o tamanho em pixels e o modelo e a versão do prompt | conteúdo de binários, pixels das imagens; pastas ignoradas e globs de arquivos de credenciais |
 | **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição | agenda, histórico de chamadas, notificações, arquivos; mensagens apagadas antes da ingestão |
 | **aplicativos por schema** (ex.: `whatsapp`) | o que o schema mapeia: ids da mensagem e da conversa, nome da conversa, id e nome do remetente, hora, se foi você que enviou, o texto quando o aplicativo o guarda legível, o nome e a revisão do schema | qualquer outra coisa do IndexedDB do aplicativo; no WhatsApp Web, o texto (cifrado pelo aplicativo, nunca decifrado) e as mídias |
+| **whatsapp-backup** | todas as mensagens do `msgstore.db` do Android que você decifrou: texto ou legenda, nome do arquivo anexo, ids da mensagem e da conversa, nome do grupo, id do remetente (e o nome, quando o WhatsApp Web já o tinha), hora, se foi você que enviou | arquivos de mídia, contatos (`wa.db`), avisos do sistema, chamadas, mensagens apagadas, reações; a chave de decifragem |
 
 Arquivos ignorados incluem `.env*`, chaves e certificados e arquivos comuns de credenciais, conforme `sources.ignored_file_globs`. URLs do navegador perdem parâmetros `token`, OAuth, assinatura, senha e assinaturas de nuvem; os demais parâmetros ficam. Com `ingest.redact` ativo (padrão), tokens conhecidos do GitHub, GitLab, AWS e Slack, JWTs e blocos de chave privada PEM são substituídos por rótulos como `[redacted:github-token]` no texto e nos metadados dos eventos. A migração de esquema 8 também limpa eventos existentes e cria a cópia `cade.db.before-v8-*`; textos alterados ficam sem vetores até `cade reindex`.
 
@@ -66,10 +67,18 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 
 - **O mesmo cuidado do Teams:** o cache de um aplicativo de conversa guarda mensagens de outras pessoas, e ingeri-lo copia essas mensagens para o banco do cade. Confira antes os termos do aplicativo e da sua organização.
 - O `schema-discover`, o `schema-check` e a ingestão copiam o diretório do IndexedDB para uma pasta temporária, leem a cópia e a apagam. O cade nunca altera os dados do aplicativo.
-- **Dado cifrado continua cifrado.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB; o cade não decifra, então as mensagens dele são indexadas só por metadados.
+- **Dado cifrado continua cifrado.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB; o cade não decifra, então as mensagens dele são indexadas só por metadados, a menos que o banco do Android que você decifrou complete o texto ([abaixo](#whatsapp-do-android)).
 - Uma mensagem apagada no aplicativo depois de ingerida **continua** no cade até `cade forget <fonte>`. Uma troca de schema nunca apaga eventos.
 - **O cache HTTP e a Cache API do navegador guardam as respostas de todos os sites que você visita,** não só as do aplicativo. O cade só lê deles as URLs que você nomeia em `sources.request_cache_urls`, vazio por padrão; a origem de um padrão não pode ter curinga, então ele nunca alcança outro site. De qualquer outra entrada o cade lê só a chave (a URL), nunca o corpo; o banco da Cache API do Firefox é copiado para uma pasta temporária e apagado, os corpos são lidos no lugar, e nada nesses caches é alterado.
 - **O localStorage e o Origin Private File System guardam o estado de todos os sites,** tokens de sessão e logins entre eles. O cade só lê as origens que você nomeia em `sources.storage_origins`, vazio por padrão; uma origem particionada ou de um contêiner do Firefox nunca é lida. No Chromium, em que um banco só guarda todas as origens, os itens das outras origens são pulados pela chave e nunca decodificados. Todos os itens e arquivos JSON de uma origem configurada são lidos, mas só os que um schema seleciona viram eventos. Os bancos do Firefox são copiados para uma pasta temporária e apagados, os arquivos do OPFS são lidos no lugar, e nada é alterado.
+
+## WhatsApp do Android
+
+- **O banco guarda anos de mensagens de outras pessoas,** em todas as conversas e grupos de que você participa, e ingeri-lo copia essas mensagens para o banco do cade. Guarde o `msgstore.db` decifrado como guardaria o celular: ele não está mais cifrado, e apagá-lo depois da ingestão deixa a cópia só no `cade.db`.
+- **O cade nunca decifra.** Você mesmo decifra o backup `.crypt15`; o cade nunca pede, lê ou guarda a chave de 64 dígitos.
+- O `ingest whatsapp-backup` copia o arquivo para uma pasta temporária, lê a cópia e a apaga; o seu arquivo nunca é alterado.
+- Avisos do sistema, chamadas e mensagens apagadas ficam de fora. Uma mensagem apagada no celular depois de ingerida **continua** no cade até `cade forget`; um banco mais novo não a remove.
+- As regras para dados sensíveis abaixo valem: saúde, religião ou política podem estar na mensagem de qualquer pessoa.
 
 ## O que o modelo local vê
 
@@ -124,7 +133,7 @@ O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os
 | **git** | nome, e-mail, mensagens de commit | nomes, e-mails e mensagens de outros autores (o `timeline` só os mostra com `--all-authors`) | raramente |
 | **browser** | cada página visitada, o título e a hora | nomes em títulos de página (perfis, conversas) | sim: saúde, religião ou política podem ser deduzidas dos sites visitados |
 | **files** | o texto dos seus arquivos e a descrição das suas imagens | o que os arquivos e imagens tiverem: nomes, documentos, fotos de pessoas | sim |
-| **teams** e **apps por schema** | suas mensagens | mensagens, nomes e ids de outras pessoas | sim, o que as pessoas escreverem |
+| **teams**, **apps por schema** e **whatsapp-backup** | suas mensagens | mensagens, nomes e ids de outras pessoas | sim, o que as pessoas escreverem |
 | **índice de pessoas** (`event_people`) | seu nome | nomes de remetentes, autores e pessoas citadas depois de "@" | não |
 
 ### Requisitos e lacunas
