@@ -19,10 +19,10 @@ const (
 )
 
 // Image is the image part of a file event's metadata. The description and
-// the visible text are kept apart, each with the model and prompt that
-// wrote it, so they can later become separate representations (#22);
-// SHA256 identifies the image across moves and renames, and stands for it
-// as an entity (#20, #23). Pixels are never stored.
+// the visible text are kept apart, with the model and prompt that wrote
+// them; the store keeps those as representations of the Image entity, not
+// in the event (#22, WithoutImageText). SHA256 identifies the image across
+// moves and renames and keys the entity. Pixels are never stored.
 type Image struct {
 	SHA256        string
 	Width         int
@@ -86,4 +86,25 @@ func (i Image) SearchableText() string {
 		text += "\n" + visibleTextLabel + i.VisibleText
 	}
 	return text
+}
+
+// imageTextKeys are what the store keeps as the Image's representations.
+var imageTextKeys = []string{CaptionModelKey, CaptionPromptVersionKey, keyCaptionDescription, keyCaptionVisibleText}
+
+// WithoutImageText is e as the store keeps it: its image's description,
+// visible text, model and prompt version left out of the metadata, since
+// they live in representations (#22); the status, hash and size stay, and
+// the text keeps the description for the search.
+//
+//	stored := ev.WithoutImageText() // stored.Image().Description == ""
+func (e Event) WithoutImageText() Event {
+	metadata := make(Metadata, len(e.Metadata))
+	for key, value := range e.Metadata {
+		metadata[key] = value
+	}
+	for _, key := range imageTextKeys {
+		delete(metadata, key)
+	}
+	e.Metadata = metadata
+	return e
 }

@@ -84,3 +84,15 @@ func TestSearchableTextOnlyForDescribedImages(t *testing.T) {
 		t.Fatalf("expected nothing for a pending image, got %q", got)
 	}
 }
+
+func TestWithoutImageTextKeepsStatusHashAndText(t *testing.T) {
+	image := Image{SHA256: "ab12", Width: 800, Status: CaptionDescribed, Model: "qwen", PromptVersion: 2, Description: "um terminal", VisibleText: "panic"}
+	ev := Event{Content: "erro.png\n" + image.SearchableText(), Metadata: image.Metadata()}
+	stored := ev.WithoutImageText().Image()
+	if stored.SHA256 != "ab12" || stored.Width != 800 || stored.Status != CaptionDescribed || stored.Model != "" || stored.Description != "" || stored.VisibleText != "" {
+		t.Fatalf("expected only status, hash and size kept, got %+v", stored)
+	}
+	if ev.Image().Description != "um terminal" {
+		t.Fatal("expected the original event left unchanged")
+	}
+}

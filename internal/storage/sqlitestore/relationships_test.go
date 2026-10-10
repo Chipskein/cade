@@ -3,6 +3,7 @@ package sqlitestore
 import (
 	"context"
 	"database/sql"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -82,7 +83,7 @@ func TestRelationshipMigrationRelatesStoredEventsLikeIngestion(t *testing.T) {
 		_, err := store.db.Exec(statement)
 		testcheck.NoError(t, err)
 	}
-	testcheck.NoError(t, migrate(context.Background(), store.db, "", schemaMigrations, Hooks{}))
+	testcheck.NoError(t, migrate(context.Background(), store.db, filepath.Join(t.TempDir(), "cade.db"), schemaMigrations, Hooks{}))
 	if got := storedRelations(t, store.db); !slices.Equal(got, want) || versionOf(t, store.db) != latestVersion() {
 		t.Fatalf("expected the migrated relations %q to equal a new database's %q", got, want)
 	}
