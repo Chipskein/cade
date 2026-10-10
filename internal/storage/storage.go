@@ -388,4 +388,19 @@ type RepresentationIndex interface {
 	// RepresentationsOf lists the entity's representations by modality and
 	// kind; none for an unknown entity.
 	RepresentationsOf(ctx context.Context, owner EntityKey) ([]StoredRepresentation, error)
+	// SaveRepresentationVector stores the vector of a stored
+	// representation in the vector index; replacing the representation's
+	// content drops it. Every vector has the dimension of the first.
+	SaveRepresentationVector(ctx context.Context, representationID int64, vector []float32) error
+	// NearestRepresentations lists the representations of kind whose
+	// vectors are closest to vector, closest first.
+	NearestRepresentations(ctx context.Context, vector []float32, kind representation.Kind, limit int) ([]ScoredRepresentation, error)
+}
+
+// ScoredRepresentation is a representation found by its vector, with its
+// entity and cosine distance.
+type ScoredRepresentation struct {
+	StoredRepresentation
+	Owner    EntityKey
+	Distance float64
 }

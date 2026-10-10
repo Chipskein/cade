@@ -1,8 +1,10 @@
 package testfakes
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 
@@ -24,6 +26,9 @@ func (f *FakeEventStore) SaveRepresentation(_ context.Context, owner storage.Ent
 	}
 	for i, stored := range f.Representations[owner] {
 		if stored.Modality == rep.Modality && stored.Kind == rep.Kind {
+			if stored.Content != rep.Content {
+				delete(f.RepresentationVectors, stored.ID)
+			}
 			f.Representations[owner][i].Representation = rep
 			return stored.ID, nil
 		}
@@ -57,4 +62,54 @@ func (f *FakeEventStore) refersTo(owner storage.EntityKey) bool {
 		}
 	}
 	return false
+}
+
+// SaveRepresentationVector keeps the vector of a stored representation.
+func (f *FakeEventStore) SaveRepresentationVector(_ context.Context, representationID int64, vector []float32) error {
+	if _, _, found := f.representationByID(representationID); !found {
+		return fmt.Errorf("representation id %d is not stored", representationID)
+	}
+	if f.RepresentationVectors == nil {
+		f.RepresentationVectors = map[int64][]float32{}
+	}
+	f.RepresentationVectors[representationID] = vector
+	return f.FailWith
+}
+
+// NearestRepresentations ranks the stored vectors of kind by cosine
+// distance.
+func (f *FakeEventStore) NearestRepresentations(_ context.Context, vector []float32, kind representation.Kind, limit int) ([]storage.ScoredRepresentation, error) {
+	var scored []storage.ScoredRepresentation
+	for id, stored := range f.RepresentationVectors {
+		rep, owner, found := f.representationByID(id)
+		if found && rep.Kind == kind {
+			scored = append(scored, storage.ScoredRepresentation{StoredRepresentation: rep, Owner: owner, Distance: cosineDistance(vector, stored)})
+		}
+	}
+	slices.SortFunc(scored, func(a, b storage.ScoredRepresentation) int { return cmp.Compare(a.Distance, b.Distance) })
+	return scored[:min(len(scored), limit)], f.FailWith
+}
+
+func (f *FakeEventStore) representationByID(id int64) (storage.StoredRepresentation, storage.EntityKey, bool) {
+	for owner, stored := range f.Representations {
+		for _, rep := range stored {
+			if rep.ID == id {
+				return rep, owner, true
+			}
+		}
+	}
+	return storage.StoredRepresentation{}, storage.EntityKey{}, false
+}
+
+func cosineDistance(a, b []float32) float64 {
+	var dot, normA, normB float64
+	for i := range min(len(a), len(b)) {
+		dot += float64(a[i]) * float64(b[i])
+		normA += float64(a[i]) * float64(a[i])
+		normB += float64(b[i]) * float64(b[i])
+	}
+	if normA == 0 || normB == 0 {
+		return 1
+	}
+	return 1 - dot/math.Sqrt(normA*normB)
 }
