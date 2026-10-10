@@ -46,6 +46,7 @@ cade ingest all
 cade ingest start all   # execuções longas: fora do terminal, com limites de CPU/GPU
 cade ingest status      # também: pause, resume, stop
 cade timeline ontem
+cade timeline --around UID   # 2h antes e depois de um evento (UID do `ask --json`)
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
 cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados

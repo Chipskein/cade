@@ -10,6 +10,14 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Relacionamentos e vizinhos no tempo (#21)
+
+- **`cade timeline --around UID [--window 2h]`** mostra um evento e o que aconteceu na janela antes e depois dele, em todas as fontes, com o evento marcado.
+- **Uma pergunta sobre o momento de outra coisa traz os vizinhos no tempo:** "o que eu estava lendo quando corrigi o webhook?" cita o commit, não a página. Com "enquanto", "antes", "depois" ou "quando" depois da primeira palavra (e "while", "before", "after", "when"), o resultado mais próximo traz até 4 eventos a até 2h dele, os mais próximos primeiro, respeitando a fonte e o filtro de commits próprios. O caso que motivou a mudança passa; os 32 casos anteriores mantêm recall 1,00, MRR 0,87 e rejeição 1,00 (MRR 0,84 com o caso novo, em que a página vem depois do commit), e a suíte de injeção passa.
+- **Relações entre entidades**, em `relationships` (origem, relação, destino, o evento que a afirma; a `confidence` fica NULL quando a fonte afirma a relação). Hoje o autor de um commit `changed` cada arquivo dele, e os arquivos de um commit são entidades `File` pelo caminho dentro do repositório, então encontram as da fonte de arquivos. `storage.RelationIndex` lista as relações de saída e de entrada de uma entidade e percorre até 3 saltos nos dois sentidos com uma CTE recursiva. O `forget` do evento ou de uma das entidades apaga a relação.
+- **O que o grafo ainda não faz:** o `ask` não o usa. "quem mais mexeu no arquivo que o Rui alterou?" continua falhando e passa para a #24, que faz a busca usar entidades e relações.
+- **Atualização:** a migração 16 refaz as ligações dos eventos gravados (mantendo os ids das entidades que continuam) e grava as relações deles; dado derivado, sem cópia. Numa cópia do banco da máquina de referência (269.999 eventos), levou 20,5 s e acrescentou 24,6 MB (783,3 → 807,9 MB): 125.401 relações, 40.002 arquivos, 12.269 deles nos commits e na fonte de arquivos, 8.753 alterados por mais de um autor. Sem `reindex`.
+
 ### Entidades (#20)
 
 - **Pessoas e arquivos são entidades** citadas por vários eventos, em `entities` (uma linha por tipo e chave, o tipo numa enumeração, metadata livre por tipo) e `event_entities` (evento, entidade, papel). Uma pessoa tem como chave a chave de nome do índice de pessoas, então a mesma grafia numa mensagem do Teams e num commit é uma entidade só; um arquivo, o caminho. Os tipos de imagem, repositório, projeto, mensagem, URL e objeto existem, mas nada os preenche ainda.

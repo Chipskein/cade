@@ -10,6 +10,14 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Relationships and time neighbors (#21)
+
+- **`cade timeline --around UID [--window 2h]`** shows an event and what happened within the window before and after it, across sources, with the event marked.
+- **A question about the time of something brings its neighbors in time:** "o que eu estava lendo quando corrigi o webhook?" names the commit, not the page. With "enquanto", "antes", "depois" or "quando" after the first word (and "while", "before", "after", "when"), the closest hit adds up to 4 events within 2h, nearest first, keeping the source and own-commit filters. The case that motivated it now passes; the 32 earlier cases keep recall 1.00, MRR 0.87 and rejection 1.00 (0.84 MRR with the new case, whose page comes after the commit), and the injection suite passes.
+- **Relationships between entities**, in `relationships` (from, relation, to, the event that states it; `confidence` is NULL when the source states it). Today a commit's author `changed` each of its files, and a commit's files are `File` entities keyed by their path under the repository, so they meet the files source's. `storage.RelationIndex` lists relations from and to an entity and walks up to 3 hops both ways with a recursive CTE. `forget` of the event or of either entity deletes the relation.
+- **What the graph does not do yet:** `ask` does not use it. "quem mais mexeu no arquivo que o Rui alterou?" still fails and moves to #24, which makes the search use entities and relations.
+- **Upgrading:** migration 16 relinks the stored events (keeping the ids of the entities that stay) and stores their relations; derived data, no copy. On a copy of the reference machine's database (269,999 events) it took 20.5 s and added 24.6 MB (783.3 → 807.9 MB): 125,401 relations, 40,002 files, 12,269 of them in both commits and the files source, 8,753 changed by more than one author. No `reindex`.
+
 ### Entities (#20)
 
 - **People and files are entities** that several events refer to, in `entities` (one row per type and key, the type an enumeration, metadata free per type) and `event_entities` (event, entity, role). A person is keyed by the people index's name key, so the same spelling in a Teams message and a commit is one entity; a file by its path. The types for images, repositories, projects, messages, URLs and objects exist but nothing fills them yet.

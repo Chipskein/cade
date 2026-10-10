@@ -38,7 +38,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 24c | [Um vetor por texto](#fase-24c--um-vetor-por-texto) | [#67](https://github.com/Chipskein/cade/issues/67) | feito | médio | alto |
 | 25 | [LGPD e GDPR](#fase-25--lgpd-e-gdpr) | [#25](https://github.com/Chipskein/cade/issues/25) | feito | alto | baixo |
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | feito | alto | alto |
-| 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | a fazer | alto | médio |
+| 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | feito | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | a fazer | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
@@ -223,6 +223,7 @@ flowchart LR
 - **Antes:** o passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`cade timeline --around UID` e os vizinhos no tempo no `ask`), sem tabela nova. Só os casos que continuarem falhando justificam o grafo.
 - **Mudança:** tabela `relationships` (origem, relação, destino, confiança, evento de onde saiu), com os tipos numa enumeração, restrição contra duplicatas e consultas com vários saltos por CTE recursiva. Os coletores gravam as relações que já sabem (quem enviou a mensagem, arquivo citado num commit). O `forget` de um evento apaga as relações derivadas dele.
 - **Aceite:** os casos da suíte passam; nenhum banco de grafos externo; `go tool mage eval` não piora.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#relacionamentos-e-vizinhos-no-tempo-21)): o passo barato veio antes. `timeline --around` e os vizinhos no tempo no `ask` resolveram "o que eu estava lendo quando corrigi o webhook?" sem tabela nova. "quem mais mexeu no arquivo que o Rui alterou?" continuou falhando e justificou o grafo: `relationships` (autor `changed` arquivo, derivada no store por `entity.RelationsOf`, sem mudar os coletores), consultas de entrada e saída e até 3 saltos por CTE recursiva. O caso passa para a #24, porque o `ask` ainda não usa o grafo. A migração 16 levou 20,5 s em 269.999 eventos (+24,6 MB).
 
 ---
 
@@ -348,7 +349,7 @@ Outras ideias entram aqui antes de virar fase: problema, mudança proposta e cri
 ### Contexto temporal e relações entre eventos
 
 - **Problema:** perguntas como "o que aconteceu antes desse commit?" ou "como essa decisão evoluiu?" dependem de ordem e vizinhança, não de semelhança.
-- **Começo barato:** `cade timeline --around UID [--window 2h]` e, no `ask`, trazer os vizinhos no tempo de um evento citado. Sem tabela nova.
+- **Começo barato (feito na #21):** `cade timeline --around UID [--window 2h]` e, no `ask`, os vizinhos no tempo do resultado mais próximo de uma pergunta sobre o momento de outra coisa. Sem tabela nova.
 - **Depois:** ligações explícitas entre eventos (mesmo id de tarefa, mesmo arquivo citado num commit e numa mensagem, mesmo repositório), guardadas numa tabela com migração. Medir com casos novos na suíte de recuperação antes de decidir. É a [fase 27](#fase-27--relacionamentos) ([#21](https://github.com/Chipskein/cade/issues/21)).
 
 ### Contexto de projeto
