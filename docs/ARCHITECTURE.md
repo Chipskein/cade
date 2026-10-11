@@ -397,18 +397,21 @@ sequenceDiagram
 
 ## Busca de evidências (`rag.Answerer.Retrieve`)
 
-O caminho depende de a pergunta ter critérios exatos (pessoas, direção), um identificador (`PROJ-481`, hash) ou nenhum dos dois.
+O caminho depende de a pergunta ter critérios exatos (pessoas, direção, pasta, ou os campos do grafo: entidades, modalidade, ampliação), um identificador (`PROJ-481`, hash) ou nenhum dos dois.
 
 ```mermaid
 flowchart TD
     start["Retrieve(query)"] --> embed["embedQuery(searchText)<br/>llm.Embedder"]
-    embed --> criteria{"Criteria<br/>(pessoas, direção)?"}
+    embed --> criteria{"Critérios exatos<br/>(pessoas, direção, pasta,<br/>entidades, modalidade)?"}
 
-    criteria -->|sim| resolve["resolveFilter<br/>storage.ResolveCriteria<br/>(event_people)"]
-    resolve --> many{"mais que<br/>max_filtered_events?"}
+    criteria -->|sim| resolve["resolveFilter<br/>ResolveCriteria (event_people)<br/>ResolveAppearing (chunks_fts)"]
+    resolve --> related{"relacionadas?"}
+    related -->|sim| widen["widenByRelations<br/>pessoa → Reachable(1)<br/>→ eventos das entidades"]
+    related -->|não| many
+    widen --> many{"mais que<br/>max_filtered_events?"}
     many -->|não| rankAmong["rankAmong<br/>EventsMatching + distância<br/>de cada pedaço"]
     many -->|sim| searchAmong["searchAmong<br/>busca vetorial restrita"]
-    rankAmong --> topk1["top_k"]
+    rankAmong --> topk1["top_k<br/>(com grafo: uma por imagem,<br/>foldSharedImages)"]
     searchAmong --> topk1
 
     criteria -->|não| ident{"identificador<br/>na pergunta?"}
@@ -432,6 +435,14 @@ flowchart TD
     lexId --> out
     topk1 --> out
 ```
+
+Os campos do grafo (#24) viram um `storage.GraphFilter` dentro do `EventFilter`, que o store aplica em SQL (`sqlitestore/graph_filter.go`) e o `GraphFilter.Keeps` reproduz em memória para o fake e os testes:
+
+- **Modalidade:** eventos ligados a uma `Image` com o papel `shows`, ou mensagens com anexo de extensão de imagem.
+- **Entidades que aparecem:** todas as palavras do nome (de 3 letras ou mais) num pedaço do evento (`chunks_fts`), ou num pedaço de outro evento que mostra a mesma `Image`.
+- **Ampliação:** `rag/related.go` acha a entidade `Person` de cada pessoa citada pelos eventos dela, chega pelas relações às entidades que não são pessoas (`RelationIndex.Reachable`, 1 salto) e troca o filtro de pessoa pelos eventos dessas (`EntityIDs`).
+
+Uma pergunta sem esses campos não passa por nada disso.
 
 Depois disso, `generate` monta o prompt (`rag/prompt.go`): eventos que dão ordens ao assistente são marcados como não confiáveis e vão sem o texto (`rag/injection.go`), e mensagens sem conteúdo ("ok", "valeu") já ficaram de fora (`rag/chatter.go`).
 
@@ -524,4 +535,6 @@ flowchart LR
 - **Entidades (#20):** o que vários eventos citam, uma linha por tipo e chave: uma pessoa pela `listing.NameKey` (as mesmas entradas do `event_people`, sem o título da conversa), um arquivo pelo caminho. `entity.RefsOf(ev)` deriva as entidades do evento; o `SaveEvent`, o `UpdateEvent` e a migração 15 usam a mesma função, então um banco migrado fica igual a um novo, e os coletores não sabem das entidades. O `forget` e uma edição apagam a entidade que fica sem evento (`entities.go`); `storage.EntityIndex` lê os dois sentidos. Uma entidade não tem datas: elas vêm dos eventos.
 - **Relações (#21):** `entity.RelationsOf(ev)` deriva as relações que o evento afirma entre as entidades dele; hoje, o autor de um commit `changed` cada arquivo do commit (o caminho do arquivo é o do repositório mais o do commit, o mesmo `File` da fonte de arquivos). Uma relação é única por origem, relação, destino e evento; a `confidence` fica NULL quando a fonte a afirma. Apagar o evento ou uma das entidades apaga a relação (`ON DELETE CASCADE`). `storage.RelationIndex` lista as relações de saída e de entrada e percorre vários saltos nos dois sentidos com uma CTE recursiva, até `MaxRelationHops` (3).
 - **Representações (#22):** o que um modelo derivou de uma entidade, uma por modalidade e tipo (`internal/representation`), com o modelo e a revisão que a escreveram. Hoje a descrição e o texto visível de uma imagem são representações da entidade `Image` (chave = SHA-256): o store as grava a partir de `event.Image()` ao gravar e editar o evento e guarda o evento sem elas (`event.WithoutImageText`); o texto do evento continua com a descrição, então a busca não muda. `DescribedImage` (reuso pelo hash) e `OutdatedImages` (`reindex --captions`) leem as representações, então o `imagecaption` não sabe da tabela. O vetor de uma representação fica em `representation_vectors` (vec0, criada pelo primeiro vetor, com a dimensão dele); triggers o apagam junto com a representação ou quando o conteúdo muda, porque o vec0 não tem chave estrangeira. `storage.RepresentationIndex` grava, lista e busca por vetor.
+- **Imagens fora de arquivos (#24):** uma mensagem do Teams guarda os endereços das imagens (`image_urls`); com imagens ligadas, o `ingest teams` lê os bytes do cache HTTP do perfil (`chromiumcache.ResponseBodies`), o `imagecaption.Planner.PlanImageBytes` os descreve pelo endereço, e a primeira imagem vira a `event.Image` da mensagem, que mostra a `Image` como um arquivo. Uma foto do WhatsApp só tem o nome do anexo: o store a liga (`shows`) à `Image` do arquivo de imagem guardado cujo caminho termina nesse nome, seja qual for gravado primeiro (`attachment_links.go`, migração 19).
+- **Nome lido do e-mail (#24):** com `ingest.names_from_email`, o pipeline grava em cada commit o `author_alias` (`listing.NameFromEmail`); o índice de pessoas e as entidades o tratam como autor, e o `ingest git` acerta os commits guardados quando a opção muda.
 - **Vizinhos no tempo (#21):** sem tabela. `timeline --around` e o `ask` leem os eventos da janela com `EventsBetween` (`timeline/around.go`, `rag/neighbors.go`).

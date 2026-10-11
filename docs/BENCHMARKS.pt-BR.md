@@ -148,29 +148,32 @@ O MRR subia, mas o recall no conjunto de teste caía de 1,00 para 0,94, e o crit
 
 ## Interpretação das perguntas
 
-> `go tool mage evalPlan` (`bench/plan-baseline.txt`) · 2026-09-30 · `f4e5379` · CUDA · Qwen3.5-2B
+> `go tool mage evalPlan` (`bench/plan-baseline.txt`) · 2026-10-11 · `b2fcc29` · CUDA (RTX 3060 a 120 W) · Qwen3.5-2B
 
-Suíte de 155 perguntas: 131 totalmente corretas, 69 lidas só por regras, nenhuma delas errada.
+Suíte de 165 perguntas: 142 totalmente corretas, 70 lidas só por regras, nenhuma delas errada. Os três últimos campos vieram com a #24 (entidades que uma imagem mostra, a modalidade imagem, a ampliação pelas relações), com dez perguntas para eles.
 
 ```mermaid
 xychart-beta
   title "Acerto do planejador por campo (%), Qwen3.5-2B"
-  x-axis ["mode", "days", "source", "people", "direction", "topic", "status"]
+  x-axis ["mode", "days", "source", "people", "direction", "topic", "status", "entities", "modality", "related"]
   y-axis "acerto (%)" 90 --> 100
-  bar [96, 100, 95, 97, 97, 97, 100]
+  bar [96, 100, 96, 99, 98, 95, 100, 99, 100, 100]
 ```
 
 | Campo | Acerto | Wilson 95% |
 |---|---:|---|
-| `mode` | 149/155 | 92%–98% |
-| `days` | 155/155 | 98%–100% |
-| `source` | 147/155 | 90%–97% |
-| `people` | 150/155 | 93%–99% |
-| `direction` | 150/155 | 93%–99% |
-| `topic` | 151/155 | 94%–99% |
-| `status` | 155/155 | 98%–100% |
+| `mode` | 159/165 | 92%–98% |
+| `days` | 165/165 | 98%–100% |
+| `source` | 159/165 | 92%–98% |
+| `people` | 163/165 | 96%–100% |
+| `direction` | 162/165 | 95%–99% |
+| `topic` | 157/165 | 91%–98% |
+| `status` | 165/165 | 98%–100% |
+| `entities` | 164/165 | 97%–100% |
+| `modality` | 165/165 | 98%–100% |
+| `related` | 165/165 | 98%–100% |
 
-Em 2026-09-27, com 153 perguntas, eram 135 totalmente corretas. Os erros que mais se repetem são listagens de mensagens lidas como pergunta a responder (`mode`) e nomes de pessoas que não saem em `people`. A comparação com outros modelos está em [Histórico](#histórico).
+Em 2026-09-30, com 155 perguntas e sete campos, `mode` era 149, `source` 147, `people` 150, `direction` 150 e `topic` 151. O prompt mais longo da #24 moveu o `topic` em poucas perguntas nos casos antigos (148/155), dentro do intervalo; o modelo ainda lê "o João aparece" e "fotos do João" como se o João fosse o remetente. Os erros que mais se repetem são listagens de mensagens lidas como pergunta a responder (`mode`) e um assunto que some ou é reescrito. A comparação com outros modelos está em [Histórico](#histórico).
 
 ## Latência do `ask` por etapa
 

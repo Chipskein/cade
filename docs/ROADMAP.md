@@ -40,7 +40,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 26 | [Modelo de entidades](#fase-26--modelo-de-entidades) | [#20](https://github.com/Chipskein/cade/issues/20) | feito | alto | alto |
 | 27 | [Relacionamentos](#fase-27--relacionamentos) | [#21](https://github.com/Chipskein/cade/issues/21) | feito | alto | médio |
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | feito | médio | médio |
-| 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | a fazer | alto | alto |
+| 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | feito | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
 | 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
@@ -245,6 +245,7 @@ flowchart LR
 - **Problema:** perguntas como "documentos do projeto X que o João enviou" ou "imagens que o Pedro me mandou" dependem de quem enviou, do que está ligado a quê e da modalidade, não só da semelhança.
 - **Mudança:** o `queryplan` ganha entidade, relação e modalidade (gramática GBNF, `guard`, regras); o `ask` usa o grafo para restringir ou ampliar os candidatos e depois aplica a busca híbrida de hoje. Perguntas sem relacionamento seguem o caminho atual. Pessoa entra como remetente ou citada; reconhecer pelo rosto fica para a v0.3.0.
 - **Aceite:** casos novos nas suítes de plano e de recuperação (entidade + imagem, pessoa + imagem, pessoa + remetente + imagem, entidade + texto + relacionamento); `go tool mage eval` não piora nos casos existentes; os resultados mantêm a proveniência até o conteúdo original.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#busca-por-entidades-relações-e-modalidade-24)): o plano lê `entidades`, `modalidade` e `relacionadas`, e o guard só os mantém quando a pergunta os sustenta. O store seleciona por eles (`storage.GraphFilter`, em SQL e com referência em memória), e o `ask` amplia pelas relações a partir das pessoas, com um resultado por imagem. As imagens do Teams passaram a ser descritas a partir do cache HTTP do navegador, e as fotos do WhatsApp se ligam ao arquivo de mesmo nome (migração 19). O `ingest.names_from_email` (opt-in) junta "F. Rocha" a Fernanda. Os quatro casos pendentes para a #24 passam. A suíte de recuperação foi de 35 para 43 casos, com recall 1,00, MRR 0,84 → 0,83 e rejeição 1,00; a de plano, de 155 para 165, acima dos pisos. Pelo rosto, fica para a #23.
 
 ---
 
