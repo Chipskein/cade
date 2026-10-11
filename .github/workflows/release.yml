@@ -86,7 +86,11 @@ jobs:
         run: VERSION="${GITHUB_REF_NAME}" go tool mage dist
 
       - name: Check the binary reports the tag
-        run: ./bin/cade version | tee /dev/stderr | grep -q "cade ${GITHUB_REF_NAME} ("
+        # Not tee /dev/stderr: MSYS2 has none.
+        run: |
+          version=$(./bin/cade version)
+          echo "$version"
+          grep -q "cade ${GITHUB_REF_NAME} (" <<< "$version"
 
       - uses: actions/upload-artifact@v4
         with:
