@@ -41,7 +41,7 @@ pkg install vulkan-loader vulkan-headers spirv-headers shaderc   # plus nvidia-d
 go tool mage vulkan     # Vulkan build; `cade version` says Vulkan
 ```
 
-On a GPU with little memory, lower `embedding.gpu_layers` and `generation.gpu_layers` so the models fit.
+The NVIDIA driver must support the GPU: Pascal cards such as the MX250 or GTX 10xx need the 580 legacy branch (`pkg install nvidia-driver-580 nvidia-kmod-580`), which the current driver ignores, and the driver and kernel module must have the same version (`sysctl hw.nvidia.version`, `nvidia-smi`). On a GPU with little memory, lower `embedding.gpu_layers` and `generation.gpu_layers` so the models fit.
 
 ## Installing a release binary (Linux x86-64, CPU)
 
