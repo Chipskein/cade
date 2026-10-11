@@ -1,6 +1,7 @@
 package buildinfo
 
 import (
+	"runtime"
 	"runtime/debug"
 	"testing"
 )
@@ -28,8 +29,16 @@ func TestVCSStampFillsOnlyWhatIsMissing(t *testing.T) {
 	}
 }
 
+// plainAccelerators is what a build without cuda or vulkan computes on:
+// Metal on Apple (#53), the CPU elsewhere.
+var plainAccelerators = map[string]string{"darwin": "Metal"}
+
 func TestReadDefaultsToDev(t *testing.T) {
-	if info := Read(); info.Version != "dev" || info.Accelerator != "CPU" {
-		t.Fatalf("expected an unversioned CPU test binary, got %+v", info)
+	want, apple := plainAccelerators[runtime.GOOS]
+	if !apple {
+		want = "CPU"
+	}
+	if info := Read(); info.Version != "dev" || info.Accelerator != want {
+		t.Fatalf("expected an unversioned %s test binary, got %+v", want, info)
 	}
 }
