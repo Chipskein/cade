@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -117,10 +116,10 @@ func TestDataMigrationBacksUpFirst(t *testing.T) {
 	if err := migrate(context.Background(), store.db, path, steps, Hooks{BackupCreated: func(p string) { backup = p }}); err != nil {
 		t.Fatal(err)
 	}
-	info, err := os.Stat(backup)
-	if versionOf(t, store.db) != latestVersion()+1 || err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("expected the test version and an owner-only backup, got v%d, %q (err %v)", versionOf(t, store.db), backup, err)
+	if versionOf(t, store.db) != latestVersion()+1 {
+		t.Fatalf("expected the test version, got v%d", versionOf(t, store.db))
 	}
+	testcheck.OwnerOnly(t, backup)
 	copied := openRaw(t, backup)
 	var count int
 	testcheck.NoError(t, copied.QueryRow(`SELECT COUNT(*) FROM events`).Scan(&count))

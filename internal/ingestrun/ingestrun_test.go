@@ -90,11 +90,7 @@ func TestStateFileReadsWhatItWrote(t *testing.T) {
 func TestStateFileIsOwnerOnly(t *testing.T) {
 	dir := Dir(filepath.Join(t.TempDir(), "cade"))
 	testcheck.NoError(t, JSONStateFile{Dir: dir}.Write(State{PID: 1}))
-	info, err := os.Stat(dir.StatePath())
-	testcheck.NoError(t, err)
-	if info.Mode().Perm() != stateFileMode {
-		t.Fatalf("expected mode %o, got %o", stateFileMode, info.Mode().Perm())
-	}
+	testcheck.OwnerOnly(t, dir.StatePath())
 }
 
 func TestStateFileWithoutRunIsNotFound(t *testing.T) {

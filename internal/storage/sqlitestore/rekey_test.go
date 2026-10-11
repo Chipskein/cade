@@ -2,10 +2,10 @@ package sqlitestore
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestRekeyEventsKeepsContentAndChunks(t *testing.T) {
@@ -33,10 +33,7 @@ func TestRekeyEventsBacksUpFirst(t *testing.T) {
 	if err != nil || report.BackupPath == "" {
 		t.Fatalf("expected a backup path, got %+v (err %v)", report, err)
 	}
-	info, err := os.Stat(report.BackupPath)
-	if err != nil || info.Mode().Perm() != privateFileMode {
-		t.Fatalf("expected an owner-only backup, got %v (err %v)", info, err)
-	}
+	testcheck.OwnerOnly(t, report.BackupPath)
 }
 
 // A message ingested again under its new UID before the rekey is the same

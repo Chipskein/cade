@@ -69,10 +69,7 @@ func TestWriteThenLoadOwnerOnly(t *testing.T) {
 	if err != nil || loaded.Retrieval.TopK != Defaults().Retrieval.TopK || loaded.Sources.Directories[0] != "/notes" {
 		t.Fatalf("expected the config to round-trip, got %+v (err %v)", loaded, err)
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("expected mode 600, got %v (err %v)", info.Mode(), err)
-	}
+	testcheck.OwnerOnly(t, path)
 }
 
 func TestWriteRefusesOverwrite(t *testing.T) {
