@@ -11,11 +11,15 @@ type LlamaVariant int
 const (
 	LlamaCPU LlamaVariant = iota
 	LlamaCUDA
+	// LlamaVulkan runs on any GPU with a Vulkan driver: NVIDIA where there
+	// is no CUDA Toolkit (FreeBSD), AMD and Intel (#101).
+	LlamaVulkan
 )
 
 const (
-	cpuBuildDir  = llamaDir + "/build"
-	cudaBuildDir = llamaDir + "/build-cuda"
+	cpuBuildDir    = llamaDir + "/build"
+	cudaBuildDir   = llamaDir + "/build-cuda"
+	vulkanBuildDir = llamaDir + "/build-vulkan"
 	// libmtmd.a is the last library built, so a build directory from before
 	// mtmd was added is reconfigured and completed.
 	lastLlamaLibrary = "tools/mtmd/libmtmd.a"
@@ -34,11 +38,10 @@ var llamaCMakeFlags = []string{
 
 var llamaTargets = []string{"--target", "llama", "mtmd"}
 
+var variantBuildDirs = map[LlamaVariant]string{LlamaCPU: cpuBuildDir, LlamaCUDA: cudaBuildDir, LlamaVulkan: vulkanBuildDir}
+
 func (v LlamaVariant) buildDir() string {
-	if v == LlamaCUDA {
-		return cudaBuildDir
-	}
-	return cpuBuildDir
+	return variantBuildDirs[v]
 }
 
 // EnsureLlama clones the pinned llama.cpp and builds variant, unless its
@@ -76,11 +79,18 @@ func (t *Tasks) requireToolkit(variant LlamaVariant) error {
 func (t *Tasks) llamaConfigureArgs(variant LlamaVariant) []string {
 	args := append([]string{"-S", llamaDir, "-B", variant.buildDir()}, llamaCMakeFlags...)
 	args = append(args, "-DGGML_NATIVE="+t.settings.LlamaNative)
-	if variant == LlamaCUDA {
+	switch variant {
+	case LlamaCUDA:
 		args = append(args, t.cudaConfigureArgs()...)
+	case LlamaVulkan:
+		args = append(args, vulkanConfigureFlag)
 	}
 	return args
 }
+
+// vulkanConfigureFlag builds ggml-vulkan; its shaders are compiled with
+// glslc (shaderc) and embedded, so the binary needs only the Vulkan loader.
+const vulkanConfigureFlag = "-DGGML_VULKAN=ON"
 
 // cudaConfigureArgs passes NVCC_CCBIN because nvcc rejects host compilers
 // newer than it supports; Arch's cuda package exports a compatible one there

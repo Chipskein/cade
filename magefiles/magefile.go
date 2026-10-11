@@ -43,6 +43,10 @@ func Cpu() error { return tasks().BuildCPU() }
 // Cuda compiles the NVIDIA binary into bin/cade (CUDA Toolkit required).
 func Cuda() error { return tasks().BuildCUDA() }
 
+// Vulkan compiles the Vulkan binary into bin/cade, for GPUs without CUDA
+// (Vulkan headers and glslc required).
+func Vulkan() error { return tasks().BuildVulkan() }
+
 // Install copies bin/cade (CPU or CUDA) to $DESTDIR$PREFIX/bin, building the default one if missing.
 func Install() error { return tasks().Install() }
 
@@ -108,6 +112,9 @@ func Llama() error { return tasks().EnsureLlama(devtasks.LlamaCPU) }
 
 // LlamaCuda builds the CUDA llama.cpp libraries.
 func LlamaCuda() error { return tasks().EnsureLlama(devtasks.LlamaCUDA) }
+
+// LlamaVulkan builds the Vulkan llama.cpp libraries.
+func LlamaVulkan() error { return tasks().EnsureLlama(devtasks.LlamaVulkan) }
 
 // Models downloads the models to $MODELS_DIR (default ~/.local/share/cade/models).
 func Models() error { return tasks().Models() }

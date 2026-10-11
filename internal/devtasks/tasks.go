@@ -33,6 +33,7 @@ const (
 	// so only `mage bench` compiles it in.
 	dbstatTag = "sqlite_dbstat"
 	cudaTag   = "cuda"
+	vulkanTag = "vulkan"
 )
 
 // Dependencies are what Tasks needs from the outside world.
