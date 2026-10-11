@@ -38,7 +38,7 @@ func ProcessRunning(pid int) bool {
 	if err != nil {
 		return errors.Is(err, windows.ERROR_ACCESS_DENIED)
 	}
-	defer windows.CloseHandle(handle)
+	defer closeProcess(handle)
 	var code uint32
 	return windows.GetExitCodeProcess(handle, &code) == nil && code == stillActive
 }
@@ -89,8 +89,14 @@ func withProcess(pid int, access uint32, action func(windows.Handle) error) erro
 	if err != nil {
 		return fmt.Errorf("open process %d: %w", pid, err)
 	}
-	defer windows.CloseHandle(handle)
+	defer closeProcess(handle)
 	return action(handle)
+}
+
+// closeProcess closes a handle OpenProcess gave: its call already ran,
+// so a failed close leaves nothing to undo or report.
+func closeProcess(handle windows.Handle) {
+	_ = windows.CloseHandle(handle)
 }
 
 // ntCall calls an ntdll function that takes a process handle and returns

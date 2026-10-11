@@ -15,7 +15,7 @@ func startSleeper(t *testing.T) *exec.Cmd {
 	if err := sleeper.Start(); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { sleeper.Process.Kill() })
+	t.Cleanup(func() { _ = sleeper.Process.Kill() })
 	return sleeper
 }
 
@@ -27,7 +27,7 @@ func TestProcessRunningFindsThisProcessAndNotAnEndedOne(t *testing.T) {
 	if err := TerminateProcess(sleeper.Process.Pid); err != nil {
 		t.Fatalf("expected the sleeper terminated, got %v", err)
 	}
-	sleeper.Wait()
+	_ = sleeper.Wait() // ended by the test, so it reports an error
 	if ProcessRunning(sleeper.Process.Pid) {
 		t.Fatal("expected the terminated sleeper not running")
 	}

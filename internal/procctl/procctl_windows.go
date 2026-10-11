@@ -28,7 +28,9 @@ func (System) Terminate(pid int) error {
 	if !winapi.ProcessRunning(pid) {
 		return fmt.Errorf("stop process %d: not running", pid)
 	}
-	winapi.ResumeProcess(pid)
+	// A run that is not paused has nothing to resume; if the call fails,
+	// the run does not end within stopGrace and TerminateProcess follows.
+	_ = winapi.ResumeProcess(pid)
 	if exitedWithin(pid, stopGrace) {
 		return nil
 	}

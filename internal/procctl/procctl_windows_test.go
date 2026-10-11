@@ -26,7 +26,7 @@ func startSleeper(t *testing.T) *exec.Cmd {
 	t.Helper()
 	sleeper := exec.Command("ping", "-n", "30", "127.0.0.1")
 	testcheck.NoError(t, sleeper.Start())
-	t.Cleanup(func() { sleeper.Process.Kill() })
+	t.Cleanup(func() { _ = sleeper.Process.Kill() })
 	return sleeper
 }
 
@@ -53,7 +53,7 @@ func TestTerminateStopsAPausedProcess(t *testing.T) {
 	testcheck.NoError(t, System{}.Continue(pid))
 	testcheck.NoError(t, System{}.Pause(pid))
 	testcheck.NoError(t, System{}.Terminate(pid))
-	sleeper.Wait()
+	_ = sleeper.Wait() // ended by the test, so it reports an error
 	if (System{}).Alive(pid) {
 		t.Fatal("expected the paused process ended")
 	}
@@ -78,7 +78,7 @@ func TestTerminateWaitsForAProcessThatStopsOnItsOwn(t *testing.T) {
 	stopGrace = 10 * time.Second
 	brief := exec.Command("ping", "-n", "2", "127.0.0.1")
 	testcheck.NoError(t, brief.Start())
-	go brief.Wait()
+	go func() { _ = brief.Wait() }()
 	started := time.Now()
 	testcheck.NoError(t, System{}.Terminate(brief.Process.Pid))
 	if elapsed := time.Since(started); elapsed >= stopGrace {
