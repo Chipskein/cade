@@ -7,6 +7,10 @@ name: macOS smoke
 
 on:
   workflow_dispatch:
+  # Also when a pull request changes this workflow, since a manual run
+  # needs the file on the default branch first.
+  pull_request:
+    paths: [".github/workflows/smoke-macos.yml"]
 
 permissions:
   contents: read
