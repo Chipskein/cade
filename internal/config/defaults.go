@@ -18,23 +18,52 @@ var defaultGPULayers = gpuLayersFor(runtime.GOOS)
 var gpuLayersBySystem = map[string]int{"darwin": cpuGPULayers}
 
 func gpuLayersFor(goos string) int {
-	if layers, set := gpuLayersBySystem[goos]; set {
-		return layers
-	}
-	return allGPULayers
+	return bySystem(gpuLayersBySystem, allGPULayers, goos)
 }
 
+// bySystem is goos's entry in values, or fallback for a system without
+// one.
+//
+//	bySystem(map[string]int{"darwin": 0}, -1, "linux") // -1
+func bySystem[T any](values map[string]T, fallback T, goos string) T {
+	if value, set := values[goos]; set {
+		return value
+	}
+	return fallback
+}
+
+// xdgDataDir and xdgConfigDir are the XDG defaults, kept on Linux,
+// FreeBSD and macOS.
 const (
-	defaultGenerationModelPath  = "~/.local/share/cade/models/Qwen3.5-2B-Q4_K_M.gguf"
-	defaultVisionProjectorPath  = "~/.local/share/cade/models/mmproj-Qwen3.5-2B-F16.gguf"
-	previousGenerationModelPath = "~/.local/share/cade/models/qwen2.5-3b-instruct-q4_k_m.gguf"
+	xdgDataDir   = "~/.local/share/cade"
+	xdgConfigDir = "~/.config/cade"
 )
+
+// dataDirsBySystem: Windows keeps the database and the models in
+// %LOCALAPPDATA%, which is ~/AppData/Local by default (#54).
+var dataDirsBySystem = map[string]string{"windows": "~/AppData/Local/cade"}
+
+// configDirsBySystem is where os.UserConfigDir puts config.json, so the
+// IndexedDB schemas stay beside it: %APPDATA% on Windows (#54), and
+// Application Support on macOS, which ignores XDG (#53).
+var configDirsBySystem = map[string]string{"windows": "~/AppData/Roaming/cade", "darwin": "~/Library/Application Support/cade"}
+
+var (
+	defaultDataDir             = bySystem(dataDirsBySystem, xdgDataDir, runtime.GOOS)
+	defaultGenerationModelPath = defaultDataDir + "/models/Qwen3.5-2B-Q4_K_M.gguf"
+	defaultVisionProjectorPath = defaultDataDir + "/models/mmproj-Qwen3.5-2B-F16.gguf"
+	defaultIndexedDBSchemaDir  = bySystem(configDirsBySystem, xdgConfigDir, runtime.GOOS) + "/idb-schemas"
+)
+
+// previousGenerationModelPath is the v0.1.0 default, which Load replaces;
+// only Linux had it.
+const previousGenerationModelPath = xdgDataDir + "/models/qwen2.5-3b-instruct-q4_k_m.gguf"
 
 // Defaults returns the configuration used when no file overrides it. Paths
 // may start with "~"; Load expands them.
 func Defaults() Config {
 	return Config{
-		DatabasePath: "~/.local/share/cade/cade.db",
+		DatabasePath: defaultDataDir + "/cade.db",
 		Embedding:    defaultEmbedding(),
 		// Qwen3.5-2B (Apache-2.0) replaced Qwen2.5-3B (non-commercial
 		// license): it matches or beats it on every plan-suite field and,
@@ -106,7 +135,7 @@ func defaultEmbedding() EmbeddingConfig {
 		ModelConfig: ModelConfig{
 			// Multilingual: v1.5 is English-centric and ranked Portuguese
 			// questions poorly.
-			ModelPath: "~/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
+			ModelPath: defaultDataDir + "/models/nomic-embed-text-v2-moe.Q4_K_M.gguf",
 			// 0 = the model's training context (512 for this model); a
 			// larger value is capped there, since longer inputs degrade.
 			ContextTokens: 0,
@@ -116,9 +145,6 @@ func defaultEmbedding() EmbeddingConfig {
 		DocumentPrefix: "search_document: ",
 	}
 }
-
-// defaultIndexedDBSchemaDir sits beside the default config file.
-const defaultIndexedDBSchemaDir = "~/.config/cade/idb-schemas"
 
 func defaultSources() SourcesConfig {
 	return SourcesConfig{

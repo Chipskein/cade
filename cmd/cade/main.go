@@ -86,7 +86,7 @@ func ingestRunTools() cli.IngestRunTools {
 // ingestRunDir falls back to the temporary directory without a home, where
 // the database path cannot be expanded either and ingest fails first.
 func ingestRunDir() ingestrun.Dir {
-	dir, err := ingestrun.DefaultDir(os.Getenv, os.UserHomeDir)
+	dir, err := ingestrun.DefaultDir(runtime.GOOS, os.Getenv, os.UserHomeDir)
 	if err != nil {
 		return ingestrun.Dir(filepath.Join(os.TempDir(), "cade"))
 	}
