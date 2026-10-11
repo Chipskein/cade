@@ -10,6 +10,12 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Database copies that keep forgotten data (#87)
+
+- **Every `cade forget` ends listing the copies** taken before migrations and rekeys (`cade.db.before-v*`, `cade.db.before-rekey-*`), with date and size, since they still hold what it deleted; without copies it says nothing. **`cade forget --backups`** lists them, asks (or `--yes`) and deletes them, never the database. **`cade doctor`** shows how many, since when and how big, without counting it as a warning. Nothing is deleted by itself.
+- The copies' names live in one place (`dbcopy`), which the store uses when it takes them.
+- PRIVACY's last erasure gap from #25 is closed. No database migration.
+
 ### Forget and export by person (#86)
 
 - **`cade forget --person NAME`** erases everything about one person after listing it and asking (or `--yes`): what they sent or wrote (the name read from an e-mail included, when on), the messages that @mention their first name, and their one-to-one conversations, where every message you did not send is theirs, your own messages included. Group conversations stay unless they write or are mentioned. The entities left without events go with them. **`cade export --person NAME`** writes the same events as JSON Lines.
