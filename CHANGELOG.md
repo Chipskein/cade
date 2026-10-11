@@ -8,7 +8,29 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## Unreleased
+## v0.2.0 — 2026-10-11
+
+### Upgrading from v0.1.0
+
+- **One copy, about two minutes:** migrations 11 to 19 run on the first command that opens a v0.1.0 database. One open writes at most one copy, so it writes `cade.db.before-v11-<date>` (mode `600`) before the first step that rewrites data. It needs free disk for the copy (as large as the database) plus the vectors while they are rewritten. Measured one by one on the reference machine's database (270 k events), migrations 11 to 18 add up to about two minutes. `cade doctor` tells, without changing anything, what is pending and whether it will copy. Once the new version works, `cade forget --backups` deletes the copy (#87).
+- **No `reindex`, no new embedding,** and no new model to download.
+- **`ask --json`:** the plan may carry `modality`, `entities` and `related` (#24); they are left out when empty, so questions without them give the same JSON.
+- **New commands:** `cade export`, `cade forget --person` and `cade forget --backups`; `cade forget` now ends listing the database copies.
+- **New, off by default:** `ingest.names_from_email` (a name read from a commit's author e-mail, PRIVACY rule 1). With `sources.images` on, `cade ingest teams` also describes the pictures of messages, read from the browser's cache.
+
+### Migrations
+
+| Version | What it does | Backup | Rewrites data |
+|---|---|---|---|
+| 11 | vectors in `int8`, scaled per vector (#66); the database is compacted | yes | vectors |
+| 12 | commit hashes and file paths indexed by event (#67) | no | — |
+| 13 | first and last date per vector (#67) | yes | vectors |
+| 14 | one set of chunks and vectors per text (#67); compacted | yes | chunks and vectors |
+| 15 | entities and the events that refer to them (#20) | yes | — |
+| 16 | relationships between entities (#21) | no | — |
+| 17 | representations a model derived from an entity (#22) | no | — |
+| 18 | image descriptions move from event metadata to representations (#22) | yes | metadata |
+| 19 | WhatsApp messages linked to the images they attach (#24) | no | — |
 
 ### Database copies that keep forgotten data (#87)
 

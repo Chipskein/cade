@@ -8,7 +8,29 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 
-## Não lançado
+## v0.2.0 — 2026-10-11
+
+### Atualizar da v0.1.0
+
+- **Uma cópia, uns dois minutos:** as migrações 11 a 19 rodam no primeiro comando que abrir um banco da v0.1.0. Uma abertura grava no máximo uma cópia, então ela grava `cade.db.before-v11-<data>` (permissão `600`) antes do primeiro passo que reescreve dados. Precisa de espaço em disco para a cópia (do tamanho do banco) mais os vetores enquanto são reescritos. Medidas uma a uma no banco da máquina de referência (270 mil eventos), as migrações 11 a 18 somam uns dois minutos. O `cade doctor` diz, sem mudar nada, o que está pendente e se vai copiar. Quando a versão nova estiver funcionando, o `cade forget --backups` apaga a cópia (#87).
+- **Sem `reindex`, sem embedding novo** e sem modelo novo para baixar.
+- **`ask --json`:** o plano pode trazer `modality`, `entities` e `related` (#24); eles somem quando vazios, então perguntas sem eles dão o mesmo JSON.
+- **Comandos novos:** `cade export`, `cade forget --person` e `cade forget --backups`; o `cade forget` agora termina listando as cópias do banco.
+- **Novo, desligado por padrão:** `ingest.names_from_email` (o nome lido do e-mail do autor de um commit, regra 1 do PRIVACY). Com `sources.images` ligado, o `cade ingest teams` também descreve as imagens das mensagens, lidas do cache do navegador.
+
+### Migrações
+
+| Versão | O que faz | Cópia | Reescreve dados |
+|---|---|---|---|
+| 11 | vetores em `int8`, escalados por vetor (#66); o banco é compactado | sim | vetores |
+| 12 | hash dos commits e caminho dos arquivos indexados por evento (#67) | não | — |
+| 13 | primeira e última data por vetor (#67) | sim | vetores |
+| 14 | um conjunto de pedaços e vetores por texto (#67); compactado | sim | pedaços e vetores |
+| 15 | entidades e os eventos que as citam (#20) | sim | — |
+| 16 | relações entre entidades (#21) | não | — |
+| 17 | representações que um modelo derivou de uma entidade (#22) | não | — |
+| 18 | descrições de imagem saem da metadata do evento e viram representações (#22) | sim | metadata |
+| 19 | mensagens do WhatsApp ligadas às imagens que anexam (#24) | não | — |
 
 ### Cópias do banco que guardam dados esquecidos (#87)
 
