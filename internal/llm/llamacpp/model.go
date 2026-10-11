@@ -23,6 +23,7 @@ import "C"
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -85,9 +86,20 @@ func loadModelFile(opts ModelOptions) (*C.struct_llama_model, error) {
 	defer C.free(unsafe.Pointer(cPath))
 	model := C.llama_model_load_from_file(cPath, params)
 	if model == nil {
-		return nil, fmt.Errorf("load GGUF model %q: file missing or not a valid GGUF model", opts.Path)
+		return nil, loadFailure(opts)
 	}
 	return model, nil
+}
+
+// loadFailure says why llama.cpp gave no model: a missing file, or one it
+// could not load. On a small GPU the second is memory, which the old
+// message hid behind "not a valid GGUF" (#101: an MX250 with 2 GB).
+func loadFailure(opts ModelOptions) error {
+	if _, err := os.Stat(opts.Path); err != nil {
+		return fmt.Errorf("load GGUF model %q: %w", opts.Path, err)
+	}
+	return fmt.Errorf("load GGUF model %q with gpu_layers %d: not a valid GGUF model, or not enough memory; "+
+		"on a small GPU, lower gpu_layers (0 keeps the model on the CPU)", opts.Path, opts.GPULayers)
 }
 
 func baseContextParams(opts ModelOptions) C.struct_llama_context_params {
