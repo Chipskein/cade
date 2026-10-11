@@ -6,14 +6,14 @@ import (
 )
 
 func TestCgoEnvAddsTheLocalPrefixOnFreeBSDOnly(t *testing.T) {
-	if got := cgoEnv("freebsd", FakeEnvironment{}); !slices.Equal(got, []string{"CGO_CFLAGS=-I/usr/local/include", "CGO_LDFLAGS=-L/usr/local/lib"}) {
+	if got := cgoEnv("freebsd", FakeEnvironment{}); !slices.Equal(got, []string{"CGO_CFLAGS=-I/usr/local/include -D__COSMOPOLITAN__", "CGO_LDFLAGS=-L/usr/local/lib"}) {
 		t.Errorf("freebsd: got %q", got)
 	}
 	if got := cgoEnv("linux", FakeEnvironment{}); got != nil {
 		t.Errorf("linux: expected nothing, got %q", got)
 	}
 	kept := cgoEnv("freebsd", FakeEnvironment{EnvCgoCFlags: "-O2"})
-	if kept[0] != "CGO_CFLAGS=-O2 -I/usr/local/include" {
+	if kept[0] != "CGO_CFLAGS=-O2 -I/usr/local/include -D__COSMOPOLITAN__" {
 		t.Errorf("expected the user's flags kept first, got %q", kept)
 	}
 }
@@ -23,7 +23,7 @@ func TestCgoRunnerGivesTheFlagsToGoCommandsOnly(t *testing.T) {
 	runner := withCgoEnv(inner, "freebsd", FakeEnvironment{})
 	_ = runner.Run(Command{Name: "go", Args: []string{"build"}, Env: []string{"K=v"}})
 	_ = runner.Run(Command{Name: "cmake", Args: []string{"--build"}})
-	if got := inner.Commands[0].Env; !slices.Equal(got, []string{"CGO_CFLAGS=-I/usr/local/include", "CGO_LDFLAGS=-L/usr/local/lib", "K=v"}) {
+	if got := inner.Commands[0].Env; !slices.Equal(got, []string{"CGO_CFLAGS=-I/usr/local/include -D__COSMOPOLITAN__", "CGO_LDFLAGS=-L/usr/local/lib", "K=v"}) {
 		t.Errorf("go got env %q", got)
 	}
 	if got := inner.Commands[1].Env; len(got) != 0 {

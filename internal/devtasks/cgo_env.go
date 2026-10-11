@@ -11,8 +11,17 @@ const (
 	EnvCgoLDFlags EnvVar = "CGO_LDFLAGS"
 )
 
+// bsdTypesWorkaround skips sqlite-vec's typedefs of uint8_t from
+// u_int8_t, which it declares without including <sys/types.h>; FreeBSD's
+// headers, unlike glibc's, do not bring that in, so the build failed.
+// sqlite-vec already includes <stdint.h>, and nothing else compiled
+// through cgo (the Go runtime, go-sqlite3, the llama.cpp bindings) checks
+// the macro. An -include of sys/types.h would also reach the runtime's
+// assembly files. Remove when sqlite-vec includes the header itself.
+const bsdTypesWorkaround = "-D__COSMOPOLITAN__"
+
 var localPrefixFlags = map[string]map[EnvVar]string{
-	"freebsd": {EnvCgoCFlags: "-I/usr/local/include", EnvCgoLDFlags: "-L/usr/local/lib"},
+	"freebsd": {EnvCgoCFlags: "-I/usr/local/include " + bsdTypesWorkaround, EnvCgoLDFlags: "-L/usr/local/lib"},
 }
 
 // cgoTools are the commands that compile cgo, so they get the flags.

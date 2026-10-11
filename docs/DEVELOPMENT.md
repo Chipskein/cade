@@ -32,7 +32,7 @@ go tool mage models
 go tool mage install
 ```
 
-The tasks pass `CGO_CFLAGS=-I/usr/local/include` and `CGO_LDFLAGS=-L/usr/local/lib`, where `pkg` puts `sqlite3.h`; set them yourself to run `go build` or `go test` directly. llama.cpp is built with the system clang and linked with libc++.
+The tasks pass `CGO_CFLAGS="-I/usr/local/include -D__COSMOPOLITAN__"` and `CGO_LDFLAGS=-L/usr/local/lib`: `pkg` puts `sqlite3.h` under `/usr/local`, and the macro skips sqlite-vec typedefs that need a header FreeBSD does not include for it (`internal/devtasks/cgo_env.go`). Set them yourself to run `go build` or `go test` directly. llama.cpp is built with the system clang and linked with libc++.
 
 **GPU:** NVIDIA ships no CUDA Toolkit for FreeBSD, so the GPU is used through Vulkan, which also runs AMD and Intel GPUs:
 
