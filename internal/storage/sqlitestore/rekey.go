@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/chipskein/cade/internal/dbcopy"
 	"os"
 	"time"
 
 	"github.com/chipskein/cade/internal/storage"
 )
-
-// rekeyBackupLayout names the copy taken before a rekey, like the copies
-// taken before migrations.
-const rekeyBackupLayout = "%s.before-rekey-%s"
 
 // RekeyEvents implements storage.EventStore. Only the UID changes: the
 // other tables reference events by row id, so chunks, vectors, people and
@@ -69,7 +66,7 @@ func (s *Store) backupBeforeRekey(ctx context.Context) (string, error) {
 	if err := s.db.QueryRowContext(ctx, `SELECT file FROM pragma_database_list WHERE name = 'main'`).Scan(&path); err != nil {
 		return "", fmt.Errorf("locate the database file: %w", err)
 	}
-	backupPath := fmt.Sprintf(rekeyBackupLayout, path, time.Now().Format("20060102-150405"))
+	backupPath := dbcopy.BeforeRekey(path, time.Now())
 	if _, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
 		return "", fmt.Errorf("back up %q to %q before the rekey: %w", path, backupPath, err)
 	}

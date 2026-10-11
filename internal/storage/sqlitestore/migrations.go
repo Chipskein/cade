@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/chipskein/cade/internal/dbcopy"
 	"os"
 	"time"
 )
@@ -137,7 +138,7 @@ func backupIfNeeded(ctx context.Context, db *sql.DB, path string, step migration
 // backupBefore writes a consistent copy (VACUUM INTO includes what is
 // still in the WAL) next to the database, owner-only like the original.
 func backupBefore(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
-	backupPath := fmt.Sprintf("%s.before-v%d-%s", path, step.version, time.Now().Format("20060102-150405"))
+	backupPath := dbcopy.BeforeMigration(path, step.version, time.Now())
 	if _, err := db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
 		return fmt.Errorf("back up %q to %q before migration %d: %w", path, backupPath, step.version, err)
 	}
