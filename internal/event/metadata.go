@@ -2,6 +2,7 @@ package event
 
 import (
 	"maps"
+	pathpkg "path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -71,6 +72,16 @@ type File struct {
 func (f File) IsUnder(folder string) bool {
 	prefix := FolderPrefix(folder)
 	return f.Path == strings.TrimSuffix(prefix, "/") || strings.HasPrefix(f.Path, prefix)
+}
+
+// FilePathUnder is the stored path of the file at relative (a "/" path,
+// like a walk name or a file in a commit) under root. It uses "/" on
+// every system, so folder filters, UIDs, entities and `ask --json` read
+// the same on Windows as on Linux (#54).
+//
+//	event.FilePathUnder(`C:\Users\me\notes`, "a/b.md") // "C:/Users/me/notes/a/b.md" on Windows
+func FilePathUnder(root, relative string) string {
+	return pathpkg.Join(filepath.ToSlash(root), relative)
 }
 
 // FolderPrefix is the prefix of the stored paths inside folder: written

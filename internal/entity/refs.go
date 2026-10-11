@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"path/filepath"
+	pathpkg "path"
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
@@ -49,7 +49,7 @@ func imageName(ev event.Event) string {
 	if urls := ev.ImageURLs(); ev.Source != event.SourceFile && len(urls) > 0 {
 		return urls[0]
 	}
-	return filepath.Base(ev.File().Path)
+	return pathpkg.Base(ev.File().Path)
 }
 
 func personRefs(ev event.Event) []Ref {
@@ -72,7 +72,7 @@ func fileRef(ev event.Event) (Ref, bool) {
 	if ev.Source != event.SourceFile || path == "" {
 		return Ref{}, false
 	}
-	return Ref{Type: TypeFile, Key: path, Name: filepath.Base(path), Role: RoleSubject}, true
+	return Ref{Type: TypeFile, Key: path, Name: pathpkg.Base(path), Role: RoleSubject}, true
 }
 
 // changedFileRefs are a commit's files as File entities. The key is the
@@ -86,12 +86,12 @@ func changedFileRefs(ev event.Event) []Ref {
 	var refs []Ref
 	seen := map[string]bool{}
 	for _, file := range commit.Files {
-		path := filepath.Join(commit.Repository, file)
+		path := event.FilePathUnder(commit.Repository, file)
 		if file == "" || seen[path] {
 			continue
 		}
 		seen[path] = true
-		refs = append(refs, Ref{Type: TypeFile, Key: path, Name: filepath.Base(path), Role: RoleChanged})
+		refs = append(refs, Ref{Type: TypeFile, Key: path, Name: pathpkg.Base(path), Role: RoleChanged})
 	}
 	return refs
 }

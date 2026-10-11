@@ -134,9 +134,9 @@ func (p *Planner) PlanDirectory(ctx context.Context, files fs.FS, root string, o
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return fmt.Errorf("stat %q: %w", filesource.AbsolutePath(root, path), err)
+			return fmt.Errorf("stat %q: %w", event.FilePathUnder(root, path), err)
 		}
-		return p.planImage(ctx, files, filesource.AbsolutePath(root, path), path, info)
+		return p.planImage(ctx, files, event.FilePathUnder(root, path), path, info)
 	})
 }
 
@@ -152,9 +152,9 @@ func (p *Planner) CountPending(ctx context.Context, files fs.FS, root string, op
 		}
 		info, err := entry.Info()
 		if err != nil {
-			return fmt.Errorf("stat %q: %w", filesource.AbsolutePath(root, path), err)
+			return fmt.Errorf("stat %q: %w", event.FilePathUnder(root, path), err)
 		}
-		settled, err := p.alreadySettled(ctx, filesource.AbsolutePath(root, path), info)
+		settled, err := p.alreadySettled(ctx, event.FilePathUnder(root, path), info)
 		if err != nil || settled {
 			return err
 		}

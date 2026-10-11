@@ -125,3 +125,9 @@ func TestIsUnderTakesTheFolderItself(t *testing.T) {
 		t.Fatal("expected the folder itself inside, and a prefix sibling outside")
 	}
 }
+
+func TestFilePathUnderWritesSlashes(t *testing.T) {
+	if got := FilePathUnder(filepath.FromSlash("C:/Users/me/notes"), "a/b.md"); got != "C:/Users/me/notes/a/b.md" {
+		t.Fatalf("expected C:/Users/me/notes/a/b.md, got %q", got)
+	}
+}
