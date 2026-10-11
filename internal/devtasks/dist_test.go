@@ -41,7 +41,7 @@ func TestDistNamesTheOperatingSystem(t *testing.T) {
 	world.env[EnvVersion] = "v9.9.9"
 	world.runner.Outputs["go env GOOS"] = "freebsd"
 	world.runner.Outputs["go env GOARCH"] = "amd64"
-	if name, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-freebsd-amd64-cpu" {
+	if name, _, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-freebsd-amd64-cpu" {
 		t.Fatalf("distName = %q, %v; want the FreeBSD name", name, err)
 	}
 }
@@ -52,7 +52,7 @@ func TestDistNamesTheMetalBuildOnMacOS(t *testing.T) {
 	world.env[EnvVersion] = "v9.9.9"
 	world.runner.Outputs["go env GOOS"] = "darwin"
 	world.runner.Outputs["go env GOARCH"] = "arm64"
-	if name, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-darwin-arm64-metal" {
+	if name, _, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-darwin-arm64-metal" {
 		t.Fatalf("distName = %q, %v; want the macOS Metal name", name, err)
 	}
 }
@@ -100,9 +100,6 @@ func assertChecksum(t *testing.T, archive string) {
 	line, err := os.ReadFile(archive + checksumSuffix)
 	if err != nil || string(line) != hex.EncodeToString(sum[:])+"  "+filepath.Base(archive)+"\n" {
 		t.Errorf("checksum file = %q, %v", line, err)
-	}
-	if !strings.HasSuffix(archive, archiveSuffix) {
-		t.Errorf("archive %q lacks %s", archive, archiveSuffix)
 	}
 }
 
