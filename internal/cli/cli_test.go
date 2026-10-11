@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -168,9 +169,15 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 	newCollector := func(string) (ingest.EventCollector, error) { return collector, nil }
 	newFileCollector := newCollector
 	if w.realFiles {
+		// The root is made absolute as in production, so it names the
+		// same files as the image planner on Windows too (#54).
 		newFileCollector = func(root string) (ingest.EventCollector, error) {
-			files, err := fs.Sub(w.files, rootfs.Name(root))
-			return filesource.NewCollector(files, root, filesource.OptionsFor(cfg.Sources, captions)), err
+			absolute, err := filepath.Abs(root)
+			if err != nil {
+				return nil, err
+			}
+			files, err := fs.Sub(w.files, rootfs.Name(absolute))
+			return filesource.NewCollector(files, absolute, filesource.OptionsFor(cfg.Sources, captions)), err
 		}
 	}
 	return []ingest.SourceSpec{

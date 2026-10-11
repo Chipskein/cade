@@ -26,6 +26,9 @@ func runInit(_ context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locate home directory: %w", err)
 	}
+	// Written with "/" like every path init finds, so ContractHome
+	// recognizes them under it on Windows too (#54).
+	home = resolvePath(home, home)
 	cfg := config.Defaults()
 	cfg.Sources = env.askSources(newInitPrompt(env.toolkit.Stdin, env.stdout, language), home, cfg.Sources)
 	if err := env.toolkit.WriteConfig(env.configPath, cfg); err != nil {
@@ -111,13 +114,14 @@ func (env commandEnv) printInitSummary(sources config.SourcesConfig) {
 }
 
 // resolvePath makes a typed path absolute: "~" is home, a relative path
-// is under the working directory.
+// is under the working directory. It writes "/", as the config and the
+// database keep paths on every system (#54).
 func resolvePath(path, home string) string {
 	absolute, err := filepath.Abs(config.ExpandHomeIn(path, home))
 	if err != nil {
 		return path
 	}
-	return absolute
+	return filepath.ToSlash(absolute)
 }
 
 func resolveAll(paths []string, home string) []string {
