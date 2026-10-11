@@ -3,6 +3,7 @@ package procctl
 import (
 	"fmt"
 	"syscall"
+	"time"
 
 	"github.com/chipskein/cade/internal/winapi"
 )
@@ -12,11 +13,36 @@ func (System) Alive(pid int) bool {
 	return pid > 0 && winapi.ProcessRunning(pid)
 }
 
-// Terminate ends pid at once: Windows has no SIGTERM to deliver, so a
-// clean stop is asked for through the state directory first (ingestrun).
-// A suspended process ends too.
+// stopGrace is how long Terminate waits for pid to stop on its own; a
+// variable so tests need not wait that long.
+var stopGrace = 30 * time.Second
+
+// exitPollInterval is how often Terminate checks whether pid ended.
+const exitPollInterval = 100 * time.Millisecond
+
+// Terminate wakes pid and waits for it to stop on its own: Windows has no
+// SIGTERM, so `ingest stop` asks for the stop through the state directory
+// first, and the run cancels as on Ctrl-C (#54). A run that has not ended
+// after stopGrace is ended at once.
 func (System) Terminate(pid int) error {
+	if !winapi.ProcessRunning(pid) {
+		return fmt.Errorf("stop process %d: not running", pid)
+	}
+	winapi.ResumeProcess(pid)
+	if exitedWithin(pid, stopGrace) {
+		return nil
+	}
 	return wrapProcessError("stop", pid, winapi.TerminateProcess(pid))
+}
+
+// exitedWithin polls until pid has ended or grace has passed.
+func exitedWithin(pid int, grace time.Duration) bool {
+	for deadline := time.Now().Add(grace); time.Now().Before(deadline); time.Sleep(exitPollInterval) {
+		if !winapi.ProcessRunning(pid) {
+			return true
+		}
+	}
+	return !winapi.ProcessRunning(pid)
 }
 
 func (System) Pause(pid int) error {

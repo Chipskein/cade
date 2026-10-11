@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/chipskein/cade/internal/testcheck"
 )
@@ -45,6 +46,7 @@ func TestCallsReportMissingProcess(t *testing.T) {
 }
 
 func TestTerminateStopsAPausedProcess(t *testing.T) {
+	stopGrace = 200 * time.Millisecond
 	sleeper := startSleeper(t)
 	pid := sleeper.Process.Pid
 	testcheck.NoError(t, System{}.Pause(pid))
@@ -69,5 +71,17 @@ func TestStartDetachedWritesItsLog(t *testing.T) {
 func TestLowerPrioritySucceeds(t *testing.T) {
 	if err := (System{}).LowerPriority(); err != nil {
 		t.Fatalf("expected the priority lowered, got %v", err)
+	}
+}
+
+func TestTerminateWaitsForAProcessThatStopsOnItsOwn(t *testing.T) {
+	stopGrace = 10 * time.Second
+	brief := exec.Command("ping", "-n", "2", "127.0.0.1")
+	testcheck.NoError(t, brief.Start())
+	go brief.Wait()
+	started := time.Now()
+	testcheck.NoError(t, System{}.Terminate(brief.Process.Pid))
+	if elapsed := time.Since(started); elapsed >= stopGrace {
+		t.Fatalf("expected Terminate back once the process ended, took %v", elapsed)
 	}
 }
