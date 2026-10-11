@@ -88,7 +88,7 @@ type VisitFunc func(path string, entry fs.DirEntry) error
 func Walk(ctx context.Context, files fs.FS, root string, opts Options, visit VisitFunc) error {
 	return fs.WalkDir(files, ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
-			return fmt.Errorf("walk %q: %w", filepath.Join(root, path), walkErr)
+			return fmt.Errorf("walk %q: %w", AbsolutePath(root, path), walkErr)
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -115,9 +115,9 @@ func (o Options) ignoresFile(name string) bool {
 func (c *Collector) emitFile(path string, entry fs.DirEntry, emit ingest.EmitFunc) error {
 	info, err := entry.Info()
 	if err != nil {
-		return fmt.Errorf("stat %q: %w", filepath.Join(c.root, path), err)
+		return fmt.Errorf("stat %q: %w", AbsolutePath(c.root, path), err)
 	}
-	absolutePath := filepath.Join(c.root, path)
+	absolutePath := AbsolutePath(c.root, path)
 	if image, described := c.opts.Captions[absolutePath]; described {
 		return emit(imageEvent(fileEvent(absolutePath, info, image.SearchableText()), image))
 	}
@@ -144,7 +144,7 @@ func (c *Collector) readText(path string, size int64) (string, error) {
 	}
 	raw, err := fs.ReadFile(c.files, path)
 	if err != nil {
-		return "", fmt.Errorf("read %q: %w", filepath.Join(c.root, path), err)
+		return "", fmt.Errorf("read %q: %w", AbsolutePath(c.root, path), err)
 	}
 	if !looksLikeText(raw) {
 		return "", nil
@@ -156,14 +156,23 @@ func looksLikeText(raw []byte) bool {
 	return utf8.Valid(raw) && !bytes.Contains(raw, []byte{0})
 }
 
+// AbsolutePath is the stored path of the file at relative (a walk name)
+// under root. It uses "/" on every system, so folder filters, UIDs and
+// `ask --json` read the same on Windows as on Linux (#54).
+//
+//	filesource.AbsolutePath(`C:\Users\me\notes`, "a/b.md") // "C:/Users/me/notes/a/b.md" on Windows
+func AbsolutePath(root, relative string) string {
+	return pathpkg.Join(filepath.ToSlash(root), relative)
+}
+
 // EventContent is a file event's text: the file name, then text if any.
 //
 //	filesource.EventContent("/prints/erro.png", "Imagem: um terminal")
 func EventContent(absolutePath, text string) string {
 	if text == "" {
-		return filepath.Base(absolutePath)
+		return pathpkg.Base(absolutePath)
 	}
-	return filepath.Base(absolutePath) + "\n" + text
+	return pathpkg.Base(absolutePath) + "\n" + text
 }
 
 // fileEvent uses the file name, not the full path, as the first content

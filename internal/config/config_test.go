@@ -101,6 +101,19 @@ func TestContractHomeWithoutHome(t *testing.T) {
 	}
 }
 
+func TestContractHomeComparesNativeSeparatorsAsSlashes(t *testing.T) {
+	home := filepath.FromSlash("C:/Users/me")
+	if got := ContractHome(filepath.FromSlash("C:/Users/me/src"), home); got != "~/src" {
+		t.Fatalf("expected ~/src, got %q", got)
+	}
+}
+
+func TestExpandHomeInWritesSlashes(t *testing.T) {
+	if got := ExpandHomeIn("~/notes/a", filepath.FromSlash("C:/Users/me")); got != "C:/Users/me/notes/a" {
+		t.Fatalf("expected C:/Users/me/notes/a, got %q", got)
+	}
+}
+
 func TestExpandHomeIn(t *testing.T) {
 	cases := map[string]string{"~": "/h", "~/x/y": "/h/x/y", "/abs": "/abs", "rel/~": "rel/~"}
 	for input, expected := range cases {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/chipskein/cade/internal/event"
@@ -105,7 +104,7 @@ func (f storedFile) withPresence(present bool, at time.Time) (event.Metadata, bo
 // underFolderCondition keeps alias's file events whose path is inside
 // folder.
 func underFolderCondition(alias, folder string) sqlCondition {
-	prefix := strings.TrimSuffix(folder, "/") + "/"
+	prefix := event.FolderPrefix(folder)
 	var condition sqlCondition
 	condition.add(fmt.Sprintf(`%[1]s.source = ? AND substr(json_extract(%[1]s.metadata, '$.path'), 1, length(?)) = ?`, alias),
 		string(event.SourceFile), prefix, prefix)

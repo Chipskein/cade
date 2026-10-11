@@ -2,6 +2,7 @@ package filesource
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -131,5 +132,11 @@ func TestEstimateEventsCountsTheFilesCollected(t *testing.T) {
 	count, err := NewCollector(sampleTree(), "/root", opts).EstimateEvents(context.Background())
 	if err != nil || count != len(collectTree(t, sampleTree())) {
 		t.Fatalf("expected the count of collected files, got %d (err %v)", count, err)
+	}
+}
+
+func TestAbsolutePathWritesSlashes(t *testing.T) {
+	if got := AbsolutePath(filepath.FromSlash("C:/Users/me/notes"), "a/b.md"); got != "C:/Users/me/notes/a/b.md" {
+		t.Fatalf("expected C:/Users/me/notes/a/b.md, got %q", got)
 	}
 }

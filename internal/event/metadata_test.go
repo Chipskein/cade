@@ -1,6 +1,7 @@
 package event
 
 import (
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -107,5 +108,20 @@ func TestWithoutImageTextKeepsStatusHashAndText(t *testing.T) {
 	}
 	if ev.Image().Description != "um terminal" {
 		t.Fatal("expected the original event left unchanged")
+	}
+}
+
+func TestFolderPrefixWritesSlashesAndEndsInOne(t *testing.T) {
+	for _, folder := range []string{filepath.FromSlash("C:/Users/ana/Documents"), "C:/Users/ana/Documents/"} {
+		if got := FolderPrefix(folder); got != "C:/Users/ana/Documents/" {
+			t.Errorf("FolderPrefix(%q) = %q, expected C:/Users/ana/Documents/", folder, got)
+		}
+	}
+}
+
+func TestIsUnderTakesTheFolderItself(t *testing.T) {
+	file := File{Path: "/home/ana/Documents"}
+	if !file.IsUnder("/home/ana/Documents/") || file.IsUnder("/home/ana/Doc") {
+		t.Fatal("expected the folder itself inside, and a prefix sibling outside")
 	}
 }
