@@ -81,11 +81,12 @@ type fakeWorld struct {
 	describerOpenAtEmbedderLoad bool
 	// runState, runLock, processes and pacingClock back the ingest run
 	// tools; detached makes this process the one `ingest start` started.
-	runState    *testfakes.FakeRunStateFile
-	runLock     *testfakes.FakeIngestLock
-	processes   *testfakes.FakeProcesses
-	pacingClock *testfakes.FakePacingClock
-	detached    bool
+	runState     *testfakes.FakeRunStateFile
+	runLock      *testfakes.FakeIngestLock
+	processes    *testfakes.FakeProcesses
+	stopRequests *testfakes.FakeStopRequests
+	pacingClock  *testfakes.FakePacingClock
+	detached     bool
 	// loadedEmbedding and loadedGeneration are the settings the models
 	// were last loaded with.
 	loadedEmbedding config.EmbeddingConfig
@@ -105,7 +106,8 @@ func newFakeWorld() *fakeWorld {
 		store: testfakes.NewFakeEventStore(), embedder: &testfakes.FakeEmbedder{},
 		generator: &testfakes.FakeGenerator{}, cfg: cfg, files: testfakes.NewFakeFileSystem(),
 		runState: &testfakes.FakeRunStateFile{}, runLock: &testfakes.FakeIngestLock{}, processes: &testfakes.FakeProcesses{StartedPID: 4321},
-		pacingClock: &testfakes.FakePacingClock{Current: cliNow},
+		stopRequests: &testfakes.FakeStopRequests{},
+		pacingClock:  &testfakes.FakePacingClock{Current: cliNow},
 	}
 }
 
@@ -140,7 +142,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Language:      w.language,
 		DateOrder:     w.dateOrder,
 		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
-			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
+			Stops: w.stopRequests, Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
 }
 

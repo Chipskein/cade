@@ -78,6 +78,7 @@ func ingestRunTools() cli.IngestRunTools {
 		Lock:      ingestrun.FileLock{Dir: dir},
 		LogPath:   dir.LogPath(),
 		Processes: procctl.System{},
+		Stops:     ingestrun.FileStopRequests{Dir: dir},
 		Clock:     pacing.SystemClock{},
 		Detached:  os.Getenv(cli.DetachedIngestVariable) == "1",
 		PID:       os.Getpid(),

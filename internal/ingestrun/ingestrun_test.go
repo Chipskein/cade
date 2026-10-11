@@ -161,3 +161,19 @@ func TestStateIsResumableWhenItStoppedEarly(t *testing.T) {
 		t.Fatal("expected a live run not resumable")
 	}
 }
+
+func TestStopRequestIsAskedUntilCleared(t *testing.T) {
+	requests := FileStopRequests{Dir: Dir(filepath.Join(t.TempDir(), "cade"))}
+	if requests.Asked() {
+		t.Fatal("expected no request before Ask")
+	}
+	testcheck.NoError(t, requests.Ask())
+	if !requests.Asked() {
+		t.Fatal("expected the request asked")
+	}
+	testcheck.NoError(t, requests.Clear())
+	testcheck.NoError(t, requests.Clear())
+	if requests.Asked() {
+		t.Fatal("expected no request once cleared")
+	}
+}
