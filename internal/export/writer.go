@@ -43,6 +43,12 @@ func Write(ctx context.Context, store Store, out io.Writer, filter storage.Event
 	}
 }
 
+// WriteEvents writes one Record per event given, such as everything about
+// one person (#86), and returns how many it wrote.
+func WriteEvents(ctx context.Context, store Store, out io.Writer, events []event.Event) (int, error) {
+	return len(events), writePage(ctx, store, json.NewEncoder(out), events)
+}
+
 func writePage(ctx context.Context, store Store, encoder *json.Encoder, events []event.Event) error {
 	for _, ev := range events {
 		record, err := recordOf(ctx, store, ev)

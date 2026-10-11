@@ -23,6 +23,7 @@ func runForget(ctx context.Context, env commandEnv, args []string) error {
 	source := flags.String("source", "", "limita a fonte")
 	from := flags.String("from", "", "data inicial (AAAA-MM-DD)")
 	to := flags.String("to", "", "data final (AAAA-MM-DD)")
+	person := flags.String("person", "", "nome da pessoa: apaga tudo sobre ela")
 	yes := flags.Bool("yes", false, "confirma sem perguntar")
 	positional, err := parseCommandFlags(flags, args)
 	if err != nil {
@@ -33,6 +34,9 @@ func runForget(ctx context.Context, env commandEnv, args []string) error {
 	}
 	if *match != "" {
 		return env.forgetMatch(ctx, *match, *source, *from, *to, *yes)
+	}
+	if *person != "" {
+		return env.forgetPerson(ctx, *person, *yes)
 	}
 	if len(positional) != 1 {
 		return errors.New(env.language.pick("use cade forget <fonte> ou --uid UID ou --match TEXTO", "use cade forget <source>, --uid UID or --match TEXT"))
@@ -75,27 +79,39 @@ func (env commandEnv) forgetMatch(ctx context.Context, text, source, from, to st
 		if err != nil {
 			return err
 		}
-		for _, ev := range matches {
-			fmt.Fprintf(env.stdout, "%s\t%s\t%s\n", ev.UID, ev.Timestamp.Format("2006-01-02"), ev.Headline())
-		}
-		if len(matches) == 0 {
-			return nil
-		}
-		if !yes {
-			if !env.toolkit.StderrIsTerminal {
-				return fmt.Errorf("%s", env.language.pick("use --yes fora de um terminal", "use --yes outside a terminal"))
-			}
-			fmt.Fprint(env.stderr, env.language.pick("Apagar estes eventos? [s/N] ", "Delete these events? [y/N] "))
-			answer, readErr := bufio.NewReader(env.toolkit.Stdin).ReadString('\n')
-			if readErr != nil {
-				return readErr
-			}
-			if !strings.EqualFold(strings.TrimSpace(answer), env.language.pick("s", "y")) {
-				return nil
-			}
-		}
-		return env.deleteMatches(ctx, store, matches)
+		return env.reviewAndDelete(ctx, store, matches, yes)
 	})
+}
+
+// reviewAndDelete lists the events, asks before deleting unless yes, and
+// deletes them; nothing listed, nothing asked.
+func (env commandEnv) reviewAndDelete(ctx context.Context, store storage.EventStore, events []event.Event, yes bool) error {
+	for _, ev := range events {
+		fmt.Fprintf(env.stdout, "%s\t%s\t%s\n", ev.UID, ev.Timestamp.Format("2006-01-02"), ev.Headline())
+	}
+	if len(events) == 0 {
+		return nil
+	}
+	confirmed, err := env.confirmDeletion(yes)
+	if err != nil || !confirmed {
+		return err
+	}
+	return env.deleteMatches(ctx, store, events)
+}
+
+func (env commandEnv) confirmDeletion(yes bool) (bool, error) {
+	if yes {
+		return true, nil
+	}
+	if !env.toolkit.StderrIsTerminal {
+		return false, fmt.Errorf("%s", env.language.pick("use --yes fora de um terminal", "use --yes outside a terminal"))
+	}
+	fmt.Fprint(env.stderr, env.language.pick("Apagar estes eventos? [s/N] ", "Delete these events? [y/N] "))
+	answer, err := bufio.NewReader(env.toolkit.Stdin).ReadString('\n')
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(strings.TrimSpace(answer), env.language.pick("s", "y")), nil
 }
 
 // deleteMatches removes the matched events, one store call each — the part

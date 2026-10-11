@@ -21,8 +21,12 @@ func runExport(ctx context.Context, env commandEnv, args []string) error {
 	source := flags.String("source", "", "limita a fonte")
 	from := flags.String("from", "", "data inicial (AAAA-MM-DD)")
 	to := flags.String("to", "", "data final (AAAA-MM-DD)")
+	person := flags.String("person", "", "nome da pessoa: só o que é sobre ela")
 	if _, err := parseCommandFlags(flags, args); err != nil {
 		return err
+	}
+	if *person != "" {
+		return env.exportPerson(ctx, *person)
 	}
 	filter, err := sourceAndDays(*source, *from, *to)
 	if err != nil {
@@ -47,6 +51,26 @@ func (env commandEnv) exportFrom(ctx context.Context, cfg config.Config, store s
 	}
 	fmt.Fprintln(env.stderr, env.language.count(count, exportedEventNoun)+".")
 	return nil
+}
+
+// exportPerson writes everything about one person (#86).
+func (env commandEnv) exportPerson(ctx context.Context, name string) error {
+	return env.withStore(ctx, func(_ config.Config, store storage.EventStore) error {
+		readable, supported := store.(export.Store)
+		if !supported {
+			return errors.New(env.language.pick("este banco não pode ser exportado", "this database cannot be exported"))
+		}
+		events, err := env.eventsOfPersonNamed(ctx, store, name)
+		if err != nil {
+			return err
+		}
+		count, err := export.WriteEvents(ctx, readable, env.stdout, events)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(env.stderr, env.language.count(count, exportedEventNoun)+".")
+		return nil
+	})
 }
 
 // checkExportSource rejects a typo in --source, which would export nothing

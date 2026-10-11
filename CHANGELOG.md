@@ -10,6 +10,12 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Forget and export by person (#86)
+
+- **`cade forget --person NAME`** erases everything about one person after listing it and asking (or `--yes`): what they sent or wrote (the name read from an e-mail included, when on), the messages that @mention their first name, and their one-to-one conversations, where every message you did not send is theirs, your own messages included. Group conversations stay unless they write or are mentioned. The entities left without events go with them. **`cade export --person NAME`** writes the same events as JSON Lines.
+- **The name must point at one person:** "Ana", with Ana Prado and Ana Souza stored, stops and lists both. An @mention keeps only a first name, so it counts for everyone with that name; the list shows it before anything is deleted.
+- PRIVACY's erasure and access by person gap from #25 is closed. No database migration.
+
 ### Export (#85)
 
 - **`cade export [--source F] [--from D --to D]`** writes everything cade keeps on stdout as JSON Lines: one event per line with its UID, source, time, text and metadata, the names the people index keeps, the entities it refers to, the relations it states and those entities' representations (an image's description), without vectors. The filters are those of `forget --match`; the count goes to stderr.
