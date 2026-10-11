@@ -1,0 +1,66 @@
+name: macOS smoke
+
+# Runs cade end to end on a GitHub Mac (Apple Silicon), with the real
+# models: nobody on the project has a Mac, so this is what stands for a
+# user trying it (#53). Started by hand; it downloads ~2 GB of models
+# (cached between runs) and writes the timings to the run summary.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  LLAMA_NATIVE: "OFF"
+
+jobs:
+  smoke:
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Install the llama.cpp build tools
+        run: brew install ninja
+
+      - name: Cache the models
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/cade/models
+          key: models-${{ hashFiles('internal/devtasks/models.go') }}
+
+      - name: Build and download the models
+        run: |
+          go tool mage cpu
+          go tool mage models
+          ./bin/cade version
+
+      - name: Ingest and ask, on Metal and on the CPU
+        run: |
+          home="$RUNNER_TEMP/cade-home"
+          mkdir -p "$home/cade"
+          for layers in -1 0; do
+            dir="$RUNNER_TEMP/db-$layers"; mkdir -p "$dir"
+            printf '{"database_path": "%s/cade.db", "embedding": {"gpu_layers": %s}, "generation": {"gpu_layers": %s}}\n' "$dir" "$layers" "$layers" > "$home/cade/config.json"
+            XDG_CONFIG_HOME="$home" ./bin/cade ingest file docs
+            start=$(date +%s)
+            XDG_CONFIG_HOME="$home" ./bin/cade ask "how do I build cade on FreeBSD?" | tee "$RUNNER_TEMP/answer-$layers.txt"
+            echo "gpu_layers $layers: $(( $(date +%s) - start )) s" >> "$RUNNER_TEMP/timings.txt"
+          done
+          XDG_CONFIG_HOME="$home" ./bin/cade doctor || true
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### macOS smoke"
+            echo '```'
+            ./bin/cade version
+            cat "$RUNNER_TEMP/timings.txt" 2>/dev/null
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
