@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chipskein/cade/internal/privatefile"
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
@@ -18,7 +19,7 @@ func TestInstallCopiesTheBuiltBinaryUnderDestDirAndPrefix(t *testing.T) {
 	}
 	installed := filepath.Join(world.root, "stage/usr/bin/cade")
 	info, err := os.Stat(installed)
-	if err != nil || info.Mode().Perm() != executableMode || len(world.runner.Commands) != 0 {
+	if err != nil || (privatefile.ModesEnforced && info.Mode().Perm() != executableMode) || len(world.runner.Commands) != 0 {
 		t.Fatalf("installed %v, %v; commands %q (want no build)", info, err, world.runner.Lines())
 	}
 }

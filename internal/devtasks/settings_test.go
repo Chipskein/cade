@@ -8,20 +8,20 @@ import (
 
 func TestLoadSettingsDefaultsUnderHome(t *testing.T) {
 	settings := LoadSettings(FakeEnvironment{EnvHome: "/home/ana", EnvCudaHome: t.TempDir()}, "linux")
-	if settings.ModelsDir != "/home/ana/.local/share/cade/models" || settings.Prefix != "/home/ana/.local" {
+	if settings.ModelsDir != filepath.FromSlash("/home/ana/.local/share/cade/models") || settings.Prefix != filepath.FromSlash("/home/ana/.local") {
 		t.Errorf("ModelsDir %q, Prefix %q; want them under /home/ana", settings.ModelsDir, settings.Prefix)
 	}
 	if settings.LlamaNative != "ON" || settings.EvalTimeout != "1h" || settings.FuzzTime != "30s" {
 		t.Errorf("defaults = %+v", settings)
 	}
-	if got := settings.ModelPath(EmbeddingModel); got != "/home/ana/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf" {
+	if got := settings.ModelPath(EmbeddingModel); got != filepath.FromSlash("/home/ana/.local/share/cade/models/nomic-embed-text-v2-moe.Q4_K_M.gguf") {
 		t.Errorf("embedding model path = %q", got)
 	}
 }
 
 func TestLoadSettingsVariablesOverrideDefaults(t *testing.T) {
 	settings := LoadSettings(FakeEnvironment{EnvLlamaNative: "OFF", EnvModelsDir: "/models", EnvGenerationModel: "/other.gguf", EnvGoTags: "cuda, extra"}, "linux")
-	if settings.LlamaNative != "OFF" || settings.ModelPath(EmbeddingModel) != "/models/nomic-embed-text-v2-moe.Q4_K_M.gguf" {
+	if settings.LlamaNative != "OFF" || settings.ModelPath(EmbeddingModel) != filepath.Join("/models", "nomic-embed-text-v2-moe.Q4_K_M.gguf") {
 		t.Errorf("settings = %+v", settings)
 	}
 	if settings.ModelPath(GenerationModel) != "/other.gguf" {
@@ -48,7 +48,7 @@ func TestExtraGoTagsDetectsCUDAUnlessEmptyGoTags(t *testing.T) {
 }
 
 func TestNvccPathIsUnderCudaHome(t *testing.T) {
-	if got := LoadSettings(FakeEnvironment{EnvCudaHome: "/opt/cuda"}, "linux").NvccPath(); got != "/opt/cuda/bin/nvcc" {
+	if got := LoadSettings(FakeEnvironment{EnvCudaHome: "/opt/cuda"}, "linux").NvccPath(); got != filepath.FromSlash("/opt/cuda/bin/nvcc") {
 		t.Errorf("NvccPath = %q", got)
 	}
 }

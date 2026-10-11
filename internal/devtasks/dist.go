@@ -131,9 +131,12 @@ func addToTar(tarball *tar.Writer, baseDir, path string) error {
 	if err != nil {
 		return err
 	}
-	if header.Name, err = filepath.Rel(baseDir, path); err != nil {
+	relative, err := filepath.Rel(baseDir, path)
+	if err != nil {
 		return err
 	}
+	// Archive entries use "/" whatever system wrote them (#54).
+	header.Name = filepath.ToSlash(relative)
 	if err := tarball.WriteHeader(header); err != nil || info.IsDir() {
 		return err
 	}
