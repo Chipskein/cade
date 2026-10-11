@@ -107,3 +107,22 @@ func TestRetrieveFoldsHitsShowingTheSameImage(t *testing.T) {
 		t.Fatalf("expected one hit standing for both copies, got %+v (err %v)", hits, err)
 	}
 }
+
+// Regression: folding after the top-k cut left the slot of a folded copy
+// empty, and the next picture out ("qual era o erro naquele print?").
+func TestFoldingKeepsTopKDistinctPictures(t *testing.T) {
+	store := graphStore()
+	for _, uid := range []string{"a", "b", "c", "d"} {
+		store.Events = append(store.Events, imageFile(uid, "outra imagem"))
+		store.Embeddings[uid] = []float32{1, 0}
+	}
+	copyOfSlide := imageFile("slide-copy", "slide")
+	copyOfSlide.Metadata[event.ImageSHA256Key] = "slide"
+	store.Events = append([]event.Event{copyOfSlide}, store.Events...)
+	store.Embeddings["slide-copy"] = []float32{1, 0}
+	query := queryplan.Query{Question: "imagens", Modality: entity.TypeImage}
+	hits, err := restrictedAnswerer(store, &testfakes.FakeGenerator{}).Retrieve(context.Background(), query, AnswerObserver{})
+	if err != nil || len(hits) != 5 {
+		t.Fatalf("expected top_k = 5 distinct pictures, got %d (err %v)", len(hits), err)
+	}
+}

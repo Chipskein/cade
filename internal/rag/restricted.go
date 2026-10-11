@@ -23,11 +23,7 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	if err != nil {
 		return nil, err
 	}
-	hits, err := a.selectAmong(ctx, embedding, query, filter)
-	if err != nil || !query.NeedsGraph() {
-		return hits, err
-	}
-	return a.foldSharedImages(ctx, hits)
+	return a.selectAmong(ctx, embedding, query, filter)
 }
 
 // selectAmong ranks the filtered events exactly, or through the vector
@@ -53,7 +49,15 @@ func (a *Answerer) rankAmong(ctx context.Context, embedding []float32, query que
 	if err != nil {
 		return nil, err
 	}
-	ranked = usableEvidence(ranked, query)
+	return a.topAmong(ctx, usableEvidence(ranked, query), query)
+}
+
+// topAmong is the first top_k of ranked, one per picture for a question
+// through the graph.
+func (a *Answerer) topAmong(ctx context.Context, ranked []storage.ScoredEvent, query queryplan.Query) ([]storage.ScoredEvent, error) {
+	if query.NeedsGraph() {
+		return a.foldSharedImages(ctx, ranked, a.settings.TopK)
+	}
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 
@@ -114,9 +118,9 @@ func (a *Answerer) searchAmong(ctx context.Context, embedding []float32, query q
 		if err != nil {
 			return nil, err
 		}
-		distinct := usableEvidence(bestChunkPerEvent(hits), query)
-		if len(distinct) >= a.settings.TopK || search.Limit >= maxNeighbours {
-			return distinct[:min(len(distinct), a.settings.TopK)], nil
+		top, err := a.topAmong(ctx, usableEvidence(bestChunkPerEvent(hits), query), query)
+		if err != nil || len(top) >= a.settings.TopK || search.Limit >= maxNeighbours {
+			return top, err
 		}
 	}
 }

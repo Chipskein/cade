@@ -7,14 +7,19 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 )
 
-// foldSharedImages keeps the best ranked of the hits showing the same
-// image, counting the others as its repeats: a WhatsApp photo and the
-// file it was saved as are one picture, and listing both wasted a slot
-// (#24). Hits arrive best first.
-func (a *Answerer) foldSharedImages(ctx context.Context, hits []storage.ScoredEvent) ([]storage.ScoredEvent, error) {
+// foldSharedImages keeps, up to limit, the best ranked of the hits
+// showing the same image, counting the others as its repeats: a WhatsApp
+// photo and the file it was saved as are one picture, and listing both
+// wasted a slot (#24). Hits arrive best first; folding before the top-k
+// cut keeps the slot for the next picture, and stopping at limit reads
+// the links of only what is kept.
+func (a *Answerer) foldSharedImages(ctx context.Context, hits []storage.ScoredEvent, limit int) ([]storage.ScoredEvent, error) {
 	firstShowing := map[int64]int{}
 	var kept []storage.ScoredEvent
 	for _, hit := range hits {
+		if len(kept) == limit {
+			break
+		}
 		image, err := a.shownImage(ctx, hit.Event.UID)
 		if err != nil {
 			return nil, err
