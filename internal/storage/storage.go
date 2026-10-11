@@ -301,6 +301,24 @@ func (v VectorSlots) EmptyShare() float64 {
 	return float64(v.Slots-v.Vectors) / float64(v.Slots)
 }
 
+// VectorBlockSize is how many positions sqlite-vec allocates at a time
+// (its default chunk_size); compaction keeps whole blocks.
+const VectorBlockSize = 1024
+
+// ReclaimableShare is the fraction of positions compaction would free: it
+// keeps ceil(Vectors / VectorBlockSize) blocks, so a young database whose
+// one block is mostly unused has nothing to reclaim (#101: doctor told a
+// new 101-event database to compact).
+//
+//	storage.VectorSlots{Slots: 1024, Vectors: 290}.ReclaimableShare() // 0
+func (v VectorSlots) ReclaimableShare() float64 {
+	if v.Slots == 0 {
+		return 0
+	}
+	kept := (v.Vectors + VectorBlockSize - 1) / VectorBlockSize * VectorBlockSize
+	return float64(max(v.Slots-kept, 0)) / float64(v.Slots)
+}
+
 // ImageCaptionIndex finds a description by the image's content (phase 19):
 // a moved, renamed or copied image is not described again.
 type ImageCaptionIndex interface {

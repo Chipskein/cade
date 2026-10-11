@@ -15,3 +15,17 @@ func TestVectorSlotsEmptyShare(t *testing.T) {
 		}
 	}
 }
+
+func TestVectorSlotsReclaimableShareKeepsWholeBlocks(t *testing.T) {
+	cases := map[VectorSlots]float64{
+		{Slots: 1024, Vectors: 290}:  0,
+		{Slots: 2048, Vectors: 1000}: 0.5,
+		{Slots: 3072, Vectors: 1025}: 1.0 / 3,
+		{}:                           0,
+	}
+	for slots, want := range cases {
+		if got := slots.ReclaimableShare(); got != want {
+			t.Errorf("%+v.ReclaimableShare() = %v, want %v", slots, got, want)
+		}
+	}
+}
