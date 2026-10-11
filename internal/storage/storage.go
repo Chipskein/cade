@@ -110,6 +110,8 @@ type EventStore interface {
 	RelationIndex
 	// EventPager lets `cade export` walk the whole history (#85).
 	EventPager
+	// PersonIndex finds everything about one person (#86).
+	PersonIndex
 	Close() error
 }
 

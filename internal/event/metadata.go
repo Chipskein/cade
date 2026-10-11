@@ -181,6 +181,13 @@ func (e Event) File() File {
 // RemovedAtKey is the metadata entry the store sets when a file vanished.
 const RemovedAtKey = keyRemovedAt
 
+// ConversationIDKey and SentByMeKey are a message's conversation and
+// whether the user sent it, for the store's queries on them (#86).
+const (
+	ConversationIDKey = keyConversationID
+	SentByMeKey       = keySentByMe
+)
+
 // Times are stored as Unix nanoseconds, which also order as revisions;
 // the zero time is stored as "".
 func nanosText(moment time.Time) string {
