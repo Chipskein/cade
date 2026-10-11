@@ -435,14 +435,14 @@ As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO
 A versão sai quando:
 
 - [ ] a CI está verde no commit da tag;
-- [ ] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
-- [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam;
-- [ ] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
-- [ ] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
-- [ ] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
-- [ ] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
-- [ ] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
-- [ ] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
-- [ ] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
-- [ ] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
-- [ ] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.
+- [x] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
+- [x] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam (com as 32 perguntas da v0.1.0: recall 0,96 e MRR 0,83 contra 0,94 e 0,83; o conjunto novo, mais difícil, dá MRR 0,80; [BENCHMARKS](BENCHMARKS.pt-BR.md#v020-contra-a-v010));
+- [x] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
+- [x] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
+- [x] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
+- [x] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
+- [x] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
+- [x] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
+- [x] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
+- [x] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
+- [x] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.
