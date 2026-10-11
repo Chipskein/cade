@@ -37,8 +37,8 @@ func TestFindListsOnlyTheCopiesOldestFirst(t *testing.T) {
 	}
 }
 
-func TestFindInAMissingDirectoryFails(t *testing.T) {
-	if _, err := Find(fstest.MapFS{}, "/absent/cade.db"); err == nil {
-		t.Fatal("expected an error")
+func TestFindInAMissingDirectoryHasNoCopies(t *testing.T) {
+	if copies, err := Find(fstest.MapFS{}, "/absent/cade.db"); err != nil || len(copies) != 0 {
+		t.Fatalf("expected no copies and no error, got %v (err %v)", copies, err)
 	}
 }

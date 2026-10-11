@@ -5,6 +5,7 @@
 package dbcopy
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -43,10 +44,14 @@ type Copy struct {
 
 // Find lists the copies of database in its directory, oldest first, read
 // through fsys (the filesystem at "/", see rootfs). The database itself
-// and its WAL and shared-memory files are never copies.
+// and its WAL and shared-memory files are never copies; a directory that
+// does not exist has none.
 func Find(fsys fs.FS, database string) ([]Copy, error) {
 	directory := filepath.Dir(database)
 	entries, err := fs.ReadDir(fsys, rootfs.Name(directory))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list the copies next to %q: %w", database, err)
 	}

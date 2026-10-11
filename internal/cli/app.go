@@ -64,6 +64,9 @@ type Toolkit struct {
 	// LoadImageDescriber loads the generation model with its vision
 	// projector; only `ingest` with images on calls it.
 	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
+	// RemoveFile deletes a file; `forget --backups` deletes the database
+	// copies with it (#87).
+	RemoveFile func(path string) error
 	// TeamsPictures reads the pictures the messages of a Teams IndexedDB
 	// show from the browser's cache, by address, for the first stage of
 	// `ingest` to describe (#24).
