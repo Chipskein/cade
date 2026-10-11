@@ -32,6 +32,8 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 Backups of your home directory include `cade.db`.
 
+On Windows (#54) the same files live in `%LOCALAPPDATA%\cade` (database, models, and the ingest state under `state`) and `%APPDATA%\cade` (config and schemas), and the temporary copies in `%TEMP%`. Windows has no file modes, so the mode column does not apply there: these folders are private to your user through their default permissions. Besides the browsers' profiles under `AppData`, `cade init` looks for the cache of the new Teams desktop app (`AppData/Local/Packages/MSTeams_8wekyb3d8bbwe/…`); it is only read if you choose it.
+
 ## What each source stores
 
 | Source | Stored | Not stored |
