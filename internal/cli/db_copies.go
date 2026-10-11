@@ -35,11 +35,18 @@ func (env commandEnv) warnAboutCopies() error {
 	if err != nil || len(copies) == 0 {
 		return err
 	}
-	fmt.Fprintf(env.stderr, env.language.pick("%s ainda guardam o que foi apagado:\n", "%s still hold what was deleted:\n"),
-		env.language.count(len(copies), databaseCopyNoun))
+	fmt.Fprintf(env.stderr, "%s %s\n", env.language.count(len(copies), databaseCopyNoun), stillHoldVerb(len(copies), env.language))
 	writeCopies(env.stderr, copies)
 	fmt.Fprintln(env.stderr, env.language.pick("Apague com `cade forget --backups`.", "Delete them with `cade forget --backups`."))
 	return nil
+}
+
+// stillHoldVerb agrees with the count, as the nouns do (RF5.11).
+func stillHoldVerb(count int, language Language) string {
+	if count == 1 {
+		return language.pick("ainda guarda o que foi apagado:", "still holds what was deleted:")
+	}
+	return language.pick("ainda guardam o que foi apagado:", "still hold what was deleted:")
 }
 
 func writeCopies(out io.Writer, copies []dbcopy.Copy) {

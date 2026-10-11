@@ -73,6 +73,13 @@ func TestForgetBackupsWithoutCopies(t *testing.T) {
 	}
 }
 
+func TestStillHoldVerbAgreesWithTheCount(t *testing.T) {
+	if stillHoldVerb(1, English) != "still holds what was deleted:" || stillHoldVerb(2, Portuguese) != "ainda guardam o que foi apagado:" ||
+		stillHoldVerb(1, Portuguese) != "ainda guarda o que foi apagado:" {
+		t.Fatal("expected the verb to agree with the count")
+	}
+}
+
 func TestMegabytesOfRoundsUp(t *testing.T) {
 	if megabytesOf(1) != 1 || megabytesOf(1<<20) != 1 || megabytesOf(1<<20+1) != 2 || megabytesOf(0) != 0 {
 		t.Fatal("expected sizes rounded up to whole megabytes")
