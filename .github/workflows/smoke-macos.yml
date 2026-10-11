@@ -46,17 +46,17 @@ jobs:
 
       - name: Ingest and ask, on Metal and on the CPU
         run: |
-          home="$RUNNER_TEMP/cade-home"
-          mkdir -p "$home/cade"
+          # --config, not XDG_CONFIG_HOME: on macOS the default config is
+          # under ~/Library/Application Support (os.UserConfigDir).
           for layers in -1 0; do
-            dir="$RUNNER_TEMP/db-$layers"; mkdir -p "$dir"
-            printf '{"database_path": "%s/cade.db", "embedding": {"gpu_layers": %s}, "generation": {"gpu_layers": %s}}\n' "$dir" "$layers" "$layers" > "$home/cade/config.json"
-            XDG_CONFIG_HOME="$home" ./bin/cade ingest file docs
+            dir="$RUNNER_TEMP/run$layers"; mkdir -p "$dir"
+            printf '{"database_path": "%s/cade.db", "embedding": {"gpu_layers": %s}, "generation": {"gpu_layers": %s}}\n' "$dir" "$layers" "$layers" > "$dir/config.json"
+            ./bin/cade --config "$dir/config.json" ingest file docs
             start=$(date +%s)
-            XDG_CONFIG_HOME="$home" ./bin/cade ask "how do I build cade on FreeBSD?" | tee "$RUNNER_TEMP/answer-$layers.txt"
-            echo "gpu_layers $layers: $(( $(date +%s) - start )) s" >> "$RUNNER_TEMP/timings.txt"
+            ./bin/cade --config "$dir/config.json" ask "how do I build cade on FreeBSD?"
+            echo "gpu_layers $layers: ask in $(( $(date +%s) - start )) s" | tee -a "$RUNNER_TEMP/timings.txt"
           done
-          XDG_CONFIG_HOME="$home" ./bin/cade doctor || true
+          ./bin/cade --config "$RUNNER_TEMP/run0/config.json" doctor || true
 
       - name: Summary
         if: always()
