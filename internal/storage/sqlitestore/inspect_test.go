@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/storage"
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestInspectMissingDatabaseCreatesNothing(t *testing.T) {
@@ -83,5 +85,18 @@ func TestInspectEmptyFileIsVersionZero(t *testing.T) {
 	state, err := Inspect(context.Background(), path)
 	if err != nil || !state.Exists || state.SchemaVersion != 0 {
 		t.Fatalf("expected an existing database at v0, got %+v %v", state, err)
+	}
+}
+
+// doctor reads the empty share read-only, to suggest `cade compact`.
+func TestInspectMeasuresTheVectorBlocks(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	store, err := Open(context.Background(), path)
+	testcheck.NoError(t, err)
+	saveVectorEvents(t, store, 2)
+	store.Close()
+	state, err := Inspect(context.Background(), path)
+	if err != nil || state.VectorSlots != (storage.VectorSlots{Slots: vec0BlockSize, Vectors: 2}) {
+		t.Fatalf("expected one block holding 2 vectors, got %+v: %v", state.VectorSlots, err)
 	}
 }

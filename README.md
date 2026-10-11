@@ -46,8 +46,25 @@ cade ingest all
 cade ingest start all   # long runs: detached, with CPU/GPU limits
 cade ingest status      # also: pause, resume, stop
 cade timeline yesterday
+cade timeline --around UID   # 2h before and after an event (UID from `ask --json`)
 cade tasks today
 cade ask "what did I work on yesterday?"
+cade compact            # after a large forget: returns the deleted vectors' space
+cade export > cade.jsonl     # everything cade keeps, one event per line
+```
+
+Any other app that keeps its data in the browser's IndexedDB (Chrome, Firefox, Floorp), without code of its own: the local model writes a schema once, and ingestion reads with it.
+
+```sh
+cade schema-discover --name whatsapp ~/.floorp/<profile>/storage/default/https+++web.whatsapp.com/idb
+cade ingest whatsapp
+cade schema-check --update  # when the app changes how it stores data
+```
+
+WhatsApp Web keeps message text encrypted, so it is indexed by metadata only. The database of WhatsApp for Android, once you decrypt its backup, fills in the text and adds the older messages:
+
+```sh
+cade ingest whatsapp-backup ~/whatsapp/msgstore.db
 ```
 
 Finding an image by its text:
@@ -82,7 +99,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, background and scheduled ingestion. |
+| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, other apps through IndexedDB schemas, background and scheduled ingestion. |
 | [Use cases](docs/USECASES.md) | Practical query patterns and workflows. |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organized and how components interact. |
 | [Benchmarks](docs/BENCHMARKS.md) | Search latency, retrieval quality and image description cost. |

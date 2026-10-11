@@ -79,9 +79,14 @@ flowchart TD
 
     subgraph ingestao["Ingestão"]
         ingest["ingest<br/>Pipeline, SourceSpec"]
-        sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource"]
+        sources["ingest/gitsource<br/>ingest/browsersource<br/>ingest/filesource<br/>ingest/teamssource<br/>ingest/idbsource<br/>ingest/whatsappsource + msgstore (#77)"]
         chunking["chunking"]
-        indexeddb["indexeddb<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy"]
+        webstore["webstore<br/>registro e leitor de cada<br/>armazenamento do navegador (#73)"]
+        indexeddb["indexeddb (Chromium)<br/>+ leveldbraw, snappyblock,<br/>v8value, filecopy<br/>firefoxidb + smclone (Firefox)"]
+        requestcache["requestcache (#75)<br/>escopo de URLs, resposta → registro<br/>+ httpbody, jsonvalue<br/>chromiumcache + simplecache, protoscan<br/>firefoxcache"]
+        sitestorage["sitestorage (#74)<br/>escopo de origens, texto e arquivo → registro<br/>chromiumstorage + leveldbraw<br/>firefoxstorage"]
+        idbmap["idbmap<br/>schema de armazenamento,<br/>aplicação, deriva, histórico"]
+        idbdiscovery["idbdiscovery<br/>schema pelo modelo local"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
         imagefile["imagefile<br/>png, jpeg, webp → RGB"]
         ingestrun["ingestrun<br/>estado e trava do ingest (#41)"]
@@ -120,6 +125,10 @@ flowchart TD
     cli --> provenance
     cli --> ingestrun
     cli --> pacing
+    cli --> idbdiscovery
+    idbdiscovery --> idbmap
+    idbdiscovery --> webstore
+    idbdiscovery --> llm
 
     queryplan --> llm
     queryplan --> listing
@@ -133,6 +142,12 @@ flowchart TD
 
     sources --> ingest
     sources --> indexeddb
+    sources --> idbmap
+    sources --> webstore
+    idbmap --> webstore
+    indexeddb -. implementa .-> webstore
+    requestcache -. implementa .-> webstore
+    sitestorage -. implementa .-> webstore
     ingest --> chunking
     ingest --> llm
     ingest --> storage
@@ -152,7 +167,7 @@ flowchart TD
     sqlitestore -. implementa .-> storage
 ```
 
-Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (`cade teams-schema`), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`, `syntheticimage`, que desenha as imagens de teste, e `evalimages`, que abre o cache das descrições delas).
+Pacotes que não aparecem: `textnorm` (normalização de texto, usada por quase todos), `rootfs` (sistema de arquivos para o `init` e o `doctor`), `idbschema` (o resumo sem valores do `cade teams-schema`, que a descoberta e a deriva também usam), `htmltext` (HTML de mensagem para texto, do Teams e do `html_text` dos schemas), `buildinfo` (`cade version`) e os de teste (`testfakes`, `testcheck`, `benchmarks`, `retrievalsuite`, `syntheticimage`, que desenha as imagens de teste, e `evalimages`, que abre o cache das descrições delas).
 
 ---
 
@@ -170,13 +185,14 @@ flowchart LR
         loadEmbedder["LoadEmbedder → llamacpp embedder"]
         loadGenerator["LoadGenerator → llamacpp generator<br/>(estado do prompt salvo)"]
         loadDescriber["LoadImageDescriber → llamacpp gerador + mmproj<br/>(só o ingest com imagens)"]
-        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams"]
+        sourcesFn["Sources → sourceSpecs(cfg, captions)<br/>git, browser, file, teams<br/>+ uma fonte por schema salvo"]
         loadConfig["LoadConfig / WriteConfig"]
-        readIDB["ReadIndexedDB → indexeddb.ReadDirectory"]
+        readIDB["StoreReaders → storeReaders(cfg.Sources)<br/>webstore.Readers: caches de requisições<br/>(escopo de request_cache_urls),<br/>localStorage e OPFS (escopo de storage_origins),<br/>indexeddb.ChromiumReader, firefoxidb.Reader"]
+        schemaFiles["SchemaFiles → idbmap.OSSchemaFiles"]
     end
 
     toolkit --- toolkitfns
-    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runVersion"]
+    run -->|"subcommands()"| cmds["runIngest · runAsk · runTimeline · runTasks<br/>runForget · runReindex · runInit · runDoctor<br/>runTeamsSchema · runSchemaDiscover · runSchemaCheck · runVersion"]
 ```
 
 ---
@@ -263,17 +279,31 @@ sequenceDiagram
     end
 ```
 
-O coletor do Teams tem um caminho próprio até o evento:
+Os coletores de IndexedDB têm um caminho próprio até o evento. O Chromium e o Firefox guardam o IndexedDB em formatos diferentes, mas os dois leitores entregam a mesma árvore `v8value.Value`, então o resto não sabe de que navegador o dado veio:
 
 ```mermaid
 flowchart LR
-    dir["pasta *.indexeddb.leveldb"] --> copy["filecopy<br/>cópia em /tmp (arquivos travados)"]
+    dir["pasta *.indexeddb.leveldb<br/>(Chromium)"] --> copy["filecopy<br/>cópia em /tmp (arquivos travados)"]
+    fdir["pasta idb/*.sqlite<br/>(Firefox, Floorp)"] --> copy
     copy --> ldb["leveldbraw + snappyblock<br/>registros brutos"]
     ldb --> idb["indexeddb.ReadDirectory<br/>stores e registros"]
     idb --> v8["v8value<br/>valores serializados do V8"]
+    copy --> fidb["firefoxidb<br/>SQLite + snappyblock"]
+    fidb --> sm["smclone<br/>structured clone do SpiderMonkey"]
     v8 --> teams["teamssource.Collector<br/>mensagens, conversas, perfis"]
+    v8 --> records["webstore.Record<br/>kind, origem, namespace,<br/>contêiner, valor"]
+    sm --> teams
+    sm --> records
+    records -->|"Readers.ReadKind(records.kind)"| idbsrc["idbsource.Collector<br/>idbmap.Mapper + schema salvo"]
     teams -->|"emit(event.Event)"| pipeline["ingest.Pipeline"]
+    idbsrc -->|"emit(event.Event)"| pipeline
 ```
+
+O `idbsource` não sabe de onde os registros vêm: cada armazenamento do navegador tem um `webstore.Reader` (tipo, `Recognizes` pela estrutura do diretório e `Read`), e o `cmd/cade` junta os leitores em `storeReaders()`. O coletor lê com o leitor do `records.kind` do schema; a descoberta acha o leitor pela estrutura do diretório e grava o tipo no schema. Os registros de qualquer armazenamento têm a mesma forma (`webstore.Record`: tipo, origem, namespace e contêiner, valor no modelo do `v8value`), então um armazenamento novo entra só com um leitor, sem mexer no coletor, na descoberta nem no `idbmap`. Hoje os leitores são os do IndexedDB do Chromium e do Firefox e os dos caches de requisições (#75): cache HTTP e Cache API do Chromium (`chromiumcache`, sobre o `simplecache`) e do Firefox (`firefoxcache`). Esses leitores recebem no construtor o `requestcache.Scope` de `sources.request_cache_urls`, leem a chave de cada entrada e só leem o corpo de uma URL do escopo; o contêiner do registro é o nome do padrão que a URL casou, e o corpo passa pelo `httpbody` (Content-Encoding) e pelo `jsonvalue` (JSON → árvore do `v8value`). Os leitores do localStorage e do OPFS (#74) do Chromium (`chromiumstorage`, sobre o `leveldbraw`) e do Firefox (`firefoxstorage`) recebem o `sitestorage.Scope` de `sources.storage_origins`: no Chromium, em que um LevelDB guarda todas as origens, os itens de outra origem são pulados pela chave; no Firefox e no OPFS do Chromium, um diretório por origem, a origem fora do escopo é um erro. O `sitestorage` também transforma o texto de um item (JSON em árvore, senão texto) e um arquivo do OPFS (`OPFSFile`) em registro. Os leitores de cache e dos armazenamentos do site vêm antes dos do IndexedDB em `storeReaders()`, porque as pastas da Cache API, do `ls` e do `fs` do Firefox também têm um `.sqlite` e o localStorage do Chromium é um LevelDB.
+
+O `whatsappsource` (#77) não passa por schema: ele lê o `msgstore.db` do WhatsApp para Android, já decifrado pelo usuário, com o `msgstore` (SQL sobre `message`, `chat`, `jid`, `jid_map` e `message_media`, e os `message_type` que viram mensagem). Ele completa eventos que outra fonte gravou, então implementa `ingest.PairingCollector`: o `Pipeline` chama `CollectPaired` com o store, e o coletor lê o banco inteiro e os eventos `whatsapp` do mesmo período **antes** do primeiro `emit`, que abre o lote (#51). O par é pelo `key_id`, que o Android e o WhatsApp Web compartilham, mais o sentido e a conversa (JID ou LID); com par, o evento gravado ganha o texto e `text_origin=backup` e mantém UID, nomes e marcas do schema; sem par, o UID é o que o schema daria (`webMessageID`). O `ingest.replaces` nunca troca um texto vindo do backup por uma leitura sem texto, porque o schema do WhatsApp não tem revisão.
+
+O schema de um aplicativo sai do `cade schema-discover`: o `idbdiscovery` monta um catálogo dos stores (caminhos, tipos e amostras mascaradas), pergunta ao modelo duas vezes sob gramáticas geradas a partir desses caminhos e aplica o schema proposto aos próprios registros antes de salvá-lo. O `cade schema-check` mede a deriva contra a impressão digital do schema e, com `--update`, regenera, compara (`idbmap.CompareSchemas`) e troca guardando a revisão anterior; com `--rekey`, renomeia os UIDs já indexados (`storage.EventStore.RekeyEvents`, com cópia do banco).
 
 ### Em segundo plano (`ingest start`, `status`, `pause`, `resume`, `stop`, `--gentle`)
 
@@ -367,18 +397,21 @@ sequenceDiagram
 
 ## Busca de evidências (`rag.Answerer.Retrieve`)
 
-O caminho depende de a pergunta ter critérios exatos (pessoas, direção), um identificador (`PROJ-481`, hash) ou nenhum dos dois.
+O caminho depende de a pergunta ter critérios exatos (pessoas, direção, pasta, ou os campos do grafo: entidades, modalidade, ampliação), um identificador (`PROJ-481`, hash) ou nenhum dos dois.
 
 ```mermaid
 flowchart TD
     start["Retrieve(query)"] --> embed["embedQuery(searchText)<br/>llm.Embedder"]
-    embed --> criteria{"Criteria<br/>(pessoas, direção)?"}
+    embed --> criteria{"Critérios exatos<br/>(pessoas, direção, pasta,<br/>entidades, modalidade)?"}
 
-    criteria -->|sim| resolve["resolveFilter<br/>storage.ResolveCriteria<br/>(event_people)"]
-    resolve --> many{"mais que<br/>max_filtered_events?"}
+    criteria -->|sim| resolve["resolveFilter<br/>ResolveCriteria (event_people)<br/>ResolveAppearing (chunks_fts)"]
+    resolve --> related{"relacionadas?"}
+    related -->|sim| widen["widenByRelations<br/>pessoa → Reachable(1)<br/>→ eventos das entidades"]
+    related -->|não| many
+    widen --> many{"mais que<br/>max_filtered_events?"}
     many -->|não| rankAmong["rankAmong<br/>EventsMatching + distância<br/>de cada pedaço"]
     many -->|sim| searchAmong["searchAmong<br/>busca vetorial restrita"]
-    rankAmong --> topk1["top_k"]
+    rankAmong --> topk1["top_k<br/>(com grafo: uma por imagem,<br/>foldSharedImages)"]
     searchAmong --> topk1
 
     criteria -->|não| ident{"identificador<br/>na pergunta?"}
@@ -402,6 +435,14 @@ flowchart TD
     lexId --> out
     topk1 --> out
 ```
+
+Os campos do grafo (#24) viram um `storage.GraphFilter` dentro do `EventFilter`, que o store aplica em SQL (`sqlitestore/graph_filter.go`) e o `GraphFilter.Keeps` reproduz em memória para o fake e os testes:
+
+- **Modalidade:** eventos ligados a uma `Image` com o papel `shows`, ou mensagens com anexo de extensão de imagem.
+- **Entidades que aparecem:** todas as palavras do nome (de 3 letras ou mais) num pedaço do evento (`chunks_fts`), ou num pedaço de outro evento que mostra a mesma `Image`.
+- **Ampliação:** `rag/related.go` acha a entidade `Person` de cada pessoa citada pelos eventos dela, chega pelas relações às entidades que não são pessoas (`RelationIndex.Reachable`, 1 salto) e troca o filtro de pessoa pelos eventos dessas (`EntityIDs`).
+
+Uma pergunta sem esses campos não passa por nada disso.
 
 Depois disso, `generate` monta o prompt (`rag/prompt.go`): eventos que dão ordens ao assistente são marcados como não confiáveis e vão sem o texto (`rag/injection.go`), e mensagens sem conteúdo ("ok", "valeu") já ficaram de fora (`rag/chatter.go`).
 
@@ -463,16 +504,37 @@ Um arquivo SQLite (`~/.local/share/cade/cade.db`), com as extensões sqlite-vec 
 ```mermaid
 flowchart LR
     events["events<br/>uid, fonte, data, título,<br/>texto, metadado, content_hash,<br/>direction; índice do image_sha256"]
-    chunks["chunks<br/>posições no texto"]
-    vec["chunk_embeddings<br/>(sqlite-vec)"]
+    chunks["chunks<br/>por texto: fonte, content_hash,<br/>posições no texto"]
+    vec["chunk_embeddings<br/>(sqlite-vec, int8)<br/>fonte, first_at, last_at"]
     fts["chunks_fts<br/>(FTS5)"]
+    ids["event_identifiers_fts<br/>(FTS5) hash do commit,<br/>caminho do arquivo"]
     people["event_people<br/>nomes por evento"]
+    entities["entities<br/>tipo, chave, nome<br/>(pessoa, arquivo)"]
+    links["event_entities<br/>evento, entidade, papel"]
+    relations["relationships<br/>origem, relação, destino,<br/>evento de onde saiu"]
+    reps["representations<br/>modalidade, tipo, modelo,<br/>revisão, conteúdo"]
+    repvec["representation_vectors<br/>(sqlite-vec, int8)<br/>tipo"]
     files["file_modifications<br/>versões anteriores<br/>(data, tamanho)"]
     settings["store_settings<br/>embedding_model,<br/>embedding_dimensions"]
 
-    events --> chunks
+    events -->|"fonte + content_hash"| chunks
     chunks --> vec
     chunks --> fts
+    events --> ids
     events --> people
     events --> files
+    events --> links --> entities
+    entities --> relations
+    events --> relations
+    entities --> reps --> repvec
 ```
+
+- **Pedaços por texto (#67):** eventos com o mesmo texto e a mesma fonte dividem um conjunto de `chunks`, vetores e entradas no `chunks_fts`; o evento chega a ele pelo `content_hash`. O conjunto é gravado com o primeiro evento do texto e apagado com o último (`releaseText` em `chunks.go`).
+- **Filtros na busca vetorial (CA9.1):** a fonte é uma coluna do vec0. A data não pode ser, porque os eventos de um texto podem estar anos distantes: o vec0 guarda a primeira e a última data deles (`first_at`, `last_at`), o KNN fica com os textos cujo intervalo cruza o período, e os eventos decidem. Se menos de k textos têm evento no período, o k aumenta até o limite do sqlite-vec (`search.go`). Cada texto achado vira um resultado por evento dele que passa nos filtros.
+- **Identificadores por evento:** o hash de um commit e o caminho de um arquivo ficam no `event_identifiers_fts`, por evento; a busca por palavras junta os dois índices pelo BM25.
+- **Entidades (#20):** o que vários eventos citam, uma linha por tipo e chave: uma pessoa pela `listing.NameKey` (as mesmas entradas do `event_people`, sem o título da conversa), um arquivo pelo caminho. `entity.RefsOf(ev)` deriva as entidades do evento; o `SaveEvent`, o `UpdateEvent` e a migração 15 usam a mesma função, então um banco migrado fica igual a um novo, e os coletores não sabem das entidades. O `forget` e uma edição apagam a entidade que fica sem evento (`entities.go`); `storage.EntityIndex` lê os dois sentidos. Uma entidade não tem datas: elas vêm dos eventos.
+- **Relações (#21):** `entity.RelationsOf(ev)` deriva as relações que o evento afirma entre as entidades dele; hoje, o autor de um commit `changed` cada arquivo do commit (o caminho do arquivo é o do repositório mais o do commit, o mesmo `File` da fonte de arquivos). Uma relação é única por origem, relação, destino e evento; a `confidence` fica NULL quando a fonte a afirma. Apagar o evento ou uma das entidades apaga a relação (`ON DELETE CASCADE`). `storage.RelationIndex` lista as relações de saída e de entrada e percorre vários saltos nos dois sentidos com uma CTE recursiva, até `MaxRelationHops` (3).
+- **Representações (#22):** o que um modelo derivou de uma entidade, uma por modalidade e tipo (`internal/representation`), com o modelo e a revisão que a escreveram. Hoje a descrição e o texto visível de uma imagem são representações da entidade `Image` (chave = SHA-256): o store as grava a partir de `event.Image()` ao gravar e editar o evento e guarda o evento sem elas (`event.WithoutImageText`); o texto do evento continua com a descrição, então a busca não muda. `DescribedImage` (reuso pelo hash) e `OutdatedImages` (`reindex --captions`) leem as representações, então o `imagecaption` não sabe da tabela. O vetor de uma representação fica em `representation_vectors` (vec0, criada pelo primeiro vetor, com a dimensão dele); triggers o apagam junto com a representação ou quando o conteúdo muda, porque o vec0 não tem chave estrangeira. `storage.RepresentationIndex` grava, lista e busca por vetor.
+- **Imagens fora de arquivos (#24):** uma mensagem do Teams guarda os endereços das imagens (`image_urls`); com imagens ligadas, o `ingest teams` lê os bytes do cache HTTP do perfil (`chromiumcache.ResponseBodies`), o `imagecaption.Planner.PlanImageBytes` os descreve pelo endereço, e a primeira imagem vira a `event.Image` da mensagem, que mostra a `Image` como um arquivo. Uma foto do WhatsApp só tem o nome do anexo: o store a liga (`shows`) à `Image` do arquivo de imagem guardado cujo caminho termina nesse nome, seja qual for gravado primeiro (`attachment_links.go`, migração 19).
+- **Nome lido do e-mail (#24):** com `ingest.names_from_email`, o pipeline grava em cada commit o `author_alias` (`listing.NameFromEmail`); o índice de pessoas e as entidades o tratam como autor, e o `ingest git` acerta os commits guardados quando a opção muda.
+- **Vizinhos no tempo (#21):** sem tabela. `timeline --around` e o `ask` leem os eventos da janela com `EventsBetween` (`timeline/around.go`, `rag/neighbors.go`).

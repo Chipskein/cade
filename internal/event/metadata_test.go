@@ -7,7 +7,8 @@ import (
 )
 
 func TestTypedMetadataRoundTrips(t *testing.T) {
-	commit := Commit{Repository: "/src/api", Hash: "79589eae", Author: "Eu", Email: "eu@example.com", Files: []string{"a.go", "b.go"}}
+	commit := Commit{Repository: "/src/api", Hash: "79589eae", Author: "F. Rocha", Email: "fernanda.rocha@example.com", Files: []string{"a.go", "b.go"},
+		AuthorAlias: "fernanda rocha"}
 	visit := Visit{Browser: "chrome", URL: "https://go.dev", Title: "Go", History: "/h/History"}
 	file := File{Path: "/notas/a.md", Size: 1234}
 	message := Message{ConversationID: "19:x", Conversation: "Ana, Eu", Kind: KindChat, MessageID: "1", Sender: "Ana",
@@ -23,6 +24,18 @@ func TestTypedMetadataRoundTrips(t *testing.T) {
 	}
 	if got := (Event{Metadata: message.Metadata()}).Message(); got != message {
 		t.Errorf("message: expected %+v, got %+v", message, got)
+	}
+}
+
+func TestWithAuthorAliasSetsAndRemovesOnlyTheAlias(t *testing.T) {
+	commit := Event{Metadata: Commit{Author: "F. Rocha", Email: "fernanda.rocha@example.com"}.Metadata()}
+	commit.Metadata["revision"] = "1"
+	aliased := commit.WithAuthorAlias("fernanda rocha")
+	if aliased.Commit().AuthorAlias != "fernanda rocha" || aliased.Metadata["revision"] != "1" || commit.Commit().AuthorAlias != "" {
+		t.Fatalf("expected the alias added to a copy, the rest kept, got %+v", aliased.Metadata)
+	}
+	if _, kept := aliased.WithAuthorAlias("").Metadata[keyAuthorAlias]; kept {
+		t.Fatal("expected no alias key left once removed")
 	}
 }
 
@@ -82,5 +95,17 @@ func TestSearchableTextOnlyForDescribedImages(t *testing.T) {
 	}
 	if got := (Image{Status: CaptionPending, Description: "x"}).SearchableText(); got != "" {
 		t.Fatalf("expected nothing for a pending image, got %q", got)
+	}
+}
+
+func TestWithoutImageTextKeepsStatusHashAndText(t *testing.T) {
+	image := Image{SHA256: "ab12", Width: 800, Status: CaptionDescribed, Model: "qwen", PromptVersion: 2, Description: "um terminal", VisibleText: "panic"}
+	ev := Event{Content: "erro.png\n" + image.SearchableText(), Metadata: image.Metadata()}
+	stored := ev.WithoutImageText().Image()
+	if stored.SHA256 != "ab12" || stored.Width != 800 || stored.Status != CaptionDescribed || stored.Model != "" || stored.Description != "" || stored.VisibleText != "" {
+		t.Fatalf("expected only status, hash and size kept, got %+v", stored)
+	}
+	if ev.Image().Description != "um terminal" {
+		t.Fatal("expected the original event left unchanged")
 	}
 }

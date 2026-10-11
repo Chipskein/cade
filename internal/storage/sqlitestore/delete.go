@@ -28,25 +28,26 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 		return false, fmt.Errorf("begin transaction: %w", err)
 	}
 	defer tx.Rollback()
+	var eventID int64
 	var source string
-	err = tx.QueryRowContext(ctx, `SELECT source FROM events WHERE uid = ?`, uid).Scan(&source)
+	err = tx.QueryRowContext(ctx, `SELECT id, source FROM events WHERE uid = ?`, uid).Scan(&eventID, &source)
 	if err == sql.ErrNoRows {
 		return false, tx.Commit()
 	}
 	if err != nil {
 		return false, err
 	}
-	if _, found, err := storedDimensions(ctx, tx); err != nil {
+	key, err := storedTextKeyOfUID(ctx, tx, uid)
+	if err != nil {
 		return false, err
-	} else if found {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM chunk_embeddings WHERE chunk_id IN (SELECT chunks.id FROM chunks JOIN events ON events.id=chunks.event_id WHERE events.uid=?)`, uid); err != nil {
-			return false, err
-		}
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM chunks_fts WHERE rowid IN (SELECT chunks.id FROM chunks JOIN events ON events.id=chunks.event_id WHERE events.uid=?)`, uid); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM event_identifiers_fts WHERE rowid IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
 		return false, err
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM event_people WHERE event_id IN (SELECT id FROM events WHERE uid=?)`, uid); err != nil {
+		return false, err
+	}
+	if err := unlinkEntities(ctx, tx, eventID); err != nil {
 		return false, err
 	}
 	if source == string(event.SourceFile) {
@@ -60,6 +61,9 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM events WHERE uid=?`, uid); err != nil {
 		return false, err
 	}
+	if err := releaseText(ctx, tx, key); err != nil {
+		return false, err
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT OR REPLACE INTO forgotten_events(uid, forgotten_at) VALUES (?, ?)`, uid, time.Now().UnixMilli()); err != nil {
 		return false, err
 	}
@@ -70,8 +74,12 @@ func (s *Store) DeleteEvent(ctx context.Context, uid string) (bool, error) {
 }
 
 func (s *Store) IsForgotten(ctx context.Context, uid string) (bool, error) {
+	return isForgotten(ctx, s.db, uid)
+}
+
+func isForgotten(ctx context.Context, querier queryer, uid string) (bool, error) {
 	var found bool
-	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forgotten_events WHERE uid=?)`, uid).Scan(&found)
+	err := querier.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM forgotten_events WHERE uid=?)`, uid).Scan(&found)
 	return found, err
 }
 
@@ -132,12 +140,23 @@ func (s *Store) deleteSourceRows(ctx context.Context, source event.Source) (int,
 	if err := unindexSource(ctx, tx, source); err != nil {
 		return 0, err
 	}
+	if err := unindexSourceIdentifiers(ctx, tx, source); err != nil {
+		return 0, err
+	}
+	if err := deleteSourceChunks(ctx, tx, source); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx, `DELETE FROM events WHERE source = ?`, string(source))
 	if err != nil {
 		return 0, fmt.Errorf("delete %s events: %w", source, err)
 	}
 	removed, err := result.RowsAffected()
 	if err != nil {
+		return 0, err
+	}
+	// The events' links went with them (ON DELETE CASCADE); the entities
+	// stay unless no other source refers to them.
+	if err := deleteEveryOrphanEntity(ctx, tx); err != nil {
 		return 0, err
 	}
 	return int(removed), tx.Commit()

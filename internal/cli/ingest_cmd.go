@@ -46,7 +46,7 @@ type ingestPlan struct {
 
 func (env commandEnv) planIngest(args []string) (ingestPlan, error) {
 	if len(args) == 0 {
-		return ingestPlan{}, errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|all> [TARGET...]"))
+		return ingestPlan{}, errors.New(env.language.pick("informe a fonte: cade ingest <git|browser|file|teams|whatsapp-backup|all> [ALVO...]", "name the source: cade ingest <git|browser|file|teams|whatsapp-backup|all> [TARGET...]"))
 	}
 	cfg, err := env.loadConfig()
 	if err != nil {
@@ -149,7 +149,8 @@ func (env commandEnv) withIngestPipeline(ctx context.Context, prepare func(confi
 		for source, days := range cfg.Ingest.Retention.MaxAgeDays {
 			retention[event.Source(source)] = days
 		}
-		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger).WithRedaction(cfg.Ingest.Redact).WithRetention(retention))
+		return use(ingest.NewPipeline(store, embedder, cfg.Embedding.DocumentPrefix, env.logger).WithRedaction(cfg.Ingest.Redact).
+			WithEmailAliases(cfg.Ingest.NamesFromEmail).WithRetention(retention))
 	})
 }
 

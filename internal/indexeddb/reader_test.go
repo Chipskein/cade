@@ -8,6 +8,7 @@ import (
 
 	"github.com/chipskein/cade/internal/leveldbraw"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // Real Chrome IndexedDB with synthetic data; regenerate with
@@ -35,11 +36,30 @@ func recordWithID(records []Record, id string) *v8value.Value {
 func TestReadDirectoryNamesDatabasesAndStores(t *testing.T) {
 	counts := map[string]int{}
 	for _, record := range fixtureRecords(t) {
-		counts[record.Database+"/"+record.Store]++
+		counts[record.Namespace+"/"+record.Container]++
 	}
 	prefix := "Teams:replychain-manager:fixture/"
 	if counts[prefix+"replychains"] != 4 || counts[prefix+"people"] != 1 || counts[prefix+"bulk"] != 320 {
 		t.Fatalf("unexpected record counts %v", counts)
+	}
+}
+
+func TestReadDirectoryRecordsKindOriginAndContainer(t *testing.T) {
+	record := fixtureRecords(t)[0]
+	if record.Kind != webstore.KindIndexedDB || record.Origin != "chrome-indexeddb.leveldb" || record.Namespace != "Teams:replychain-manager:fixture" || record.Container == "" {
+		t.Fatalf("record %+v; want an indexeddb record of origin chrome-indexeddb.leveldb in a named store", record)
+	}
+}
+
+func TestChromiumReaderRecognizesLevelDBDirectoriesOnly(t *testing.T) {
+	reader := ChromiumReader{}
+	if !reader.Recognizes(fixtureDir) || reader.Kind() != webstore.KindIndexedDB {
+		t.Fatalf("Recognizes(%q) = false or kind %q; want an indexeddb LevelDB directory", fixtureDir, reader.Kind())
+	}
+	for _, other := range []string{"../../testdata/firefox-indexeddb", filepath.Join(t.TempDir(), "absent")} {
+		if reader.Recognizes(other) {
+			t.Fatalf("Recognizes(%q) = true; want false without a LevelDB CURRENT file", other)
+		}
 	}
 }
 
@@ -63,7 +83,7 @@ func TestReadDirectoryHonoursLaterSession(t *testing.T) {
 	records := fixtureRecords(t)
 	late := recordWithID(records, "19:late@thread.v2")
 	for _, record := range records {
-		if record.Store == "people" && record.Value.Get("displayName").String() != "Bruno" {
+		if record.Container == "people" && record.Value.Get("displayName").String() != "Bruno" {
 			t.Fatalf("deleted person must be gone, found %q", record.Value.Get("displayName").String())
 		}
 	}
@@ -81,7 +101,7 @@ func TestReadDirectoryMissing(t *testing.T) {
 func TestDecodeRecordsReportsUndecodableValues(t *testing.T) {
 	entries := []leveldbraw.Entry{{Key: []byte{0x00, 1, 1, 1, 0x01}, Value: []byte{0x02, 0x00}}}
 	records := decodeRecords(entries)
-	if len(records) != 1 || records[0].DecodeErr == nil || records[0].Database != "#1" {
+	if len(records) != 1 || records[0].DecodeErr == nil || records[0].Namespace != "#1" {
 		t.Fatalf("expected one failed record under #1, got %+v", records)
 	}
 }

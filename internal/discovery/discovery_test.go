@@ -18,13 +18,18 @@ func fakeProfiles() testfakes.FakeFileSystem {
 		AddDir(home+"/.config/google-chrome/Default/IndexedDB/https_www.example.com_0.indexeddb.leveldb").
 		AddDir(home+"/.config/google-chrome/Crashpad").
 		AddFile(home+"/.mozilla/firefox/abc.default-release/places.sqlite", "").
-		AddFile(home+"/.mozilla/firefox/profiles.ini", "")
+		AddFile(home+"/.mozilla/firefox/profiles.ini", "").
+		AddFile(home+"/.floorp/xyz.default-default/places.sqlite", "").
+		AddDir(home + "/.floorp/xyz.default-default/storage/default/https+++teams.microsoft.com/idb").
+		AddDir(home + "/.floorp/xyz.default-default/storage/default/https+++teams.cloud.microsoft/cache").
+		AddDir(home + "/.floorp/xyz.default-default/storage/default/https+++web.whatsapp.com/idb")
 }
 
 func TestBrowserHistoriesFindsEveryProfile(t *testing.T) {
 	want := []string{
 		home + "/.config/google-chrome/Default/History",
 		home + "/.config/google-chrome/Profile 1/History",
+		home + "/.floorp/xyz.default-default/places.sqlite",
 		home + "/.mozilla/firefox/abc.default-release/places.sqlite",
 	}
 	if got := BrowserHistories(fakeProfiles(), home); !slices.Equal(got, want) {
@@ -43,6 +48,7 @@ func TestTeamsCachesKeepsOnlyTeamsOrigins(t *testing.T) {
 	want := []string{
 		indexedDB + "https_teams.cloud.microsoft_0.indexeddb.leveldb",
 		indexedDB + "https_teams.microsoft.com_0.indexeddb.leveldb",
+		home + "/.floorp/xyz.default-default/storage/default/https+++teams.microsoft.com/idb",
 	}
 	if got := TeamsCaches(fakeProfiles(), home); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)

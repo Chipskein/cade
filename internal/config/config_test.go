@@ -178,6 +178,15 @@ func TestDefaultsLeaveImagesOffWithUsableLimits(t *testing.T) {
 	}
 }
 
+func TestNamesFromEmailAreOffUntilTurnedOn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ingest": {"names_from_email": true}}`), 0o600))
+	cfg, err := Load(path)
+	if Defaults().Ingest.NamesFromEmail || err != nil || !cfg.Ingest.NamesFromEmail || !cfg.Ingest.Redact {
+		t.Fatalf("expected off by default and on when set, other ingest fields kept, got %+v (err %v)", cfg.Ingest, err)
+	}
+}
+
 func TestLoadRejectsImagesWithoutAPerRunLimit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"images": true}, "ingest": {"max_images_per_run": 0}}`), 0o600))
@@ -199,5 +208,59 @@ func TestLoadExpandsProjectorPath(t *testing.T) {
 	cfg, err := Load(filepath.Join(t.TempDir(), "absent.json"))
 	if err != nil || strings.HasPrefix(cfg.Vision.ProjectorPath, "~") || !strings.HasSuffix(cfg.Vision.ProjectorPath, "mmproj-Qwen3.5-2B-F16.gguf") {
 		t.Fatalf("expected an expanded projector path, got %q (err %v)", cfg.Vision.ProjectorPath, err)
+	}
+}
+
+func TestLoadExpandsIndexedDBSchemaPaths(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"indexeddb_dirs": {"whatsapp": ["~/.floorp/p/storage/default/https+++web.whatsapp.com/idb"]}}}`), 0o600))
+	cfg, err := Load(path)
+	home, _ := os.UserHomeDir()
+	if err != nil || cfg.Sources.IndexedDBSchemaDir != filepath.Join(home, ".config/cade/idb-schemas") {
+		t.Fatalf("expected the default schema directory expanded, got %q (err %v)", cfg.Sources.IndexedDBSchemaDir, err)
+	}
+	if got := cfg.Sources.IndexedDBDirs["whatsapp"]; len(got) != 1 || !strings.HasPrefix(got[0], home+"/.floorp/") {
+		t.Fatalf("expected the whatsapp directory expanded, got %v", got)
+	}
+}
+
+func TestDefaultsIndexedDBDirsStayEmptyAfterLoad(t *testing.T) {
+	if _, err := Load(filepath.Join(t.TempDir(), "absent.json")); err != nil {
+		t.Fatal(err)
+	}
+	if len(Defaults().Sources.IndexedDBDirs) != 0 {
+		t.Fatal("loading must not change the defaults")
+	}
+}
+
+func TestLoadRejectsARequestCachePatternWithAWildcardOrigin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"request_cache_urls": {"chat": ["https://*.discord.com/api/*"]}}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sources.request_cache_urls") || !strings.Contains(err.Error(), "https://*.discord.com/api/*") {
+		t.Fatalf("expected the pattern rejected by setting and value, got %v", err)
+	}
+}
+
+func TestLoadAcceptsRequestCacheURLs(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"request_cache_urls": {"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}}}`), 0o600))
+	if cfg, err := Load(path); err != nil || len(cfg.Sources.RequestCacheURLs["discord-messages"]) != 1 {
+		t.Fatalf("expected the discord pattern loaded, got %+v %v", cfg.Sources.RequestCacheURLs, err)
+	}
+}
+
+func TestLoadRejectsAStorageOriginWithAPath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com/c/1"]}}`), 0o600))
+	if _, err := Load(path); err == nil || !strings.Contains(err.Error(), "sources.storage_origins") || !strings.Contains(err.Error(), "https://chatgpt.com/c/1") {
+		t.Fatalf("expected the origin rejected by setting and value, got %v", err)
+	}
+}
+
+func TestLoadAcceptsStorageOrigins(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com"]}}`), 0o600))
+	if cfg, err := Load(path); err != nil || len(cfg.Sources.StorageOrigins) != 1 {
+		t.Fatalf("expected the chatgpt origin loaded, got %+v %v", cfg.Sources.StorageOrigins, err)
 	}
 }

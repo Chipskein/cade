@@ -77,6 +77,21 @@ func TestReindexPendingUntilFinished(t *testing.T) {
 	}
 }
 
+// The dropped vector table left free pages; finishing must return them
+// to the disk, which the reindex never did before #65.
+func TestFinishReindexLeavesNoFreePages(t *testing.T) {
+	store := openTestStore(t)
+	ctx := context.Background()
+	saveVectorEvents(t, store, vec0BlockSize)
+	testcheck.NoError(t, store.StartReindex(ctx, "novo.gguf"))
+	testcheck.NoError(t, store.FinishReindex(ctx))
+	var free int
+	testcheck.NoError(t, store.db.QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&free))
+	if free != 0 {
+		t.Fatalf("expected no free pages after the reindex, got %d", free)
+	}
+}
+
 func TestSaveEmbeddingsRejectsUnknownEvent(t *testing.T) {
 	store := openTestStore(t)
 	err := store.SaveEmbeddings(context.Background(), []storage.EventEmbedding{{Event: event.Event{UID: "zz"}, Chunks: whole(event.Event{UID: "zz", Content: "x"}, []float32{1})}})

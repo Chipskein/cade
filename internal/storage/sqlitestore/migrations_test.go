@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/event"
-	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
@@ -215,26 +214,17 @@ func TestSplitIntoChunksKeepsShortVectors(t *testing.T) {
 	}
 }
 
+// The database starts at version 4, so every step from 5 on, the
+// redaction among them, runs on the schema it was written for.
 func TestRedactionMigrationBacksUpAndRemovesCredentialData(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cade.db")
-	seed, err := Open(context.Background(), path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	legacy := newLegacyDatabase(t, 4)
 	secret := "ghp_abcdefghijklmnopqrstuvwxyz123456"
-	if _, err := seed.SaveEvent(context.Background(), event.Event{UID: "secret", Source: event.SourceGit, Content: "token " + secret, Metadata: event.Metadata{"message": secret}}, []storage.Chunk{{Ordinal: 0, Start: 0, End: len("token " + secret), Vector: []float32{0, 1}}}); err != nil {
-		t.Fatal(err)
-	}
+	legacy.add(event.Event{UID: "secret", Source: event.SourceGit, Content: "token " + secret, Metadata: event.Metadata{"message": secret}}, []float32{0, 1})
 	ignoredFile := event.Event{UID: "env", Source: event.SourceFile, Content: ".env\nPRIVATE=example", Metadata: event.File{Path: "/notes/.env", Size: 15}.Metadata()}
-	if _, err := seed.SaveEvent(context.Background(), ignoredFile, []storage.Chunk{{Ordinal: 0, Start: 0, End: len(ignoredFile.Content), Vector: []float32{1, 0}}}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := seed.db.Exec(`PRAGMA user_version = 7`); err != nil {
-		t.Fatal(err)
-	}
-	seed.Close()
+	legacy.add(ignoredFile, []float32{1, 0})
+	legacy.close()
 	var backup string
-	store, err := OpenWithHooks(context.Background(), path, Hooks{BackupCreated: func(path string) { backup = path }})
+	store, err := OpenWithHooks(context.Background(), legacy.Path, Hooks{BackupCreated: func(path string) { backup = path }})
 	if err != nil {
 		t.Fatal(err)
 	}

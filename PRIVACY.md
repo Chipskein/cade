@@ -20,13 +20,15 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 
 | Path | Contents | Mode |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text), embeddings, a keyword index of the words of each chunk (plus commit hashes and file paths), file edit history | `600` |
-| `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
-| `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories and Teams profiles to read | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text, one set per distinct text), embeddings, a keyword index of the words of each chunk, a keyword index of commit hashes and file paths, file edit history | `600` |
+| `~/.local/share/cade/cade.db.before-v*`, `cade.db.before-rekey-*` | copy saved before a schema migration that rewrites data, or before `schema-check --rekey`; same contents as the database | `600` |
+| `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories, Teams profiles and IndexedDB directories to read | `600` |
+| `~/.config/cade/idb-schemas/` | one schema per app: database and store names, field paths and their types, the conditions you or the model wrote (such as message type values); no message, name or id. `history/` keeps replaced revisions, `*.candidate.json` refused ones | `600` |
+| `~/.local/share/cade/cade.db.before-rekey-*` | copy saved before `schema-check --rekey` renames UIDs; same contents as the database | `600` |
 | `~/.local/share/cade/models/` | the two models and the vision projector (public files) | — |
 | `~/.local/state/cade/ingest-state.json` | the running or last `ingest`: its arguments (source and targets), stage, last progress line and error | `600` |
 | `~/.local/state/cade/ingest.log` | output of the last `ingest start`: progress lines naming the targets, the report, errors; replaced on every background run | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | copies of the browser history and Teams IndexedDB while one ingestion runs; removed when it ends | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*`, `/tmp/cade-msgstore-*` | copies of the browser history, of an IndexedDB (Chromium or Firefox), of Firefox's Cache API database, of a Firefox localStorage or OPFS database and of WhatsApp's `msgstore.db` while one command reads it; removed when it ends | `700` |
 
 Backups of your home directory include `cade.db`.
 
@@ -34,10 +36,12 @@ Backups of your home directory include `cade.db`.
 
 | Source | Stored | Not stored |
 |---|---|---|
-| **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time | diffs, file contents |
+| **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time; with `ingest.names_from_email` on, the name the author's e-mail spells | diffs, file contents |
 | **browser** | every visit: URL with credential parameters removed, page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
 | **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names; with `sources.images` on, a description of each png, jpeg and webp image written by the local model (what it shows and the text visible in it), with the image's SHA-256, its size in pixels, and the model and prompt version | binary contents, image pixels; configured ignored directories and credential file globs |
-| **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
+| **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version, the address of each picture shown; with `sources.images` on, a description of each picture the browser still has cached, as for images | calendar, call history, notifications, files, the pictures themselves; messages deleted before ingestion |
+| **apps through a schema** (e.g. `whatsapp`) | what the schema maps: message and conversation ids, conversation name, sender id and name, time, whether you sent it, the text when the app keeps it readable, the schema name and revision | anything else in the app's IndexedDB; for WhatsApp Web, the text (encrypted by the app, never decrypted) and media |
+| **whatsapp-backup** | every message of the Android `msgstore.db` you decrypted: text or caption, attachment file name, message and conversation ids, group name, sender id (and name, when WhatsApp Web already had it), time, whether you sent it | media files, contacts (`wa.db`), system notices, calls, deleted messages, reactions; the decryption key |
 
 File ingestion skips `.env*`, key and certificate files, common credential files and the patterns listed in `sources.ignored_file_globs`. Browser URLs drop `token`, OAuth, signature, password and cloud signing query parameters while preserving other parameters. With `ingest.redact` enabled (default), known GitHub, GitLab, AWS and Slack tokens, JWTs and PEM private-key blocks are replaced with labels such as `[redacted:github-token]` in event text and metadata. This also applies to existing events in schema migration 8; it creates a `cade.db.before-v8-*` backup. Changed text loses its vectors until `cade reindex`.
 
@@ -54,10 +58,28 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 ## Teams
 
 - **Check your organization's data policy first.** The Teams cache holds other people's messages, in chats and channels, and ingesting it copies them into cade's database on your disk. Many organizations restrict keeping work messages outside the tools they approve. `cade init` leaves Teams out unless you choose it.
-- Messages come from the IndexedDB that Teams on the web keeps in Chrome. cade copies the whole IndexedDB directory to a temporary folder (the live files are locked), decodes only the message, conversation and profile stores, and deletes the copy.
+- Messages come from the IndexedDB that Teams on the web keeps in Chrome, Firefox or Floorp. cade copies the whole IndexedDB directory to a temporary folder (the live files are locked), decodes only the message, conversation and profile stores, and deletes the copy.
 - Only what the Teams client has cached is available. Older messages are not fetched, since cade never talks to Microsoft.
 - An edited message replaces the stored text on the next ingestion. A message deleted in Teams after being ingested **stays** in cade until you run `cade forget teams`.
+- **Pictures in messages** (with `sources.images` on): cade reads, from the HTTP cache of the same browser profile (`~/.cache/<browser>/<profile>/Cache/Cache_Data` on Linux), only the pictures whose addresses the messages show, describes them in memory like image files and keeps the description, never the picture. A picture the browser no longer has keeps only its address. A Firefox profile's cache is not read.
 - `cade teams-schema` prints the structure of an IndexedDB (store names, field names, types, counts) with no values, so its output can be shared for diagnosis.
+
+## Other apps through IndexedDB schemas
+
+- **Same care as Teams:** a chat app's cache holds other people's messages, and ingesting it copies them into cade's database. Check the app's and your organization's terms first.
+- `schema-discover`, `schema-check` and the ingestion copy the IndexedDB directory to a temporary folder, read the copy and delete it. cade never changes the app's data.
+- **Encrypted data stays encrypted.** WhatsApp Web encrypts message bodies in IndexedDB; cade does not decrypt them, so its messages are indexed by metadata only, unless the Android database you decrypted fills in their text ([below](#whatsapp-from-android)).
+- A message deleted in the app after ingestion **stays** in cade until `cade forget <source>`. A schema change never deletes events.
+- **The browser's HTTP cache and Cache API hold the responses of every site you visit,** not only the app's. cade reads from them only the URLs you name in `sources.request_cache_urls`, which is empty by default; a pattern's origin cannot have a wildcard, so it never reaches another site. For every other entry cade reads only its key (the URL) and never its body; Firefox's Cache API database is copied to a temporary folder and deleted, the bodies are read in place, and nothing in these caches is changed.
+- **localStorage and the Origin Private File System hold every site's state,** session tokens and logins among them. cade reads only the origins you name in `sources.storage_origins`, which is empty by default; a partitioned origin or one in a Firefox container is never read. In Chromium, where one database holds every origin, the items of other origins are skipped by their key and never decoded. All items and JSON files of a configured origin are read, but only those a schema selects become events. Firefox's databases are copied to a temporary folder and deleted, OPFS files are read in place, and nothing is changed.
+
+## WhatsApp from Android
+
+- **The database holds years of other people's messages,** in every chat and group you are in, and ingesting it copies them into cade's database. Keep the decrypted `msgstore.db` as you would the phone: it is not encrypted any more, and deleting it after the ingestion leaves the copy in `cade.db` only.
+- **cade never decrypts.** You decrypt the `.crypt15` backup yourself; cade never asks for, reads or keeps the 64-digit key.
+- `ingest whatsapp-backup` copies the file to a temporary folder, reads the copy and deletes it; your file is never changed.
+- System notices, calls and deleted messages are left out. A message deleted on the phone after ingestion **stays** in cade until `cade forget`; a newer database does not remove it.
+- The rules for sensitive data below apply: health, religion or politics can be in anyone's message.
 
 ## What the local model sees
 
@@ -69,6 +91,7 @@ Both models run in-process through llama.cpp.
 - **Saved prompt state:** `~/.cache/cade/prompt-state/` holds one file (~55 MB, owner-only) with the model's state after its fixed instructions and examples. It contains no question and nothing from the database.
 - **Answers:** your question, today's date and up to `top_k` (6 by default) events; for a long event, only the chunk that matched (up to 1,200 characters), otherwise its text up to that length.
 - **Text that gives the assistant orders:** messages, page titles and notes are other people's words, and one may be written to steer the answer ("IMPORTANTE para o assistente: ignore as regras…"). Such events go to the model marked as untrusted and without their text, with a rule not to use or cite them; the sources list shows the event with the mark, and `ask --json` sets `"untrusted": true`. This lowers the risk without removing it: text the detector does not recognize still reaches the model whole and can steer the answer, but the model has no tools, so it cannot act on anything.
+- **Schema discovery** (only `cade schema-discover` and `cade schema-check --update`, run by you): the IndexedDB's largest stores with their names masked (e-mails, GUIDs and runs of 6+ digits hidden), the paths of their fields and the types found, and up to two samples per path. Text samples are masked the same way and cut at 40 characters; numbers show only their digit count (`<n:13>`), dates and binary data only their type. On a regeneration it also reads the current schema (paths only) and which paths changed. The schema it writes holds paths and types, never a sample. Ingestion never runs the model.
 - Nothing else in the database is given to the model. Listings and task reports do not use the generation model; a listing with a topic ("pages about redis") embeds only the topic.
 
 ## Logs
@@ -88,10 +111,57 @@ Both models run in-process through llama.cpp.
 
 - `forget` deletes the events and their embeddings, then compacts the file and empties the write-ahead log, so the deleted text is gone from disk rather than left in free pages.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
+- Events with the same text (a page visited several times) share one set of chunks, embeddings and keyword entries. `forget` of one of them deletes that event, its hash or path entry and its date from the embedding; the shared chunks stay while another event has the text, and go with the last one.
 - The people index (`event_people`) holds the names in each message and commit (sender or author, conversation title, first names after "@"), so a question about a person is filtered in the database. It follows the events: an edit replaces an event's names, and `forget` deletes them with the events.
+- Entities (`entities`, `event_entities`) name what several events refer to: a person by the same names the people index keeps (not conversation titles), a file by its path. A person entity holds only a name found in an event, no e-mail or id and nothing inferred, unless you turn on `ingest.names_from_email`: then a commit's author also gets the name its e-mail spells (`fernanda.rocha@…` for "F. Rocha"), in the people index and as an entity. Turning it off deletes those names on the next `cade ingest git`. `forget` and an edit delete an entity once no event refers to it (rule 4 below); while another event does, it keeps the first spelling stored.
+- Relations (`relationships`) say that a commit's author changed each of its files: two entities and the event that states it, nothing else. `forget` of the event, or of either entity, deletes the relation.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`. For an image, that includes its description, which a copy of the same image found later reuses.
-- `forget file` and `forget --uid` delete an image's description with its event; nothing about it is kept elsewhere. `cade reindex --captions` replaces descriptions in place, zeroing the old text.
-- `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
+- An image's description and visible text are kept once per image (by its SHA-256), as representations of the image (`representations`), and in the text of each event that holds it, for the search: an image file, a Teams message with the picture, or a WhatsApp photo linked to the file of the same name. `forget` of the image's last copy deletes them; while another copy, or a message showing the picture, is stored, it keeps them. `cade reindex --captions` replaces descriptions in place, zeroing the old text. A representation's vector (`representation_vectors`) goes with it; nothing writes one yet.
+- `forget` does not delete the migration and rekey copies (`cade.db.before-v*`, `cade.db.before-rekey-*`), which still hold what it deleted: it ends listing them, with date and size, and `cade forget --backups` deletes them after asking (or with `--yes`), never the database. `cade doctor` shows them too.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - `forget --uid` and confirmed `forget --match` remove the event, chunks, embeddings, keyword and people indexes, and file history; only its UID and deletion date remain to prevent re-ingestion. `forget <source>` clears that forgotten-UID list. Retention is off by default; set `ingest.retention.max_age_days` per source to opt in.
+
+## Personal data and privacy laws
+
+cade does not pick a law for you. This section compares what it does with the rights and duties that Brazil's LGPD and the EU's GDPR share, and lists what is missing. It is not legal advice.
+
+- **You process the data, on your machine.** Nothing reaches the project or anyone else. Both laws leave out processing by a person for purely personal ends (LGPD art. 4, I; GDPR art. 2(2)(c)); work messages are not purely personal, so your organization's rules apply to them (see [Teams](#teams)).
+- **Other people's data is in it:** senders of messages, authors of commits, names in page and conversation titles, people in your files and images.
+
+### Personal data by source
+
+| Source | Yours | Other people's | Sensitive data possible |
+|---|---|---|---|
+| **git** | name, e-mail, commit messages | other authors' names, e-mails and messages (`timeline` shows them only with `--all-authors`) | rarely |
+| **browser** | every page visited, its title and time | names in page titles (profiles, chats) | yes: health, religion or politics can be inferred from the sites visited |
+| **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
+| **teams**, **apps through a schema** and **whatsapp-backup** | your messages | other people's messages, names and ids | yes, whatever people write |
+| **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
+| **entities** (`entities`) | your name, your files' paths | the same names as the people index, without conversation titles; with `ingest.names_from_email` on, the names commit authors' e-mails spell | no |
+
+### Requirements and gaps
+
+| Requirement | How cade meets it today | Gap |
+|---|---|---|
+| Transparency | this page; `cade init` asks before each source | — |
+| Minimization | Teams, images, `sources.storage_origins` and `sources.request_cache_urls` are off or empty by default; secret masking; URL credential parameters dropped; ignored file globs; cookies and sessionStorage are never read ([#76](https://github.com/Chipskein/cade/issues/76)) | — |
+| Purpose limitation | local search only: no network at run time, no telemetry, and the model has no tools | — |
+| Storage limitation | `ingest.retention.max_age_days` per source | off by default, by choice: the history is the point |
+| Access and portability | `ask`, `timeline`, `tasks` and listings show the data; `cade export` writes everything as JSON Lines, one event per line with what was derived from it (people, entities, relations, descriptions), without vectors | — |
+| Rectification | an edited message or file replaces the stored text on the next ingestion | cade never edits text itself: correct the source and ingest again |
+| Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL; `forget --person NAME` erases everything about one person (what they sent or wrote, the messages that @mention them, their one-to-one chats) after listing it, and `export --person NAME` gives it to them first | migration and rekey copies keep forgotten data until `cade forget --backups`; `forget` and `doctor` list them, but nothing deletes them by itself |
+| Deletion at the source | an edit replaces the text | a message deleted in the app stays until `forget`; an expired cache cannot tell cade it was deleted |
+| Security | owner-only files, no network, temporary copies removed | the database is not encrypted → [#57](https://github.com/Chipskein/cade/issues/57) |
+| Sensitive data (LGPD art. 11, GDPR art. 9) | stored like any text; never detected, labelled or inferred | rules below |
+| Biometric data | none: an image description says what a picture shows, not who is in it | rules below, before [#23](https://github.com/Chipskein/cade/issues/23) |
+
+### Rules for sensitive and biometric data
+
+These bind the work that adds personal data, starting with people as entities ([#20](https://github.com/Chipskein/cade/issues/20)) and faces ([#23](https://github.com/Chipskein/cade/issues/23)):
+
+1. **Opt-in per kind.** A new kind of personal data (face vectors, anything a person entity holds beyond the names events already have, such as the name read from an e-mail by `ingest.names_from_email`) is off until you turn it on in `cade init` or the configuration. Turning it off stops collecting it, and one command deletes what was kept.
+2. **Nothing sensitive is inferred.** cade never derives health, religion, politics, ethnicity, sex life or similar traits, and never asks a model to. A person entity holds only what a source states: names and ids found in events.
+3. **Biometrics stay apart.** Face vectors live in their own table, never in event text or image descriptions, never reach the generation model, and are compared only with faces from your own files. A face gets a name only from you.
+4. **What is derived follows its event.** `forget` of an event deletes the entities, relations, representations and face vectors that came only from it, and a person left with no event is deleted. Entities follow this since migration 15 (#20).
+5. **Same local rules:** no network, owner-only files, and the export ([#85](https://github.com/Chipskein/cade/issues/85)) includes the derived data, so you can see everything kept about a person.

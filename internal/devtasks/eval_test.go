@@ -73,7 +73,7 @@ func TestEvalRerankInjectionBenchAndTestModelsUseTheirModels(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	want := []string{"CADE_TEST_RERANKER_MODEL", "TestInjectionWithModel", "-bench . -benchtime 5x", "CADE_TEST_VISION_PROJECTOR"}
+	want := []string{"CADE_TEST_RERANKER_MODEL", "TestInjectionWithModel", "-tags sqlite_fts5,sqlite_dbstat -run ^$ -bench . -benchtime 5x", "CADE_TEST_VISION_PROJECTOR"}
 	for i, fragment := range want {
 		if !strings.Contains(world.runner.Lines()[i], fragment) {
 			t.Errorf("command %d = %q, want %q in it", i, world.runner.Lines()[i], fragment)

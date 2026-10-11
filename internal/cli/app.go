@@ -14,8 +14,8 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm"
@@ -23,6 +23,7 @@ import (
 	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // ClosableEmbedder is an embedder holding a model that must be released.
@@ -63,10 +64,24 @@ type Toolkit struct {
 	// LoadImageDescriber loads the generation model with its vision
 	// projector; only `ingest` with images on calls it.
 	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
-	// Sources builds the collectors; the file source reads captions, which
-	// the first stage of `ingest` fills.
-	Sources       func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
-	ReadIndexedDB func(dir string) ([]indexeddb.Record, error)
+	// RemoveFile deletes a file; `forget --backups` deletes the database
+	// copies with it (#87).
+	RemoveFile func(path string) error
+	// TeamsPictures reads the pictures the messages of a Teams IndexedDB
+	// show from the browser's cache, by address, for the first stage of
+	// `ingest` to describe (#24).
+	TeamsPictures func(ctx context.Context, indexedDBDir string) (map[string][]byte, error)
+	// Sources builds the collectors; the file and Teams sources read
+	// captions, which the first stage of `ingest` fills.
+	Sources func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
+	// StoreReaders build the readers of the browser storages schemas map:
+	// discovery finds which one a location holds, checks read the kind a
+	// schema names. The request cache readers only read the URLs of
+	// sources.request_cache_urls; the localStorage and OPFS readers, the
+	// origins of sources.storage_origins.
+	StoreReaders func(sources config.SourcesConfig) (webstore.Readers, error)
+	// SchemaFiles stores the schemas `schema-discover` writes.
+	SchemaFiles idbmap.SchemaFiles
 	// StderrIsTerminal selects in-place progress lines over periodic ones.
 	StderrIsTerminal bool
 	// StdoutIsTerminal allows image previews, which are terminal art that
@@ -175,15 +190,23 @@ func withUISettings(env commandEnv) commandEnv {
 
 func subcommands() map[string]subcommand {
 	return map[string]subcommand{
-		"init":         runInit,
-		"doctor":       runDoctor,
-		"ingest":       runIngest,
-		"timeline":     runTimeline,
-		"ask":          runAsk,
-		"teams-schema": runTeamsSchema,
+		"init":            runInit,
+		"doctor":          runDoctor,
+		"ingest":          runIngest,
+		"timeline":        runTimeline,
+		"ask":             runAsk,
+		"teams-schema":    runTeamsSchema,
+		"schema-discover": runSchemaDiscover,
+		"schema-check":    runSchemaCheck,
+		// The names from when schemas read only IndexedDB (#19), kept so
+		// scripts and timers keep working.
+		"idb-discover": runSchemaDiscover,
+		"idb-check":    runSchemaCheck,
 		"forget":       runForget,
+		"export":       runExport,
 		"tasks":        runTasks,
 		"reindex":      runReindex,
+		"compact":      runCompact,
 		"version":      runVersion,
 	}
 }

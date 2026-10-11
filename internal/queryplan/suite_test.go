@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/testcheck"
 	"github.com/chipskein/cade/internal/timeline"
@@ -49,6 +50,7 @@ func TestLoadSuiteRejectsInvalidValues(t *testing.T) {
 		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": ""}]}`:                                     "empty question",
 		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": "o que fiz em 12/08?"}]}`:                  "date_order",
 		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": "x", "date_order": "ymd"}]}`:               "ymd",
+		`{"now": "2026-09-26T10:00:00Z", "cases": [{"question": "x", "expect": {"modality": "video"}}]}`:   "video",
 	}
 	for raw, offending := range cases {
 		if _, err := LoadSuite(strings.NewReader(raw)); err == nil || !strings.Contains(err.Error(), offending) {
@@ -73,6 +75,19 @@ func TestScoreCaseReportsEachWrongField(t *testing.T) {
 	expected := []Mismatch{{FieldMode, "listar", "responder"}, {FieldDirection, "", "enviadas"}}
 	if len(result.Mismatches) != 2 || result.Mismatches[0] != expected[0] || result.Mismatches[1] != expected[1] {
 		t.Fatalf("expected %+v, got %+v", expected, result.Mismatches)
+	}
+}
+
+func TestScoreCaseComparesTheGraphFields(t *testing.T) {
+	suiteCase := SuiteCase{Question: "imagens do projeto Orion que a Ana mandou",
+		Expect: ExpectedPlan{Entities: []string{"projeto Orion"}, Modality: "imagem", Related: true}}
+	right := Plan{Entities: []string{"Orion"}, Modality: entity.TypeImage, Related: true}
+	if result := ScoreCase(suiteCase, right, suiteNow); len(result.Mismatches) != 0 {
+		t.Fatalf("expected \"Orion\" to match \"projeto Orion\", got %+v", result.Mismatches)
+	}
+	result := ScoreCase(suiteCase, Plan{Entities: []string{"Ana"}}, suiteNow)
+	if len(result.Mismatches) != 3 {
+		t.Fatalf("expected entities, modality and related wrong, got %+v", result.Mismatches)
 	}
 }
 

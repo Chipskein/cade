@@ -11,6 +11,7 @@
 |---|---|
 | `database_path` | Caminho do banco SQLite. |
 | `ingest.redact` | Mascara segredos reconhecidos no texto (padrão `true`). Globs de arquivos e remoção de parâmetros de URL sempre valem. |
+| `ingest.names_from_email` | Guarda em cada commit o nome que o e-mail do autor escreve (`fernanda.rocha@…` para `F. Rocha`), para o `ask` achar a pessoa no git e nas mensagens (padrão `false`). É um tipo novo de dado pessoal, então fica desligado até você ligar; o próximo `cade ingest git` preenche os commits guardados, e desligar apaga os nomes no próximo. Veja o [PRIVACY](../PRIVACY.pt-BR.md). |
 | `ingest.max_image_bytes` | Imagens maiores que isso não são descritas (padrão 20 MiB); ficam só com o nome, como os outros binários. |
 | `ingest.max_images_per_run` | Imagens novas descritas por `ingest` (padrão 50, ~20 min numa CPU de 6 núcleos); as outras ficam para as próximas execuções. |
 | `ingest.background.threads` | Threads de CPU dos dois modelos nas execuções `ingest start` e `ingest --gentle` (padrão `2`; `0` = núcleos físicos). |
@@ -45,6 +46,11 @@
 | `sources.git_identities` | Identidades tratadas como "você". |
 | `sources.browser_histories` | Arquivos de histórico usados no `ingest browser`. |
 | `sources.teams_indexeddb_dirs` | Diretórios IndexedDB do Teams usados no `ingest teams`. |
+| `sources.whatsapp_backups` | Arquivos `msgstore.db` do WhatsApp para Android, já decifrados, usados no `ingest whatsapp-backup` (veja [WhatsApp do Android](#whatsapp-do-android-experimental)). |
+| `sources.indexeddb_schema_dir` | Pasta dos schemas de IndexedDB, um `<nome>.json` cada, gerados pelo `cade schema-discover` e editáveis à mão (padrão `~/.config/cade/idb-schemas`). |
+| `sources.indexeddb_dirs` | Diretórios IndexedDB que cada schema lê, pelo nome do schema, ex.: `{"whatsapp": ["~/.floorp/<perfil>/storage/default/https+++web.whatsapp.com/idb"]}`; o `ingest <nome>` usa esses diretórios. |
+| `sources.request_cache_urls` | As únicas URLs lidas do cache HTTP e da Cache API dos navegadores, como padrões com nome, ex.: `{"discord-messages": ["https://discord.com/api/v*/channels/*/messages*"]}`; `*` casa qualquer sequência de caracteres, e a origem é literal. Vazio (o padrão) não lê nada desses caches. |
+| `sources.storage_origins` | As únicas origens lidas do localStorage e do Origin Private File System (OPFS), ex.: `["https://chatgpt.com"]`, no formato `scheme://host[:port]`. Vazio (o padrão) não lê nada desses armazenamentos. |
 | `sources.directories` | Pastas usadas no `ingest file`. |
 | `sources.ignored_dir_names` | Nomes de pastas ignoradas na ingestão de arquivos. |
 | `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
@@ -79,11 +85,15 @@ O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visit
 
 O `cade ask` executa uma **busca híbrida**: similaridade vetorial (embedding contra pedaços) e palavras-chave (BM25/FTS5) são executadas de forma independente e depois mescladas por **reciprocal rank fusion** — a pontuação de cada evento é `Σ 1/(60 + posição)` nas duas listas, para que o topo de nenhuma delas afogue a outra. O modo pode ser alterado com `retrieval.mode` (`hybrid`, `vector` ou `lexical`).
 
-A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~111 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.md](BENCHMARKS.md).
+A busca vetorial percorre todos os pedaços de forma linear (sem índice aproximado). Numa CPU de 6 núcleos, isso custa ~114 ms para 100 mil eventos (sem filtro; veja [`bench/baseline-cpu.txt`](../bench/baseline-cpu.txt)). Um filtro de data ou fonte reduz proporcionalmente. Medições detalhadas em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).
+
+## Espaço em disco
+
+Os vetores são a maior parte do banco. O sqlite-vec os guarda em blocos de 1.024 posições e nunca reaproveita uma posição apagada, então o `cade forget`, os eventos atualizados e as migrações deixam posições vazias que a busca continua lendo. O `cade doctor` avisa quando 20% delas estão vazias; o `cade compact` então reescreve os blocos só com os vetores vivos e diminui o arquivo. Não carrega modelo e mantém os mesmos resultados, mas precisa de espaço livre para uma cópia dos vetores (~3 KB por pedaço) enquanto roda. O `cade reindex` deixa os blocos cheios e compacta o arquivo sozinho. Medições em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md#compactação-dos-vetores-65).
 
 ## Custo da descrição de imagens
 
-Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.md](BENCHMARKS.md).
+Com `sources.images` ligado, cada imagem custa cerca de 1,8 s numa RTX 3060 e 21 s numa CPU de 6 núcleos: uma pasta com 1.000 capturas leva ~30 min com GPU e ~6 h em CPU, divididos entre execuções por `ingest.max_images_per_run`. Medições em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md).
 
 ## Fonte Teams *(experimental)*
 
@@ -92,7 +102,107 @@ Com `sources.images` ligado, cada imagem custa cerca de 1,7 s numa RTX 3060 e 22
 - Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
 - Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
 
-Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil Chromium do Teams (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`).
+Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil do Teams: um diretório `*.indexeddb.leveldb` no Chromium (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) ou o diretório `idb` da origem do Teams no Firefox e no Floorp (ex.: `~/.floorp/<perfil>/storage/default/https+++teams.microsoft.com/idb`).
+
+## Outros aplicativos por schemas de IndexedDB *(experimental)*
+
+Aplicativos que guardam os dados no IndexedDB do navegador podem ser ingeridos sem código próprio. O modelo local escreve um **schema** uma vez por aplicativo: um arquivo JSON que diz em que store estão as mensagens e de onde vem cada campo. A ingestão lê com o schema e nunca roda o modelo. São lidos perfis Chromium (`*.indexeddb.leveldb`) e perfis do Firefox e do Floorp (`storage/default/<origem>/idb`).
+
+Um schema diz qual armazenamento do navegador ele lê (`records.kind`). O cade lê o IndexedDB (`indexeddb`), o localStorage (`local_storage`), o Origin Private File System (`opfs`), o cache HTTP (`http_cache`) e a Cache API (`cache_api`). Os comandos descobrem qual armazenamento um diretório guarda pela estrutura dele.
+
+**Caches de requisições (cache HTTP e Cache API).** Alguns apps não guardam mensagens no IndexedDB, mas o navegador guarda em cache as respostas da API que as trazem: as últimas mensagens de cada canal aberto no Discord, por exemplo, até o navegador descartá-las. Um cache de requisições tem as respostas de todos os sites, então o cade só lê as URLs que você nomeia em `sources.request_cache_urls`; sem nenhuma, não lê nada desses caches. Cada nome é o que o `records.container` de um schema seleciona, quaisquer que sejam os ids na URL; o corpo precisa ser JSON (gzip, deflate, br e zstd são decodificados).
+
+| Armazenamento | Chromium e apps Electron | Firefox e Floorp |
+|---|---|---|
+| Cache HTTP | `Cache/Cache_Data` (ex.: `~/.config/discord/Cache/Cache_Data`) | `cache2` no diretório de cache do perfil (ex.: `~/.cache/floorp/<perfil>/cache2`) |
+| Cache API | `Service Worker/CacheStorage/<hash da origem>` | `storage/default/<origem>/cache` |
+
+Para o Discord, com o schema revisado de `testdata/idb-schemas/discord.json` copiado para `sources.indexeddb_schema_dir`:
+
+```json
+"request_cache_urls": {
+  "discord-messages": [
+    "https://discord.com/api/v*/channels/*/messages*",
+    "https://discordapp.com/api/v*/channels/*/messages*"
+  ]
+},
+"indexeddb_dirs": {"discord": ["~/.config/discord/Cache/Cache_Data"]}
+```
+
+Depois, `cade ingest discord`. Só se lê o que ainda está no cache: os canais que você abriu, até o navegador descartá-los; uma mensagem que está em duas respostas é um evento só.
+
+**Armazenamentos do site (localStorage e OPFS).** Os sites guardam estado no localStorage e no Origin Private File System. O localStorage de um perfil tem todos os sites, tokens de sessão entre eles, então o cade só lê as origens que você nomeia em `sources.storage_origins` (`scheme://host[:porta]`); sem nenhuma, não lê nada desses armazenamentos, e um diretório configurado de outra origem é um erro que a nomeia. Cada item do localStorage é um registro cujo `records.container` é a chave do item, com o valor em árvore quando é JSON e texto nos outros casos. Cada arquivo do OPFS é um registro cujo `namespace_prefix` é comparado com o diretório dele e cujo contêiner é o nome; só arquivos JSON de até 16 MiB são decodificados (um banco SQLite no OPFS, como o do Notion, não é lido).
+
+| Armazenamento | Chromium e apps Electron | Firefox e Floorp |
+|---|---|---|
+| localStorage | `Local Storage/leveldb` (todas as origens do perfil) | `storage/default/<origem>/ls` |
+| OPFS | `File System/<número>`, o número que o banco `File System/Origins` dá à origem; outros buckets (`WebStorage/<id>/FileSystem`) não são lidos | `storage/default/<origem>/fs` |
+
+Uma origem particionada (um site dentro de outro, `^partitionKey=` no Firefox) ou de um contêiner do Firefox nunca é lida. Para os rascunhos não enviados do ChatGPT, as únicas mensagens que um levantamento dos apps do dia a dia achou nesses armazenamentos (2026-10), com o schema revisado de `testdata/idb-schemas/chatgpt-drafts.json` copiado para `sources.indexeddb_schema_dir`:
+
+```json
+"storage_origins": ["https://chatgpt.com"],
+"indexeddb_dirs": {"chatgpt-drafts": ["~/.floorp/<perfil>/storage/default/https+++chatgpt.com/ls"]}
+```
+
+1. `cade schema-discover --name whatsapp <diretório>` lê o diretório, pergunta ao modelo (duas perguntas curtas, sob uma gramática que só aceita caminhos que existem) e salva `whatsapp.json` em `sources.indexeddb_schema_dir`. `--print` só mostra; `--force` substitui um já salvo; `--source` dá a fonte dos eventos quando ela é diferente do nome.
+2. Acrescente o diretório em `sources.indexeddb_dirs` (o comando mostra a linha) e rode `cade ingest whatsapp`. Cada schema salvo vira uma fonte com o mesmo nome; um com o nome de uma fonte embutida (`teams`, `git`…) é ignorado.
+3. Revise o schema: o rascunho de um modelo pequeno às vezes lê um campo do caminho errado. Na amostra do Teams ele acertou o store, os ids, o remetente e as horas, mas não pôs condição para mensagens de sistema; no WhatsApp Web leu a conversa do id de uma chave de criptografia. Edite o arquivo à mão; ele é conferido ao ser carregado.
+
+**Formato do schema** (`version` 2, `target` `message/1`):
+
+| Chave | Significado |
+|---|---|
+| `records` | `kind` é o armazenamento (`indexeddb`, `local_storage`, `opfs`, `http_cache`, `cache_api`); `namespace_prefix` e `container` escolhem os registros (no IndexedDB, o começo do nome do banco e o object store; no localStorage, nada e a chave do item; no OPFS, o diretório e o nome do arquivo; nos caches de requisições, o nome do cache, vazio no cache HTTP, e o nome em `sources.request_cache_urls`); `each`, quando presente, os itens de cada registro que são mensagens (`$.messageMap.<id>`), cujos caminhos podem então ler o registro com `^`. |
+| `require` | Condições que um item precisa cumprir: `in` / `not_in` (valores do texto em `path`), `kind_not` (`object`, `undefined`…; um valor ausente é `undefined`). |
+| `fields` | `message_id`, `conversation_id`, `sent_at` (obrigatórios); `sender`, `sender_id`, `conversation`, `text`, `sent_by_me`, `revision`. |
+| `paths` do campo | Lidos em ordem; o primeiro com valor vence. |
+| `split` do campo | `separator` e `index`: fica com uma parte de um valor composto (`false_<chat>_<id>`). Um flag também lê uma parte igual a `true`. |
+| `transform` do campo | Texto: `trim`, `html_text`. Hora: `unix_ms`, `unix_s`, `iso8601`; um `Date` do JavaScript não precisa de nenhum. |
+| `lookup` do campo | Lê `values` (o primeiro com valor) do registro em outro `namespace_prefix` e `container`, do mesmo armazenamento, cujo `match` é igual ao `key_path` do item, ou ao valor de outro campo (`key_field`, um nível). |
+| `default`, `required` do campo | O valor quando nada mais tem um; `required` descarta o item quando o campo fica vazio. |
+
+Schemas salvos como `version` 1 (de antes do `kind`) continuam funcionando sem edição: são lidos como `indexeddb`, com `database_prefix` e `store` no lugar de `namespace_prefix` e `container`, e uma substituição os grava como versão 2.
+
+Os caminhos usam a notação que o `cade teams-schema` mostra: `$` é o registro ou o item, `.chave`, `[]` itens de lista, `{}` valores de Map, `<>` membros de Set, e `.<id>` / `.<text>` para chaves que são dados (casam com toda chave assim). O UID de uma mensagem é a fonte, o id da conversa e o id da mensagem, então a mesma mensagem lida duas vezes continua um evento só.
+
+Com `each`, um caminho que começa com `^` lê o registro que contém o item, não o item (`^.title`), para o que só o registro tem: o ChatGPT guarda o id e o texto de cada mensagem dentro da conversa, e o id, o título e a hora só na conversa. O `^` é recusado sem `each`, no próprio `each` e no `match` e nos `values` de um lookup; o `schema-discover` oferece assim os valores únicos do registro. Para as conversas do ChatGPT no Chrome, com o schema revisado de `testdata/idb-schemas/chatgpt.json` copiado para `sources.indexeddb_schema_dir`:
+
+```json
+"indexeddb_dirs": {"chatgpt": ["~/.config/google-chrome/Default/IndexedDB/https_chatgpt.com_0.indexeddb.leveldb"]}
+```
+
+O ChatGPT não guarda hora nem autor por mensagem, então toda mensagem fica com a última atualização da conversa como hora e sem remetente.
+
+**Quando o aplicativo muda.** Aplicativos mudam o jeito de guardar os dados sem aviso. Um schema feito pelo `schema-discover` guarda uma impressão digital: os caminhos que ele lê com os tipos, sem valores.
+
+- `cade schema-check [NOME…]` compara cada schema com os diretórios dele agora e lista os caminhos que sumiram ou mudaram de tipo. Ele sai com erro enquanto houver mudança sem resolver, então pode rodar num timer; o `ingest` só lê e aponta para ele quando nada mais mapeia.
+- `cade schema-check --update` regenera o que mudou. O modelo também lê o schema atual e a mudança. O schema novo só substitui o atual se mapear pelo menos tantas mensagens e mantiver o UID de pelo menos 90% delas; o atual vai para `history/<nome>.<revisão>.json`. Senão, ele é salvo como `<nome>.candidate.json` para revisão, e a ingestão nunca o lê.
+- `--rekey` aceita também um schema que muda a identidade das mensagens (o aplicativo trocou o campo de id): as mensagens já indexadas ganham o UID novo, depois de uma cópia `cade.db.before-rekey-<data>`. Uma mensagem esquecida continua esquecida.
+- `cade schema-discover --rollback --name NOME` volta à revisão anterior.
+
+`idb-discover` e `idb-check`, os nomes de quando os schemas só liam IndexedDB, continuam rodando os mesmos comandos.
+
+Uma troca de schema nunca apaga eventos já indexados. Uma revisão nova que lê uma mensagem de outro jeito a substitui na próxima ingestão, se o aplicativo ainda a tiver; uma mensagem que já saiu do cache do aplicativo fica com o que a revisão antiga leu.
+
+**Limites.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB, então as mensagens dele são indexadas só por metadados (quem, qual conversa, quando, se foi você que enviou); o banco do Android completa o texto delas (próxima seção). Os filtros de mensagem por pessoa e direção do `ask` por enquanto só funcionam para o Teams.
+
+## WhatsApp do Android *(experimental)*
+
+O WhatsApp para Android guarda todas as mensagens no `msgstore.db` e faz o backup dele cifrado como `msgstore.db.crypt15`. O cade só lê o banco decifrado: decifre o backup você mesmo com a chave de 64 dígitos que o aplicativo mostra ao ativar o backup criptografado de ponta a ponta (por exemplo com o [wa-crypt-tools](https://github.com/ElDavoo/wa-crypt-tools): `wadecrypt <chave> msgstore.db.crypt15 msgstore.db`). O cade nunca decifra, nem pede ou guarda a chave.
+
+```json
+"whatsapp_backups": ["~/whatsapp/msgstore.db"]
+```
+
+O `cade ingest whatsapp-backup [ARQUIVO…]` lê uma cópia de cada arquivo; o arquivo em si nunca é aberto pelo SQLite. Os eventos têm a fonte `whatsapp`, a mesma do schema do WhatsApp Web:
+
+- **Mensagens que o WhatsApp Web já indexou** (só por metadados) são achadas pelo id da mensagem, que os dois clientes compartilham, na mesma conversa. Cada uma mantém o evento e ganha o texto: nenhum evento a mais. Um `ingest whatsapp` depois não apaga o texto, e importar o mesmo arquivo de novo não muda nada.
+- **As outras mensagens** viram eventos novos, com o id que o WhatsApp Web daria a elas, para que o Web, ao lê-las depois, as encontre já gravadas (o id reconstruído bateu com o do Web em 95% das mensagens de um banco real).
+- **O que entra:** texto, fotos, vídeos, áudios, documentos, figurinhas, contatos, localizações e enquetes, com a legenda quando houver e o nome do arquivo anexo. Avisos do sistema, chamadas e mensagens apagadas ficam de fora.
+- **Nomes:** o `msgstore.db` não tem os nomes dos contatos (eles ficam no `wa.db`). O nome dos grupos vem do banco; o das pessoas, dos eventos que o WhatsApp Web já indexou; quem não estiver lá fica `desconhecido`.
+
+Rode o `ingest whatsapp` antes do primeiro `ingest whatsapp-backup`, para que as mensagens que o Web tem sejam completadas em vez de ganharem id novo. Um histórico grande demora na primeira vez: o texto de cada mensagem passa pelo embedding.
 
 ## Ingestão em segundo plano
 

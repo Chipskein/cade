@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/llm"
@@ -51,13 +52,23 @@ type Plan struct {
 	Topic string
 	// TaskStatus only applies to ModeTasks.
 	TaskStatus TaskStatus
+	// Entities are who or what an image shows or is about ("fotos do
+	// João"); the guard keeps them only with a Modality, so a company in
+	// an ordinary question stays a topic, as before #24.
+	Entities []string
+	// Modality keeps one kind of content; entity.TypeImage is the only one.
+	Modality entity.Type
+	// Related widens the search to what the graph links to the people or
+	// entities named ("quem mais mexeu no arquivo que o Rui alterou?").
+	Related bool
 	// ReadByRules is set when PlanByRules read the question without the
 	// model.
 	ReadByRules bool
 }
 
-// maxPlanTokens fits the JSON with a few names; the grammar ends it sooner.
-const maxPlanTokens = 128
+// maxPlanTokens fits the JSON with a few names and entities; the grammar
+// ends it sooner.
+const maxPlanTokens = 176
 
 // Planner asks a grammar-constrained model for a Plan.
 type Planner struct {
@@ -97,12 +108,17 @@ type rawPlan struct {
 	Direcao *string  `json:"direcao"`
 	Assunto *string  `json:"assunto"`
 	Status  *string  `json:"status"`
+	// Entidades, Modalidade and Relacionadas came with #24.
+	Entidades    []string `json:"entidades"`
+	Modalidade   *string  `json:"modalidade"`
+	Relacionadas bool     `json:"relacionadas"`
 }
 
 var (
 	directions   = map[string]listing.Direction{"recebidas": listing.Received, "enviadas": listing.Sent}
 	modes        = map[string]Mode{"responder": ModeAnswer, "listar": ModeList, "tarefas": ModeTasks}
 	taskStatuses = map[string]TaskStatus{"concluidas": OnlyDone, "em_andamento": OnlyInProgress}
+	modalities   = map[string]entity.Type{"imagem": entity.TypeImage}
 )
 
 func parsePlan(reply string) (Plan, error) {
@@ -116,6 +132,7 @@ func parsePlan(reply string) (Plan, error) {
 		Criteria:   listing.Criteria{Direction: directions[deref(raw.Direcao)], People: cleanNames(raw.Pessoas)},
 		Mode:       modes[raw.Tipo],
 		TaskStatus: taskStatuses[deref(raw.Status)],
+		Entities:   cleanNames(raw.Entidades), Modality: modalities[deref(raw.Modalidade)], Related: raw.Relacionadas,
 	}
 	return withoutForeignDirection(plan), nil
 }

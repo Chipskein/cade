@@ -7,8 +7,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/idbschema"
+	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 // maxFieldsPerStore keeps the report readable; the most frequent paths are
@@ -22,24 +25,22 @@ func runTeamsSchema(_ context.Context, env commandEnv, args []string) error {
 		return fmt.Errorf("%s: cade teams-schema ~/.config/google-chrome/Default/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb",
 			env.language.pick("informe o diretório", "name the directory"))
 	}
+	// IndexedDB readers take no URL scope, so no config is loaded.
+	readers, err := env.toolkit.StoreReaders(config.SourcesConfig{})
+	if err != nil {
+		return err
+	}
 	for _, dir := range args {
-		records, err := env.toolkit.ReadIndexedDB(dir)
+		records, err := readers.ReadKind(webstore.KindIndexedDB, dir)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(env.stdout, "# %s\n", maskedDirName(dir))
+		fmt.Fprintf(env.stdout, "# %s\n", indexeddb.OriginName(dir))
 		for _, summary := range idbschema.Summarize(records) {
 			renderStoreSummary(env.stdout, summary, env.language)
 		}
 	}
 	return nil
-}
-
-// maskedDirName keeps only the directory's base name (the origin), not the
-// home path.
-func maskedDirName(dir string) string {
-	trimmed := strings.TrimRight(dir, "/")
-	return trimmed[strings.LastIndex(trimmed, "/")+1:]
 }
 
 var (

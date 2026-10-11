@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/chipskein/cade/internal/dbcopy"
 	"os"
 	"time"
 )
@@ -39,6 +40,15 @@ var schemaMigrations = []migration{
 	{version: 8, description: "redact known secrets and remove credential files", backup: true, compact: true, apply: redactStoredEvents},
 	{version: 9, description: "remember individually forgotten event UIDs", apply: createForgottenEvents},
 	{version: 10, description: "index image hashes, to reuse descriptions", apply: indexImageHashes},
+	{version: 11, description: "vectors in int8 scaled per vector", backup: true, compact: true, apply: convertVectorsToInt8},
+	{version: 12, description: "commit hashes and file paths indexed by event", apply: moveIdentifiersToEvents},
+	{version: 13, description: "first and last date per vector", backup: true, compact: true, apply: spreadVectorDates},
+	{version: 14, description: "one set of chunks and vectors per text", backup: true, compact: true, apply: shareChunksByText},
+	{version: 15, description: "entities and the events that refer to them", backup: true, apply: linkStoredEvents},
+	{version: 16, description: "relationships between entities, from the events that state them", apply: relateStoredEvents},
+	{version: 17, description: "representations a model derived from an entity", apply: createRepresentations},
+	{version: 18, description: "image descriptions move from event metadata to representations", backup: true, apply: moveImageTexts},
+	{version: 19, description: "messages linked to the images they attach", apply: linkStoredAttachments},
 }
 
 func createForgottenEvents(ctx context.Context, tx *sql.Tx) error {
@@ -128,7 +138,7 @@ func backupIfNeeded(ctx context.Context, db *sql.DB, path string, step migration
 // backupBefore writes a consistent copy (VACUUM INTO includes what is
 // still in the WAL) next to the database, owner-only like the original.
 func backupBefore(ctx context.Context, db *sql.DB, path string, step migration, hooks Hooks) error {
-	backupPath := fmt.Sprintf("%s.before-v%d-%s", path, step.version, time.Now().Format("20060102-150405"))
+	backupPath := dbcopy.BeforeMigration(path, step.version, time.Now())
 	if _, err := db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
 		return fmt.Errorf("back up %q to %q before migration %d: %w", path, backupPath, step.version, err)
 	}

@@ -1,6 +1,7 @@
 package event
 
 import (
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +20,9 @@ type Commit struct {
 	Email      string
 	Files      []string
 	Authorship Authorship
+	// AuthorAlias is a name read from the author's e-mail ("fernanda
+	// rocha" for "F. Rocha"), set only when the user turned that on (#24).
+	AuthorAlias string
 }
 
 // Authorship says whether a commit is the user's. Commits are kept either
@@ -102,6 +106,7 @@ const (
 	keyEmail          = "email"
 	keyFiles          = "files"
 	keyAuthorship     = "authorship"
+	keyAuthorAlias    = "author_alias"
 	keyBrowser        = "browser"
 	keyURL            = "url"
 	keyTitle          = "title"
@@ -120,17 +125,34 @@ const (
 	keyText           = "text"
 )
 
-// Metadata is the stored form of c.
+// Metadata is the stored form of c; the alias key is left out when there
+// is none, so turning aliases off leaves no trace in the metadata.
 func (c Commit) Metadata() Metadata {
-	return Metadata{keyRepository: c.Repository, keyHash: c.Hash, keyAuthor: c.Author, keyEmail: c.Email, keyFiles: strings.Join(c.Files, "\n"),
+	metadata := Metadata{keyRepository: c.Repository, keyHash: c.Hash, keyAuthor: c.Author, keyEmail: c.Email, keyFiles: strings.Join(c.Files, "\n"),
 		keyAuthorship: string(c.Authorship)}
+	if c.AuthorAlias != "" {
+		metadata[keyAuthorAlias] = c.AuthorAlias
+	}
+	return metadata
 }
 
 // Commit reads e's metadata as a commit; fields absent from it are empty.
 func (e Event) Commit() Commit {
 	m := e.Metadata
 	return Commit{Repository: m[keyRepository], Hash: m[keyHash], Author: m[keyAuthor], Email: m[keyEmail], Files: splitLines(m[keyFiles]),
-		Authorship: Authorship(m[keyAuthorship])}
+		Authorship: Authorship(m[keyAuthorship]), AuthorAlias: m[keyAuthorAlias]}
+}
+
+// WithAuthorAlias is e with alias as its commit's author alias, or with
+// none when alias is "", the rest of the metadata untouched.
+func (e Event) WithAuthorAlias(alias string) Event {
+	metadata := maps.Clone(e.Metadata)
+	delete(metadata, keyAuthorAlias)
+	if alias != "" {
+		metadata[keyAuthorAlias] = alias
+	}
+	e.Metadata = metadata
+	return e
 }
 
 // Metadata is the stored form of v.
@@ -158,6 +180,13 @@ func (e Event) File() File {
 
 // RemovedAtKey is the metadata entry the store sets when a file vanished.
 const RemovedAtKey = keyRemovedAt
+
+// ConversationIDKey and SentByMeKey are a message's conversation and
+// whether the user sent it, for the store's queries on them (#86).
+const (
+	ConversationIDKey = keyConversationID
+	SentByMeKey       = keySentByMe
+)
 
 // Times are stored as Unix nanoseconds, which also order as revisions;
 // the zero time is stored as "".

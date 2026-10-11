@@ -40,10 +40,14 @@ type FakeGenerator struct {
 	Reply string
 	// StructuredReply is returned by GenerateStructured (the question plan).
 	StructuredReply string
-	LastMessages    []llm.ChatMessage
-	Calls           int
-	FailWith        error
-	Closed          bool
+	// StructuredReplies, when set, answer GenerateStructured in order
+	// instead (schema discovery asks twice); Grammars records each grammar.
+	StructuredReplies []string
+	Grammars          []string
+	LastMessages      []llm.ChatMessage
+	Calls             int
+	FailWith          error
+	Closed            bool
 }
 
 func (f *FakeGenerator) Generate(ctx context.Context, messages []llm.ChatMessage, _ int, progress llm.GenerationProgress) (string, error) {
@@ -62,8 +66,15 @@ func (f *FakeGenerator) Generate(ctx context.Context, messages []llm.ChatMessage
 // noFilterPlan is what a real planner returns for a plain question.
 const noFilterPlan = `{"tipo": "responder", "periodo": null, "fonte": null, "pessoas": [], "direcao": null, "assunto": null}`
 
-// GenerateStructured returns StructuredReply, or a no-filter plan.
-func (f *FakeGenerator) GenerateStructured(ctx context.Context, _ []llm.ChatMessage, _ int, _ string) (string, error) {
+// GenerateStructured returns the next of StructuredReplies, else
+// StructuredReply, or a no-filter plan.
+func (f *FakeGenerator) GenerateStructured(ctx context.Context, _ []llm.ChatMessage, _ int, grammar string) (string, error) {
+	f.Grammars = append(f.Grammars, grammar)
+	if len(f.StructuredReplies) > 0 {
+		reply := f.StructuredReplies[0]
+		f.StructuredReplies = f.StructuredReplies[1:]
+		return reply, ctx.Err()
+	}
 	if f.StructuredReply == "" {
 		return noFilterPlan, ctx.Err()
 	}

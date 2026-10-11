@@ -12,7 +12,11 @@ import (
 
 // StoredEvent returns the stored event with uid, if any.
 func (s *Store) StoredEvent(ctx context.Context, uid string) (event.Event, bool, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM events WHERE uid = ?`, uid)
+	return storedEvent(ctx, s.db, uid)
+}
+
+func storedEvent(ctx context.Context, querier queryer, uid string) (event.Event, bool, error) {
+	row := querier.QueryRowContext(ctx, `SELECT `+eventColumns+` FROM events WHERE uid = ?`, uid)
 	ev, err := scanEvent(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return event.Event{}, false, nil
@@ -26,28 +30,61 @@ func (s *Store) StoredEvent(ctx context.Context, uid string) (event.Event, bool,
 // UpdateEvent replaces the row and the embedding of ev.UID atomically, so
 // search never sees the new text with the old vector.
 func (s *Store) UpdateEvent(ctx context.Context, ev event.Event, chunks []storage.Chunk) error {
-	tx, err := s.db.BeginTx(ctx, nil)
+	return s.inTransaction(ctx, func(tx *sql.Tx) error {
+		return updateEventIn(ctx, tx, ev, chunks)
+	})
+}
+
+func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []storage.Chunk) error {
+	old, err := storedTextKeyOfUID(ctx, tx, ev.UID)
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return err
 	}
-	defer tx.Rollback()
-	eventID, err := updateEventRow(ctx, tx, ev)
+	eventID, err := updateEventRow(ctx, tx, ev.WithoutImageText())
 	if err != nil {
 		return err
 	}
 	if err := reindexPeople(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
-	if err := deleteChunks(ctx, tx, eventID); err != nil {
+	if err := relinkEntities(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
-	if err := insertChunks(ctx, tx, eventID, ev, chunks); err != nil {
+	if err := linkAttachedImages(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
-	if err := recordFileModification(ctx, tx, ev); err != nil {
+	if err := rerelateEntities(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := representImage(ctx, tx, ev); err != nil {
+		return err
+	}
+	if err := reindexEventIdentifier(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
+	if err := replaceEventChunks(ctx, tx, eventID, old, ev, chunks); err != nil {
+		return err
+	}
+	return recordFileModification(ctx, tx, ev)
+}
+
+// storedTextKeyOfUID is the text key uid has before an edit or a forget.
+func storedTextKeyOfUID(ctx context.Context, tx *sql.Tx, uid string) (textKey, error) {
+	var key textKey
+	err := tx.QueryRowContext(ctx, `SELECT source, content_hash FROM events WHERE uid = ?`, uid).Scan(&key.source, &key.contentHash)
+	if err != nil {
+		return key, fmt.Errorf("read the text key of event %q, expected it to be stored: %w", uid, err)
+	}
+	return key, nil
+}
+
+// reindexEventIdentifier replaces the event's identifier entry, as an edit
+// replaces its chunks' entries.
+func reindexEventIdentifier(ctx context.Context, tx *sql.Tx, eventID int64, ev event.Event) error {
+	if err := unindexEventIdentifier(ctx, tx, eventID); err != nil {
+		return err
+	}
+	return indexEventIdentifier(ctx, tx, eventID, ev)
 }
 
 func updateEventRow(ctx context.Context, tx *sql.Tx, ev event.Event) (int64, error) {

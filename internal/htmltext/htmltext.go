@@ -1,4 +1,7 @@
-package teamssource
+// Package htmltext turns the HTML fragments chat apps store as message
+// bodies into searchable plain text. Shared by the Teams collector and the
+// schema-driven IndexedDB mapping (html_text transform).
+package htmltext
 
 import (
 	"html"
@@ -6,7 +9,7 @@ import (
 	"strings"
 )
 
-// Teams stores message bodies as HTML fragments. A full parser is not
+// Teams and other web chats store message bodies as HTML fragments. A full parser is not
 // needed to get searchable text: line-breaking tags become newlines, the
 // remaining tags are dropped and entities decoded.
 var (
@@ -27,12 +30,12 @@ var (
 	mentionSpan = regexp.MustCompile(`(?is)<span[^>]*itemtype="[^"]*Mention[^"]*"[^>]*>(.*?)</span>`)
 )
 
-// htmlToText converts a Teams message body to plain text. Quoted messages
-// go after the reply, so the first line (the timeline headline) is what the
-// sender actually wrote.
+// ToText converts a message body to plain text. Quoted messages go after
+// the reply, so the first line (the timeline headline) is what the sender
+// actually wrote.
 //
-//	htmlToText("<p>Olá <b>time</b></p>") == "Olá time"
-func htmlToText(body string) string {
+//	htmltext.ToText("<p>Olá <b>time</b></p>") == "Olá time"
+func ToText(body string) string {
 	body, quotes := extractQuotes(body)
 	text := plainText(mentionSpan.ReplaceAllString(body, "@$1 "))
 	for _, quote := range quotes {

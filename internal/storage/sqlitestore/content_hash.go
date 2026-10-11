@@ -66,7 +66,11 @@ const reuseCandidates = 8
 // StoredChunksForContent returns the embedded chunks of a stored event
 // with the same text, if one has them: same text, same chunks and vectors.
 func (s *Store) StoredChunksForContent(ctx context.Context, content string) ([]storage.Chunk, bool, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT uid FROM events WHERE content_hash = ? LIMIT ?`, contentHash(content), reuseCandidates)
+	return storedChunksForContent(ctx, s.db, content)
+}
+
+func storedChunksForContent(ctx context.Context, querier queryer, content string) ([]storage.Chunk, bool, error) {
+	rows, err := querier.QueryContext(ctx, `SELECT uid FROM events WHERE content_hash = ? LIMIT ?`, contentHash(content), reuseCandidates)
 	if err != nil {
 		return nil, false, fmt.Errorf("find events with the same content: %w", err)
 	}
@@ -75,7 +79,7 @@ func (s *Store) StoredChunksForContent(ctx context.Context, content string) ([]s
 		return nil, false, err
 	}
 	for _, uid := range uids {
-		chunks, err := s.chunksOf(ctx, uid)
+		chunks, err := chunksOf(ctx, querier, uid)
 		if err != nil || len(chunks) > 0 {
 			return chunks, len(chunks) > 0, err
 		}
@@ -94,4 +98,17 @@ func collectStrings(rows *sql.Rows) ([]string, error) {
 		values = append(values, value)
 	}
 	return values, rows.Err()
+}
+
+func collectInt64s(rows *sql.Rows) ([]int64, error) {
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }

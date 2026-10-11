@@ -121,7 +121,7 @@ func (t *Tasks) EvalRerank() error {
 // Bench measures latency and memory of storage, the models and a whole ask.
 func (t *Tasks) Bench() error {
 	return t.runEval(modelRun{models: runtimeModels, args: []string{
-		"test", "-tags", t.evalTags(), "-run", "^$", "-bench", ".", "-benchtime", "5x", "-timeout", benchTimeout,
+		"test", "-tags", joinTags(t.evalTags(), dbstatTag), "-run", "^$", "-bench", ".", "-benchtime", "5x", "-timeout", benchTimeout,
 		"./internal/storage/sqlitestore", "./internal/benchmarks",
 	}})
 }

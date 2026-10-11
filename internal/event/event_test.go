@@ -45,3 +45,13 @@ func TestRevision(t *testing.T) {
 		t.Fatal("expected a non-numeric revision to be absent")
 	}
 }
+
+func TestTextFromBackupNeedsTheOriginAndText(t *testing.T) {
+	withText := Message{Text: "oi"}.Metadata()
+	withText[TextOriginKey] = TextOriginBackup
+	withoutText := Message{}.Metadata()
+	withoutText[TextOriginKey] = TextOriginBackup
+	if !(Event{Metadata: withText}).TextFromBackup() || (Event{Metadata: withoutText}).TextFromBackup() || (Event{Metadata: Message{Text: "oi"}.Metadata()}).TextFromBackup() {
+		t.Fatal("expected only a message with text from the backup to count")
+	}
+}

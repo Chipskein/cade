@@ -1,0 +1,43 @@
+{
+  "version": 2,
+  "target": "message/1",
+  "name": "discord",
+  "source": "discord",
+  "revision": 1,
+  "records": {
+    "kind": "http_cache",
+    "container": "discord-messages",
+    "each": "$[]"
+  },
+  "require": [
+    {
+      "path": "$.type",
+      "in": ["0", "19"]
+    }
+  ],
+  "fields": {
+    "message_id": {
+      "paths": ["$.id"]
+    },
+    "conversation_id": {
+      "paths": ["$.channel_id"]
+    },
+    "sender": {
+      "paths": ["$.author.global_name", "$.author.username"],
+      "transform": "trim"
+    },
+    "sender_id": {
+      "paths": ["$.author.id"]
+    },
+    "text": {
+      "paths": ["$.content"]
+    },
+    "sent_at": {
+      "paths": ["$.timestamp"],
+      "transform": "iso8601"
+    },
+    "revision": {
+      "paths": ["$.edited_timestamp"]
+    }
+  }
+}

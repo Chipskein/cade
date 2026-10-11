@@ -10,8 +10,9 @@ import (
 )
 
 // eventColumns is the column list every event-returning query selects, in
-// the order scanEvent expects.
-const eventColumns = `uid, occurred_at, source, content, metadata`
+// the order scanEvent expects. They name their table, so a query that
+// joins another table with a source column stays unambiguous (#67).
+const eventColumns = `events.uid, events.occurred_at, events.source, events.content, events.metadata`
 
 func toUnixMillis(moment time.Time) int64 {
 	return moment.UTC().UnixMilli()

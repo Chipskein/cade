@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/textnorm"
@@ -28,6 +29,10 @@ type Query struct {
 	OwnCommitsOnly bool
 	// Folder keeps only files under this absolute path ("" is anywhere).
 	Folder string
+	// Entities, Modality and Related come from the Plan; see there.
+	Entities []string
+	Modality entity.Type
+	Related  bool
 }
 
 // IsScoped reports whether exact filters narrow the search.
@@ -36,9 +41,15 @@ func (q Query) IsScoped() bool {
 }
 
 // NeedsExactSelection reports whether a filter the vector index cannot
-// apply (people, direction, folder) narrows the search.
+// apply (people, direction, folder, entities, modality) narrows the search.
 func (q Query) NeedsExactSelection() bool {
-	return !q.Criteria.IsEmpty() || q.Folder != ""
+	return !q.Criteria.IsEmpty() || q.Folder != "" || q.NeedsGraph()
+}
+
+// NeedsGraph reports whether the entities and relationships narrow or widen
+// the search; a question without them takes the path it took before #24.
+func (q Query) NeedsGraph() bool {
+	return len(q.Entities) > 0 || q.Modality != "" || q.Related
 }
 
 // Overrides are the user's explicit choices (flags), which win over what
@@ -64,7 +75,7 @@ func Resolve(question string, plan Plan, overrides Overrides, now time.Time) Que
 		plan = Plan{}
 	}
 	query := Query{Question: question, Source: overrides.Source, Days: overrides.Days, Criteria: plan.Criteria,
-		Topic: plan.Topic, TaskStatus: plan.TaskStatus}
+		Topic: plan.Topic, TaskStatus: plan.TaskStatus, Entities: plan.Entities, Modality: plan.Modality, Related: plan.Related}
 	if query.Source == "" {
 		query.Source = plan.Source
 	}

@@ -12,7 +12,9 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/filesource"
@@ -22,6 +24,7 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/testfakes"
 	"github.com/chipskein/cade/internal/timeline"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
 var cliNow = time.Date(2026, 9, 26, 12, 0, 0, 0, time.UTC)
@@ -47,6 +50,10 @@ func (f FakeCollector) CollectEvents(_ context.Context, emit ingest.EmitFunc) er
 
 // fakeWorld bundles the fakes behind one Toolkit so tests can inspect them.
 type fakeWorld struct {
+	// removedFiles are what RemoveFile deleted.
+	removedFiles []string
+	// teamsPictures are what the browser's cache holds for Teams.
+	teamsPictures map[string][]byte
 	store         *testfakes.FakeEventStore
 	embedder      *testfakes.FakeEmbedder
 	generator     *testfakes.FakeGenerator
@@ -81,6 +88,13 @@ type fakeWorld struct {
 	// loadedEmbedding and loadedGeneration are the settings the models
 	// were last loaded with.
 	loadedEmbedding config.EmbeddingConfig
+	// indexedDBRecords, when set, are what the fake IndexedDB reader
+	// returns instead of its Teams-like record.
+	indexedDBRecords []webstore.Record
+	// otherStores are readers of other storages, tried before IndexedDB.
+	otherStores webstore.Readers
+	// readerSources are the sources each StoreReaders call was given.
+	readerSources []config.SourcesConfig
 }
 
 func newFakeWorld() *fakeWorld {
@@ -116,14 +130,24 @@ func (w *fakeWorld) toolkit() Toolkit {
 			return w.describer, nil
 		},
 		LoadGenerator: w.loadGenerator,
+		TeamsPictures: func(context.Context, string) (map[string][]byte, error) { return w.teamsPictures, nil },
+		RemoveFile:    w.removeFile,
 		Sources:       w.sources,
-		ReadIndexedDB: w.readIndexedDB,
+		StoreReaders:  w.storeReaders,
+		SchemaFiles:   idbmap.OSSchemaFiles{},
 		Now:           func() time.Time { return cliNow },
 		Language:      w.language,
 		DateOrder:     w.dateOrder,
 		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
 			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
+}
+
+// removeFile deletes from the fake filesystem, recording what it deleted.
+func (w *fakeWorld) removeFile(path string) error {
+	w.removedFiles = append(w.removedFiles, path)
+	delete(w.files.MapFS, rootfs.Name(path))
+	return nil
 }
 
 func (w *fakeWorld) writeConfig(path string, cfg config.Config) error {
@@ -152,6 +176,7 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: newCollector},
 		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newFileCollector},
+		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newCollector},
 	}
 }
 
@@ -317,6 +342,14 @@ func TestDescribePlan(t *testing.T) {
 	}
 }
 
+func TestDescribePlanWithTheGraphFields(t *testing.T) {
+	query := queryplan.Query{Mode: queryplan.ModeAnswer, Entities: []string{"João"}, Modality: entity.TypeImage, Related: true,
+		Criteria: listing.Criteria{People: []string{"Pedro"}}}
+	if got := describeQuery(query, English); got != "answer · people: Pedro · images · appearing: João · related" {
+		t.Fatalf("unexpected description %q", got)
+	}
+}
+
 // The folder is read from the question with the home of the toolkit.
 func TestAskAnnouncesTheFolderFilter(t *testing.T) {
 	world := newFakeWorld()
@@ -443,4 +476,10 @@ func TestAskUnknownPersonFiltersListingAsText(t *testing.T) {
 	if !strings.Contains(stderr, "buscando como texto: CEP") || strings.Contains(stdout, "ana-msg") {
 		t.Fatalf("expected CEP searched as text, got %q / %q", stderr, stdout)
 	}
+}
+
+// storeReaders builds the world's readers, remembering the sources given.
+func (w *fakeWorld) storeReaders(sources config.SourcesConfig) (webstore.Readers, error) {
+	w.readerSources = append(w.readerSources, sources)
+	return append(append(webstore.Readers{}, w.otherStores...), worldIndexedDB{w}), nil
 }

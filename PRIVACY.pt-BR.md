@@ -20,13 +20,15 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 
 | Caminho | Conteúdo | Permissão |
 |---|---|---|
-| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto), embeddings, índice das palavras de cada pedaço (mais hashes de commit e caminhos de arquivo), histórico de edição de arquivos | `600` |
-| `~/.local/share/cade/cade.db.before-v*` | cópia salva antes de uma migração de esquema que reescreve dados; mesmo conteúdo do banco | `600` |
-| `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas e perfis do Teams ler | `600` |
+| `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto, um conjunto por texto distinto), embeddings, índice das palavras de cada pedaço, índice de hashes de commit e caminhos de arquivo, histórico de edição de arquivos | `600` |
+| `~/.local/share/cade/cade.db.before-v*`, `cade.db.before-rekey-*` | cópia salva antes de uma migração de esquema que reescreve dados, ou antes do `schema-check --rekey`; mesmo conteúdo do banco | `600` |
+| `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas, perfis do Teams e diretórios de IndexedDB ler | `600` |
+| `~/.config/cade/idb-schemas/` | um schema por aplicativo: nomes de bancos e stores, caminhos dos campos e seus tipos, as condições que você ou o modelo escreveram (como valores de tipo de mensagem); nenhuma mensagem, nome ou id. `history/` guarda as revisões substituídas, `*.candidate.json` as recusadas | `600` |
+| `~/.local/share/cade/cade.db.before-rekey-*` | cópia salva antes de o `schema-check --rekey` renomear UIDs; mesmo conteúdo do banco | `600` |
 | `~/.local/share/cade/models/` | os dois modelos e o projetor de visão (arquivos públicos) | — |
 | `~/.local/state/cade/ingest-state.json` | o `ingest` em andamento ou o último: argumentos (fonte e alvos), etapa, última linha de progresso e erro | `600` |
 | `~/.local/state/cade/ingest.log` | saída do último `ingest start`: linhas de progresso com os alvos, o relatório, erros; substituído a cada execução em segundo plano | `600` |
-| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*` | cópias do histórico do navegador e do IndexedDB do Teams durante uma ingestão; apagadas ao final | `700` |
+| `/tmp/cade-browser-*`, `/tmp/cade-indexeddb-*`, `/tmp/cade-firefoxidb-*`, `/tmp/cade-firefoxcache-*`, `/tmp/cade-firefoxstorage-*`, `/tmp/cade-msgstore-*` | cópias do histórico do navegador, de um IndexedDB (Chromium ou Firefox), do banco da Cache API do Firefox, do banco do localStorage ou do OPFS do Firefox e do `msgstore.db` do WhatsApp enquanto um comando o lê; apagadas ao final | `700` |
 
 Backups da sua pasta pessoal incluem o `cade.db`.
 
@@ -34,10 +36,12 @@ Backups da sua pasta pessoal incluem o `cade.db`.
 
 | Fonte | Guarda | Não guarda |
 |---|---|---|
-| **git** | mensagem do commit, nomes dos arquivos alterados, caminho do repositório, hash, nome e e-mail do autor, data | diffs, conteúdo dos arquivos |
+| **git** | mensagem do commit, nomes dos arquivos alterados, caminho do repositório, hash, nome e e-mail do autor, data; com `ingest.names_from_email` ligado, o nome que o e-mail do autor escreve | diffs, conteúdo dos arquivos |
 | **navegador** | toda visita: URL sem parâmetros de credencial, título da página, data | conteúdo das páginas, cookies, senhas, formulários; janelas anônimas não entram no histórico |
 | **arquivos** | caminho, tamanho, data de modificação e (para texto UTF-8 até `max_file_bytes`) o texto, exceto nomes de arquivos de credenciais ignorados; com `sources.images` ligado, uma descrição de cada imagem png, jpeg e webp escrita pelo modelo local (o que ela mostra e o texto visível nela), com o SHA-256 da imagem, o tamanho em pixels e o modelo e a versão do prompt | conteúdo de binários, pixels das imagens; pastas ignoradas e globs de arquivos de credenciais |
-| **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição | agenda, histórico de chamadas, notificações, arquivos; mensagens apagadas antes da ingestão |
+| **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição, o endereço de cada imagem mostrada; com `sources.images` ligado, uma descrição de cada imagem que o navegador ainda tem em cache, como nas imagens | agenda, histórico de chamadas, notificações, arquivos, as próprias imagens; mensagens apagadas antes da ingestão |
+| **aplicativos por schema** (ex.: `whatsapp`) | o que o schema mapeia: ids da mensagem e da conversa, nome da conversa, id e nome do remetente, hora, se foi você que enviou, o texto quando o aplicativo o guarda legível, o nome e a revisão do schema | qualquer outra coisa do IndexedDB do aplicativo; no WhatsApp Web, o texto (cifrado pelo aplicativo, nunca decifrado) e as mídias |
+| **whatsapp-backup** | todas as mensagens do `msgstore.db` do Android que você decifrou: texto ou legenda, nome do arquivo anexo, ids da mensagem e da conversa, nome do grupo, id do remetente (e o nome, quando o WhatsApp Web já o tinha), hora, se foi você que enviou | arquivos de mídia, contatos (`wa.db`), avisos do sistema, chamadas, mensagens apagadas, reações; a chave de decifragem |
 
 Arquivos ignorados incluem `.env*`, chaves e certificados e arquivos comuns de credenciais, conforme `sources.ignored_file_globs`. URLs do navegador perdem parâmetros `token`, OAuth, assinatura, senha e assinaturas de nuvem; os demais parâmetros ficam. Com `ingest.redact` ativo (padrão), tokens conhecidos do GitHub, GitLab, AWS e Slack, JWTs e blocos de chave privada PEM são substituídos por rótulos como `[redacted:github-token]` no texto e nos metadados dos eventos. A migração de esquema 8 também limpa eventos existentes e cria a cópia `cade.db.before-v8-*`; textos alterados ficam sem vetores até `cade reindex`.
 
@@ -54,10 +58,28 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 ## Teams
 
 - **Confira antes a política de dados da sua organização.** O cache do Teams guarda mensagens de outras pessoas, em chats e canais, e ingeri-lo copia essas mensagens para o banco do cade no seu disco. Muitas organizações restringem guardar mensagens de trabalho fora das ferramentas aprovadas. O `cade init` deixa o Teams de fora a menos que você o escolha.
-- As mensagens vêm do IndexedDB que o Teams na web mantém no Chrome. O cade copia a pasta inteira do IndexedDB para uma pasta temporária (os arquivos em uso ficam travados), decodifica só os stores de mensagens, conversas e perfis, e apaga a cópia.
+- As mensagens vêm do IndexedDB que o Teams na web mantém no Chrome, no Firefox ou no Floorp. O cade copia a pasta inteira do IndexedDB para uma pasta temporária (os arquivos em uso ficam travados), decodifica só os stores de mensagens, conversas e perfis, e apaga a cópia.
 - Só existe o que o cliente do Teams tem em cache. Mensagens antigas não são buscadas, porque o cade nunca fala com a Microsoft.
 - Uma mensagem editada substitui o texto guardado na próxima ingestão. Uma mensagem apagada no Teams depois de ingerida **continua** no cade até você rodar `cade forget teams`.
+- **Imagens nas mensagens** (com `sources.images` ligado): o cade lê, do cache HTTP do mesmo perfil do navegador (`~/.cache/<navegador>/<perfil>/Cache/Cache_Data` no Linux), só as imagens cujos endereços as mensagens mostram, descreve-as em memória como os arquivos de imagem e guarda a descrição, nunca a imagem. Uma imagem que o navegador não tem mais fica só com o endereço. O cache de um perfil do Firefox não é lido.
 - `cade teams-schema` mostra a estrutura de um IndexedDB (stores, campos, tipos, contagens) sem nenhum valor, então a saída pode ser compartilhada para diagnóstico.
+
+## Outros aplicativos por schemas de IndexedDB
+
+- **O mesmo cuidado do Teams:** o cache de um aplicativo de conversa guarda mensagens de outras pessoas, e ingeri-lo copia essas mensagens para o banco do cade. Confira antes os termos do aplicativo e da sua organização.
+- O `schema-discover`, o `schema-check` e a ingestão copiam o diretório do IndexedDB para uma pasta temporária, leem a cópia e a apagam. O cade nunca altera os dados do aplicativo.
+- **Dado cifrado continua cifrado.** O WhatsApp Web cifra o corpo das mensagens no IndexedDB; o cade não decifra, então as mensagens dele são indexadas só por metadados, a menos que o banco do Android que você decifrou complete o texto ([abaixo](#whatsapp-do-android)).
+- Uma mensagem apagada no aplicativo depois de ingerida **continua** no cade até `cade forget <fonte>`. Uma troca de schema nunca apaga eventos.
+- **O cache HTTP e a Cache API do navegador guardam as respostas de todos os sites que você visita,** não só as do aplicativo. O cade só lê deles as URLs que você nomeia em `sources.request_cache_urls`, vazio por padrão; a origem de um padrão não pode ter curinga, então ele nunca alcança outro site. De qualquer outra entrada o cade lê só a chave (a URL), nunca o corpo; o banco da Cache API do Firefox é copiado para uma pasta temporária e apagado, os corpos são lidos no lugar, e nada nesses caches é alterado.
+- **O localStorage e o Origin Private File System guardam o estado de todos os sites,** tokens de sessão e logins entre eles. O cade só lê as origens que você nomeia em `sources.storage_origins`, vazio por padrão; uma origem particionada ou de um contêiner do Firefox nunca é lida. No Chromium, em que um banco só guarda todas as origens, os itens das outras origens são pulados pela chave e nunca decodificados. Todos os itens e arquivos JSON de uma origem configurada são lidos, mas só os que um schema seleciona viram eventos. Os bancos do Firefox são copiados para uma pasta temporária e apagados, os arquivos do OPFS são lidos no lugar, e nada é alterado.
+
+## WhatsApp do Android
+
+- **O banco guarda anos de mensagens de outras pessoas,** em todas as conversas e grupos de que você participa, e ingeri-lo copia essas mensagens para o banco do cade. Guarde o `msgstore.db` decifrado como guardaria o celular: ele não está mais cifrado, e apagá-lo depois da ingestão deixa a cópia só no `cade.db`.
+- **O cade nunca decifra.** Você mesmo decifra o backup `.crypt15`; o cade nunca pede, lê ou guarda a chave de 64 dígitos.
+- O `ingest whatsapp-backup` copia o arquivo para uma pasta temporária, lê a cópia e a apaga; o seu arquivo nunca é alterado.
+- Avisos do sistema, chamadas e mensagens apagadas ficam de fora. Uma mensagem apagada no celular depois de ingerida **continua** no cade até `cade forget`; um banco mais novo não a remove.
+- As regras para dados sensíveis abaixo valem: saúde, religião ou política podem estar na mensagem de qualquer pessoa.
 
 ## O que o modelo local vê
 
@@ -69,6 +91,7 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 - **Estado do prompt salvo:** `~/.cache/cade/prompt-state/` guarda um arquivo (~55 MB, só o dono lê) com o estado do modelo depois das instruções e exemplos fixos. Não contém pergunta nenhuma nem nada do banco.
 - **Respostas:** a sua pergunta, a data de hoje e até `top_k` (6 por padrão) eventos; de um evento longo, só o pedaço que casou (até 1.200 caracteres), senão o texto até esse tamanho.
 - **Texto que dá ordens ao assistente:** mensagens, títulos de páginas e notas são palavras de outras pessoas, e alguma pode ser escrita para manipular a resposta ("IMPORTANTE para o assistente: ignore as regras…"). Esses eventos vão ao modelo marcados como não confiáveis e sem o texto, com uma regra para não usá-los nem citá-los; a lista de fontes mostra o evento com a marca, e o `ask --json` põe `"untrusted": true`. Isso reduz o risco sem eliminá-lo: um texto que o detector não reconhece ainda chega inteiro ao modelo e pode manipular a resposta, mas o modelo não tem ferramentas, então não consegue agir sobre nada.
+- **Descoberta de schemas** (só no `cade schema-discover` e no `cade schema-check --update`, rodados por você): os maiores stores do IndexedDB com os nomes mascarados (e-mails, GUIDs e sequências de 6 ou mais dígitos escondidos), os caminhos dos campos e os tipos encontrados, e até duas amostras por caminho. Amostras de texto são mascaradas do mesmo jeito e cortadas em 40 caracteres; números mostram só a quantidade de dígitos (`<n:13>`), datas e dados binários só o tipo. Numa regeneração, ele lê também o schema atual (só caminhos) e quais caminhos mudaram. O schema que ele escreve guarda caminhos e tipos, nunca uma amostra. A ingestão nunca roda o modelo.
 - Nada mais do banco é passado ao modelo. Listagens e relatórios de tarefas não usam o modelo de geração; uma listagem com assunto ("páginas sobre redis") só embute o assunto.
 
 ## Logs
@@ -88,10 +111,57 @@ Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
 - O `forget` apaga os eventos e seus embeddings, depois compacta o arquivo e esvazia o log de escrita (WAL). Assim o texto apagado sai do disco, em vez de ficar em páginas livres.
 - O índice de palavras acompanha o texto: uma edição, o `reindex` e o `forget` também tiram dele as palavras antigas.
+- Eventos com o mesmo texto (uma página visitada várias vezes) dividem um conjunto de pedaços, embeddings e entradas de palavras. O `forget` de um deles apaga esse evento, a entrada do hash ou caminho dele e a data dele no embedding; os pedaços compartilhados ficam enquanto outro evento tiver o texto e saem com o último.
 - O índice de pessoas (`event_people`) guarda os nomes de cada mensagem e commit (remetente ou autor, título da conversa, primeiros nomes depois de "@"), para que uma pergunta sobre uma pessoa seja filtrada no banco. Ele acompanha os eventos: uma edição troca os nomes do evento, e o `forget` os apaga junto com os eventos.
+- As entidades (`entities`, `event_entities`) nomeiam o que vários eventos citam: uma pessoa pelos mesmos nomes que o índice de pessoas guarda (sem os títulos de conversa), um arquivo pelo caminho. Uma entidade de pessoa guarda só um nome encontrado num evento, sem e-mail, sem id e sem nada deduzido, a menos que você ligue o `ingest.names_from_email`: aí o autor de um commit ganha também o nome que o e-mail dele escreve (`fernanda.rocha@…` para "F. Rocha"), no índice de pessoas e como entidade. Desligar apaga esses nomes no próximo `cade ingest git`. O `forget` e uma edição apagam a entidade que fica sem nenhum evento (regra 4 abaixo); enquanto outro evento a cita, ela fica com a primeira grafia gravada.
+- As relações (`relationships`) dizem que o autor de um commit alterou cada arquivo dele: duas entidades e o evento que afirma a relação, nada mais. O `forget` do evento, ou de uma das entidades, apaga a relação.
 - Texto substituído, como o de uma mensagem editada ou de uma versão antiga de um arquivo, também é zerado (`secure_delete` do SQLite). Só a versão atual de cada arquivo fica guardada; `file_modifications` guarda a data e o tamanho de cada versão anterior, sem o texto, e o `forget file` a apaga.
 - Um arquivo apagado da pasta sai das respostas, mas continua no banco (e na timeline) até `cade forget file`. Para uma imagem, isso inclui a descrição, que uma cópia da mesma imagem encontrada depois reaproveita.
-- `forget file` e `forget --uid` apagam a descrição de uma imagem junto com o evento; nada dela fica em outro lugar. `cade reindex --captions` substitui as descrições no lugar, zerando o texto antigo.
-- O `forget` não mexe nas cópias de migração (`cade.db.before-v*`); apague-as você mesmo.
+- A descrição e o texto visível de uma imagem ficam uma vez por imagem (pelo SHA-256), como representações da imagem (`representations`), e no texto de cada evento que a contém, para a busca: um arquivo de imagem, uma mensagem do Teams com a imagem ou uma foto do WhatsApp ligada ao arquivo de mesmo nome. O `forget` da última cópia da imagem os apaga; enquanto outra cópia, ou uma mensagem que mostra a imagem, estiver guardada, ela os mantém. O `cade reindex --captions` substitui as descrições no lugar, zerando o texto antigo. O vetor de uma representação (`representation_vectors`) sai junto com ela; nada grava um vetor ainda.
+- O `forget` não apaga as cópias de migração e de rekey (`cade.db.before-v*`, `cade.db.before-rekey-*`), que ainda guardam o que ele apagou: ele termina listando-as, com data e tamanho, e o `cade forget --backups` as apaga depois de perguntar (ou com `--yes`), nunca o banco. O `cade doctor` também as mostra.
 - Cópias feitas fora do cade não são afetadas: backups, snapshots, ou saídas de `cade ask --json` que você salvou.
 - `forget --uid` e `forget --match` confirmado removem o evento, pedaços, embeddings, índices de palavras e pessoas e histórico do arquivo; só o UID e a data da remoção ficam para impedir a reingestão. `forget <fonte>` limpa essa lista de UIDs esquecidos. A retenção vem desligada; configure `ingest.retention.max_age_days` por fonte para ativá-la.
+
+## Dados pessoais e leis de privacidade
+
+O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os direitos e deveres que a LGPD e o GDPR europeu têm em comum, e lista o que falta. Não é aconselhamento jurídico.
+
+- **Quem trata os dados é você, na sua máquina.** Nada chega ao projeto nem a mais ninguém. As duas leis deixam de fora o tratamento feito por uma pessoa para fins exclusivamente particulares (LGPD art. 4º, I; GDPR art. 2(2)(c)); mensagens de trabalho não são exclusivamente particulares, então as regras da sua organização valem para elas (veja [Teams](#teams)).
+- **Há dados de outras pessoas:** remetentes de mensagens, autores de commits, nomes em títulos de páginas e conversas, pessoas nos seus arquivos e imagens.
+
+### Dados pessoais por fonte
+
+| Fonte | Seus | De outras pessoas | Pode ter dado sensível |
+|---|---|---|---|
+| **git** | nome, e-mail, mensagens de commit | nomes, e-mails e mensagens de outros autores (o `timeline` só os mostra com `--all-authors`) | raramente |
+| **browser** | cada página visitada, o título e a hora | nomes em títulos de página (perfis, conversas) | sim: saúde, religião ou política podem ser deduzidas dos sites visitados |
+| **files** | o texto dos seus arquivos e a descrição das suas imagens | o que os arquivos e imagens tiverem: nomes, documentos, fotos de pessoas | sim |
+| **teams**, **apps por schema** e **whatsapp-backup** | suas mensagens | mensagens, nomes e ids de outras pessoas | sim, o que as pessoas escreverem |
+| **índice de pessoas** (`event_people`) | seu nome | nomes de remetentes, autores e pessoas citadas depois de "@" | não |
+| **entidades** (`entities`) | seu nome, os caminhos dos seus arquivos | os mesmos nomes do índice de pessoas, sem os títulos de conversa; com `ingest.names_from_email` ligado, os nomes que os e-mails dos autores de commits escrevem | não |
+
+### Requisitos e lacunas
+
+| Requisito | Como o cade atende hoje | Lacuna |
+|---|---|---|
+| Transparência | esta página; o `cade init` pergunta antes de cada fonte | — |
+| Minimização | Teams, imagens, `sources.storage_origins` e `sources.request_cache_urls` vêm desligados ou vazios; mascaramento de segredos; parâmetros de credencial tirados das URLs; padrões de arquivos ignorados; cookies e sessionStorage nunca são lidos ([#76](https://github.com/Chipskein/cade/issues/76)) | — |
+| Finalidade | só busca local: sem rede em tempo de execução, sem telemetria, e o modelo não tem ferramentas | — |
+| Limite de guarda | `ingest.retention.max_age_days` por fonte | desligado por padrão, por escolha: o histórico é o objetivo |
+| Acesso e portabilidade | `ask`, `timeline`, `tasks` e as listagens mostram os dados; `cade export` escreve tudo em JSON Lines, um evento por linha com os derivados (pessoas, entidades, relações, descrições), sem vetores | — |
+| Correção | uma mensagem ou arquivo editado substitui o texto guardado na próxima ingestão | o cade nunca edita o texto: corrija a fonte e ingira de novo |
+| Eliminação | `forget` por fonte, UID, texto e período, com `secure_delete`, compactação e o WAL esvaziado; `forget --person NOME` apaga tudo sobre uma pessoa (o que ela mandou ou escreveu, as mensagens que a @mencionam, os chats só com ela) depois de listar, e `export --person NOME` entrega isso a ela antes | as cópias de migração e de rekey guardam o que foi esquecido até o `cade forget --backups`; o `forget` e o `doctor` as listam, mas nada as apaga sozinho |
+| Exclusão na origem | uma edição substitui o texto | uma mensagem apagada no app fica até o `forget`; um cache expirado não tem como avisar o cade de que ela foi apagada |
+| Segurança | arquivos só do dono, sem rede, cópias temporárias removidas | o banco não é cifrado → [#57](https://github.com/Chipskein/cade/issues/57) |
+| Dados sensíveis (LGPD art. 11, GDPR art. 9) | guardados como qualquer texto; nunca detectados, rotulados ou deduzidos | regras abaixo |
+| Dados biométricos | nenhum: a descrição de uma imagem diz o que ela mostra, não quem está nela | regras abaixo, antes da [#23](https://github.com/Chipskein/cade/issues/23) |
+
+### Regras para dados sensíveis e biométricos
+
+Valem para o trabalho que acrescenta dados pessoais, a começar por pessoas como entidades ([#20](https://github.com/Chipskein/cade/issues/20)) e rostos ([#23](https://github.com/Chipskein/cade/issues/23)):
+
+1. **Opt-in por tipo.** Um tipo novo de dado pessoal (vetores de rosto, o que uma entidade de pessoa guardar além dos nomes que os eventos já têm, como o nome lido do e-mail pelo `ingest.names_from_email`) fica desligado até você ligá-lo no `cade init` ou na configuração. Desligar para a coleta, e um comando apaga o que foi guardado.
+2. **Nada sensível é deduzido.** O cade nunca deduz saúde, religião, política, etnia, vida sexual ou traços parecidos, e nunca pede isso a um modelo. Uma entidade de pessoa guarda só o que uma fonte diz: nomes e ids encontrados nos eventos.
+3. **Biometria fica à parte.** Vetores de rosto ficam numa tabela própria, nunca no texto do evento nem na descrição da imagem, nunca chegam ao modelo de geração e só são comparados com rostos dos seus próprios arquivos. Um rosto só ganha nome por você.
+4. **O que é derivado acompanha o evento.** O `forget` de um evento apaga as entidades, relações, representações e vetores de rosto que vieram só dele, e uma pessoa que fica sem evento é apagada. As entidades seguem esta regra desde a migração 15 (#20).
+5. **As mesmas regras locais:** sem rede, arquivos só do dono, e a exportação ([#85](https://github.com/Chipskein/cade/issues/85)) inclui os dados derivados, para que você veja tudo o que está guardado sobre uma pessoa.

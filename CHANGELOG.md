@@ -8,6 +8,173 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## v0.2.0 — 2026-10-11
+
+### Upgrading from v0.1.0
+
+- **One copy, about two minutes:** migrations 11 to 19 run on the first command that opens a v0.1.0 database. One open writes at most one copy, so it writes `cade.db.before-v11-<date>` (mode `600`) before the first step that rewrites data. It needs free disk for the copy (as large as the database) plus the vectors while they are rewritten. Measured one by one on the reference machine's database (270 k events), migrations 11 to 18 add up to about two minutes. `cade doctor` tells, without changing anything, what is pending and whether it will copy. Once the new version works, `cade forget --backups` deletes the copy (#87).
+- **No `reindex`, no new embedding,** and no new model to download.
+- **`ask --json`:** the plan may carry `modality`, `entities` and `related` (#24); they are left out when empty, so questions without them give the same JSON.
+- **New commands:** `cade export`, `cade forget --person` and `cade forget --backups`; `cade forget` now ends listing the database copies.
+- **New, off by default:** `ingest.names_from_email` (a name read from a commit's author e-mail, PRIVACY rule 1). With `sources.images` on, `cade ingest teams` also describes the pictures of messages, read from the browser's cache.
+
+### Migrations
+
+| Version | What it does | Backup | Rewrites data |
+|---|---|---|---|
+| 11 | vectors in `int8`, scaled per vector (#66); the database is compacted | yes | vectors |
+| 12 | commit hashes and file paths indexed by event (#67) | no | — |
+| 13 | first and last date per vector (#67) | yes | vectors |
+| 14 | one set of chunks and vectors per text (#67); compacted | yes | chunks and vectors |
+| 15 | entities and the events that refer to them (#20) | yes | — |
+| 16 | relationships between entities (#21) | no | — |
+| 17 | representations a model derived from an entity (#22) | no | — |
+| 18 | image descriptions move from event metadata to representations (#22) | yes | metadata |
+| 19 | WhatsApp messages linked to the images they attach (#24) | no | — |
+
+### Database copies that keep forgotten data (#87)
+
+- **Every `cade forget` ends listing the copies** taken before migrations and rekeys (`cade.db.before-v*`, `cade.db.before-rekey-*`), with date and size, since they still hold what it deleted; without copies it says nothing. **`cade forget --backups`** lists them, asks (or `--yes`) and deletes them, never the database. **`cade doctor`** shows how many, since when and how big, without counting it as a warning. Nothing is deleted by itself.
+- The copies' names live in one place (`dbcopy`), which the store uses when it takes them.
+- PRIVACY's last erasure gap from #25 is closed. No database migration.
+
+### Forget and export by person (#86)
+
+- **`cade forget --person NAME`** erases everything about one person after listing it and asking (or `--yes`): what they sent or wrote (the name read from an e-mail included, when on), the messages that @mention their first name, and their one-to-one conversations, where every message you did not send is theirs, your own messages included. Group conversations stay unless they write or are mentioned. The entities left without events go with them. **`cade export --person NAME`** writes the same events as JSON Lines.
+- **The name must point at one person:** "Ana", with Ana Prado and Ana Souza stored, stops and lists both. An @mention keeps only a first name, so it counts for everyone with that name; the list shows it before anything is deleted.
+- PRIVACY's erasure and access by person gap from #25 is closed. No database migration.
+
+### Export (#85)
+
+- **`cade export [--source F] [--from D --to D]`** writes everything cade keeps on stdout as JSON Lines: one event per line with its UID, source, time, text and metadata, the names the people index keeps, the entities it refers to, the relations it states and those entities' representations (an image's description), without vectors. The filters are those of `forget --match`; the count goes to stderr.
+- **The history is read 500 events at a time** (`storage.EventPager`, by row id), so exporting it never holds it in memory.
+- PRIVACY's access and portability gap from #25 is closed.
+- No database migration.
+
+### Search by entities, relationships and modality (#24)
+
+- **The plan reads three more things:** `entidades` (who or what a picture shows or is about: "fotos do João", "prints do projeto Orion"), `modalidade` (`imagem`) and `relacionadas` ("quem mais…", "who else…"). The guard keeps entities only beside a modality and named in the question, the modality only with a word for pictures, and the widening only with a word for others and someone to start from; the rules read "imagens", "fotos" and "prints" without the model. A question without them takes the path it took before.
+- **The store selects by them** (`storage.GraphFilter`, in SQL, with an in-memory reference the tests compare): a picture is an event showing an `Image` (an image file, a Teams message with a picture, a WhatsApp photo); a name appears in an event when every word of it is in its text or in the text of another event showing the same picture; the widening starts at the people named, reaches what they relate to (the files Rui changed) and keeps every event on those. A name nobody has is reported and dropped, as people are. `ask` ranks what was selected as before, keeps one result per picture, and shows the new fields in "Entendi:" and `--json`; a listing applies them too.
+- **Teams pictures.** A message's pictures are kept by address, and a message that is only a picture is no longer dropped. With `sources.images` on, `cade ingest teams` reads them from the HTTP cache of the same Chromium profile and describes them with the image files, before the embedder loads; the description goes into the message's text and its picture is an `Image`, so the same print pasted in Teams and saved as a file is one entity.
+- **WhatsApp photos.** A message whose attachment has the name of a stored image file shows that file's `Image`, whichever is stored first, so the photo Pedro sent is found by the João its description names.
+- **`ingest.names_from_email`** (off by default) keeps on each commit the name its author's e-mail spells, so "F. Rocha <fernanda.rocha@…>" is found as Fernanda Rocha; the next `cade ingest git` fills or deletes the names of the stored commits. See PRIVACY, rule 1.
+- **Measured:** the four cases pending for #24 pass (Fernanda, "quem mais mexeu no arquivo do retry do ERP que o Rui alterou?", "imagens do João que o Pedro me mandou", "qual era o erro naquele print?"), and the retrieval suite gains eight cases over images, Teams pictures and entities, two of them among those four; four of the new ones already passed before #24 and stay as regressions. Test set: recall 1.00, MRR 0.84 → 0.83, rejection 1.00, redundancy 0.00 (43 cases, 35 before; the suite measures with `names_from_email` on). The plan suite gains ten cases (165): mode 159, source 159, people 163, direction 162, topic 157 (148/155 on the old cases, 151 in BENCHMARKS), entities 164, modality 165, related 165. The cold `ask` on the suite's corpus: 1.33, 1.46, 1.46 and 1.60 s at top_k 4, 6, 8 and 12, against 1.76, 1.67, 1.77 and 2.07 s before #24 (one run each, GPU at 120 W): within the noise of one run.
+- **Upgrading:** migration 19 links the stored WhatsApp messages to the images they attach, in one statement; derived data, no copy. No `reindex`; Teams pictures are described on the next `cade ingest teams` with images on.
+
+### Representations (#22)
+
+- **What a model derives from an entity has one place**, `representations`: modality and kind in enumerations (text, vector, object, face, audio; description, visible text, embedding, detection, transcript), the model and revision that wrote it, and its content, one per modality and kind. Saving one again replaces it in place without touching the entity; it goes with the entity.
+- **Image descriptions moved there.** An image file refers to its `Image` entity, keyed by its SHA-256; the description and the visible text are the Image's representations, with the model and prompt version, and leave the event's metadata (the status, hash and size stay). The event text keeps the description, so the search is unchanged. Copies of one image share one description. Ingestion, the reuse by hash and `reindex --captions` read and write the new layer through the store, with no change in `imagecaption`.
+- **Vectors:** a representation's vector lives in `representation_vectors` (sqlite-vec, int8, cosine), found by kind; triggers drop it with its representation and when its content changes. Nothing writes one yet: a visual embedding is future work.
+- **Measured:** `go tool mage evalCaptions` gives the same output, and the retrieval suite is unchanged. On a copy of the reference machine's database (269,999 events), 372 described image events became 342 descriptions and 246 visible texts; compacted, the database went from 804.87 to 804.85 MB (2,981 bytes per event both before and after). The cold `ask` on the suite's corpus took 1.53, 1.53, 1.59 and 1.82 s at top_k 4, 6, 8 and 12, against 1.42, 1.54, 1.56 and 1.87 s before (one run each).
+- **Upgrading:** migration 17 creates the table; migration 18 moves the descriptions and rewrites the metadata, after a `cade.db.before-v18-<date>` copy (mode `600`). On that copy it took 3.3 s, 2.0 s of them the copy. No `reindex`.
+
+### Relationships and time neighbors (#21)
+
+- **`cade timeline --around UID [--window 2h]`** shows an event and what happened within the window before and after it, across sources, with the event marked.
+- **A question about the time of something brings its neighbors in time:** "o que eu estava lendo quando corrigi o webhook?" names the commit, not the page. With "enquanto", "antes", "depois" or "quando" after the first word (and "while", "before", "after", "when"), the closest hit adds up to 4 events within 2h, nearest first, keeping the source and own-commit filters. The case that motivated it now passes; the 32 earlier cases keep recall 1.00, MRR 0.87 and rejection 1.00 (0.84 MRR with the new case, whose page comes after the commit), and the injection suite passes.
+- **Relationships between entities**, in `relationships` (from, relation, to, the event that states it; `confidence` is NULL when the source states it). Today a commit's author `changed` each of its files, and a commit's files are `File` entities keyed by their path under the repository, so they meet the files source's. `storage.RelationIndex` lists relations from and to an entity and walks up to 3 hops both ways with a recursive CTE. `forget` of the event or of either entity deletes the relation.
+- **What the graph does not do yet:** `ask` does not use it. "quem mais mexeu no arquivo que o Rui alterou?" still fails and moves to #24, which makes the search use entities and relations.
+- **Upgrading:** migration 16 relinks the stored events (keeping the ids of the entities that stay) and stores their relations; derived data, no copy. On a copy of the reference machine's database (269,999 events) it took 20.5 s and added 24.6 MB (783.3 → 807.9 MB): 125,401 relations, 40,002 files, 12,269 of them in both commits and the files source, 8,753 changed by more than one author. No `reindex`.
+
+### Entities (#20)
+
+- **People and files are entities** that several events refer to, in `entities` (one row per type and key, the type an enumeration, metadata free per type) and `event_entities` (event, entity, role). A person is keyed by the people index's name key, so the same spelling in a Teams message and a commit is one entity; a file by its path. The types for images, repositories, projects, messages, URLs and objects exist but nothing fills them yet.
+- **Derived from the events in the store**, by the same `entity.RefsOf` on save, on edit and in the migration: collectors are unchanged and a migrated database holds what a new one would. `event_people`, `file_modifications` and image descriptions stay as they are.
+- **`forget` deletes an entity with the last event referring to it**, and an edit that drops a name deletes its entity (PRIVACY, rule 4). An entity has no dates of its own, so none is left behind.
+- **Measurement:** retrieval cases can wait for an issue (`pending_issue`): they are run and reported, outside the floors. The first one, the same person as "Fernanda Rocha" in Teams and "F. Rocha" in git, fails today and waits for #24; names alone do not join them. The test set is unchanged: recall 1.00, MRR 0.87, rejection 1.00.
+- **Upgrading:** migration 15 creates the tables and links the stored events, after a `cade.db.before-v15-<date>` copy (mode `600`). On a copy of the reference machine's database at version 14 (269,999 events) it took 6.8 s, 1.7 s of them the copy, and added 15.9 MB (767.4 → 783.3 MB): 313 people, 18 of them in more than one source, and 31,728 files. No `reindex`.
+
+### Nested messages read their record (#78)
+
+- **A schema path starting with `^` reads the record holding the item** (`^.updateTime`), not the item: apps that nest messages inside a conversation keep the time and the title only on the conversation. It is accepted only with `records.each`, never in `each` itself or in a lookup's `match` and `values`; schemas without `^` map as before, and the drift fingerprint records `^` paths at the record's root.
+- **`schema-discover` offers the record's single values** as `^` paths when the store has `each`.
+- **ChatGPT** is indexed by schema with no code of its own: the reviewed `testdata/idb-schemas/chatgpt.json` reads Chrome's `ConversationsDatabase`. On a real cache, 918 of 1,050 messages in 132 conversations map; the other 132 have no text. ChatGPT keeps no time or author per message, so each message takes its conversation's last update as its time and has no sender.
+- No database migration.
+
+### WhatsApp from Android (#77)
+
+- **`cade ingest whatsapp-backup`** reads the `msgstore.db` of WhatsApp for Android, decrypted by you (`sources.whatsapp_backups`). cade never decrypts the `.crypt15` backup and never sees the key.
+- **The text WhatsApp Web keeps encrypted is filled in.** Both clients share the message id, so a message the Web indexed by metadata alone keeps its event and gets its text, with no second event; a later `ingest whatsapp` keeps the text (`text_origin` in the event's metadata). Messages only in the database become events keyed as the Web would key them. On a real database of 142,194 messages (2020 to 2026) and 10,391 Web events: 9,276 paired (8,357 got text, the rest are media without caption), 128,254 new, 125,080 with text, no duplicate UID; the rebuilt Web id matched the Web's own for 95% of the shared messages.
+- Text, media (caption and file name), contacts, locations and polls enter; system notices, calls and deleted messages do not. Group names come from the database, people's names from the Web's events (`msgstore.db` has no contacts).
+- No database migration. The `.txt` chat export the issue first proposed is not read: it has no message ids.
+
+### Privacy laws: requirements, gaps and rules (#25)
+
+- **PRIVACY compares cade with the LGPD and the GDPR** without tying it to either: the personal data each source holds (yours and other people's, and where sensitive data can appear), a table of requirements, how cade meets each and what is missing, and five rules for sensitive and biometric data that bind people entities (#20) and faces (#23).
+- **Three gaps became issues:** a full export (#85), erasing and exporting everything about one person (#86), and migration copies that keep forgotten data (#87).
+- **sessionStorage and cookies are not read (#76).** A survey (names, hosts and sizes only) found no messages in either: cookies hold consent, anti-bot state, ids and session tokens, Chrome's are encrypted with the keyring key, and Firefox's `recovery.jsonlz4`, where sessionStorage lives, also holds the session cookies. The decision is in the roadmap.
+- No code change and no database migration.
+
+### localStorage and OPFS (#74)
+
+- **Sites' own storages are read** with the same schemas, discovery and `schema-check`: localStorage (`records.kind` `local_storage`) of Chromium and Electron apps (`Local Storage/leveldb`) and of Firefox and Floorp (`storage/default/<origin>/ls`), and the Origin Private File System (`opfs`) of both (`File System/<number>`, `storage/default/<origin>/fs`). A localStorage item is a record keyed by its key, a tree when it is JSON; an OPFS JSON file is a record located by its directory and name.
+- **Only configured origins are read.** A profile's localStorage holds every site, session tokens among them, so the new `sources.storage_origins` names the origins cade may read (empty by default: nothing is read); a configured directory of another origin is an error naming it (a test per reader).
+- **A survey of everyday apps** (WhatsApp Web, Teams, Discord, Notion, ChatGPT, ClickUp; Chrome and Floorp) found messages in these storages only in ChatGPT's unsent drafts: the reviewed `testdata/idb-schemas/chatgpt-drafts.json` indexes them with no code of ChatGPT's own. Teams keeps diagnostic logs in OPFS, Notion a SQLite WASM database; SQLite inside OPFS is not read.
+- No database migration.
+
+### The HTTP cache and the Cache API (#75)
+
+- **Apps that keep no messages in IndexedDB** can be read from the API responses the browser caches. cade reads the HTTP cache and the Cache API of Chromium and Electron apps (`Cache/Cache_Data`, `Service Worker/CacheStorage`) and of Firefox and Floorp (`cache2`, `storage/default/<origin>/cache`), with the same schemas (`records.kind` `http_cache` or `cache_api`), discovery and `schema-check`. Bodies are JSON as they came over the network: gzip, deflate, br and zstd are decoded.
+- **Only configured URLs are read.** A request cache holds every site's responses, so the new `sources.request_cache_urls` names the URL patterns cade may read (empty by default: nothing is read); the origin of a pattern is literal. For any other entry only the key (the URL) is read, never the body (a test per reader). The pattern's name is the records' container, so one schema reads every channel's URL.
+- **Discord** is indexed by schema with no code of its own: the reviewed `testdata/idb-schemas/discord.json` maps the channel message responses. On the desktop app's cache: 90 of 99 cached messages (the rest are system messages) in 7 channels. Only what is still cached is read: the channels opened, until the browser evicts them.
+- New dependency: andybalholm/brotli (MIT), for `br` bodies. Firefox's Cache API bodies are Snappy streams whose chunk checksums do not match the format's, so they are not checked.
+- No database migration.
+
+### Browser storages behind one reader (#73)
+
+- **Schemas are no longer tied to IndexedDB.** Where the records come from is separate from how they become messages: each browser storage has a reader that gives the same records (kind, origin, namespace, container and the decoded value), and the Chromium and Firefox IndexedDB readers are the first. A new storage (localStorage, OPFS, the HTTP cache, the Cache API: #74, #75) needs only a reader; the collector, the discovery and the schema stay as they are (a test shows it with a fake reader).
+- **Schema format version 2:** `records.kind` names the storage (`indexeddb` is the only one read today), and `namespace_prefix` and `container` replace `database_prefix` and `store` in records, lookups and fingerprints. Version 1 schemas, the ones saved with #19, still work unedited: they are read as `indexeddb`, and a replacement writes them as version 2.
+- **`cade schema-discover` and `cade schema-check`** are the new names of `idb-discover` and `idb-check`, which still run the same commands. Discovery finds which storage a directory holds by its layout; a directory of no known layout is refused, naming it.
+- No database migration.
+
+### Other apps through IndexedDB schemas (#19)
+
+- **Any app that keeps its data in the browser's IndexedDB** can be ingested without code of its own. `cade idb-discover --name N DIR` has the local model write a schema once: which store holds the messages and where each field comes from. The model fills a fixed target (the message cade already stores) under a grammar built from the paths the IndexedDB really has, so it cannot invent one; the proposed schema is tried on the same records before it is saved. Every schema in `sources.indexeddb_schema_dir` is an `ingest` source, with `sources.indexeddb_dirs` as its targets. Ingestion never runs the model. Format and options in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#other-applications-through-indexeddb-schemas-experimental).
+- **Firefox and Floorp profiles are read too**, for these schemas and for Teams: their IndexedDB is SQLite with SpiderMonkey structured clones, decoded into the same values as Chromium's. `cade init` also finds Floorp's browser history.
+- **Teams through a schema gives the same messages as the Teams collector:** the reviewed `testdata/idb-schemas/teams-web.json` produces the same UID, time, sender and text on the real sample and on one message per rule the collector applies (a test).
+- **WhatsApp Web** (in Floorp) is indexed with no code of its own, by metadata only, since it encrypts message bodies in IndexedDB: on a real base, 9,633 messages, 85% with the sender's name.
+- **Apps change how they store data**, so a schema keeps a fingerprint (the paths it reads and their types, no values). `cade idb-check` reports what changed and fails while it is unresolved, so it can run on a timer. `--update` regenerates with the model and replaces the schema only when the new one maps as much and keeps 90% of the UIDs; the old one goes to `history/`, a refused one to `<name>.candidate.json`. `--rekey` accepts a change of identity and renames the indexed events' UIDs after a `cade.db.before-rekey-<date>` copy. `cade idb-discover --rollback` brings back the previous revision. A schema change never deletes events; a newer revision rereads messages the app still has.
+- [PRIVACY.md](PRIVACY.md#what-the-local-model-sees) says what the model sees during discovery: masked store names, paths, types and up to two samples per path, text masked and cut at 40 characters, numbers only as digit counts.
+- No schema migration.
+
+### One set of chunks and vectors per text (#67)
+
+- A page visited 15 times, or a message cached twice, is now one set of chunks, vectors and keyword entries instead of one per event; its events find it by their text. In the search, `top_k` counts texts, so copies of one page no longer push other evidence out, and a text found brings every event with it in the source and period. The source and period filters stay exact (CA9.1): each vector keeps the first and last dates of its text's events, and the events decide. On a copy of the real database: 415,963 → 295,350 chunks and vectors (one set per each of the 152,504 texts), 837.5 MB → 767.4 MB, and the search 19–29% faster. The retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#one-set-of-chunks-per-text-67).
+- A commit's hash and a file's path, which belong to the event and not to its text, have their own keyword index: two commits with the same message are still found by their own hash.
+- `forget` and edits delete a text's chunks only with its last event; the dates of the others' vector are recomputed, so a forgotten event's date does not stay in the index. `cade reindex` embeds each text once.
+- **Upgrading:** migration 12 indexes hashes and paths by event (derived data, no copy). Migrations 13 and 14 rewrite the vectors, so the first command that opens an older database writes one `cade.db.before-v13-<date>` copy (mode `600`) first, then keeps the chunks of the first event of each text, deletes the copies and runs `VACUUM`. On the reference machine's 416 k vectors it took 53 s, with the copy; it needs free disk for the copy (as large as the database) plus the vectors while they are rewritten. No `reindex` and no new embedding.
+
+### `int8` vectors (#66)
+
+- Vectors are stored as `int8`, each scaled by its own largest component so ±127 covers its range: a quarter of the space of `float32`. The search compares the same directions, and the retrieval suite gives the same recall (1.00), MRR (0.87) and rejection (1.00). On a copy of the real database: 1,799.0 MB → 837.5 MB, 305 of 306 top-6 results kept, distances moved by at most 0.0005, and the unfiltered search 25% faster (433 → 324 ms). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vectors-in-int8-66).
+- **Upgrading:** migration 11 rewrites the vectors, so the first command that opens an older database writes a `cade.db.before-v11-<date>` copy (mode `600`) first, then converts and runs `VACUUM`. On the reference machine's 416 k vectors it took 28 s, 4 s of them the copy; it needs free disk for the copy (as large as the database) plus the new vectors. `cade doctor` says, without changing anything, that the migration is pending and will copy. No `reindex` and no new embedding.
+
+### Vector compaction (#65)
+
+- `cade compact` rewrites the vector table without the positions that `forget`, updated events and the secrets migration left empty; sqlite-vec never reuses them and `VACUUM` alone does not reach inside its blocks. It computes no embedding and needs no model: 91 s on the reference machine's 416 k vectors, where a reindex takes hours of GPU. It needs free disk for a copy of the vectors while it runs.
+- `cade reindex` now ends with a `VACUUM`: the vector table it drops stayed in the file as free pages, 1.0 GB of a 2.9 GB database.
+- `cade doctor` warns when 20% or more of the vector positions are empty.
+- On a copy of the real database: 2,949.5 MB → 1,715.7 MB, the same distances for every query measured, and the unfiltered search 9% faster. Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#vector-compaction-65).
+- No schema change.
+
+### Fewer disk writes on ingestion (#51)
+
+- Ingestion stores events in transactions of 200 instead of one per event; a transaction also commits once it has been open for 2 s, checked between events, so a `cade forget` run meanwhile usually waits for it (up to 5 s) instead of failing. On the first ingestion of 2,287 events (`git` + `file`, on an SSD), writes fell from 357 MB to 99 MB, or from 156 KB to 43 KB per new event, and the time did not get worse (59 s → 56 s). Numbers in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+- An interrupted ingestion (Ctrl-C, `cade ingest stop`, an error) loses only the open batch, at most 200 events; the next run stores them again.
+- No schema change, and the stored data is the same.
+
+### Reproducible benchmarks (#14)
+
+- Every section of [docs/BENCHMARKS.md](docs/BENCHMARKS.md) names the command, date, commit and build that reproduce it, with the GPU's 120 W limit recorded; numbers re-measured on 2026-09-30 (`f4e5379`). Numbers no current command reproduces moved to a "History" section, and a glossary explains each metric in plain language.
+- `docs/BENCHMARKS.md` is now in English, with `docs/BENCHMARKS.pt-BR.md` in Portuguese.
+
+### Space plan (#40)
+
+- `go tool mage bench` reports bytes per event of each table (`BenchmarkTableSize`) and the size and search time of each vector format sqlite-vec offers (`BenchmarkVectorFormat`). Vectors are 82% of the synthetic database and 79% of the reference machine's real one.
+- Three levers became issues: compacting the empty slots of the vector table (#65, −21%), `int8` vectors scaled per vector (#66, keeps 99.4% of the exact top-10 on real vectors) and one set of chunks and vectors per text instead of per event (#67). Together they would take the real database from ~1.24 GB to ~0.35 GB. Numbers and the levers left out are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#space-levers-40).
+- No change to the database or to `cade` itself.
+
 ## v0.1.0 — 2026-09-30
 
 ### Upgrading from v0.0.0

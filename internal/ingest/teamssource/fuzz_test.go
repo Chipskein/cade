@@ -20,7 +20,7 @@ func FuzzCollectReplyChain(f *testing.F) {
 		if err != nil {
 			return
 		}
-		record := indexeddb.Record{Database: testReplyChainDB, Store: replyChainStore, Value: value}
+		record := indexeddb.Record{Namespace: testReplyChainDB, Container: replyChainStore, Value: value}
 		reader := FakeIndexedDBReader{Records: []indexeddb.Record{record}}
 		_ = NewCollector(reader.Read, "/d").CollectEvents(context.Background(), func(event.Event) error { return nil })
 	})

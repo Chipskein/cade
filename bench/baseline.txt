@@ -1,60 +1,116 @@
-# cade benchmark baseline — 2026-09-27, commit ce1454b + working tree (fase 18: Qwen3.5-2B Q4_K_M; model benchmarks warm up first)
-# GPU: NVIDIA GeForce RTX 3060, 12288 MiB; build: make bench (CUDA)
+# cade benchmark baseline — 2026-10-11, commit 6a228fa (Qwen3.5-2B Q4_K_M; model benchmarks warm up first)
+# GPU: NVIDIA GeForce RTX 3060, 12288 MiB, power limit 120 W (default 170 W; baselines up to 2026-09-27 ran at 170 W); build: go tool mage bench (CUDA)
 goos: linux
 goarch: amd64
 pkg: github.com/chipskein/cade/internal/storage/sqlitestore
 cpu: AMD Ryzen 5 5500                               
-BenchmarkSearchSimilar/events=1000/all-12     	       5	   2128535 ns/op
-BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	   1516668 ns/op
-BenchmarkSearchSimilar/events=1000/one-day-12              	       5	    912522 ns/op
-BenchmarkSearchSimilar/events=10000/all-12                 	       5	  12230857 ns/op
-BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   7791833 ns/op
-BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   6593784 ns/op
-BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  63043911 ns/op
-BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  50092994 ns/op
-BenchmarkSearchSimilar/events=100000/all-12                	       5	 106370032 ns/op
-BenchmarkEventsBetween/events=1000/one-day-12              	       5	     46699 ns/op
-BenchmarkEventsBetween/events=1000/all-12                  	       5	   2097621 ns/op
-BenchmarkEventsBetween/events=10000/all-12                 	       5	  27969167 ns/op
-BenchmarkEventsBetween/events=10000/one-day-12             	       5	    116561 ns/op
-BenchmarkEventsBetween/events=100000/one-day-12            	       5	    768770 ns/op
-BenchmarkEventsBetween/events=100000/all-12                	       5	 342072665 ns/op
-BenchmarkChunksFor/events=1000-12                          	       5	 196841649 ns/op
-BenchmarkChunksFor/events=10000-12                         	       5	 181154689 ns/op
-BenchmarkChunksFor/events=100000-12                        	       5	 193941518 ns/op
-BenchmarkSaveEvent-12                                      	       5	    812317 ns/op
-BenchmarkDatabaseSize/events=1000-12                       	       5	    681459 ns/op	      3990 bytes/event
-BenchmarkDatabaseSize/events=10000-12                      	       5	   1062142 ns/op	      3858 bytes/event
-BenchmarkDatabaseSize/events=100000-12                     	       5	   9588350 ns/op	      3795 bytes/event
-BenchmarkSearchLexical/events=1000/words-12                	       5	   1450450 ns/op
-BenchmarkSearchLexical/events=1000/hash-prefix-12          	       5	     92200 ns/op
-BenchmarkSearchLexical/events=10000/words-12               	       5	   8623203 ns/op
-BenchmarkSearchLexical/events=10000/hash-prefix-12         	       5	     80139 ns/op
-BenchmarkSearchLexical/events=100000/words-12              	       5	  75252200 ns/op
-BenchmarkSearchLexical/events=100000/hash-prefix-12        	       5	    110264 ns/op
-BenchmarkPersonFilter/events=1000/before-12                	       5	   3582578 ns/op	 1486272 B/op	   38190 allocs/op
-BenchmarkPersonFilter/events=1000/after-12                 	       5	    346268 ns/op	   33128 B/op	     413 allocs/op
-BenchmarkPersonFilter/events=10000/before-12               	       5	  39457860 ns/op	17336084 B/op	  312731 allocs/op
-BenchmarkPersonFilter/events=10000/after-12                	       5	    851000 ns/op	   68718 B/op	     780 allocs/op
-BenchmarkPersonFilter/events=100000/before-12              	       5	 442723981 ns/op	187119630 B/op	 3097218 allocs/op
-BenchmarkPersonFilter/events=100000/after-12               	       5	   8207888 ns/op	  712256 B/op	    7303 allocs/op
-BenchmarkDirectionFilter/events=1000-12                    	       5	   2549060 ns/op	  193512 B/op	    2495 allocs/op
-BenchmarkDirectionFilter/events=10000-12                   	       5	  15922134 ns/op	  191187 B/op	    2484 allocs/op
-BenchmarkDirectionFilter/events=100000-12                  	       5	 115202748 ns/op	  187824 B/op	    2476 allocs/op
+BenchmarkSearchSimilar/events=1000/all-12     	       5	   1188653 ns/op
+BenchmarkSearchSimilar/events=1000/source=teams-12         	       5	    650825 ns/op
+BenchmarkSearchSimilar/events=1000/one-day-12              	       5	    268425 ns/op
+BenchmarkSearchSimilar/events=10000/one-day-12             	       5	   2392307 ns/op
+BenchmarkSearchSimilar/events=10000/all-12                 	       5	   8897826 ns/op
+BenchmarkSearchSimilar/events=10000/source=teams-12        	       5	   3616126 ns/op
+BenchmarkSearchSimilar/events=100000/one-day-12            	       5	  17897220 ns/op
+BenchmarkSearchSimilar/events=100000/all-12                	       5	  84078392 ns/op
+BenchmarkSearchSimilar/events=100000/source=teams-12       	       5	  31491491 ns/op
+BenchmarkEventsBetween/events=1000/one-day-12              	       5	     65985 ns/op
+BenchmarkEventsBetween/events=1000/all-12                  	       5	   2218276 ns/op
+BenchmarkEventsBetween/events=10000/one-day-12             	       5	    121697 ns/op
+BenchmarkEventsBetween/events=10000/all-12                 	       5	  30291542 ns/op
+BenchmarkEventsBetween/events=100000/one-day-12            	       5	    758580 ns/op
+BenchmarkEventsBetween/events=100000/all-12                	       5	 361664790 ns/op
+BenchmarkChunksFor/events=1000-12                          	       5	  34782842 ns/op
+BenchmarkChunksFor/events=10000-12                         	       5	  42676120 ns/op
+BenchmarkChunksFor/events=100000-12                        	       5	  58499118 ns/op
+BenchmarkSaveEvent-12                                      	       5	    502005 ns/op
+BenchmarkSaveEventInBatch-12                               	       5	    367412 ns/op
+BenchmarkDatabaseSize/events=1000-12                       	       5	    315300 ns/op	      1872 bytes/event
+BenchmarkDatabaseSize/events=10000-12                      	       5	    435739 ns/op	      1665 bytes/event
+BenchmarkDatabaseSize/events=100000-12                     	       5	   3899448 ns/op	      1634 bytes/event
+BenchmarkSearchLexical/events=1000/words-12                	       5	   2109565 ns/op
+BenchmarkSearchLexical/events=1000/hash-prefix-12          	       5	    187027 ns/op
+BenchmarkSearchLexical/events=10000/words-12               	       5	  14541255 ns/op
+BenchmarkSearchLexical/events=10000/hash-prefix-12         	       5	    210880 ns/op
+BenchmarkSearchLexical/events=100000/words-12              	       5	 218926355 ns/op
+BenchmarkSearchLexical/events=100000/hash-prefix-12        	       5	    169482 ns/op
+BenchmarkPersonFilter/events=1000/before-12                	       5	   4426598 ns/op	 1623016 B/op	   46176 allocs/op
+BenchmarkPersonFilter/events=1000/after-12                 	       5	    584192 ns/op	   33192 B/op	     413 allocs/op
+BenchmarkPersonFilter/events=10000/before-12               	       5	  47067760 ns/op	18250612 B/op	  364648 allocs/op
+BenchmarkPersonFilter/events=10000/after-12                	       5	    867132 ns/op	   68782 B/op	     780 allocs/op
+BenchmarkPersonFilter/events=100000/before-12              	       5	 499188568 ns/op	196022457 B/op	 3603211 allocs/op
+BenchmarkPersonFilter/events=100000/after-12               	       5	   8285558 ns/op	  712236 B/op	    7302 allocs/op
+BenchmarkDirectionFilter/events=1000-12                    	       5	   2482842 ns/op	  210358 B/op	    2874 allocs/op
+BenchmarkDirectionFilter/events=10000-12                   	       5	  13498429 ns/op	  207404 B/op	    2902 allocs/op
+BenchmarkDirectionFilter/events=100000-12                  	       5	  94292050 ns/op	  208606 B/op	    2907 allocs/op
+BenchmarkSharedChunkFilters/texts=5000/one-month/afterKNN-12         	       5	  25023404 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-month/dateRange-12        	       5	    924982 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-month/chunkIDs-12         	       5	    865407 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-month/perEvent-12         	       5	   1305557 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-year/afterKNN-12          	       5	   8037507 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-year/dateRange-12         	       5	   2372734 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-year/chunkIDs-12          	       5	   3442822 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-year/perEvent-12          	       5	   3992846 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/all/afterKNN-12               	       5	   3703414 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/all/dateRange-12              	       5	   3763173 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/all/chunkIDs-12               	       5	   6145047 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/all/perEvent-12               	       5	   6830570 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/source=teams/afterKNN-12      	       5	   1123789 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/source=teams/dateRange-12     	       5	   1007915 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/source=teams/chunkIDs-12      	       5	   3490617 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/source=teams/perEvent-12      	       5	   1909161 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-day/afterKNN-12           	       5	  38572664 ns/op	         2.600 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-day/dateRange-12          	       5	    333000 ns/op	         3.000 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-day/chunkIDs-12           	       5	    318190 ns/op	         3.000 hits/op
+BenchmarkSharedChunkFilters/texts=5000/one-day/perEvent-12           	       5	    535774 ns/op	         6.000 hits/op
+BenchmarkSharedChunkFilters/texts=50000/all/afterKNN-12              	       5	  37447084 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/all/dateRange-12             	       5	  37936923 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/all/chunkIDs-12              	       5	  64816346 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/all/perEvent-12              	       5	  61538683 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/source=teams/afterKNN-12     	       5	  11282677 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/source=teams/dateRange-12    	       5	  11463354 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/source=teams/chunkIDs-12     	       5	  39325135 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/source=teams/perEvent-12     	       5	  18798690 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-day/afterKNN-12          	       5	 343735129 ns/op	         1.200 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-day/dateRange-12         	       5	   3935994 ns/op	        21.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-day/chunkIDs-12          	       5	   4253637 ns/op	        21.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-day/perEvent-12          	       5	   6239343 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-month/afterKNN-12        	       5	 235007040 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-month/dateRange-12       	       5	   8260334 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-month/chunkIDs-12        	       5	   9834288 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-month/perEvent-12        	       5	  12430625 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-year/afterKNN-12         	       5	  75740398 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-year/dateRange-12        	       5	  23161218 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-year/chunkIDs-12         	       5	  36944806 ns/op	        24.00 hits/op
+BenchmarkSharedChunkFilters/texts=50000/one-year/perEvent-12         	       5	  37296835 ns/op	        24.00 hits/op
+BenchmarkTableSize/events=1000-12                                    	       5	     14169 ns/op	       897.0 chunk_embeddings-bytes/event	       180.2 chunks-bytes/event	       110.6 chunks_fts-bytes/event	        20.48 event_people-bytes/event	       548.9 events-bytes/event	         8.192 file_modifications-bytes/event	        90.11 other-bytes/event
+BenchmarkTableSize/events=10000-12                                   	       5	     10257 ns/op	       849.5 chunk_embeddings-bytes/event	       174.7 chunks-bytes/event	        86.34 chunks_fts-bytes/event	        12.68 event_people-bytes/event	       526.2 events-bytes/event	         0.8184 file_modifications-bytes/event	         9.002 other-bytes/event
+BenchmarkTableSize/events=100000-12                                  	       5	      9682 ns/op	       828.1 chunk_embeddings-bytes/event	       177.0 chunks-bytes/event	        84.95 chunks_fts-bytes/event	        11.88 event_people-bytes/event	       531.3 events-bytes/event	         0.08192 file_modifications-bytes/event	         0.9011 other-bytes/event
+BenchmarkVectorFormat/float32-12                                     	       5	  78801605 ns/op	      3109 bytes/vector
+BenchmarkVectorFormat/int8_unit-12                                   	       5	  73599544 ns/op	       794.0 bytes/vector
+BenchmarkVectorFormat/int8_scaled-12                                 	       5	  71706596 ns/op	       794.0 bytes/vector
+BenchmarkVectorFormat/bit-12                                         	       5	   4337130 ns/op	       119.4 bytes/vector
 PASS
-ok  	github.com/chipskein/cade/internal/storage/sqlitestore	28.165s
+ok  	github.com/chipskein/cade/internal/storage/sqlitestore	48.278s
 goos: linux
 goarch: amd64
 pkg: github.com/chipskein/cade/internal/benchmarks
 cpu: AMD Ryzen 5 5500                               
-BenchmarkEmbedEvent-12      	       5	   3454915 ns/op	       328.0 gpu_MB	       965.8 rss_MB
-BenchmarkPlanQuestion-12    	       5	1493773302 ns/op	      1948 gpu_MB	      1473 rss_MB
-BenchmarkAnswer-12          	       5	 583647778 ns/op	      1948 gpu_MB	        30.00 reply_tokens/op	      1473 rss_MB
-BenchmarkColdAsk/page=warm/planner=model-12         	       5	3161614613 ns/op
-BenchmarkColdAsk/page=warm/planner=model+state-12   	       5	2877681738 ns/op
-BenchmarkColdAsk/page=warm/planner=rules-12         	       5	1601274367 ns/op
-BenchmarkColdAsk/page=cold/planner=model-12         	       5	7403883973 ns/op
-BenchmarkColdAsk/page=cold/planner=model+state-12   	       5	6888462788 ns/op
-BenchmarkColdAsk/page=cold/planner=rules-12         	       5	5679706351 ns/op
+BenchmarkDescribeImage/side=512-12         	       5	1367761347 ns/op	      2562 gpu_MB	       659.0 reply_bytes	      1268 rss_MB
+BenchmarkDescribeImage/side=768-12         	       5	1604000974 ns/op	      2590 gpu_MB	       719.0 reply_bytes	      1323 rss_MB
+BenchmarkDescribeImage/side=1024-12        	       5	1666389310 ns/op	      2630 gpu_MB	       677.0 reply_bytes	      1413 rss_MB
+BenchmarkDescribeImage/side=1536-12        	       5	2167496134 ns/op	      2736 gpu_MB	       682.0 reply_bytes	      1576 rss_MB
+BenchmarkEmbedEvent-12                     	       5	   3037835 ns/op	       344.0 gpu_MB	      1474 rss_MB
+BenchmarkPlanQuestion-12                   	       5	1904578121 ns/op	      1962 gpu_MB	      1943 rss_MB
+BenchmarkAnswer-12                         	       5	 495534092 ns/op	      1962 gpu_MB	        25.00 reply_tokens/op	      1870 rss_MB
+BenchmarkColdAskTopK/top_k=4-12            	       5	1424884060 ns/op
+BenchmarkColdAskTopK/top_k=6-12            	       5	1544998707 ns/op
+BenchmarkColdAskTopK/top_k=8-12            	       5	1617657576 ns/op
+BenchmarkColdAskTopK/top_k=12-12           	       5	1815652877 ns/op
+BenchmarkColdAsk/page=warm/planner=model-12         	       5	3636602332 ns/op
+BenchmarkColdAsk/page=warm/planner=model+state-12   	       5	3134152230 ns/op
+BenchmarkColdAsk/page=warm/planner=rules-12         	       5	1477262166 ns/op
+BenchmarkColdAsk/page=cold/planner=model-12         	       5	8013051087 ns/op
+BenchmarkColdAsk/page=cold/planner=model+state-12   	       5	7533527183 ns/op
+BenchmarkColdAsk/page=cold/planner=rules-12         	       5	5908006835 ns/op
 PASS
-ok  	github.com/chipskein/cade/internal/benchmarks	170.900s
+ok  	github.com/chipskein/cade/internal/benchmarks	263.773s

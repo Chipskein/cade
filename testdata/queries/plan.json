@@ -7,7 +7,10 @@
     "people": 0.87,
     "direction": 0.9,
     "topic": 0.85,
-    "status": 0.95
+    "status": 0.95,
+    "entities": 0.9,
+    "modality": 0.9,
+    "related": 0.9
   },
   "cases": [
     {
@@ -1220,6 +1223,108 @@
       "expect": {
         "mode": "listar",
         "days": "2026-09-24"
+      }
+    },
+    {
+      "question": "imagens em que o João aparece",
+      "expect": {
+        "entities": [
+          "João"
+        ],
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "imagens do João que o Pedro me mandou",
+      "expect": {
+        "people": [
+          "Pedro"
+        ],
+        "direction": "recebidas",
+        "entities": [
+          "João"
+        ],
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "imagens que o João me mandou no Teams",
+      "expect": {
+        "source": "teams",
+        "people": [
+          "João"
+        ],
+        "direction": "recebidas",
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "fotos do João com o carro",
+      "expect": {
+        "entities": [
+          "João",
+          "carro"
+        ],
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "imagens do projeto Orion",
+      "expect": {
+        "entities": [
+          "projeto Orion"
+        ],
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "qual era o erro naquele print?",
+      "expect": {
+        "topic": "erro",
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "prints de ontem",
+      "expect": {
+        "mode": "listar",
+        "days": "2026-09-25",
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "pictures of Ana that Rui sent me",
+      "expect": {
+        "people": [
+          "Rui"
+        ],
+        "direction": "recebidas",
+        "entities": [
+          "Ana"
+        ],
+        "modality": "imagem"
+      }
+    },
+    {
+      "question": "quem mais mexeu no arquivo do retry do ERP que o Rui alterou?",
+      "expect": {
+        "source": "git",
+        "people": [
+          "Rui"
+        ],
+        "topic": "retry do ERP",
+        "related": true
+      }
+    },
+    {
+      "question": "who else changed the files Carla touched last week?",
+      "expect": {
+        "days": "2026-09-14 a 2026-09-20",
+        "source": "git",
+        "people": [
+          "Carla"
+        ],
+        "related": true
       }
     }
   ]

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"slices"
 
 	"github.com/chipskein/cade/internal/listing"
 )
@@ -23,4 +24,28 @@ func ResolveCriteria(ctx context.Context, store EventStore, scope EventFilter, c
 	resolution, err := criteria.Resolve(exists)
 	scope.People = resolution.People
 	return scope, resolution, err
+}
+
+// ResolveAppearing keeps the names that appear in some event in scope and
+// returns scope narrowed to them, with the names that matched nobody: a
+// misread name is dropped, as ResolveCriteria drops an unknown person,
+// rather than emptying the result.
+//
+//	filter, unknown, err := storage.ResolveAppearing(ctx, store, filter, []string{"João"})
+func ResolveAppearing(ctx context.Context, store EventStore, scope EventFilter, names []string) (EventFilter, []string, error) {
+	var unknown []string
+	for _, name := range names {
+		probe := scope
+		probe.Graph.Appearing = append(slices.Clone(scope.Graph.Appearing), name)
+		count, err := store.CountMatching(ctx, probe, 1)
+		if err != nil {
+			return scope, nil, err
+		}
+		if count == 0 || len(AppearingWords(name)) == 0 {
+			unknown = append(unknown, name)
+			continue
+		}
+		scope = probe
+	}
+	return scope, unknown, nil
 }

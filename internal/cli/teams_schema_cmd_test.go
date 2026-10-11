@@ -6,20 +6,32 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/idbschema"
-	"github.com/chipskein/cade/internal/indexeddb"
 	"github.com/chipskein/cade/internal/v8value"
+	"github.com/chipskein/cade/internal/webstore"
 )
 
-// readIndexedDB is the fake IndexedDB reader: one Teams-like record whose
-// content must never appear in the output.
-func (w *fakeWorld) readIndexedDB(dir string) ([]indexeddb.Record, error) {
+// worldIndexedDB is the fake IndexedDB reader of a world: it recognizes
+// every location and holds one Teams-like record whose content must never
+// appear in the output, or the world's indexedDBRecords.
+type worldIndexedDB struct {
+	world *fakeWorld
+}
+
+func (worldIndexedDB) Kind() webstore.Kind { return webstore.KindIndexedDB }
+
+func (worldIndexedDB) Recognizes(string) bool { return true }
+
+func (r worldIndexedDB) Read(dir string) ([]webstore.Record, error) {
 	if strings.Contains(dir, "missing") {
 		return nil, errors.New("no such directory")
+	}
+	if r.world.indexedDBRecords != nil {
+		return r.world.indexedDBRecords, nil
 	}
 	message := &v8value.Value{Kind: v8value.KindObject, Properties: []v8value.Property{
 		{Key: "content", Value: &v8value.Value{Kind: v8value.KindString, Text: "conteúdo privado"}},
 	}}
-	return []indexeddb.Record{{Database: "Teams:replychain-manager", Store: "replychains", Value: message}}, nil
+	return []webstore.Record{{Kind: webstore.KindIndexedDB, Namespace: "Teams:replychain-manager", Container: "replychains", Value: message}}, nil
 }
 
 func TestTeamsSchemaPrintsStructureOnly(t *testing.T) {
@@ -29,6 +41,13 @@ func TestTeamsSchemaPrintsStructureOnly(t *testing.T) {
 	}
 	if strings.Contains(stdout, "conteúdo privado") || strings.Contains(stdout, "/home/me") {
 		t.Fatalf("output leaked a value or the home path:\n%s", stdout)
+	}
+}
+
+func TestTeamsSchemaNamesFirefoxOrigins(t *testing.T) {
+	code, stdout, _ := newFakeWorld().run("teams-schema", "/home/me/.floorp/p/storage/default/https+++web.whatsapp.com/idb")
+	if code != 0 || !strings.HasPrefix(stdout, "# https+++web.whatsapp.com\n") {
+		t.Fatalf("expected the origin as header, got %d:\n%s", code, stdout)
 	}
 }
 
@@ -42,12 +61,6 @@ func TestTeamsSchemaReportsReadError(t *testing.T) {
 	code, _, stderr := newFakeWorld().run("teams-schema", "/missing")
 	if code != 1 || !strings.Contains(stderr, "no such directory") {
 		t.Fatalf("expected the read error, got %d %q", code, stderr)
-	}
-}
-
-func TestMaskedDirName(t *testing.T) {
-	if got := maskedDirName("/home/me/x.leveldb/"); got != "x.leveldb" {
-		t.Fatalf("expected x.leveldb, got %q", got)
 	}
 }
 

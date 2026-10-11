@@ -216,6 +216,8 @@ func TestDatabaseProblems(t *testing.T) {
 		"reindex":     {func(d *storage.DatabaseState) { d.ReindexPending = true }, ProblemReindexPending},
 		"old schema":  {func(d *storage.DatabaseState) { d.SchemaVersion = 4 }, ProblemMigrationPending},
 		"no model":    {func(d *storage.DatabaseState) { d.EmbeddingModel = "" }, ProblemNone},
+		"few empty":   {func(d *storage.DatabaseState) { d.VectorSlots = storage.VectorSlots{Slots: 1024, Vectors: 1000} }, ProblemNone},
+		"many empty":  {func(d *storage.DatabaseState) { d.VectorSlots = storage.VectorSlots{Slots: 2048, Vectors: 1000} }, ProblemEmptyVectorSlots},
 	}
 	for name, c := range cases {
 		database := currentDatabase()
@@ -261,7 +263,7 @@ func TestThresholdCalibrationAdoptsIndexedModel(t *testing.T) {
 
 func TestProblemSeverity(t *testing.T) {
 	cases := map[Problem]Severity{
-		ProblemNone: SeverityOK, ProblemNoConfigFile: SeverityWarning, ProblemMigrationPending: SeverityWarning,
+		ProblemNone: SeverityOK, ProblemNoConfigFile: SeverityWarning, ProblemMigrationPending: SeverityWarning, ProblemEmptyVectorSlots: SeverityWarning,
 		ProblemMissing: SeverityFailure, ProblemReindexPending: SeverityFailure,
 	}
 	for problem, want := range cases {

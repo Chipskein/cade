@@ -247,11 +247,11 @@ func TestDeleteSourceWithoutVectorTable(t *testing.T) {
 
 func TestEmbeddingsForReturnsStoredVectors(t *testing.T) {
 	store := openTestStore(t)
-	mustSave(t, store, sampleEvent("a", event.SourceTeams, 0), []float32{0.25, -1.5})
+	mustSave(t, store, sampleEvent("a", event.SourceTeams, 0), []float32{0.6, -0.8})
 	mustSave(t, store, sampleEvent("no-vector", event.SourceFile, 0), nil)
 	embeddings := firstVectors(t, store, "a", "no-vector", "missing")
 	var err error
-	if err != nil || len(embeddings) != 1 || embeddings["a"][0] != 0.25 || embeddings["a"][1] != -1.5 {
+	if err != nil || len(embeddings) != 1 || !sameDirection(embeddings["a"], []float32{0.6, -0.8}) {
 		t.Fatalf("expected only a's vector, got %v (err %v)", embeddings, err)
 	}
 }

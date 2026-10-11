@@ -22,7 +22,7 @@ type Calibration struct {
 //	calibration := retrievalsuite.Calibrate(board)
 func Calibrate(board Scoreboard) Calibration {
 	calibration := Calibration{AnswerableMax: math.Inf(-1), UnanswerableMin: math.Inf(1)}
-	for _, result := range board.Results {
+	for _, result := range board.Counted() {
 		if !result.Gated || len(result.Distances) == 0 {
 			continue
 		}

@@ -49,7 +49,8 @@ func expectedValues(expect ExpectedPlan) map[Field]string {
 		mode = keyOf(modes, ModeAnswer)
 	}
 	return map[Field]string{FieldMode: mode, FieldDays: expect.Days, FieldSource: expect.Source, FieldPeople: peopleKey(expect.People),
-		FieldDirection: expect.Direction, FieldTopic: expect.Topic, FieldStatus: expect.Status}
+		FieldDirection: expect.Direction, FieldTopic: expect.Topic, FieldStatus: expect.Status,
+		FieldEntities: peopleKey(expect.Entities), FieldModality: expect.Modality, FieldRelated: relatedWord(expect.Related)}
 }
 
 func observedValues(plan Plan, suiteCase SuiteCase, now time.Time) map[Field]string {
@@ -59,7 +60,16 @@ func observedValues(plan Plan, suiteCase SuiteCase, now time.Time) map[Field]str
 	}
 	return map[Field]string{FieldMode: keyOf(modes, query.Mode), FieldDays: days, FieldSource: string(query.Source),
 		FieldPeople: peopleKey(query.Criteria.People), FieldDirection: keyOf(directions, query.Criteria.Direction),
-		FieldTopic: query.Topic, FieldStatus: keyOf(taskStatuses, query.TaskStatus)}
+		FieldTopic: query.Topic, FieldStatus: keyOf(taskStatuses, query.TaskStatus),
+		FieldEntities: peopleKey(query.Entities), FieldModality: keyOf(modalities, query.Modality), FieldRelated: relatedWord(query.Related)}
+}
+
+// relatedWord is the planner word for a widening, "" for none.
+func relatedWord(related bool) string {
+	if related {
+		return "relacionadas"
+	}
+	return ""
 }
 
 // keyOf is the planner word for value, or "" for the unrestricted value.
@@ -83,10 +93,14 @@ func peopleKey(people []string) string {
 	return strings.Join(folded, ", ")
 }
 
-// fieldMatches compares exactly, except topics: the model may write "o
-// deploy" for "deploy", so one containing the other counts.
+// containmentFields are free text: the model may write "o deploy" for
+// "deploy", or "Orion" for "projeto Orion", so one containing the other
+// counts.
+var containmentFields = map[Field]bool{FieldTopic: true, FieldEntities: true}
+
+// fieldMatches compares exactly, except containmentFields.
 func fieldMatches(field Field, expected, got string) bool {
-	if field != FieldTopic || expected == "" || got == "" {
+	if !containmentFields[field] || expected == "" || got == "" {
 		return expected == got
 	}
 	expected, got = textnorm.Fold(expected), textnorm.Fold(got)

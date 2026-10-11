@@ -24,7 +24,7 @@ func splitIntoChunks(ctx context.Context, tx *sql.Tx) error {
 	if err != nil || !found {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf(createVectorTableTemplate, dimensions)); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf(createFloat32VectorTableTemplate, dimensions)); err != nil {
 		return fmt.Errorf("create chunk vectors with %d dimensions: %w", dimensions, err)
 	}
 	left, err := copySingleChunkVectors(ctx, tx)

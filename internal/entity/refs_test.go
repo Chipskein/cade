@@ -1,0 +1,111 @@
+package entity
+
+import (
+	"slices"
+	"testing"
+
+	"github.com/chipskein/cade/internal/event"
+)
+
+func TestRefsOfCommitNamesItsAuthor(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Author: "Rui Costa", Email: "rui@example.com"}.Metadata()}
+	want := []Ref{{Type: TypePerson, Key: "rui costa", Name: "rui costa", Role: RoleAuthor}}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfMessageMergesSpellingsAndSkipsTheConversation(t *testing.T) {
+	ev := event.Event{Source: event.SourceTeams, Content: "Ana Souza: @Willian e @Wilian, revisem",
+		Metadata: event.Message{Sender: "Ana Souza", Conversation: "Projeto X"}.Metadata()}
+	want := []Ref{
+		{Type: TypePerson, Key: "ana souza", Name: "ana souza", Role: RoleSender},
+		{Type: TypePerson, Key: "wilian", Name: "willian", Role: RoleMentioned},
+	}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfRepeatedMentionIsOneRef(t *testing.T) {
+	ev := event.Event{Source: event.SourceTeams, Content: "@Ana veja; @Ana de novo", Metadata: event.Message{Sender: "Eu"}.Metadata()}
+	mentions := 0
+	for _, ref := range RefsOf(ev) {
+		mentions += boolToCount(ref.Role == RoleMentioned)
+	}
+	if mentions != 1 {
+		t.Fatalf("expected one mention ref, got %d in %+v", mentions, RefsOf(ev))
+	}
+}
+
+func TestRefsOfFileEventIsItsFile(t *testing.T) {
+	ev := event.Event{Source: event.SourceFile, Metadata: event.File{Path: "/home/eu/notas/plano.md"}.Metadata()}
+	want := []Ref{{Type: TypeFile, Key: "/home/eu/notas/plano.md", Name: "plano.md", Role: RoleSubject}}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfVisitHasNoEntity(t *testing.T) {
+	ev := event.Event{Source: event.SourceBrowser, Metadata: event.Visit{URL: "https://example.com", Title: "Exemplo"}.Metadata()}
+	if got := RefsOf(ev); len(got) != 0 {
+		t.Fatalf("expected no entities for a visit, got %+v", got)
+	}
+}
+
+func boolToCount(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func TestRefsOfCommitNamesEachChangedFileUnderItsRepository(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Repository: "/src/api", Author: "Rui Costa",
+		Files: []string{"erp/retry.go", "erp/retry.go", "README.md"}}.Metadata()}
+	want := []Ref{
+		{Type: TypePerson, Key: "rui costa", Name: "rui costa", Role: RoleAuthor},
+		{Type: TypeFile, Key: "/src/api/erp/retry.go", Name: "retry.go", Role: RoleChanged},
+		{Type: TypeFile, Key: "/src/api/README.md", Name: "README.md", Role: RoleChanged},
+	}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfCommitWithoutRepositoryNamesNoFile(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Author: "Rui Costa", Files: []string{"a.go"}}.Metadata()}
+	for _, ref := range RefsOf(ev) {
+		if ref.Type == TypeFile {
+			t.Fatalf("expected no file without a repository to place it, got %+v", ref)
+		}
+	}
+}
+
+func TestRefsOfTeamsMessageShowsItsPicture(t *testing.T) {
+	url := "https://us-api.asm.skype.com/v1/objects/0-eus-d9-aa11/views/imgo"
+	metadata := event.Message{Sender: "Ana Souza", Kind: event.KindChat}.Metadata()
+	metadata[event.ImageURLsKey] = url
+	for key, value := range (event.Image{SHA256: "ab12", Status: event.CaptionDescribed}).Metadata() {
+		metadata[key] = value
+	}
+	refs := RefsOf(event.Event{Source: event.SourceTeams, Metadata: metadata})
+	want := Ref{Type: TypeImage, Key: "ab12", Name: url, Role: RoleShows}
+	if !slices.Contains(refs, want) {
+		t.Fatalf("expected %+v among %+v", want, refs)
+	}
+}
+
+func TestRefsOfImageFileNamesTheFileAndItsImage(t *testing.T) {
+	metadata := event.File{Path: "/home/eu/prints/erro.png"}.Metadata()
+	for key, value := range (event.Image{SHA256: "ab12", Status: event.CaptionDescribed}).Metadata() {
+		metadata[key] = value
+	}
+	want := []Ref{
+		{Type: TypeFile, Key: "/home/eu/prints/erro.png", Name: "erro.png", Role: RoleSubject},
+		{Type: TypeImage, Key: "ab12", Name: "erro.png", Role: RoleShows},
+	}
+	if got := RefsOf(event.Event{Source: event.SourceFile, Metadata: metadata}); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}

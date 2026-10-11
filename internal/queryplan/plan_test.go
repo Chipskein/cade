@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/llm"
@@ -32,6 +33,15 @@ func TestPlanParsesListingWithFilters(t *testing.T) {
 	if err != nil || plan.Mode != expected.Mode || plan.Period != "ontem" || plan.Source != event.SourceTeams ||
 		plan.Criteria.Direction != listing.Received || len(plan.Criteria.People) != 1 || plan.Criteria.People[0] != "Ana" || plan.Topic != "deploy" {
 		t.Fatalf("expected %+v, got %+v (err %v)", expected, plan, err)
+	}
+}
+
+func TestPlanParsesEntitiesModalityAndRelated(t *testing.T) {
+	generator := &FakeStructuredGenerator{Reply: `{"tipo": "listar", "periodo": null, "fonte": null, "pessoas": ["Pedro"], "direcao": "recebidas", "assunto": null, "status": null, "entidades": ["João"], "modalidade": "imagem", "relacionadas": false}`}
+	plan, err := NewPlanner(generator).Plan(context.Background(), "imagens do João que o Pedro me mandou")
+	if err != nil || plan.Modality != entity.TypeImage || len(plan.Entities) != 1 || plan.Entities[0] != "João" || plan.Related ||
+		plan.Criteria.People[0] != "Pedro" || plan.Criteria.Direction != listing.Received {
+		t.Fatalf("expected João in images Pedro sent, got %+v (err %v)", plan, err)
 	}
 }
 
@@ -101,7 +111,7 @@ func TestParsePlanTasksMode(t *testing.T) {
 // and the grammar forces it back in with a guess.
 func TestPlanExamplesHaveAllFields(t *testing.T) {
 	for _, example := range planExamples {
-		for _, field := range []string{`"tipo"`, `"periodo"`, `"fonte"`, `"pessoas"`, `"direcao"`, `"assunto"`, `"status"`} {
+		for _, field := range []string{`"tipo"`, `"periodo"`, `"fonte"`, `"pessoas"`, `"direcao"`, `"assunto"`, `"status"`, `"entidades"`, `"modalidade"`, `"relacionadas"`} {
 			if !strings.Contains(example.plan, field) {
 				t.Errorf("example %q lacks %s", example.question, field)
 			}

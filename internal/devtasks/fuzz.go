@@ -12,7 +12,7 @@ type fuzzTarget struct {
 var fuzzTargets = []fuzzTarget{
 	{"leveldbraw", "FuzzJournalBatches"}, {"leveldbraw", "FuzzDecodeBatch"}, {"leveldbraw", "FuzzTableEntries"},
 	{"leveldbraw", "FuzzBlockEntries"}, {"v8value", "FuzzDecode"}, {"indexeddb", "FuzzDecodeKeyPrefix"},
-	{"indexeddb", "FuzzDecodeRecords"}, {"ingest/teamssource", "FuzzCollectReplyChain"},
+	{"indexeddb", "FuzzDecodeRecords"}, {"ingest/teamssource", "FuzzCollectReplyChain"}, {"smclone", "FuzzDecode"},
 }
 
 // Fuzz runs each target for FUZZTIME, stopping at the first failure.

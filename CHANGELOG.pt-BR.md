@@ -6,7 +6,179 @@
 
 [English](CHANGELOG.md) · **Português**
 
-O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
+
+## v0.2.0 — 2026-10-11
+
+### Atualizar da v0.1.0
+
+- **Uma cópia, uns dois minutos:** as migrações 11 a 19 rodam no primeiro comando que abrir um banco da v0.1.0. Uma abertura grava no máximo uma cópia, então ela grava `cade.db.before-v11-<data>` (permissão `600`) antes do primeiro passo que reescreve dados. Precisa de espaço em disco para a cópia (do tamanho do banco) mais os vetores enquanto são reescritos. Medidas uma a uma no banco da máquina de referência (270 mil eventos), as migrações 11 a 18 somam uns dois minutos. O `cade doctor` diz, sem mudar nada, o que está pendente e se vai copiar. Quando a versão nova estiver funcionando, o `cade forget --backups` apaga a cópia (#87).
+- **Sem `reindex`, sem embedding novo** e sem modelo novo para baixar.
+- **`ask --json`:** o plano pode trazer `modality`, `entities` e `related` (#24); eles somem quando vazios, então perguntas sem eles dão o mesmo JSON.
+- **Comandos novos:** `cade export`, `cade forget --person` e `cade forget --backups`; o `cade forget` agora termina listando as cópias do banco.
+- **Novo, desligado por padrão:** `ingest.names_from_email` (o nome lido do e-mail do autor de um commit, regra 1 do PRIVACY). Com `sources.images` ligado, o `cade ingest teams` também descreve as imagens das mensagens, lidas do cache do navegador.
+
+### Migrações
+
+| Versão | O que faz | Cópia | Reescreve dados |
+|---|---|---|---|
+| 11 | vetores em `int8`, escalados por vetor (#66); o banco é compactado | sim | vetores |
+| 12 | hash dos commits e caminho dos arquivos indexados por evento (#67) | não | — |
+| 13 | primeira e última data por vetor (#67) | sim | vetores |
+| 14 | um conjunto de pedaços e vetores por texto (#67); compactado | sim | pedaços e vetores |
+| 15 | entidades e os eventos que as citam (#20) | sim | — |
+| 16 | relações entre entidades (#21) | não | — |
+| 17 | representações que um modelo derivou de uma entidade (#22) | não | — |
+| 18 | descrições de imagem saem da metadata do evento e viram representações (#22) | sim | metadata |
+| 19 | mensagens do WhatsApp ligadas às imagens que anexam (#24) | não | — |
+
+### Cópias do banco que guardam dados esquecidos (#87)
+
+- **Todo `cade forget` termina listando as cópias** feitas antes de migrações e de rekey (`cade.db.before-v*`, `cade.db.before-rekey-*`), com data e tamanho, porque elas ainda guardam o que ele apagou; sem cópias, não diz nada. **`cade forget --backups`** as lista, pergunta (ou `--yes`) e apaga, nunca o banco. **`cade doctor`** mostra quantas são, desde quando e de que tamanho, sem contar como aviso. Nada é apagado sozinho.
+- Os nomes das cópias ficam num lugar só (`dbcopy`), que o store usa ao fazê-las.
+- A última lacuna de eliminação da #25 no PRIVACY fica resolvida. Sem migração do banco.
+
+### Apagar e exportar por pessoa (#86)
+
+- **`cade forget --person NOME`** apaga tudo sobre uma pessoa depois de listar e perguntar (ou `--yes`): o que ela mandou ou escreveu (com o nome lido do e-mail, quando ligado), as mensagens que @mencionam o primeiro nome dela e as conversas só com ela, em que toda mensagem que você não mandou é dela, com as suas. Grupos ficam, a menos que ela escreva ou seja mencionada. As entidades que ficam sem evento vão junto. **`cade export --person NOME`** escreve os mesmos eventos em JSON Lines.
+- **O nome tem de apontar uma pessoa só:** "Ana", com Ana Prado e Ana Souza guardadas, para e lista as duas. Uma @menção só tem o primeiro nome, então conta para todos com esse nome; a lista mostra isso antes de apagar.
+- A lacuna de eliminação e acesso por titular da #25 no PRIVACY fica resolvida. Sem migração do banco.
+
+### Exportação (#85)
+
+- **`cade export [--source F] [--from D --to D]`** escreve no stdout, em JSON Lines, tudo o que o cade guarda: um evento por linha com UID, fonte, hora, texto e metadados, os nomes do índice de pessoas, as entidades que ele cita, as relações que afirma e as representações dessas entidades (a descrição de uma imagem), sem vetores. Os filtros são os do `forget --match`; a contagem vai para o stderr.
+- **O histórico é lido de 500 em 500 eventos** (`storage.EventPager`, pelo id da linha), então exportá-lo nunca o carrega inteiro na memória.
+- A lacuna de acesso e portabilidade da #25 no PRIVACY fica resolvida.
+- Sem migração do banco.
+
+### Busca por entidades, relações e modalidade (#24)
+
+- **O plano lê mais três coisas:** `entidades` (quem ou o que uma imagem mostra ou trata: "fotos do João", "prints do projeto Orion"), `modalidade` (`imagem`) e `relacionadas` ("quem mais…", "who else…"). O guard só mantém entidades junto de uma modalidade e citadas na pergunta, a modalidade só com uma palavra para imagens, e a ampliação só com uma palavra para "outros" e alguém de onde partir; as regras leem "imagens", "fotos" e "prints" sem o modelo. Uma pergunta sem esses campos segue o caminho de antes.
+- **O store seleciona por eles** (`storage.GraphFilter`, em SQL, com uma referência em memória que os testes comparam): uma imagem é um evento que mostra uma `Image` (um arquivo de imagem, uma mensagem do Teams com imagem, uma foto do WhatsApp); um nome aparece num evento quando todas as palavras dele estão no texto dele ou no de outro evento que mostra a mesma imagem; a ampliação parte das pessoas citadas, chega ao que elas tocam (os arquivos que o Rui alterou) e fica com todos os eventos desses. Um nome que ninguém tem é avisado e descartado, como as pessoas. O `ask` ranqueia o que foi selecionado como antes, deixa um resultado por imagem e mostra os campos novos no "Entendi:" e no `--json`; a listagem também os aplica.
+- **Imagens do Teams.** As imagens de uma mensagem ficam guardadas pelo endereço, e uma mensagem que é só uma imagem não é mais descartada. Com `sources.images` ligado, o `cade ingest teams` as lê do cache HTTP do mesmo perfil do Chromium e as descreve junto com os arquivos de imagem, antes de o embedder carregar; a descrição entra no texto da mensagem e a imagem vira uma `Image`, então o mesmo print colado no Teams e salvo como arquivo é uma entidade só.
+- **Fotos do WhatsApp.** Uma mensagem cujo anexo tem o nome de um arquivo de imagem guardado mostra a `Image` desse arquivo, seja qual for guardado primeiro, então a foto que o Pedro mandou é achada pelo João que a descrição dela cita.
+- **`ingest.names_from_email`** (desligado por padrão) guarda em cada commit o nome que o e-mail do autor escreve, então "F. Rocha <fernanda.rocha@…>" é achada como Fernanda Rocha; o próximo `cade ingest git` preenche ou apaga os nomes dos commits guardados. Veja o PRIVACY, regra 1.
+- **Medido:** os quatro casos pendentes para a #24 passam (Fernanda, "quem mais mexeu no arquivo do retry do ERP que o Rui alterou?", "imagens do João que o Pedro me mandou", "qual era o erro naquele print?"), e a suíte de recuperação ganha oito casos sobre imagens, imagens do Teams e entidades, dois deles entre esses quatro; quatro dos novos já passavam antes da #24 e ficam como regressão. Conjunto de teste: recall 1,00, MRR 0,84 → 0,83, rejeição 1,00, redundância 0,00 (43 casos, 35 antes; a suíte mede com o `names_from_email` ligado). A suíte de plano ganha dez casos (165): modo 159, fonte 159, pessoas 163, direção 162, assunto 157 (148/155 nos casos antigos, 151 no BENCHMARKS), entidades 164, modalidade 165, relacionadas 165. O `ask` a frio no corpus da suíte: 1,33, 1,46, 1,46 e 1,60 s com top_k 4, 6, 8 e 12, contra 1,76, 1,67, 1,77 e 2,07 s antes da #24 (uma execução cada, GPU a 120 W): dentro do ruído de uma execução.
+- **Atualizando:** a migração 19 liga as mensagens do WhatsApp guardadas às imagens que elas anexam, num comando só; dado derivado, sem cópia. Sem `reindex`; as imagens do Teams são descritas no próximo `cade ingest teams` com imagens ligadas.
+
+### Representações (#22)
+
+- **O que um modelo deriva de uma entidade tem um lugar só**, `representations`: modalidade e tipo em enumerações (texto, vetor, objeto, rosto, áudio; descrição, texto visível, embedding, detecção, transcrição), o modelo e a revisão que a escreveram e o conteúdo, uma por modalidade e tipo. Gravar de novo substitui no lugar, sem mexer na entidade; ela sai junto com a entidade.
+- **As descrições de imagem foram para lá.** Um arquivo de imagem cita a entidade `Image`, com o SHA-256 como chave; a descrição e o texto visível são representações da `Image`, com o modelo e a versão do prompt, e saem da metadata do evento (o status, o hash e o tamanho ficam). O texto do evento continua com a descrição, então a busca não muda. Cópias da mesma imagem dividem uma descrição. A ingestão, o reuso pelo hash e o `reindex --captions` leem e gravam a camada nova pelo store, sem mudança no `imagecaption`.
+- **Vetores:** o vetor de uma representação fica em `representation_vectors` (sqlite-vec, int8, cosseno), buscado por tipo; triggers o apagam junto com a representação e quando o conteúdo muda. Nada grava um ainda: embedding visual fica para depois.
+- **Medido:** o `go tool mage evalCaptions` dá a mesma saída, e a suíte de busca não muda. Numa cópia do banco da máquina de referência (269.999 eventos), 372 eventos de imagem descrita viraram 342 descrições e 246 textos visíveis; compactado, o banco foi de 804,87 para 804,85 MB (2.981 bytes por evento antes e depois). O `ask` a frio no corpus da suíte levou 1,53, 1,53, 1,59 e 1,82 s com top_k 4, 6, 8 e 12, contra 1,42, 1,54, 1,56 e 1,87 s antes (uma execução cada).
+- **Atualização:** a migração 17 cria a tabela; a 18 move as descrições e reescreve a metadata, depois de uma cópia `cade.db.before-v18-<data>` (permissão `600`). Nessa cópia levou 3,3 s, 2,0 s deles a cópia. Sem `reindex`.
+
+### Relacionamentos e vizinhos no tempo (#21)
+
+- **`cade timeline --around UID [--window 2h]`** mostra um evento e o que aconteceu na janela antes e depois dele, em todas as fontes, com o evento marcado.
+- **Uma pergunta sobre o momento de outra coisa traz os vizinhos no tempo:** "o que eu estava lendo quando corrigi o webhook?" cita o commit, não a página. Com "enquanto", "antes", "depois" ou "quando" depois da primeira palavra (e "while", "before", "after", "when"), o resultado mais próximo traz até 4 eventos a até 2h dele, os mais próximos primeiro, respeitando a fonte e o filtro de commits próprios. O caso que motivou a mudança passa; os 32 casos anteriores mantêm recall 1,00, MRR 0,87 e rejeição 1,00 (MRR 0,84 com o caso novo, em que a página vem depois do commit), e a suíte de injeção passa.
+- **Relações entre entidades**, em `relationships` (origem, relação, destino, o evento que a afirma; a `confidence` fica NULL quando a fonte afirma a relação). Hoje o autor de um commit `changed` cada arquivo dele, e os arquivos de um commit são entidades `File` pelo caminho dentro do repositório, então encontram as da fonte de arquivos. `storage.RelationIndex` lista as relações de saída e de entrada de uma entidade e percorre até 3 saltos nos dois sentidos com uma CTE recursiva. O `forget` do evento ou de uma das entidades apaga a relação.
+- **O que o grafo ainda não faz:** o `ask` não o usa. "quem mais mexeu no arquivo que o Rui alterou?" continua falhando e passa para a #24, que faz a busca usar entidades e relações.
+- **Atualização:** a migração 16 refaz as ligações dos eventos gravados (mantendo os ids das entidades que continuam) e grava as relações deles; dado derivado, sem cópia. Numa cópia do banco da máquina de referência (269.999 eventos), levou 20,5 s e acrescentou 24,6 MB (783,3 → 807,9 MB): 125.401 relações, 40.002 arquivos, 12.269 deles nos commits e na fonte de arquivos, 8.753 alterados por mais de um autor. Sem `reindex`.
+
+### Entidades (#20)
+
+- **Pessoas e arquivos são entidades** citadas por vários eventos, em `entities` (uma linha por tipo e chave, o tipo numa enumeração, metadata livre por tipo) e `event_entities` (evento, entidade, papel). Uma pessoa tem como chave a chave de nome do índice de pessoas, então a mesma grafia numa mensagem do Teams e num commit é uma entidade só; um arquivo, o caminho. Os tipos de imagem, repositório, projeto, mensagem, URL e objeto existem, mas nada os preenche ainda.
+- **Derivadas dos eventos no store**, pela mesma `entity.RefsOf` ao gravar, ao editar e na migração: os coletores não mudam e um banco migrado fica igual a um novo. `event_people`, `file_modifications` e as descrições de imagem continuam como estão.
+- **O `forget` apaga uma entidade junto com o último evento que a cita**, e uma edição que tira um nome apaga a entidade dele (PRIVACY, regra 4). Uma entidade não tem datas próprias, então nenhuma fica para trás.
+- **Medição:** casos da suíte de busca podem esperar uma issue (`pending_issue`): rodam e aparecem no relatório, fora dos mínimos. O primeiro, a mesma pessoa como "Fernanda Rocha" no Teams e "F. Rocha" no git, falha hoje e espera a #24; só pelos nomes as duas não se juntam. O conjunto de teste não muda: recall 1,00, MRR 0,87, rejeição 1,00.
+- **Atualização:** a migração 15 cria as tabelas e liga os eventos gravados, depois de uma cópia `cade.db.before-v15-<data>` (permissão `600`). Numa cópia do banco da máquina de referência na versão 14 (269.999 eventos), levou 6,8 s, 1,7 s deles a cópia, e acrescentou 15,9 MB (767,4 → 783,3 MB): 313 pessoas, 18 delas em mais de uma fonte, e 31.728 arquivos. Sem `reindex`.
+
+### Mensagens aninhadas leem o seu registro (#78)
+
+- **Um caminho de schema que começa com `^` lê o registro que contém o item** (`^.updateTime`), não o item: apps que aninham as mensagens dentro da conversa guardam a hora e o título só na conversa. Só é aceito com `records.each`, nunca no próprio `each` nem no `match` e nos `values` de um lookup; schemas sem `^` mapeiam como antes, e a impressão digital de mudanças guarda os caminhos `^` na raiz do registro.
+- **O `schema-discover` oferece os valores únicos do registro** como caminhos `^` quando o store tem `each`.
+- **O ChatGPT** é indexado por schema, sem código próprio: o `testdata/idb-schemas/chatgpt.json` revisado lê o `ConversationsDatabase` do Chrome. Num cache real, 918 de 1.050 mensagens em 132 conversas mapeiam; as outras 132 não têm texto. O ChatGPT não guarda hora nem autor por mensagem, então cada mensagem fica com a última atualização da conversa como hora e sem remetente.
+- Sem migração do banco.
+
+### WhatsApp do Android (#77)
+
+- **`cade ingest whatsapp-backup`** lê o `msgstore.db` do WhatsApp para Android, decifrado por você (`sources.whatsapp_backups`). O cade nunca decifra o backup `.crypt15` e nunca vê a chave.
+- **O texto que o WhatsApp Web guarda cifrado é completado.** Os dois clientes compartilham o id da mensagem, então uma mensagem que o Web indexou só por metadados mantém o evento e ganha o texto, sem evento a mais; um `ingest whatsapp` depois mantém o texto (`text_origin` nos metadados do evento). As mensagens que só estão no banco viram eventos com o id que o Web daria. Num banco real de 142.194 mensagens (2020 a 2026) e 10.391 eventos do Web: 9.276 pares (8.357 ganharam texto, o resto é mídia sem legenda), 128.254 novas, 125.080 com texto, nenhum UID duplicado; o id do Web reconstruído bateu com o do próprio Web em 95% das mensagens em comum.
+- Entram texto, mídia (legenda e nome do arquivo), contatos, localizações e enquetes; avisos do sistema, chamadas e mensagens apagadas não. O nome dos grupos vem do banco, o das pessoas dos eventos do Web (o `msgstore.db` não tem os contatos).
+- Sem migração do banco. O `.txt` exportado da conversa, proposto antes na issue, não é lido: ele não tem ids de mensagem.
+
+### Leis de privacidade: requisitos, lacunas e regras (#25)
+
+- **O PRIVACY compara o cade com a LGPD e o GDPR** sem amarrá-lo a nenhuma: os dados pessoais de cada fonte (seus e de outras pessoas, e onde pode haver dado sensível), uma tabela de requisitos, como o cade atende cada um e o que falta, e cinco regras para dados sensíveis e biométricos que valem para as entidades de pessoa (#20) e os rostos (#23).
+- **Três lacunas viraram issues:** exportação completa (#85), apagar e exportar tudo sobre uma pessoa (#86) e as cópias de migração que guardam dados esquecidos (#87).
+- **sessionStorage e cookies não são lidos (#76).** Um levantamento (só nomes, hosts e tamanhos) não achou mensagens em nenhum dos dois: os cookies guardam consentimento, estado anti-robô, ids e tokens de sessão, os do Chrome são cifrados com a chave do keyring, e o `recovery.jsonlz4` do Firefox, onde fica o sessionStorage, também guarda os cookies de sessão. A decisão está no roadmap.
+- Nenhuma mudança de código nem migração do banco.
+
+### localStorage e OPFS (#74)
+
+- **Os armazenamentos dos próprios sites são lidos** com os mesmos schemas, descoberta e `schema-check`: o localStorage (`records.kind` `local_storage`) do Chromium e de apps Electron (`Local Storage/leveldb`) e do Firefox e do Floorp (`storage/default/<origem>/ls`), e o Origin Private File System (`opfs`) dos dois (`File System/<número>`, `storage/default/<origem>/fs`). Um item do localStorage é um registro com a chave dele, em árvore quando é JSON; um arquivo JSON do OPFS é um registro localizado pelo diretório e pelo nome.
+- **Só as origens configuradas são lidas.** O localStorage de um perfil tem todos os sites, tokens de sessão entre eles, então o novo `sources.storage_origins` nomeia as origens que o cade pode ler (vazio por padrão: nada é lido); um diretório configurado de outra origem é um erro que a nomeia (um teste por leitor).
+- **Um levantamento dos apps do dia a dia** (WhatsApp Web, Teams, Discord, Notion, ChatGPT, ClickUp; Chrome e Floorp) só achou mensagens nesses armazenamentos nos rascunhos não enviados do ChatGPT: o `testdata/idb-schemas/chatgpt-drafts.json` revisado os indexa sem código próprio do ChatGPT. O Teams guarda logs de diagnóstico no OPFS, o Notion um banco SQLite WASM; SQLite dentro do OPFS não é lido.
+- Nenhuma migração do banco.
+
+### O cache HTTP e a Cache API (#75)
+
+- **Apps que não guardam mensagens no IndexedDB** podem ser lidos pelas respostas da API que o navegador guarda em cache. O cade lê o cache HTTP e a Cache API do Chromium e de apps Electron (`Cache/Cache_Data`, `Service Worker/CacheStorage`) e do Firefox e do Floorp (`cache2`, `storage/default/<origem>/cache`), com os mesmos schemas (`records.kind` `http_cache` ou `cache_api`), a mesma descoberta e o mesmo `schema-check`. Os corpos são JSON como vieram da rede: gzip, deflate, br e zstd são decodificados.
+- **Só as URLs configuradas são lidas.** Um cache de requisições tem as respostas de todos os sites, então o novo `sources.request_cache_urls` nomeia os padrões de URL que o cade pode ler (vazio por padrão: nada é lido); a origem de um padrão é literal. De qualquer outra entrada só se lê a chave (a URL), nunca o corpo (um teste por leitor). O nome do padrão é o contêiner dos registros, então um schema lê a URL de todos os canais.
+- **O Discord** é indexado por schema, sem código próprio: o `testdata/idb-schemas/discord.json` revisado mapeia as respostas de mensagens dos canais. No cache do app desktop: 90 de 99 mensagens em cache (as outras são mensagens de sistema) em 7 canais. Só se lê o que ainda está em cache: os canais abertos, até o navegador descartá-los.
+- Dependência nova: andybalholm/brotli (MIT), para corpos `br`. Os corpos da Cache API do Firefox são streams Snappy cujos checksums de bloco não batem com os do formato, então não são conferidos.
+- Sem migração do banco.
+
+### Armazenamentos do navegador atrás de um leitor só (#73)
+
+- **Os schemas não estão mais presos ao IndexedDB.** De onde vêm os registros ficou separado de como eles viram mensagem: cada armazenamento do navegador tem um leitor que entrega os mesmos registros (tipo, origem, namespace, contêiner e o valor decodificado), e os leitores do IndexedDB do Chromium e do Firefox são os primeiros. Um armazenamento novo (localStorage, OPFS, cache HTTP, Cache API: #74, #75) só precisa de um leitor; o coletor, a descoberta e o schema ficam como estão (um teste mostra isso com um leitor falso).
+- **Formato de schema versão 2:** `records.kind` diz qual é o armazenamento (`indexeddb` é o único lido hoje), e `namespace_prefix` e `container` substituem `database_prefix` e `store` nos records, nos lookups e nas impressões digitais. Os schemas da versão 1, salvos na #19, continuam funcionando sem edição: são lidos como `indexeddb`, e uma substituição os grava como versão 2.
+- **`cade schema-discover` e `cade schema-check`** são os nomes novos do `idb-discover` e do `idb-check`, que continuam rodando os mesmos comandos. A descoberta acha qual armazenamento um diretório guarda pela estrutura dele; um diretório de estrutura desconhecida é recusado, com o nome dele.
+- Sem migração do banco.
+
+### Outros aplicativos por schemas de IndexedDB (#19)
+
+- **Qualquer aplicativo que guarda os dados no IndexedDB do navegador** pode ser ingerido sem código próprio. O `cade idb-discover --name N DIR` faz o modelo local escrever um schema uma vez: em que store estão as mensagens e de onde vem cada campo. O modelo preenche um alvo fixo (a mensagem que o cade já guarda) sob uma gramática montada com os caminhos que o IndexedDB tem de verdade, então não consegue inventar um; o schema proposto é testado nos mesmos registros antes de ser salvo. Cada schema em `sources.indexeddb_schema_dir` vira uma fonte do `ingest`, com `sources.indexeddb_dirs` como alvos. A ingestão nunca roda o modelo. Formato e opções em [docs/CONFIGURATION.pt-BR.md](docs/CONFIGURATION.pt-BR.md#outros-aplicativos-por-schemas-de-indexeddb-experimental).
+- **Perfis do Firefox e do Floorp também são lidos**, para esses schemas e para o Teams: o IndexedDB deles é SQLite com structured clones do SpiderMonkey, decodificados nos mesmos valores do Chromium. O `cade init` também acha o histórico de navegação do Floorp.
+- **O Teams por schema dá as mesmas mensagens do coletor do Teams:** o `testdata/idb-schemas/teams-web.json` revisado produz o mesmo UID, hora, remetente e texto na amostra real e numa mensagem por regra que o coletor aplica (um teste).
+- **O WhatsApp Web** (no Floorp) é indexado sem código próprio, só por metadados, porque cifra o corpo das mensagens no IndexedDB: numa base real, 9.633 mensagens, 85% com o nome de quem enviou.
+- **Aplicativos mudam o jeito de guardar os dados**, então um schema guarda uma impressão digital (os caminhos que lê e seus tipos, sem valores). O `cade idb-check` mostra o que mudou e falha enquanto não for resolvido, então pode rodar num timer. O `--update` regenera com o modelo e só troca o schema quando o novo mapeia o mesmo tanto e mantém 90% dos UIDs; o antigo vai para `history/`, um recusado para `<nome>.candidate.json`. O `--rekey` aceita uma mudança de identidade e renomeia os UIDs dos eventos já indexados depois de uma cópia `cade.db.before-rekey-<data>`. O `cade idb-discover --rollback` volta à revisão anterior. Uma troca de schema nunca apaga eventos; uma revisão nova relê as mensagens que o aplicativo ainda tem.
+- O [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md#o-que-o-modelo-local-vê) diz o que o modelo vê na descoberta: nomes de stores mascarados, caminhos, tipos e até duas amostras por caminho, texto mascarado e cortado em 40 caracteres, números só pela quantidade de dígitos.
+- Sem migração de esquema.
+
+### Um conjunto de pedaços e vetores por texto (#67)
+
+- Uma página visitada 15 vezes, ou uma mensagem que aparece duas vezes no cache, agora é um conjunto de pedaços, vetores e entradas de palavras, e não um por evento; os eventos chegam a ele pelo texto. Na busca, o `top_k` conta textos, então as cópias de uma página não empurram mais as outras evidências para fora, e um texto encontrado traz todos os eventos que o têm na fonte e no período. Os filtros de fonte e período continuam exatos (CA9.1): cada vetor guarda a primeira e a última data dos eventos do seu texto, e os eventos decidem. Numa cópia do banco real: 415.963 → 295.350 pedaços e vetores (um conjunto para cada um dos 152.504 textos), 837,5 MB → 767,4 MB, e a busca 19–29% mais rápida. A suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#um-conjunto-de-pedaços-por-texto-67).
+- O hash de um commit e o caminho de um arquivo, que são do evento e não do texto, têm um índice de palavras próprio: dois commits com a mesma mensagem continuam sendo achados cada um pelo seu hash.
+- O `forget` e as edições apagam os pedaços de um texto só com o último evento dele; as datas do vetor dos outros são recalculadas, então a data de um evento esquecido não fica no índice. O `cade reindex` gera o embedding de cada texto uma vez.
+- **Atualizar:** a migração 12 indexa hashes e caminhos por evento (dado derivado, sem cópia). As migrações 13 e 14 reescrevem os vetores, então o primeiro comando que abrir um banco anterior grava antes uma cópia `cade.db.before-v13-<data>` (permissão `600`), fica com os pedaços do primeiro evento de cada texto, apaga as cópias e roda `VACUUM`. Nos 416 mil vetores da máquina de referência levou 53 s, com a cópia; precisa de espaço livre para a cópia (do tamanho do banco) mais os vetores enquanto são reescritos. Sem `reindex` e sem gerar embedding.
+
+### Vetores em `int8` (#66)
+
+- Os vetores são guardados em `int8`, cada um escalado pelo seu maior componente para que ±127 cubra o intervalo que ele usa: 1/4 do espaço do `float32`. A busca compara as mesmas direções, e a suíte de recuperação dá o mesmo recall (1,00), MRR (0,87) e rejeição (1,00). Numa cópia do banco real: 1.799,0 MB → 837,5 MB, 305 de 306 resultados do top-6 mantidos, distâncias mudando no máximo 0,0005, e a busca sem filtro 25% mais rápida (433 → 324 ms). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#vetores-em-int8-66).
+- **Atualizar:** a migração 11 reescreve os vetores, então o primeiro comando que abrir um banco anterior grava antes uma cópia `cade.db.before-v11-<data>` (permissão `600`), converte e roda `VACUUM`. Nos 416 mil vetores da máquina de referência levou 28 s, 4 s deles na cópia; precisa de espaço livre para a cópia (do tamanho do banco) mais os vetores novos. O `cade doctor` diz, sem mudar nada, que a migração está pendente e vai copiar. Sem `reindex` e sem gerar embedding.
+
+### Compactação dos vetores (#65)
+
+- O `cade compact` reescreve a tabela de vetores sem as posições que o `forget`, os eventos atualizados e a migração dos segredos deixaram vazias; o sqlite-vec nunca as reaproveita, e o `VACUUM` sozinho não chega dentro dos blocos dele. Não gera embedding e não carrega modelo: 91 s nos 416 mil vetores da máquina de referência, onde um reindex leva horas de GPU. Precisa de espaço livre para uma cópia dos vetores enquanto roda.
+- O `cade reindex` agora termina com `VACUUM`: a tabela de vetores que ele apaga ficava no arquivo como páginas livres, 1,0 GB de um banco de 2,9 GB.
+- O `cade doctor` avisa quando 20% ou mais das posições de vetores estão vazias.
+- Numa cópia do banco real: 2.949,5 MB → 1.715,7 MB, as mesmas distâncias em todas as consultas medidas, e a busca sem filtro 9% mais rápida. Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#compactação-dos-vetores-65).
+- Sem mudança no esquema.
+
+### Menos escrita no disco na ingestão (#51)
+
+- A ingestão grava os eventos em transações de 200, e não mais uma por evento; uma transação também é gravada quando passa de 2 s aberta, conferido entre um evento e outro, para que um `cade forget` rodado no meio em geral espere por ela (até 5 s) em vez de falhar. Na primeira ingestão de 2.287 eventos (`git` + `file`, num SSD), a escrita caiu de 357 MB para 99 MB, ou de 156 KB para 43 KB por evento novo, e o tempo não piorou (59 s → 56 s). Números em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
+- Uma ingestão interrompida (Ctrl-C, `cade ingest stop`, um erro) perde só o lote aberto, no máximo 200 eventos; a próxima rodada os grava de novo.
+- Sem mudança no esquema, e os dados gravados são os mesmos.
+
+### Benchmarks reproduzíveis (#14)
+
+- Cada seção de [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md) diz o comando, a data, o commit e o build que a reproduzem, com o limite de 120 W da GPU anotado; números medidos de novo em 2026-09-30 (`f4e5379`). O que nenhum comando de hoje reproduz foi para a seção "Histórico", e um glossário explica cada métrica em linguagem simples.
+- O `docs/BENCHMARKS.md` agora é em inglês, e o `docs/BENCHMARKS.pt-BR.md` em português.
+
+### Plano de espaço (#40)
+
+- O `go tool mage bench` mostra os bytes por evento de cada tabela (`BenchmarkTableSize`) e o tamanho e o tempo de busca de cada formato de vetor do sqlite-vec (`BenchmarkVectorFormat`). Os vetores são 82% da base sintética e 79% do banco real da máquina de referência.
+- Três alavancas viraram issues:
+  - compactar as posições vazias da tabela de vetores (#65, −21%);
+  - vetores `int8` escalados por vetor (#66, que mantêm 99,4% do top-10 exato nos vetores reais);
+  - um conjunto de pedaços e vetores por texto, e não por evento (#67).
+
+  Juntas, levariam o banco real de ~1,24 GB para ~0,35 GB. Os números e as alavancas que ficaram de fora estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md#alavancas-de-espaço-40).
+- Nada muda no banco nem no `cade`.
 
 ## v0.1.0 — 2026-09-30
 
@@ -53,7 +225,7 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - **Problema:** capturas de tela, fotos de quadro, diagramas e prints de erro nas pastas configuradas ficavam só com o nome, embora muitas vezes sejam o registro de uma decisão ou de um erro.
 - **Descrições:** com `sources.images` ligado (desligado por padrão; o `cade init` pergunta, mostrando o custo), o `ingest file` descreve cada png, jpeg e webp com o Qwen3.5-2B e o `mmproj`, que o `go tool mage models` já baixa: uma descrição curta, em português, e a transcrição do texto visível, sem precisar de OCR. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto: máscara de segredos, pedaços, busca híbrida, filtros, `timeline`, `forget` e citação (o caminho da imagem).
 - **Uma vez por imagem:** uma imagem que não mudou é pulada sem ser lida; uma movida, renomeada ou copiada reaproveita a descrição pelo SHA-256 dos bytes. `cade reindex --captions` descreve de novo as imagens cuja descrição veio de outro modelo ou versão do prompt, em lotes, e retoma se for interrompido.
-- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
+- **Limites:** `ingest.max_images_per_run` (50: ~20 min em CPU) e `ingest.max_image_bytes` (20 MiB); o resto fica para as próximas execuções, e o relatório diz quantas. Uma imagem que não abre é marcada ilegível e não para a ingestão. As imagens são reduzidas a 1024 px (1,7 s cada numa RTX 3060, 22 s num Ryzen 5 5500; [BENCHMARKS](docs/BENCHMARKS.pt-BR.md)). O modelo de visão só carrega quando há o que descrever e é liberado antes de o modelo de embedding carregar. O `cade doctor` confere o `mmproj` com imagens ligadas; a seção nova `vision` define o caminho dele e um contexto de 2048 tokens.
 - **Guardado:** a descrição e a transcrição (separadas, com o modelo e a versão do prompt, para a #22), o hash da imagem e o tamanho em pixels; nunca os pixels. Texto dentro de uma imagem é tratado como uma mensagem: o prompt manda copiar, não obedecer, e ordens nele ganham a marca de não confiável no `ask`. O [PRIVACY](PRIVACY.pt-BR.md) tem os detalhes.
 - **Migração 10:** um índice pelo hash da imagem no metadado. Sem cópia e sem reescrever dados.
 - **Filtro de pasta:** o `ask` lê um caminho escrito na pergunta (`~/Documents`, `/srv/notes`) como filtro exato dos arquivos dentro dele, mostrado como `pasta:` no "Entendi" e `folder` no `--json`. Antes o caminho só entrava no texto buscado por significado, e "na pasta ~/Documents" citava imagens de `~/Downloads`.

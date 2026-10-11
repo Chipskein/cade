@@ -3,6 +3,7 @@ package retrievalsuite
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -34,9 +35,8 @@ func (c *Corpus) CaptionImages(ctx context.Context, directory string, describer 
 }
 
 func captionEvent(ctx context.Context, corpusEvent *CorpusEvent, directory string, describer FixtureDescriber) error {
-	path := (event.Event{Metadata: corpusEvent.Metadata}).File().Path
-	if corpusEvent.Source != event.SourceFile || path == "" {
-		return fmt.Errorf("image %q on a %s event with path %q, expected a file event with metadata.path", corpusEvent.Image, corpusEvent.Source, path)
+	if _, err := imageText(*corpusEvent, ""); err != nil {
+		return err
 	}
 	raw, err := os.ReadFile(filepath.Join(directory, corpusEvent.Image))
 	if err != nil {
@@ -46,13 +46,24 @@ func captionEvent(ctx context.Context, corpusEvent *CorpusEvent, directory strin
 	if err != nil {
 		return err
 	}
-	metadata := event.Metadata{}
-	for key, value := range corpusEvent.Metadata {
-		metadata[key] = value
-	}
-	for key, value := range image.Metadata() {
-		metadata[key] = value
-	}
-	corpusEvent.Content, corpusEvent.Metadata = filesource.EventContent(path, image.SearchableText()), metadata
+	metadata := maps.Clone(corpusEvent.Metadata)
+	maps.Copy(metadata, image.Metadata())
+	text, _ := imageText(*corpusEvent, image.SearchableText())
+	corpusEvent.Content, corpusEvent.Metadata = text, metadata
 	return nil
+}
+
+// imageText places a description as ingestion does: an image file's text
+// is its name and the description; a Teams message showing a picture adds
+// it after its own text (#24).
+func imageText(corpusEvent CorpusEvent, description string) (string, error) {
+	ev := event.Event{Metadata: corpusEvent.Metadata}
+	switch {
+	case corpusEvent.Source == event.SourceFile && ev.File().Path != "":
+		return filesource.EventContent(ev.File().Path, description), nil
+	case corpusEvent.Source == event.SourceTeams && len(ev.ImageURLs()) > 0:
+		return corpusEvent.Content + "\n" + description, nil
+	}
+	return "", fmt.Errorf("image %q on a %s event, expected a file event with metadata.path or a Teams message with metadata.%s",
+		corpusEvent.Image, corpusEvent.Source, event.ImageURLsKey)
 }

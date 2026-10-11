@@ -29,7 +29,10 @@ const (
 	// The SQLite driver only compiles FTS5 (keyword search) with this tag;
 	// every build and test needs it.
 	fts5Tag = "sqlite_fts5"
-	cudaTag = "cuda"
+	// dbstat (bytes per table) is only needed by the storage benchmarks (#40),
+	// so only `mage bench` compiles it in.
+	dbstatTag = "sqlite_dbstat"
+	cudaTag   = "cuda"
 )
 
 // Dependencies are what Tasks needs from the outside world.

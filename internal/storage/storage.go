@@ -7,12 +7,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/representation"
 )
 
-// EventStore persists events and their embeddings.
-type EventStore interface {
+// EventWriter is what ingestion reads and writes for each collected event.
+type EventWriter interface {
 	// StoredEvent returns the stored event with this UID, if any, so
 	// ingestion can skip unchanged events (and their embedding) on re-runs
 	// and replace changed ones.
@@ -27,11 +29,44 @@ type EventStore interface {
 	// SaveEvent stores the event and its embedded chunks. It returns false
 	// without error when the UID already exists (RF1.5).
 	SaveEvent(ctx context.Context, ev event.Event, chunks []Chunk) (bool, error)
+	// IsForgotten reports a UID removed by `cade forget` or retention,
+	// which ingestion must not store again.
+	IsForgotten(ctx context.Context, uid string) (bool, error)
+}
+
+// EventBatch is an EventWriter whose writes land in one transaction
+// (issue #51): a commit per event rewrote every changed page and synced,
+// writing ~28× the database's size on a first ingestion. While a batch is
+// open, use only the batch: the store may have no other connection.
+type EventBatch interface {
+	EventWriter
+	// Commit makes the batch's writes durable. After any error from the
+	// batch, Rollback instead: the failed event may be half written.
+	Commit() error
+	// Rollback discards the batch; it is safe after Commit.
+	Rollback() error
+}
+
+// RekeyReport is what RekeyEvents changed, and where the copy taken
+// before it is.
+type RekeyReport struct {
+	Rekeyed    int
+	Conflicts  int
+	BackupPath string
+}
+
+// EventStore persists events and their embeddings.
+type EventStore interface {
+	EventWriter
+	// BeginBatch opens a batch; the caller must Commit or Rollback it
+	// before using the store again.
+	BeginBatch(ctx context.Context) (EventBatch, error)
 	// EventsBetween returns events with from <= timestamp < to, oldest first.
 	EventsBetween(ctx context.Context, from, to time.Time) ([]event.Event, error)
-	// SearchSimilar returns the nearest chunks to the query embedding that
-	// also satisfy the query's source and time filters, one hit per chunk
-	// (an event can appear more than once), closest first.
+	// SearchSimilar returns the query.Limit nearest chunks to the query
+	// embedding that have an event in the query's source and period, one
+	// hit per such event (a text's events share its chunks, and an event
+	// can appear once per chunk), closest first.
 	SearchSimilar(ctx context.Context, query SimilarityQuery) ([]ScoredEvent, error)
 	// SearchLexical returns the chunks matching a keyword query that also
 	// satisfy its source and time filters, best match first; hits carry
@@ -61,10 +96,33 @@ type EventStore interface {
 	// how many were removed; used to re-ingest after a collector changes.
 	DeleteSource(ctx context.Context, source event.Source) (int, error)
 	DeleteEvent(ctx context.Context, uid string) (bool, error)
-	IsForgotten(ctx context.Context, uid string) (bool, error)
+	// RekeyEvents gives stored events new UIDs (old to new), keeping their
+	// content, vectors and forgotten marks; an event whose new UID is
+	// already stored is left as is and counted as a conflict. The
+	// database is copied first.
+	RekeyEvents(ctx context.Context, changes map[string]string) (RekeyReport, error)
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
+	VectorCompactor
+	// EntityIndex and RelationIndex let retrieval widen a question
+	// through the graph (#24).
+	EntityIndex
+	RelationIndex
+	// EventPager lets `cade export` walk the whole history (#85).
+	EventPager
+	// PersonIndex finds everything about one person (#86).
+	PersonIndex
 	Close() error
+}
+
+// VectorCompactor returns to the disk the vector positions deletions left
+// empty (`cade compact`, #65).
+type VectorCompactor interface {
+	// VectorSlots measures the blocks; zero before the first vector.
+	VectorSlots(ctx context.Context) (VectorSlots, error)
+	// CompactVectors rewrites the blocks with only the live vectors and
+	// returns them as they are afterwards; the vectors stay the same.
+	CompactVectors(ctx context.Context) (VectorSlots, error)
 }
 
 // SimilarityQuery describes a filtered nearest-neighbour search.
@@ -77,14 +135,15 @@ type SimilarityQuery struct {
 	From time.Time
 	To   time.Time
 	// Among, when set, keeps only hits satisfying it. It applies after the
-	// k nearest are found: k counts every chunk of the source and period.
+	// k nearest are found: k counts every chunk with an event in the
+	// source and period.
 	Among *EventFilter
 }
 
 // EventFilter selects events exactly, as listing.Select does in memory:
 // timestamp in [From, To), the source (empty means all), the message
-// direction, any of People (everyone when empty), and files under Folder
-// (anywhere when empty).
+// direction, any of People (everyone when empty), files under Folder
+// (anywhere when empty), and Graph.
 type EventFilter struct {
 	From      time.Time
 	To        time.Time
@@ -92,6 +151,7 @@ type EventFilter struct {
 	Direction listing.Direction
 	People    []listing.PersonMatcher
 	Folder    string
+	Graph     GraphFilter
 }
 
 // LexicalQuery describes a filtered keyword search. Match is an FTS5
@@ -189,6 +249,8 @@ type DatabaseState struct {
 	SizeBytes       int64
 	EmbeddingModel  string
 	ReindexPending  bool
+	// VectorSlots measures the vector blocks, for `cade compact`.
+	VectorSlots VectorSlots
 }
 
 // ThresholdCalibration pairs the retrieval distance gates with the
@@ -219,6 +281,26 @@ func (c ThresholdCalibration) OutdatedFor(current ThresholdCalibration) bool {
 	return c.Model != "" && c.Model != current.Model && sameGates
 }
 
+// VectorSlots measures the vector blocks: Slots is every position they
+// hold, Vectors the live ones. sqlite-vec never reuses a deleted position
+// and VACUUM cannot reach inside its blocks (#65), so the difference is
+// space the search still reads until the vectors are compacted.
+type VectorSlots struct {
+	Slots   int
+	Vectors int
+}
+
+// EmptyShare is the fraction of positions without a vector, 0 when the
+// blocks are full or there are none.
+//
+//	storage.VectorSlots{Slots: 2048, Vectors: 1024}.EmptyShare() // 0.5
+func (v VectorSlots) EmptyShare() float64 {
+	if v.Slots == 0 {
+		return 0
+	}
+	return float64(v.Slots-v.Vectors) / float64(v.Slots)
+}
+
 // ImageCaptionIndex finds a description by the image's content (phase 19):
 // a moved, renamed or copied image is not described again.
 type ImageCaptionIndex interface {
@@ -230,4 +312,107 @@ type ImageCaptionIndex interface {
 	// folder whose description another model or prompt version wrote, for
 	// `cade reindex --captions`.
 	OutdatedImages(ctx context.Context, model string, promptVersion int) ([]event.Event, error)
+}
+
+// Entity is a stored entity (phase 26, #20): what several events refer
+// to. ID is stable while some event refers to it; Name is the first
+// spelling stored.
+type Entity struct {
+	ID   int64
+	Type entity.Type
+	Key  string
+	Name string
+}
+
+// EntityLink is an entity as one event refers to it.
+type EntityLink struct {
+	Entity
+	Role entity.Role
+}
+
+// EntityIndex reads the entities the store derived from the events, the
+// base for relations (#21) and for a person's export and forget (#85, #86).
+type EntityIndex interface {
+	// EntitiesOfEvent lists what the event uid refers to, by type, key and
+	// role; none for an unknown uid.
+	EntitiesOfEvent(ctx context.Context, uid string) ([]EntityLink, error)
+	// EventsOfEntity lists the UIDs of the events referring to the entity,
+	// oldest first; none for an unknown id.
+	EventsOfEntity(ctx context.Context, entityID int64) ([]string, error)
+}
+
+// MaxRelationHops caps how far Reachable walks: past three hops, almost
+// everything in a history is connected through some shared file or person.
+const MaxRelationHops = 3
+
+// Relationship is a stored relation between two entities (#21), with the
+// event that states it.
+type Relationship struct {
+	From     Entity
+	Relation entity.Relation
+	To       Entity
+	// Confidence is nil when the source states the relation, and set only
+	// for one inferred automatically.
+	Confidence     *float64
+	SourceEventUID string
+}
+
+// ReachedEntity is an entity Reachable found and the fewest hops to it.
+type ReachedEntity struct {
+	Entity
+	Hops int
+}
+
+// RelationIndex walks the relationships between entities. An empty
+// relation means any.
+type RelationIndex interface {
+	// RelationsFrom lists the relations whose origin is entityID.
+	RelationsFrom(ctx context.Context, entityID int64, relation entity.Relation) ([]Relationship, error)
+	// RelationsTo lists the relations whose target is entityID.
+	RelationsTo(ctx context.Context, entityID int64, relation entity.Relation) ([]Relationship, error)
+	// Reachable lists the entities within hops relations of entityID, in
+	// either direction, nearest first; hops above MaxRelationHops are
+	// capped, and the entity itself is left out.
+	Reachable(ctx context.Context, entityID int64, hops int) ([]ReachedEntity, error)
+	// RelationsStatedBy lists the relations the event uid states, for the
+	// export (#85).
+	RelationsStatedBy(ctx context.Context, uid string) ([]Relationship, error)
+}
+
+// EntityKey names an entity by what callers know of it: an image's
+// SHA-256, a file's path.
+type EntityKey struct {
+	Type entity.Type
+	Key  string
+}
+
+// StoredRepresentation is a representation as stored, with its id.
+type StoredRepresentation struct {
+	ID int64
+	representation.Representation
+}
+
+// RepresentationIndex keeps what models derived from entities (#22).
+type RepresentationIndex interface {
+	// SaveRepresentation stores rep for the entity owner, replacing the
+	// one of the same modality and kind; the entity must be stored.
+	SaveRepresentation(ctx context.Context, owner EntityKey, rep representation.Representation) (int64, error)
+	// RepresentationsOf lists the entity's representations by modality and
+	// kind; none for an unknown entity.
+	RepresentationsOf(ctx context.Context, owner EntityKey) ([]StoredRepresentation, error)
+	// SaveRepresentationVector stores the vector of a stored
+	// representation in the vector index; replacing the representation's
+	// content drops it. Every vector has the dimension of the first.
+	SaveRepresentationVector(ctx context.Context, representationID int64, vector []float32) error
+	// NearestRepresentations lists the representations of kind whose
+	// vectors are closest to vector, closest first.
+	NearestRepresentations(ctx context.Context, vector []float32, kind representation.Kind, limit int) ([]ScoredRepresentation, error)
+}
+
+// ScoredRepresentation is a representation found by its vector, with its
+// entity and cosine distance.
+type ScoredRepresentation struct {
+	StoredRepresentation
+	Owner    EntityKey
+	Distance float64
 }

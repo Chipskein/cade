@@ -67,7 +67,10 @@ func readDatabaseState(ctx context.Context, db *sql.DB, state *storage.DatabaseS
 	if state.ThresholdCalibration, err = store.ThresholdCalibration(ctx); err != nil {
 		return err
 	}
-	state.ReindexPending, err = store.ReindexPending(ctx)
+	if state.ReindexPending, err = store.ReindexPending(ctx); err != nil {
+		return err
+	}
+	state.VectorSlots, err = vectorSlots(ctx, db)
 	return err
 }
 

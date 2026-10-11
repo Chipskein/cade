@@ -33,8 +33,8 @@ type PersonEntry struct {
 }
 
 // PeopleOf lists the names the index keeps for ev: the sender (or, for a
-// commit, the author), the conversation and, in a Teams message, each
-// mentioned first name. Names without letters are left out: they match
+// commit, the author and its alias), the conversation and, in a Teams
+// message, each mentioned first name. Names without letters are left out: they match
 // nobody.
 //
 //	entries := listing.PeopleOf(ev) // [{sender "ana prado" "ana prado"} ...]
@@ -42,6 +42,7 @@ func PeopleOf(ev event.Event) []PersonEntry {
 	message := ev.Message()
 	var entries []PersonEntry
 	entries = appendName(entries, senderRole(message), firstNonEmpty(message.Sender, ev.Commit().Author))
+	entries = appendName(entries, RoleAuthor, ev.Commit().AuthorAlias)
 	entries = appendName(entries, RoleConversation, message.Conversation)
 	if ev.Source != event.SourceTeams {
 		return entries

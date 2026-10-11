@@ -217,8 +217,8 @@ func (s benchStore) size(b *testing.B) int {
 	return n
 }
 
-// BenchmarkSaveEvent is one ingested event's write, in its own transaction
-// as ingestion does, on a store that already holds 10k events.
+// BenchmarkSaveEvent is one event's write in its own transaction, as
+// ingestion did before #51, on a store that already holds 10k events.
 func BenchmarkSaveEvent(b *testing.B) {
 	bench := seededStore(b, 10_000)
 	random := rand.New(rand.NewSource(2))
@@ -230,6 +230,36 @@ func BenchmarkSaveEvent(b *testing.B) {
 		}
 		i++
 	}
+}
+
+// benchEventsPerBatch mirrors ingest's eventsPerCommit.
+const benchEventsPerBatch = 200
+
+// BenchmarkSaveEventInBatch is one event's write as ingestion does since
+// #51: in a transaction shared by benchEventsPerBatch events.
+func BenchmarkSaveEventInBatch(b *testing.B) {
+	bench := seededStore(b, 10_000)
+	random := rand.New(rand.NewSource(3))
+	batch, err := bench.store.BeginBatch(context.Background())
+	testcheck.NoError(b, err)
+	for i := 0; b.Loop(); i++ {
+		ev, vector := benchEvent(random, 2_000_000+i)
+		if _, err := batch.SaveEvent(context.Background(), ev, whole(ev, vector)); err != nil {
+			b.Fatal(err)
+		}
+		if (i+1)%benchEventsPerBatch == 0 {
+			batch = commitAndReopen(b, bench.store, batch)
+		}
+	}
+	testcheck.NoError(b, batch.Commit())
+}
+
+func commitAndReopen(b *testing.B, store *Store, batch storage.EventBatch) storage.EventBatch {
+	b.Helper()
+	testcheck.NoError(b, batch.Commit())
+	next, err := store.BeginBatch(context.Background())
+	testcheck.NoError(b, err)
+	return next
 }
 
 // BenchmarkDatabaseSize reports bytes per event, to project growth.

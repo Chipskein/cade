@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
@@ -74,7 +75,10 @@ type queryLabels struct {
 	modes      map[queryplan.Mode]string
 	directions map[listing.Direction]string
 	statuses   map[queryplan.TaskStatus]string
+	modalities map[entity.Type]string
 	people     string
+	entities   string
+	related    string
 	folder     string
 	topic      string
 	noFilters  string
@@ -89,14 +93,16 @@ var portugueseQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "responder", queryplan.ModeList: "listar", queryplan.ModeTasks: "tarefas"},
 	directions: map[listing.Direction]string{listing.Received: "recebidas", listing.Sent: "enviadas"},
 	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR aberto", queryplan.OnlyInProgress: "em andamento"},
-	people:     "pessoas: ", folder: "pasta: ", topic: "assunto: ", noFilters: "sem filtros",
+	modalities: map[entity.Type]string{entity.TypeImage: "imagens"},
+	people:     "pessoas: ", entities: "aparecem: ", related: "relacionadas", folder: "pasta: ", topic: "assunto: ", noFilters: "sem filtros",
 }
 
 var englishQueryLabels = queryLabels{
 	modes:      map[queryplan.Mode]string{queryplan.ModeAnswer: "answer", queryplan.ModeList: "list", queryplan.ModeTasks: "tasks"},
 	directions: map[listing.Direction]string{listing.Received: "received", listing.Sent: "sent"},
 	statuses:   map[queryplan.TaskStatus]string{queryplan.OnlyDone: "PR opened", queryplan.OnlyInProgress: "in progress"},
-	people:     "people: ", folder: "folder: ", topic: "topic: ", noFilters: "no filters",
+	modalities: map[entity.Type]string{entity.TypeImage: "images"},
+	people:     "people: ", entities: "appearing: ", related: "related", folder: "folder: ", topic: "topic: ", noFilters: "no filters",
 }
 
 func describeQuery(query queryplan.Query, language Language) string {
@@ -110,6 +116,7 @@ func describeQuery(query queryplan.Query, language Language) string {
 	people := strings.Join(query.Criteria.People, ", ")
 	parts = appendIf(parts, people, labels.people+people)
 	parts = appendIf(parts, labels.directions[query.Criteria.Direction], labels.directions[query.Criteria.Direction])
+	parts = appendGraph(parts, query, labels)
 	parts = appendIf(parts, query.Folder, labels.folder+query.Folder)
 	parts = appendIf(parts, query.Topic, labels.topic+query.Topic)
 	parts = appendIf(parts, labels.statuses[query.TaskStatus], labels.statuses[query.TaskStatus])
@@ -117,6 +124,17 @@ func describeQuery(query queryplan.Query, language Language) string {
 		parts = append(parts, labels.noFilters)
 	}
 	return strings.Join(parts, " · ")
+}
+
+// appendGraph describes the #24 fields: modality, who appears, widening.
+func appendGraph(parts []string, query queryplan.Query, labels queryLabels) []string {
+	parts = appendIf(parts, labels.modalities[query.Modality], labels.modalities[query.Modality])
+	entities := strings.Join(query.Entities, ", ")
+	parts = appendIf(parts, entities, labels.entities+entities)
+	if query.Related {
+		parts = append(parts, labels.related)
+	}
+	return parts
 }
 
 func appendIf(parts []string, condition, part string) []string {

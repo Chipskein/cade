@@ -19,6 +19,9 @@ const (
 	SourceBrowser Source = "browser"
 	SourceFile    Source = "file"
 	SourceTeams   Source = "teams"
+	// SourceWhatsApp is the source of the WhatsApp Web schema's events
+	// and of the Android database's (#77), which complete each other.
+	SourceWhatsApp Source = "whatsapp"
 )
 
 // Metadata holds source-specific attributes (commit hash, URL, file path...).
@@ -58,6 +61,59 @@ const RevisionKey = "revision"
 func (e Event) Revision() (int64, bool) {
 	revision, err := strconv.ParseInt(e.Metadata[RevisionKey], 10, 64)
 	return revision, err == nil
+}
+
+// SchemaKey and SchemaRevisionKey record which IndexedDB schema, at which
+// revision, mapped an event. A regenerated schema that reads the same
+// message better replaces it on the next ingest, even at the same message
+// revision (see ingest's replaces).
+const (
+	SchemaKey         = "schema"
+	SchemaRevisionKey = "schema_revision"
+)
+
+// SchemaRevision returns the schema and revision that mapped the event, if
+// a schema did.
+func (e Event) SchemaRevision() (string, int64, bool) {
+	revision, err := strconv.ParseInt(e.Metadata[SchemaRevisionKey], 10, 64)
+	return e.Metadata[SchemaKey], revision, err == nil && e.Metadata[SchemaKey] != ""
+}
+
+// TextOriginKey records where an event's message text came from when not
+// from its own source: the WhatsApp Web schema maps messages without text
+// (it is encrypted), and the Android database fills it in (#77).
+const (
+	TextOriginKey    = "text_origin"
+	TextOriginBackup = "backup"
+)
+
+// AttachmentKey holds a chat message's attached file name (a WhatsApp
+// photo), so a message without caption still says what it was.
+const AttachmentKey = "attachment"
+
+// Attachment is the file name attached to the message, "" when none.
+func (e Event) Attachment() string {
+	return e.Metadata[AttachmentKey]
+}
+
+// ImageURLsKey holds the addresses of the images a Teams message shows,
+// one per line, so their descriptions can be found in the browser's cache
+// (#24).
+const ImageURLsKey = "image_urls"
+
+// ImageURLs are the images the message shows, in order; none when it
+// shows none.
+func (e Event) ImageURLs() []string {
+	if e.Metadata[ImageURLsKey] == "" {
+		return nil
+	}
+	return strings.Split(e.Metadata[ImageURLsKey], "\n")
+}
+
+// TextFromBackup reports a message whose text came from the Android
+// database, which a later reading without text must not erase.
+func (e Event) TextFromBackup() bool {
+	return e.Metadata[TextOriginKey] == TextOriginBackup && e.Message().Text != ""
 }
 
 // Headline returns the first non-empty line of the content, for one-line
