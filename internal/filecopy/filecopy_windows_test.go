@@ -27,10 +27,15 @@ func lockedByAnotherHandle(t *testing.T, dir, name, content string) string {
 	return path
 }
 
-func TestFileCopiesAnEmptyFileAnotherHandleLocks(t *testing.T) {
-	dir := t.TempDir()
-	source := lockedByAnotherHandle(t, dir, "LOCK", "")
-	if err := File(source, filepath.Join(dir, "copy")); err != nil {
-		t.Fatalf("expected the empty LOCK copied, got %v", err)
+// Regression (#54): with the browser open, its LevelDB LOCK is locked, and
+// Windows refused to copy it, failing the whole IndexedDB read.
+func TestFlatDirectoryCopiesALevelDBTheBrowserHolds(t *testing.T) {
+	source := t.TempDir()
+	lockedByAnotherHandle(t, source, levelDBLockFile, "")
+	if err := os.WriteFile(filepath.Join(source, "CURRENT"), []byte("MANIFEST-000001"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := FlatDirectory(source, filepath.Join(t.TempDir(), "copy")); err != nil {
+		t.Fatalf("expected the LevelDB copied without its lock, got %v", err)
 	}
 }
