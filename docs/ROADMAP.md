@@ -43,8 +43,8 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | feito | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
 | 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
-| 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | a fazer | alto | médio |
-| 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | a fazer | alto | médio |
+| 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | feito | alto | médio |
+| 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | feito | alto | médio |
 | 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | a fazer | médio | baixo |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
@@ -303,6 +303,7 @@ Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue 
 - **Problema:** não há como tirar do `cade` uma cópia completa e legível por máquina do que ele guarda. O `ask --json` devolve no máximo `top_k` eventos, e o `timeline` imprime texto. É a lacuna de acesso e portabilidade da fase 25.
 - **Mudança:** `cade export [--source F] [--from D --to D]` escreve JSON Lines no stdout, um evento por linha: UID, fonte, hora, texto, metadados e os derivados (pessoas do `event_people`, entidades, relações e representações; sem vetores). Só leitura, sem rede.
 - **Aceite:** sem filtros, devolve todos os eventos do banco (teste com o fake e com o SQLite); filtros de fonte e período iguais aos do `forget --match`; a linha "Acesso e portabilidade" do PRIVACY aponta para o comando.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#exportação-85)): `cade export` escreve um evento por linha, com pessoas, entidades, relações que o evento afirma e representações, sem vetores, lendo o histórico de 500 em 500 (`storage.EventPager`, pelo id da linha). Os filtros são os do `forget --match`, numa função só, e uma fonte desconhecida dá erro. Num banco com os 306 commits deste repositório, exportar um dia deu 10 linhas.
 
 ---
 
@@ -313,6 +314,7 @@ Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue 
 - **Problema:** o `forget` apaga por fonte, UID, texto e período, mas nada apaga ou exporta tudo sobre uma pessoa. Se alguém que aparece nas suas mensagens pede para sair, o `forget --match` por texto não acha as grafias que a `listing.NameKey` junta. É a lacuna de eliminação e acesso por titular da fase 25.
 - **Mudança:** `cade forget --person NOME` (com revisão e `--yes`, como o `--match`) e `cade export --person NOME`, a partir da entidade `Person` e do `event_people`, com a mesma chave de nome e, quando ligado, o nome lido do e-mail (#24). O `forget` apaga a entidade que fica sem evento (regra 4 do PRIVACY).
 - **Aceite:** `forget --person` acha as grafias juntadas e mostra a lista antes de apagar; nada do nome sobra no banco depois (teste: `event_people`, entidades, texto, pedaços, FTS).
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#apagar-e-exportar-por-pessoa-86)): o `storage.PersonIndex` acha os nomes completos que um nome casa e os eventos de uma pessoa: o que ela mandou ou escreveu (com o nome lido do e-mail), as @menções ao primeiro nome e as conversas só com ela, pelos dados e não pelo título (toda mensagem que o usuário não mandou é dela). Grupos ficam, por escolha do usuário. "Ana" com duas Anas para e lista as duas. Uma @menção só tem o primeiro nome, então conta para todas as pessoas com ele; a lista mostra antes de apagar.
 
 ---
 
