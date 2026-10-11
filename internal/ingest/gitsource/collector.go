@@ -46,9 +46,9 @@ func NewCollector(runner CommandRunner, repository string, authors, identities [
 // CollectEvents emits one event per commit reachable from any branch, tag or
 // remote, so work on unmerged branches is not lost (RNF3.1).
 func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) error {
-	repository, err := filepath.Abs(c.repository)
+	repository, err := c.absoluteRepository()
 	if err != nil {
-		return fmt.Errorf("resolve repository path %q: %w", c.repository, err)
+		return err
 	}
 	c.resolvedRepository, c.resolved = repository, c.resolveIdentities(ctx, repository)
 	output, err := c.runner.Run(ctx, repository, "git", c.logArguments()...)
@@ -56,6 +56,17 @@ func (c *Collector) CollectEvents(ctx context.Context, emit ingest.EmitFunc) err
 		return fmt.Errorf("read git history of %q: %w", repository, err)
 	}
 	return emitCommits(string(output), repository, c.resolved, emit)
+}
+
+// absoluteRepository is the repository's absolute path written with "/",
+// as file events store paths on every system (#54), so a commit's files
+// meet the same files indexed from a directory.
+func (c *Collector) absoluteRepository() (string, error) {
+	repository, err := filepath.Abs(c.repository)
+	if err != nil {
+		return "", fmt.Errorf("resolve repository path %q: %w", c.repository, err)
+	}
+	return filepath.ToSlash(repository), nil
 }
 
 // historyRefs are the commits read: every branch, tag and remote.
@@ -78,9 +89,9 @@ func (c *Collector) authorFilters() []string {
 // EstimateEvents counts the commits CollectEvents will emit, with
 // `git rev-list --count` over the same refs and authors.
 func (c *Collector) EstimateEvents(ctx context.Context) (int, error) {
-	repository, err := filepath.Abs(c.repository)
+	repository, err := c.absoluteRepository()
 	if err != nil {
-		return 0, fmt.Errorf("resolve repository path %q: %w", c.repository, err)
+		return 0, err
 	}
 	args := append(append([]string{"rev-list", "--count"}, historyRefs...), c.authorFilters()...)
 	output, err := c.runner.Run(ctx, repository, "git", args...)

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -47,7 +48,8 @@ type Copy struct {
 // and its WAL and shared-memory files are never copies; a directory that
 // does not exist has none.
 func Find(fsys fs.FS, database string) ([]Copy, error) {
-	directory := filepath.Dir(database)
+	database = filepath.ToSlash(database)
+	directory := pathpkg.Dir(database)
 	entries, err := fs.ReadDir(fsys, rootfs.Name(directory))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -57,8 +59,8 @@ func Find(fsys fs.FS, database string) ([]Copy, error) {
 	}
 	var copies []Copy
 	for _, entry := range entries {
-		if isCopyOf(filepath.Base(database), entry) {
-			copies = appendCopy(copies, filepath.Join(directory, entry.Name()), entry)
+		if isCopyOf(pathpkg.Base(database), entry) {
+			copies = appendCopy(copies, pathpkg.Join(directory, entry.Name()), entry)
 		}
 	}
 	slices.SortFunc(copies, func(a, b Copy) int { return a.ModifiedAt.Compare(b.ModifiedAt) })

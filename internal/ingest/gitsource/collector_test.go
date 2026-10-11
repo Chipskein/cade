@@ -12,6 +12,7 @@ import (
 
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/testcheck"
+	"github.com/chipskein/cade/internal/testfakes"
 )
 
 // FakeGitRunner returns canned git output and records the arguments used.
@@ -175,7 +176,7 @@ func TestAutoIdentityMarksOwnCommits(t *testing.T) {
 	if marks["aaa111"] != event.AuthorshipMine || marks["bbb222"] != event.AuthorshipOther {
 		t.Fatalf("expected Ana's commit mine and Rui's other, got %v", marks)
 	}
-	if repository, identities := collector.CommitAuthorship(); repository != "/repo" || len(identities) != 2 || identities[0] != "ana@x.io" {
+	if repository, identities := collector.CommitAuthorship(); repository != testfakes.SystemPath("/repo") || len(identities) != 2 || identities[0] != "ana@x.io" {
 		t.Fatalf("expected the repository and lowercased identities, got %q %v", repository, identities)
 	}
 }

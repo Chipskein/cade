@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -133,7 +134,7 @@ func (d SchemaDir) load(path string) (Schema, error) {
 	if err != nil {
 		return Schema{}, err
 	}
-	if want := strings.TrimSuffix(filepath.Base(path), schemaFileSuffix); schema.Name != want {
+	if want := strings.TrimSuffix(pathpkg.Base(filepath.ToSlash(path)), schemaFileSuffix); schema.Name != want {
 		return Schema{}, fmt.Errorf("%s: schema named %q, expected %q like its file", path, schema.Name, want)
 	}
 	return schema, nil
@@ -186,5 +187,13 @@ func EncodeSchema(schema Schema) ([]byte, error) {
 
 // FilePath is where the schema called name lives.
 func (d SchemaDir) FilePath(name string) string {
-	return filepath.Join(d.path, name+schemaFileSuffix)
+	return d.join(name + schemaFileSuffix)
+}
+
+// join names a file under the directory with "/", as cade writes paths on
+// every system (#54); Windows opens them too.
+//
+//	d.join("history", "whatsapp.1.json") // "/home/me/.config/cade/idb-schemas/history/whatsapp.1.json"
+func (d SchemaDir) join(names ...string) string {
+	return pathpkg.Join(append([]string{filepath.ToSlash(d.path)}, names...)...)
 }
