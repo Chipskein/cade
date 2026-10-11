@@ -19,6 +19,7 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/console"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
@@ -61,8 +62,8 @@ func productionToolkit() cli.Toolkit {
 		OS:                 runtime.GOOS,
 		StoreReaders:       storeReaders,
 		SchemaFiles:        idbmap.OSSchemaFiles{},
-		StderrIsTerminal:   isTerminal(os.Stderr),
-		StdoutIsTerminal:   isTerminal(os.Stdout),
+		StderrIsTerminal:   console.ANSITerminal(os.Stderr),
+		StdoutIsTerminal:   console.ANSITerminal(os.Stdout),
 		RenderImagePreview: renderImagePreview,
 		Language:           cli.LanguageFromEnv(os.Getenv),
 		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
@@ -151,13 +152,6 @@ func modelOptions(settings config.ModelConfig) llamacpp.ModelOptions {
 		Threads:       settings.Threads,
 		GPULayers:     settings.GPULayers,
 	}
-}
-
-// isTerminal reports whether file is a character device (a TTY), so the
-// CLI knows it may redraw a progress line in place.
-func isTerminal(file *os.File) bool {
-	info, err := file.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // sqliteURIEscaper escapes what a file: URI would otherwise read as an
