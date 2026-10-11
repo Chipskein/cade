@@ -50,6 +50,8 @@ func (f FakeCollector) CollectEvents(_ context.Context, emit ingest.EmitFunc) er
 
 // fakeWorld bundles the fakes behind one Toolkit so tests can inspect them.
 type fakeWorld struct {
+	// removedFiles are what RemoveFile deleted.
+	removedFiles []string
 	// teamsPictures are what the browser's cache holds for Teams.
 	teamsPictures map[string][]byte
 	store         *testfakes.FakeEventStore
@@ -129,6 +131,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		},
 		LoadGenerator: w.loadGenerator,
 		TeamsPictures: func(context.Context, string) (map[string][]byte, error) { return w.teamsPictures, nil },
+		RemoveFile:    w.removeFile,
 		Sources:       w.sources,
 		StoreReaders:  w.storeReaders,
 		SchemaFiles:   idbmap.OSSchemaFiles{},
@@ -138,6 +141,13 @@ func (w *fakeWorld) toolkit() Toolkit {
 		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
 			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
+}
+
+// removeFile deletes from the fake filesystem, recording what it deleted.
+func (w *fakeWorld) removeFile(path string) error {
+	w.removedFiles = append(w.removedFiles, path)
+	delete(w.files.MapFS, rootfs.Name(path))
+	return nil
 }
 
 func (w *fakeWorld) writeConfig(path string, cfg config.Config) error {

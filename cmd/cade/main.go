@@ -54,6 +54,7 @@ func productionToolkit() cli.Toolkit {
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
 		TeamsPictures:      teamsPictures,
+		RemoveFile:         os.Remove,
 		StoreReaders:       storeReaders,
 		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),

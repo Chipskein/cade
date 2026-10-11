@@ -98,8 +98,7 @@ func migrationWording(finding doctor.Finding, language Language) string {
 	if !database.MigrationBackup {
 		return text
 	}
-	megabytes := (database.SizeBytes + 1<<20 - 1) >> 20
-	return text + fmt.Sprintf(language.pick(", antes gravando uma cópia (~%d MB)", ", first writing a copy (~%d MB)"), megabytes)
+	return text + fmt.Sprintf(language.pick(", antes gravando uma cópia (~%d MB)", ", first writing a copy (~%d MB)"), megabytesOf(database.SizeBytes))
 }
 
 func emptyVectorSlotsWording(finding doctor.Finding, language Language) string {

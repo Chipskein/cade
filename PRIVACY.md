@@ -21,7 +21,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 | Path | Contents | Mode |
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text, one set per distinct text), embeddings, a keyword index of the words of each chunk, a keyword index of commit hashes and file paths, file edit history | `600` |
-| `~/.local/share/cade/cade.db.before-v*` | copy saved before a schema migration that rewrites data; same contents as the database | `600` |
+| `~/.local/share/cade/cade.db.before-v*`, `cade.db.before-rekey-*` | copy saved before a schema migration that rewrites data, or before `schema-check --rekey`; same contents as the database | `600` |
 | `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories, Teams profiles and IndexedDB directories to read | `600` |
 | `~/.config/cade/idb-schemas/` | one schema per app: database and store names, field paths and their types, the conditions you or the model wrote (such as message type values); no message, name or id. `history/` keeps replaced revisions, `*.candidate.json` refused ones | `600` |
 | `~/.local/share/cade/cade.db.before-rekey-*` | copy saved before `schema-check --rekey` renames UIDs; same contents as the database | `600` |
@@ -118,7 +118,7 @@ Both models run in-process through llama.cpp.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`. For an image, that includes its description, which a copy of the same image found later reuses.
 - An image's description and visible text are kept once per image (by its SHA-256), as representations of the image (`representations`), and in the text of each event that holds it, for the search: an image file, a Teams message with the picture, or a WhatsApp photo linked to the file of the same name. `forget` of the image's last copy deletes them; while another copy, or a message showing the picture, is stored, it keeps them. `cade reindex --captions` replaces descriptions in place, zeroing the old text. A representation's vector (`representation_vectors`) goes with it; nothing writes one yet.
-- `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
+- `forget` does not delete the migration and rekey copies (`cade.db.before-v*`, `cade.db.before-rekey-*`), which still hold what it deleted: it ends listing them, with date and size, and `cade forget --backups` deletes them after asking (or with `--yes`), never the database. `cade doctor` shows them too.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - `forget --uid` and confirmed `forget --match` remove the event, chunks, embeddings, keyword and people indexes, and file history; only its UID and deletion date remain to prevent re-ingestion. `forget <source>` clears that forgotten-UID list. Retention is off by default; set `ingest.retention.max_age_days` per source to opt in.
 
@@ -150,7 +150,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | Storage limitation | `ingest.retention.max_age_days` per source | off by default, by choice: the history is the point |
 | Access and portability | `ask`, `timeline`, `tasks` and listings show the data; `cade export` writes everything as JSON Lines, one event per line with what was derived from it (people, entities, relations, descriptions), without vectors | — |
 | Rectification | an edited message or file replaces the stored text on the next ingestion | cade never edits text itself: correct the source and ingest again |
-| Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL; `forget --person NAME` erases everything about one person (what they sent or wrote, the messages that @mention them, their one-to-one chats) after listing it, and `export --person NAME` gives it to them first | migration and rekey copies keep forgotten data → [#87](https://github.com/Chipskein/cade/issues/87) |
+| Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL; `forget --person NAME` erases everything about one person (what they sent or wrote, the messages that @mention them, their one-to-one chats) after listing it, and `export --person NAME` gives it to them first | migration and rekey copies keep forgotten data until `cade forget --backups`; `forget` and `doctor` list them, but nothing deletes them by itself |
 | Deletion at the source | an edit replaces the text | a message deleted in the app stays until `forget`; an expired cache cannot tell cade it was deleted |
 | Security | owner-only files, no network, temporary copies removed | the database is not encrypted → [#57](https://github.com/Chipskein/cade/issues/57) |
 | Sensitive data (LGPD art. 11, GDPR art. 9) | stored like any text; never detected, labelled or inferred | rules below |

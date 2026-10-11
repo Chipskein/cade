@@ -45,7 +45,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
 | 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | feito | alto | médio |
 | 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | feito | alto | médio |
-| 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | a fazer | médio | baixo |
+| 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | feito | médio | baixo |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
 | — | [v0.3.0](#v030) | várias | depois | — | — |
@@ -325,6 +325,7 @@ Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue 
 - **Problema:** as migrações com cópia (`cade.db.before-v*`) e o `schema-check --rekey` (`cade.db.before-rekey-*`) guardam o banco inteiro, e o `forget` não toca nelas. O que foi esquecido continua no disco até o usuário apagar as cópias à mão; o PRIVACY só avisa.
 - **Mudança:** o `forget` termina listando as cópias que existem, com data e tamanho; o `cade doctor` as mostra e diz há quanto tempo existem; uma forma explícita de apagá-las (por exemplo `cade forget --backups`, com confirmação), sem apagar nada sozinho.
 - **Aceite:** com cópias presentes, o `forget` as lista, e sem cópias não diz nada; apagar as cópias pede confirmação e nunca toca no `cade.db`.
+- **Resultado** ([CHANGELOG](../CHANGELOG.pt-BR.md#cópias-do-banco-que-guardam-dados-esquecidos-87)): todo `forget` termina listando as cópias com data e tamanho; `forget --backups` as apaga depois de confirmar, nunca o banco; o `doctor` mostra quantas, desde quando e de que tamanho, sem contar como aviso. Os nomes das cópias ficaram num lugar só (`dbcopy`), usado pelo store. Com as fases 25a a 25c, as três lacunas de eliminação e acesso da fase 25 estão fechadas.
 
 ---
 

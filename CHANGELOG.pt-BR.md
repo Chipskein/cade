@@ -10,6 +10,12 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Cópias do banco que guardam dados esquecidos (#87)
+
+- **Todo `cade forget` termina listando as cópias** feitas antes de migrações e de rekey (`cade.db.before-v*`, `cade.db.before-rekey-*`), com data e tamanho, porque elas ainda guardam o que ele apagou; sem cópias, não diz nada. **`cade forget --backups`** as lista, pergunta (ou `--yes`) e apaga, nunca o banco. **`cade doctor`** mostra quantas são, desde quando e de que tamanho, sem contar como aviso. Nada é apagado sozinho.
+- Os nomes das cópias ficam num lugar só (`dbcopy`), que o store usa ao fazê-las.
+- A última lacuna de eliminação da #25 no PRIVACY fica resolvida. Sem migração do banco.
+
 ### Apagar e exportar por pessoa (#86)
 
 - **`cade forget --person NOME`** apaga tudo sobre uma pessoa depois de listar e perguntar (ou `--yes`): o que ela mandou ou escreveu (com o nome lido do e-mail, quando ligado), as mensagens que @mencionam o primeiro nome dela e as conversas só com ela, em que toda mensagem que você não mandou é dela, com as suas. Grupos ficam, a menos que ela escreva ou seja mencionada. As entidades que ficam sem evento vão junto. **`cade export --person NOME`** escreve os mesmos eventos em JSON Lines.

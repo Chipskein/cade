@@ -48,6 +48,8 @@ Comandos:
                                         expirado) não volta
   forget --person NOME                  apaga tudo sobre uma pessoa (o que ela mandou,
                                         menções e chats só com ela), depois de listar
+  forget --backups                      apaga as cópias do banco (antes de migrações),
+                                        que ainda guardam o que foi esquecido
   export [--source F] [--from D --to D] tudo o que o cade guarda, em JSON Lines
                                         (um evento por linha, com os derivados);
                                         --person NOME: só o que é sobre ela
@@ -123,6 +125,8 @@ Commands:
                                         cache) does not come back
   forget --person NAME                  deletes everything about a person (what they
                                         sent, mentions, chats with only them), after listing
+  forget --backups                      deletes the database copies (before migrations),
+                                        which still hold what was forgotten
   export [--source S] [--from D --to D] everything cade keeps, as JSON Lines
                                         (one event per line, with what was derived);
                                         --person NAME: only what is about them
