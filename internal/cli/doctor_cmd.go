@@ -31,6 +31,9 @@ func runDoctor(ctx context.Context, env commandEnv, args []string) error {
 	findings := doctor.Diagnose(env.toolkit.RootFS, env.configPath, cfg, database)
 	home, _ := env.toolkit.HomeDir()
 	renderFindings(env.stdout, findings, language, home)
+	if err := env.renderDatabaseCopies(cfg.DatabasePath); err != nil {
+		return err
+	}
 	unfinished, err := env.renderLastIngest()
 	if err != nil {
 		return err

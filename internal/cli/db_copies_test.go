@@ -78,3 +78,14 @@ func TestMegabytesOfRoundsUp(t *testing.T) {
 		t.Fatal("expected sizes rounded up to whole megabytes")
 	}
 }
+
+func TestDoctorShowsTheCopiesWithoutWarning(t *testing.T) {
+	world := doctorWorld()
+	world.files.AddFile(dbcopy.BeforeMigration("/home/ana/cade.db", 18, cliNow), strings.Repeat("x", 2<<20))
+	world.files.MapFS[rootfs.Name(dbcopy.BeforeMigration("/home/ana/cade.db", 18, cliNow))].ModTime = cliNow.AddDate(0, 0, -30)
+	code, stdout, _ := world.run("doctor")
+	if code != 0 || !strings.Contains(stdout, "cópias do banco        1, a mais antiga de") || !strings.Contains(stdout, "(há 30 dias), 2 MB") ||
+		!strings.Contains(stdout, "cade forget --backups") || !strings.Contains(stdout, "Tudo pronto (0 avisos)") {
+		t.Fatalf("expected the copy's line and a clean verdict, got %d %q", code, stdout)
+	}
+}

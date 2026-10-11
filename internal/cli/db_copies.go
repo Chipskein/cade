@@ -80,3 +80,24 @@ func (env commandEnv) removeCopies(copies []dbcopy.Copy, database string) error 
 	fmt.Fprintln(env.stdout, env.language.count(removed, removedCopyNoun)+".")
 	return nil
 }
+
+// renderDatabaseCopies is doctor's line on the copies (#87): how many,
+// since when and how big. It informs rather than warns, so the verdict
+// does not change; without copies there is no line.
+func (env commandEnv) renderDatabaseCopies(database string) error {
+	copies, err := dbcopy.Find(env.toolkit.RootFS, database)
+	if err != nil || len(copies) == 0 {
+		return err
+	}
+	var total int64
+	for _, copied := range copies {
+		total += copied.Size
+	}
+	oldest := copies[0].ModifiedAt
+	age := env.language.count(int(env.toolkit.Now().Sub(oldest)/dayLength), dayNoun)
+	fmt.Fprintf(env.stdout, "%-6s %-22s %s\n", "—", env.language.pick("cópias do banco", "database copies"), fmt.Sprintf(env.language.pick(
+		"%d, a mais antiga de %s (há %s), %d MB; ainda guardam o que foi esquecido", "%d, the oldest from %s (%s ago), %d MB; they still hold what was forgotten"),
+		len(copies), oldest.Format(time.DateOnly), age, megabytesOf(total)))
+	fmt.Fprintf(env.stdout, "%-29s → %s\n", "", env.language.pick("apague com `cade forget --backups`", "delete them with `cade forget --backups`"))
+	return nil
+}
