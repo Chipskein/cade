@@ -148,7 +148,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | Minimization | Teams, images, `sources.storage_origins` and `sources.request_cache_urls` are off or empty by default; secret masking; URL credential parameters dropped; ignored file globs; cookies and sessionStorage are never read ([#76](https://github.com/Chipskein/cade/issues/76)) | — |
 | Purpose limitation | local search only: no network at run time, no telemetry, and the model has no tools | — |
 | Storage limitation | `ingest.retention.max_age_days` per source | off by default, by choice: the history is the point |
-| Access and portability | `ask`, `timeline`, `tasks` and listings show the data | no complete, machine-readable copy: `ask --json` returns at most `top_k` events and `timeline` prints text → [#85](https://github.com/Chipskein/cade/issues/85) |
+| Access and portability | `ask`, `timeline`, `tasks` and listings show the data; `cade export` writes everything as JSON Lines, one event per line with what was derived from it (people, entities, relations, descriptions), without vectors | — |
 | Rectification | an edited message or file replaces the stored text on the next ingestion | cade never edits text itself: correct the source and ingest again |
 | Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL | nothing erases everything about one person, though `event_people` knows where they appear → [#86](https://github.com/Chipskein/cade/issues/86); migration and rekey copies keep forgotten data → [#87](https://github.com/Chipskein/cade/issues/87) |
 | Deletion at the source | an edit replaces the text | a message deleted in the app stays until `forget`; an expired cache cannot tell cade it was deleted |

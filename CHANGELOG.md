@@ -10,6 +10,13 @@ What changed in each version, the schema migrations, and what each migration rew
 
 ## Unreleased
 
+### Export (#85)
+
+- **`cade export [--source F] [--from D --to D]`** writes everything cade keeps on stdout as JSON Lines: one event per line with its UID, source, time, text and metadata, the names the people index keeps, the entities it refers to, the relations it states and those entities' representations (an image's description), without vectors. The filters are those of `forget --match`; the count goes to stderr.
+- **The history is read 500 events at a time** (`storage.EventPager`, by row id), so exporting it never holds it in memory.
+- PRIVACY's access and portability gap from #25 is closed.
+- No database migration.
+
 ### Search by entities, relationships and modality (#24)
 
 - **The plan reads three more things:** `entidades` (who or what a picture shows or is about: "fotos do João", "prints do projeto Orion"), `modalidade` (`imagem`) and `relacionadas` ("quem mais…", "who else…"). The guard keeps entities only beside a modality and named in the question, the modality only with a word for pictures, and the widening only with a word for others and someone to start from; the rules read "imagens", "fotos" and "prints" without the model. A question without them takes the path it took before.

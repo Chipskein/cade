@@ -10,6 +10,13 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Exportação (#85)
+
+- **`cade export [--source F] [--from D --to D]`** escreve no stdout, em JSON Lines, tudo o que o cade guarda: um evento por linha com UID, fonte, hora, texto e metadados, os nomes do índice de pessoas, as entidades que ele cita, as relações que afirma e as representações dessas entidades (a descrição de uma imagem), sem vetores. Os filtros são os do `forget --match`; a contagem vai para o stderr.
+- **O histórico é lido de 500 em 500 eventos** (`storage.EventPager`, pelo id da linha), então exportá-lo nunca o carrega inteiro na memória.
+- A lacuna de acesso e portabilidade da #25 no PRIVACY fica resolvida.
+- Sem migração do banco.
+
 ### Busca por entidades, relações e modalidade (#24)
 
 - **O plano lê mais três coisas:** `entidades` (quem ou o que uma imagem mostra ou trata: "fotos do João", "prints do projeto Orion"), `modalidade` (`imagem`) e `relacionadas` ("quem mais…", "who else…"). O guard só mantém entidades junto de uma modalidade e citadas na pergunta, a modalidade só com uma palavra para imagens, e a ampliação só com uma palavra para "outros" e alguém de onde partir; as regras leem "imagens", "fotos" e "prints" sem o modelo. Uma pergunta sem esses campos segue o caminho de antes.

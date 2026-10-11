@@ -50,6 +50,7 @@ cade timeline --around UID   # 2h before and after an event (UID from `ask --jso
 cade tasks today
 cade ask "what did I work on yesterday?"
 cade compact            # after a large forget: returns the deleted vectors' space
+cade export > cade.jsonl     # everything cade keeps, one event per line
 ```
 
 Any other app that keeps its data in the browser's IndexedDB (Chrome, Firefox, Floorp), without code of its own: the local model writes a schema once, and ingestion reads with it.
