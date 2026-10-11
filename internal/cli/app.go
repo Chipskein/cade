@@ -200,6 +200,7 @@ func subcommands() map[string]subcommand {
 		"idb-discover": runSchemaDiscover,
 		"idb-check":    runSchemaCheck,
 		"forget":       runForget,
+		"export":       runExport,
 		"tasks":        runTasks,
 		"reindex":      runReindex,
 		"compact":      runCompact,
