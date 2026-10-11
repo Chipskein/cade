@@ -37,7 +37,7 @@ The tasks pass `CGO_CFLAGS=-I/usr/local/include` and `CGO_LDFLAGS=-L/usr/local/l
 **GPU:** NVIDIA ships no CUDA Toolkit for FreeBSD, so the GPU is used through Vulkan, which also runs AMD and Intel GPUs:
 
 ```sh
-pkg install vulkan-loader vulkan-headers shaderc   # plus nvidia-driver, or drm-kmod for AMD and Intel
+pkg install vulkan-loader vulkan-headers spirv-headers shaderc   # plus nvidia-driver, or drm-kmod for AMD and Intel
 go tool mage vulkan     # Vulkan build; `cade version` says Vulkan
 ```
 
@@ -78,7 +78,7 @@ go tool mage check  # what CI runs: fmtCheck, vet, lint and test
 | `build` (default) | NVIDIA binary in `bin/cade`, as `cuda` |
 | `cpu` | CPU binary in `bin/cade` |
 | `cuda` | NVIDIA binary in `bin/cade` (CUDA Toolkit required) |
-| `vulkan` | Vulkan binary in `bin/cade`, for GPUs without CUDA (Vulkan headers and `glslc` required) |
+| `vulkan` | Vulkan binary in `bin/cade`, for GPUs without CUDA (Vulkan and SPIR-V headers and `glslc` required) |
 | `install` / `uninstall` | copies `bin/cade` to `$DESTDIR$PREFIX/bin` (default `~/.local/bin`) / removes it |
 | `dist` | release archive and SHA-256 in `dist/` |
 | `llama` / `llamaCuda` / `llamaVulkan` | clones the pinned llama.cpp and builds its libraries (the other targets do it when needed) |

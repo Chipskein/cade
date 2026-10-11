@@ -44,7 +44,7 @@ func Cpu() error { return tasks().BuildCPU() }
 func Cuda() error { return tasks().BuildCUDA() }
 
 // Vulkan compiles the Vulkan binary into bin/cade, for GPUs without CUDA
-// (Vulkan headers and glslc required).
+// (Vulkan and SPIR-V headers and glslc required).
 func Vulkan() error { return tasks().BuildVulkan() }
 
 // Install copies bin/cade (CPU or CUDA) to $DESTDIR$PREFIX/bin, building the default one if missing.

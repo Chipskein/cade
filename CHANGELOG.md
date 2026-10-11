@@ -13,7 +13,7 @@ What changed in each version, the schema migrations, and what each migration rew
 ### FreeBSD (#101)
 
 - **cade builds from source on FreeBSD amd64**, CPU or GPU through Vulkan; there is no FreeBSD CI or release archive. The mage tasks add `/usr/local` to the cgo flags there (where `pkg install sqlite3` puts `sqlite3.h`), and llama.cpp links with libc++.
-- **`go tool mage vulkan`** builds llama.cpp with its Vulkan backend, for GPUs without CUDA: NVIDIA on FreeBSD, AMD, Intel. `cade version` says Vulkan.
+- **`go tool mage vulkan`** builds llama.cpp with its Vulkan backend, for GPUs without CUDA: NVIDIA on FreeBSD, AMD, Intel. `cade version` says Vulkan. Measured on the RTX 3060 (Linux, 120 W): the retrieval suite gives recall 1.00, MRR 0.86 and rejection 1.00 (0.83 MRR with CUDA, since each backend rounds the embeddings slightly differently), and the cold `ask` takes 1.78, 1.85, 1.89 and 2.08 s at top_k 4, 6, 8 and 12, about 20% more than CUDA (one run each). It needs the Vulkan and SPIR-V headers and `glslc`.
 - `cade init` looks for browsers where each system keeps them; on FreeBSD, the `~/.config` and `~/.mozilla` layouts, without snap or flatpak.
 - The release archive is named after its system (`cade-<v>-<os>-<arch>-cpu`); the Linux one keeps its name. The background tests run on any unix (`ps` instead of `/proc`).
 - No database migration.
