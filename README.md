@@ -13,7 +13,7 @@
 
 ## Install
 
-From source (Linux; Go 1.27+, `gcc`, `cmake`, `ninja`, `git`):
+From source (Linux or FreeBSD; Go 1.27+, a C/C++ compiler, `cmake`, `ninja`, `git`; FreeBSD steps in [DEVELOPMENT](docs/DEVELOPMENT.md#building-from-source-freebsd)):
 
 ```sh
 go tool mage build     # NVIDIA (CUDA Toolkit); `go tool mage cpu` without a GPU
@@ -27,16 +27,16 @@ Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview
 
 ## Platform support
 
-| Source | Linux | macOS | Windows |
-|--------|-------|-------|---------|
-| git | ✓ tested | should work | not supported |
-| browser | ✓ tested | should work | not supported |
-| files | ✓ tested | should work | not supported |
-| teams | ✓ tested | should work | not supported |
-| images | ✓ tested | should work | not supported |
-| image preview (`chafa`) | ✓ tested | should work (Homebrew) | not supported |
+| Source | Linux | FreeBSD | macOS | Windows |
+|--------|-------|---------|-------|---------|
+| git | ✓ tested | from source, being validated | should work | not supported |
+| browser | ✓ tested | from source, being validated | should work | not supported |
+| files | ✓ tested | from source, being validated | should work | not supported |
+| teams | ✓ tested | from source, being validated | should work | not supported |
+| images | ✓ tested | from source, being validated | should work | not supported |
+| image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | not supported |
 
-Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
+Linux x86-64 is the only CI and release target. FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI. macOS should work when built from source. Windows is not supported.
 
 ## Examples
 

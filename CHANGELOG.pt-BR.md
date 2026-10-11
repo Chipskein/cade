@@ -8,6 +8,16 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 
+## Não lançado
+
+### FreeBSD (#101)
+
+- **O cade compila do código-fonte no FreeBSD amd64**, em CPU ou na GPU pelo Vulkan; não há CI nem arquivo de release para FreeBSD. Lá, as tarefas do mage acrescentam o `/usr/local` às flags do cgo (onde o `pkg install sqlite3` põe o `sqlite3.h`), e o llama.cpp é ligado à libc++.
+- **`go tool mage vulkan`** compila o llama.cpp com o backend Vulkan, para GPUs sem CUDA: NVIDIA no FreeBSD, AMD, Intel. O `cade version` diz Vulkan.
+- O `cade init` procura os navegadores onde cada sistema os guarda; no FreeBSD, os layouts `~/.config` e `~/.mozilla`, sem snap nem flatpak.
+- O arquivo de release leva o nome do sistema (`cade-<v>-<so>-<arq>-cpu`); o do Linux continua com o mesmo nome. Os testes do segundo plano rodam em qualquer unix (`ps` em vez de `/proc`).
+- Sem migração do banco.
+
 ## v0.2.0 — 2026-10-11
 
 ### Atualizar da v0.1.0
