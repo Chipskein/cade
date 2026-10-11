@@ -285,7 +285,7 @@ func TestDataAndSchemaDirsFollowEachSystem(t *testing.T) {
 		{"windows", "~/AppData/Local/cade", "~/AppData/Roaming/cade"},
 	}
 	for _, c := range cases {
-		data, schemas := bySystem(dataDirsBySystem, xdgDataDir, c.goos), bySystem(configDirsBySystem, xdgConfigDir, c.goos)
+		data, schemas := DataDirFor(c.goos), bySystem(configDirsBySystem, xdgConfigDir, c.goos)
 		if data != c.data || schemas != c.schemas {
 			t.Errorf("%s: expected %s and %s, got %s and %s", c.goos, c.data, c.schemas, data, schemas)
 		}

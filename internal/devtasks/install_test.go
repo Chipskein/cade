@@ -3,7 +3,10 @@ package devtasks
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestInstallCopiesTheBuiltBinaryUnderDestDirAndPrefix(t *testing.T) {
@@ -54,5 +57,21 @@ func TestCleanKeepsTheLlamaCheckout(t *testing.T) {
 	}
 	if !fileExists(filepath.Join(world.root, llamaDir, "CMakeLists.txt")) {
 		t.Error("the llama.cpp checkout was removed")
+	}
+}
+
+// Windows runs only files named .exe (#54).
+func TestWindowsBuildsAndInstallsCadeExe(t *testing.T) {
+	world := newTestWorld(t)
+	world.goos = "windows"
+	world.env[EnvPrefix] = filepath.Join(world.root, "prefix")
+	testcheck.NoError(t, world.tasks().BuildCPU())
+	if !strings.Contains(strings.Join(world.runner.Lines(), "\n"), "-o bin/cade.exe") {
+		t.Fatalf("expected the build to write bin/cade.exe, got %q", world.runner.Lines())
+	}
+	world.writeFile(t, "bin/cade.exe", "binary")
+	testcheck.NoError(t, world.tasks().Install())
+	if !fileExists(filepath.Join(world.root, "prefix", "bin", "cade.exe")) {
+		t.Fatal("expected cade.exe installed under the prefix")
 	}
 }

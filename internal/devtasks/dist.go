@@ -81,7 +81,7 @@ func (t *Tasks) stageDist(name string) error {
 	if err := os.RemoveAll(staging); err != nil {
 		return err
 	}
-	if err := copyFile(t.path(binaryPath), filepath.Join(staging, filepath.Base(binaryPath)), executableMode); err != nil {
+	if err := copyFile(t.path(t.binary()), filepath.Join(staging, filepath.Base(t.binary())), executableMode); err != nil {
 		return err
 	}
 	for _, file := range distFiles {

@@ -58,6 +58,7 @@ type Tasks struct {
 	env      Environment
 	progress io.Writer
 	settings Settings
+	goos     string
 }
 
 // NewTasks loads the settings from deps.Env.
@@ -66,8 +67,18 @@ type Tasks struct {
 func NewTasks(deps Dependencies) *Tasks {
 	return &Tasks{
 		root: deps.Root, runner: withCgoEnv(deps.Runner, deps.GOOS, deps.Env), fetcher: deps.Fetcher, env: deps.Env,
-		progress: deps.Progress, settings: LoadSettings(deps.Env),
+		progress: deps.Progress, settings: LoadSettings(deps.Env, deps.GOOS), goos: deps.GOOS,
 	}
+}
+
+// executableSuffixes: Windows runs only files named .exe (#54).
+var executableSuffixes = map[string]string{"windows": ".exe"}
+
+// binary is bin/cade as the system the tasks run on names an executable.
+//
+//	t.binary() // "bin/cade.exe" on Windows
+func (t *Tasks) binary() string {
+	return binaryPath + executableSuffixes[t.goos]
 }
 
 // Settings returns the settings in effect.

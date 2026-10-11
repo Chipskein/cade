@@ -48,8 +48,16 @@ var dataDirsBySystem = map[string]string{"windows": "~/AppData/Local/cade"}
 // Application Support on macOS, which ignores XDG (#53).
 var configDirsBySystem = map[string]string{"windows": "~/AppData/Roaming/cade", "darwin": "~/Library/Application Support/cade"}
 
+// DataDirFor is where goos keeps the database and the models, with "~"
+// for the home directory; `go tool mage models` downloads there too.
+//
+//	config.DataDirFor("windows") // "~/AppData/Local/cade"
+func DataDirFor(goos string) string {
+	return bySystem(dataDirsBySystem, xdgDataDir, goos)
+}
+
 var (
-	defaultDataDir             = bySystem(dataDirsBySystem, xdgDataDir, runtime.GOOS)
+	defaultDataDir             = DataDirFor(runtime.GOOS)
 	defaultGenerationModelPath = defaultDataDir + "/models/Qwen3.5-2B-Q4_K_M.gguf"
 	defaultVisionProjectorPath = defaultDataDir + "/models/mmproj-Qwen3.5-2B-F16.gguf"
 	defaultIndexedDBSchemaDir  = bySystem(configDirsBySystem, xdgConfigDir, runtime.GOOS) + "/idb-schemas"

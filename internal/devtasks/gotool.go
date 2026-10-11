@@ -35,7 +35,7 @@ func (t *Tasks) buildBinary(variant LlamaVariant, tags ...string) error {
 	}
 	stamp := t.resolveBuildStamp()
 	return t.runner.Run(Command{Name: "go", Args: []string{
-		"build", "-tags", joinTags(tags...), "-ldflags", stamp.linkerFlags(), "-o", binaryPath, mainPackage,
+		"build", "-tags", joinTags(tags...), "-ldflags", stamp.linkerFlags(), "-o", t.binary(), mainPackage,
 	}})
 }
 
