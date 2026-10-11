@@ -16,10 +16,13 @@ import (
 // BrowserRoots are where one system's browsers keep their profiles,
 // relative to home: Chromium-based user-data directories, each with one
 // directory per profile, and Firefox (or Floorp, a fork with the same
-// layout) profile directories.
+// layout) profile directories. TeamsApps are the user-data directories of
+// desktop apps built on a Chromium WebView, read only for their Teams
+// cache: their history is the app's, not the user's browsing.
 type BrowserRoots struct {
-	Chromium []string
-	Firefox  []string
+	Chromium  []string
+	Firefox   []string
+	TeamsApps []string
 }
 
 // xdgChromiumRoots and xdgFirefoxRoots follow ~/.config and ~/.mozilla, as
@@ -35,6 +38,18 @@ var (
 
 // macSupport is where macOS apps keep their data, relative to home.
 const macSupport = "Library/Application Support/"
+
+// Windows keeps Chromium profiles under %LOCALAPPDATA% and Firefox's
+// under %APPDATA%, relative to home in their default places.
+const (
+	windowsLocal   = "AppData/Local/"
+	windowsRoaming = "AppData/Roaming/"
+)
+
+// windowsTeamsWebView is the new Teams desktop app's WebView2 user data;
+// its WV2Profile_tfw profile keeps the same IndexedDB as Teams on the web
+// (#54). Not checked on a real machine yet.
+const windowsTeamsWebView = windowsLocal + "Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams/EBWebView"
 
 // browserRoots are the roots per system (runtime.GOOS); snap and flatpak
 // exist only on Linux. On macOS each browser keeps its profiles under
@@ -52,6 +67,14 @@ var browserRoots = map[string]BrowserRoots{
 			macSupport + "BraveSoftware/Brave-Browser", macSupport + "Microsoft Edge", macSupport + "Vivaldi",
 		},
 		Firefox: []string{macSupport + "Firefox/Profiles", macSupport + "Floorp/Profiles"},
+	},
+	"windows": {
+		Chromium: []string{
+			windowsLocal + "Google/Chrome/User Data", windowsLocal + "Google/Chrome Beta/User Data", windowsLocal + "Chromium/User Data",
+			windowsLocal + "BraveSoftware/Brave-Browser/User Data", windowsLocal + "Microsoft/Edge/User Data", windowsLocal + "Vivaldi/User Data",
+		},
+		Firefox:   []string{windowsRoaming + "Mozilla/Firefox/Profiles", windowsRoaming + "Floorp/Profiles"},
+		TeamsApps: []string{windowsTeamsWebView},
 	},
 }
 
@@ -93,7 +116,8 @@ func BrowserHistories(fsys fs.FS, home string, roots BrowserRoots) []string {
 // and Firefox profile under home, sorted.
 func TeamsCaches(fsys fs.FS, home string, roots BrowserRoots) []string {
 	var caches []string
-	for _, indexedDB := range filesInProfiles(fsys, home, roots.Chromium, "IndexedDB") {
+	chromiumRoots := append(slices.Clone(roots.Chromium), roots.TeamsApps...)
+	for _, indexedDB := range filesInProfiles(fsys, home, chromiumRoots, "IndexedDB") {
 		caches = append(caches, teamsDirsIn(fsys, indexedDB)...)
 	}
 	for _, storage := range filesInProfiles(fsys, home, roots.Firefox, firefoxOriginStorage) {
