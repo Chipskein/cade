@@ -264,3 +264,10 @@ func TestLoadAcceptsStorageOrigins(t *testing.T) {
 		t.Fatalf("expected the chatgpt origin loaded, got %+v %v", cfg.Sources.StorageOrigins, err)
 	}
 }
+
+// On macOS the models stay on the CPU unless the user turns Metal on (#53).
+func TestGPULayersDefaultToTheCPUOnMacOSOnly(t *testing.T) {
+	if gpuLayersFor("darwin") != cpuGPULayers || gpuLayersFor("linux") != allGPULayers || gpuLayersFor("freebsd") != allGPULayers {
+		t.Fatal("expected the CPU on macOS and every layer on the GPU elsewhere")
+	}
+}
