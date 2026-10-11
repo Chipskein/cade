@@ -51,7 +51,7 @@ type Toolkit struct {
 	OpenStore func(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error)
 	// InspectDatabase reads the database without migrating it (doctor).
 	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
-	// RootFS is the filesystem at "/" (see rootfs), where init looks for
+	// RootFS is the user's filesystem under rootfs names, where init looks for
 	// sources and doctor checks the configured paths.
 	RootFS  fs.FS
 	HomeDir func() (string, error)

@@ -107,14 +107,14 @@ func fakeSourceTree() testfakes.FakeFileSystem {
 }
 
 func TestGitRepositoriesFindsRepositoriesOnce(t *testing.T) {
-	want := []string{"/src/api", "/src/org/team/web", "/src/worktree"}
+	want := []string{testfakes.SystemPath("/src/api"), testfakes.SystemPath("/src/org/team/web"), testfakes.SystemPath("/src/worktree")}
 	if got := GitRepositories(fakeSourceTree(), "/src", []string{"node_modules"}); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
 func TestGitRepositoriesRootItselfIsRepository(t *testing.T) {
-	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{"/src/api"}) {
+	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{testfakes.SystemPath("/src/api")}) {
 		t.Fatalf("expected the root, got %v", got)
 	}
 }

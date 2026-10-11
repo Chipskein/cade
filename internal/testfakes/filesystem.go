@@ -29,3 +29,12 @@ func (f FakeFileSystem) AddDir(path string) FakeFileSystem {
 	f.MapFS[rootfs.Name(path)] = &fstest.MapFile{Mode: fs.ModeDir | 0o700}
 	return f
 }
+
+// SystemPath is path as this system names it once read back from a
+// FakeFileSystem: unchanged on Linux, on the working drive on Windows
+// ("/src" is "C:/src"), so a test expects the same file everywhere (#54).
+//
+//	want := testfakes.SystemPath("/src/api")
+func SystemPath(path string) string {
+	return rootfs.Path(rootfs.Name(path))
+}

@@ -26,6 +26,7 @@ import (
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/pacing"
 	"github.com/chipskein/cade/internal/procctl"
+	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/storage/sqlitestore"
 )
@@ -46,7 +47,7 @@ func productionToolkit() cli.Toolkit {
 		WriteConfig:        config.Write,
 		OpenStore:          openStore,
 		InspectDatabase:    sqlitestore.Inspect,
-		RootFS:             os.DirFS("/"),
+		RootFS:             rootfs.System(),
 		HomeDir:            os.UserHomeDir,
 		Stdin:              os.Stdin,
 		Build:              buildinfo.Read(),
