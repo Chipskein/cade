@@ -99,7 +99,7 @@ func containsName(text, name string) bool {
 }
 
 // A name read from an e-mail needs a first and a last name of two letters
-// or more, so a handle ("abfn0905", "eu") does not pass as one.
+// or more, so a handle ("xkqz0815", "eu") does not pass as one.
 const (
 	minEmailNameWords      = 2
 	minEmailNameWordLength = 2

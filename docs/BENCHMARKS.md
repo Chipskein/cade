@@ -31,6 +31,29 @@ The baselines up to 2026-09-27 were measured with the GPU at 170 W. At 120 W onl
 
 The charts are Mermaid and are updated by hand after a new measurement. Mermaid draws no legend, so it is written below each chart.
 
+## v0.2.0 against v0.1.0
+
+> `go tool mage bench`, `GO_TAGS= go tool mage bench` (`bench/baseline.txt`, `bench/baseline-cpu.txt`), `go tool mage evalScale` (`bench/retrieval-scale.txt`) and `go tool mage eval` · 2026-10-11 · `6a228fa` · CUDA (RTX 3060 at 120 W) and CPU (Ryzen 5 5500, 6 threads) · against 2026-09-30, `f4e5379`
+
+The sections below keep the numbers of their own date and commit; this one compares the release with them. Each run is one measurement of 5 iterations.
+
+| | 2026-09-30 GPU | 2026-10-11 GPU | 2026-09-30 CPU | 2026-10-11 CPU |
+|---|---:|---:|---:|---:|
+| interpret the question (model) | 1.49 s | 1.90 s | 12.6 s | 16.0 s |
+| read the evidence and answer | 0.47 s | 0.50 s | 10.9 s | 9.6 s |
+| `ask`, warm, question read by the model | 3.04 s | 3.64 s | 22.7 s | 26.4 s |
+| `ask`, warm, question read by the rules | 1.56 s | 1.48 s | 9.79 s | 9.96 s |
+| `ask`, cold, question read by the model | 7.65 s | 8.01 s | 27.2 s | 30.4 s |
+| `ask` with `top_k` 6 | 1.56 s | 1.55 s | 9.71 s | 9.19 s |
+| vector search, 100 k events | 113 ms | 84 ms | 114 ms | 84 ms |
+| keyword search, 100 k events | 78 ms | 219 ms | 76 ms | 217 ms |
+| bytes per event, 100 k events | 3,805 | 1,634 | 3,805 | 1,634 |
+| describe a 1024 px image | 1.80 s | 1.67 s | 20.8 s | 18.4 s |
+
+- **Interpreting a question takes 27% longer**, on both GPU and CPU: the prompt of #24 has three more fields and three more examples. Questions the rules read do not pay it.
+- **The keyword search on 100 k synthetic events takes 2.8 times as long.** It changed between the two measurements, before #24 (the search joins chunks shared by text, #67); it is still a fifth of a second, and the hybrid search runs it once per question.
+- **Retrieval quality:** the test set (43 questions, 35 before) keeps recall 1.00 and rejection 1.00, with MRR 0.83 (0.84). On the scale curve, the new set gives recall 0.97 and 0.94 with MRR 0.80 at 1 k and 10 k events, and the 32 questions of v0.1.0 give recall 0.96 and MRR 0.83 at both sizes, against 0.94 and 0.83 in v0.1.0: the lower MRR comes from the new, harder questions.
+
 ## Reading the metrics
 
 ### In plain language

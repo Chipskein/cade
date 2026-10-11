@@ -42,7 +42,7 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 28 | [Representações multimodais](#fase-28--representações-multimodais) | [#22](https://github.com/Chipskein/cade/issues/22) | feito | médio | médio |
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | feito | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
-| 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
+| 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | feito | médio | alto |
 | 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | feito | alto | médio |
 | 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | feito | alto | médio |
 | 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | feito | médio | baixo |
@@ -272,6 +272,7 @@ flowchart LR
 - **Problema:** a fase 30 só lê IndexedDB. As mensagens de outros apps ficam em outros armazenamentos do navegador (o Discord só no cache HTTP), e o texto do WhatsApp Web é cifrado.
 - **Mudança:** separar de onde vêm os registros (IndexedDB, localStorage, OPFS, cache HTTP, Cache API, cookies) de como eles viram mensagem; o IndexedDB vira a primeira implementação e os outros armazenamentos entram como leitores da mesma interface, com o mesmo schema, a mesma descoberta e o mesmo `schema-check`.
 - **Aceite:** os schemas da fase 30 continuam funcionando sem edição; cada leitor lê só as origens configuradas; o PRIVACY diz o que cada um lê.
+- **Resultado:** o `webstore` separa de onde vêm os registros de como viram mensagem, com leitores de IndexedDB, localStorage, OPFS, cache HTTP e Cache API, no Chromium e no Firefox, cada um só nas origens e URLs configuradas. O WhatsApp do Android entra pelo `msgstore.db` decifrado pelo usuário, e os caminhos `^` leem mensagens aninhadas (ChatGPT). Cookies e sessionStorage ficaram de fora por decisão, e as investigações #79 e #80 fecharam sem código.
 
 | Issue | Tema | Observação |
 | ----- | ---- | ---------- |
@@ -281,8 +282,8 @@ flowchart LR
 | [#76](https://github.com/Chipskein/cade/issues/76) | sessionStorage e cookies | **feito:** decisão de não ler nenhum dos dois ([abaixo](#decisão-sessionstorage-e-cookies-76)) |
 | [#77](https://github.com/Chipskein/cade/issues/77) | Importar o banco do WhatsApp do Android | **feito:** `cade ingest whatsapp-backup` lê o `msgstore.db` já decifrado pelo usuário (o cade não decifra) e casa pelo id da mensagem: num banco real, 9.276 mensagens do Web ganharam o evento completo (8.357 com texto) e 128.254 entraram novas, com o id que o Web daria; o `.txt` exportado ficou de fora por não ter ids |
 | [#78](https://github.com/Chipskein/cade/issues/78) | Caminhos `^.` para mensagens aninhadas (ChatGPT) | **feito:** caminhos `^` leem o registro que contém o item (só com `each`), a descoberta os oferece, schema revisado do ChatGPT (918 de 1.050 mensagens do cache do Chrome, com a hora e o título da conversa) |
-| [#79](https://github.com/Chipskein/cade/issues/79) | Textos cifrados pelos apps | investigação sem código; decifrar fica fora |
-| [#80](https://github.com/Chipskein/cade/issues/80) | Buscar mensagens no servidor do app | investigação sem código; bate no princípio de não usar rede em tempo de execução |
+| [#79](https://github.com/Chipskein/cade/issues/79) | Textos cifrados pelos apps | **descartada** depois do levantamento (o resumo está num comentário da issue): decifrar fica fora |
+| [#80](https://github.com/Chipskein/cade/issues/80) | Buscar mensagens no servidor do app | **fechada sem implementação** e sem a decisão escrita na issue; buscar no servidor continua fora, pelo princípio de não usar rede em tempo de execução |
 
 ### Decisão: sessionStorage e cookies (#76)
 
@@ -434,14 +435,14 @@ As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO
 A versão sai quando:
 
 - [ ] a CI está verde no commit da tag;
-- [ ] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
-- [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam;
-- [ ] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
-- [ ] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
-- [ ] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
-- [ ] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
-- [ ] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
-- [ ] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
-- [ ] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
-- [ ] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
-- [ ] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.
+- [x] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
+- [x] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam (com as 32 perguntas da v0.1.0: recall 0,96 e MRR 0,83 contra 0,94 e 0,83; o conjunto novo, mais difícil, dá MRR 0,80; [BENCHMARKS](BENCHMARKS.pt-BR.md#v020-contra-a-v010));
+- [x] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
+- [x] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
+- [x] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
+- [x] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
+- [x] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
+- [x] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
+- [x] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
+- [x] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
+- [x] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.

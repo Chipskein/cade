@@ -47,7 +47,7 @@ func TestAuthorAliasCountsAsTheAuthor(t *testing.T) {
 func TestNameFromEmail(t *testing.T) {
 	cases := map[string]string{
 		"fernanda.rocha@example.com": "fernanda rocha", "Joao_Mendes2@x.io": "joao mendes",
-		"abfn0905@gmail.com": "", "eu@example.com": "", "a.b@x.io": "", "sem-arroba": "",
+		"xkqz0815@example.com": "", "eu@example.com": "", "a.b@x.io": "", "sem-arroba": "",
 	}
 	for email, want := range cases {
 		if got := NameFromEmail(email); got != want {

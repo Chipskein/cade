@@ -31,6 +31,29 @@ Os baselines até 2026-09-27 foram medidos com a GPU a 170 W. A 120 W, só a des
 
 Os gráficos são Mermaid e são atualizados à mão depois de uma nova medição. O Mermaid não desenha legenda, então ela vem escrita abaixo de cada gráfico.
 
+## v0.2.0 contra a v0.1.0
+
+> `go tool mage bench`, `GO_TAGS= go tool mage bench` (`bench/baseline.txt`, `bench/baseline-cpu.txt`), `go tool mage evalScale` (`bench/retrieval-scale.txt`) e `go tool mage eval` · 2026-10-11 · `6a228fa` · CUDA (RTX 3060 a 120 W) e CPU (Ryzen 5 5500, 6 threads) · contra 2026-09-30, `f4e5379`
+
+As seções abaixo guardam os números da data e do commit delas; esta compara a versão com eles. Cada rodada é uma medição de 5 iterações.
+
+| | 2026-09-30 GPU | 2026-10-11 GPU | 2026-09-30 CPU | 2026-10-11 CPU |
+|---|---:|---:|---:|---:|
+| interpretar a pergunta (modelo) | 1,49 s | 1,90 s | 12,6 s | 16,0 s |
+| ler as evidências e responder | 0,47 s | 0,50 s | 10,9 s | 9,6 s |
+| `ask`, quente, pergunta lida pelo modelo | 3,04 s | 3,64 s | 22,7 s | 26,4 s |
+| `ask`, quente, pergunta lida pelas regras | 1,56 s | 1,48 s | 9,79 s | 9,96 s |
+| `ask`, frio, pergunta lida pelo modelo | 7,65 s | 8,01 s | 27,2 s | 30,4 s |
+| `ask` com `top_k` 6 | 1,56 s | 1,55 s | 9,71 s | 9,19 s |
+| busca vetorial, 100 mil eventos | 113 ms | 84 ms | 114 ms | 84 ms |
+| busca por palavras, 100 mil eventos | 78 ms | 219 ms | 76 ms | 217 ms |
+| bytes por evento, 100 mil eventos | 3.805 | 1.634 | 3.805 | 1.634 |
+| descrever uma imagem de 1024 px | 1,80 s | 1,67 s | 20,8 s | 18,4 s |
+
+- **Interpretar a pergunta leva 27% mais**, na GPU e na CPU: o prompt da #24 tem três campos e três exemplos a mais. Perguntas que as regras leem não pagam isso.
+- **A busca por palavras em 100 mil eventos sintéticos leva 2,8 vezes mais.** Ela mudou entre as duas medições, antes da #24 (a busca junta os pedaços divididos por texto, #67); ainda é um quinto de segundo, e a busca híbrida a roda uma vez por pergunta.
+- **Qualidade da busca:** o conjunto de teste (43 perguntas, 35 antes) mantém recall 1,00 e rejeição 1,00, com MRR 0,83 (0,84). Na curva de escala, o conjunto novo dá recall 0,97 e 0,94 com MRR 0,80 com mil e 10 mil eventos, e as 32 perguntas da v0.1.0 dão recall 0,96 e MRR 0,83 nos dois tamanhos, contra 0,94 e 0,83 na v0.1.0: o MRR menor vem das perguntas novas, mais difíceis.
+
 ## Como ler as métricas
 
 ### Em linguagem simples
