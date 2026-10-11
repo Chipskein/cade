@@ -46,6 +46,17 @@ func TestDistNamesTheOperatingSystem(t *testing.T) {
 	}
 }
 
+// The macOS archive holds the Metal build (#53).
+func TestDistNamesTheMetalBuildOnMacOS(t *testing.T) {
+	world := newTestWorld(t)
+	world.env[EnvVersion] = "v9.9.9"
+	world.runner.Outputs["go env GOOS"] = "darwin"
+	world.runner.Outputs["go env GOARCH"] = "arm64"
+	if name, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-darwin-arm64-metal" {
+		t.Fatalf("distName = %q, %v; want the macOS Metal name", name, err)
+	}
+}
+
 func prefixed(prefix string, names []string) []string {
 	out := make([]string, 0, len(names))
 	for _, name := range names {

@@ -4,7 +4,7 @@
 
 # Referência de configuração
 
-`cade init` grava `~/.config/cade/config.json`. Você pode usar o
+`cade init` grava `~/.config/cade/config.json` (no macOS, `~/Library/Application Support/cade/config.json`; `cade --config ARQUIVO` escolhe outro). Você pode usar o
 [`config.example.json`](../config.example.json) como referência completa.
 
 | Campo | Finalidade |
@@ -26,13 +26,13 @@
 | `embedding.model_path` | Caminho do modelo GGUF de embeddings. |
 | `embedding.context_tokens` | Limite de contexto/tokens do embedding. |
 | `embedding.threads` | Threads de CPU para embedding (`0` = núcleos físicos). |
-| `embedding.gpu_layers` | Camadas na GPU para embedding (`-1` = todas). |
+| `embedding.gpu_layers` | Camadas na GPU para embedding (`-1` = todas; padrão `-1`, `0` no macOS, onde o Metal não foi testado). |
 | `embedding.query_prefix` | Prefixo usado nos embeddings de consulta. |
 | `embedding.document_prefix` | Prefixo usado nos embeddings de documento. |
 | `generation.model_path` | Caminho do modelo GGUF de geração. |
 | `generation.context_tokens` | Limite de contexto/tokens da geração. |
 | `generation.threads` | Threads de CPU para geração (`0` = núcleos físicos). |
-| `generation.gpu_layers` | Camadas na GPU para geração (`-1` = todas). |
+| `generation.gpu_layers` | Camadas na GPU para geração (`-1` = todas; padrão `-1`, `0` no macOS, onde o Metal não foi testado). |
 | `vision.projector_path` | Projetor de visão (GGUF mmproj) do modelo de geração; só o `ingest` carrega, para descrever imagens. |
 | `vision.context_tokens` | Contexto da geração ao descrever uma imagem (padrão 2048: imagem de 1024 px, o prompt e a descrição). |
 | `retrieval.top_k` | Quantidade de eventos considerados como evidência. |

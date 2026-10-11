@@ -4,7 +4,7 @@
 
 # Configuration reference
 
-`cade init` writes `~/.config/cade/config.json`. You can use
+`cade init` writes `~/.config/cade/config.json` (on macOS, `~/Library/Application Support/cade/config.json`; `cade --config FILE` picks another). You can use
 [`config.example.json`](../config.example.json) as a full reference.
 
 | Field | Purpose |
@@ -26,13 +26,13 @@
 | `embedding.model_path` | GGUF model path for embeddings. |
 | `embedding.context_tokens` | Embedding context/token limit. |
 | `embedding.threads` | CPU threads for embeddings (`0` = physical cores). |
-| `embedding.gpu_layers` | GPU layers for embeddings (`-1` = all). |
+| `embedding.gpu_layers` | GPU layers for embeddings (`-1` = all; default `-1`, `0` on macOS, where Metal is untested). |
 | `embedding.query_prefix` | Prefix used for query embeddings. |
 | `embedding.document_prefix` | Prefix used for document embeddings. |
 | `generation.model_path` | GGUF model path for generation. |
 | `generation.context_tokens` | Generation context/token limit. |
 | `generation.threads` | CPU threads for generation (`0` = physical cores). |
-| `generation.gpu_layers` | GPU layers for generation (`-1` = all). |
+| `generation.gpu_layers` | GPU layers for generation (`-1` = all; default `-1`, `0` on macOS, where Metal is untested). |
 | `vision.projector_path` | Vision projector (mmproj GGUF) of the generation model; loaded only by `ingest` to describe images. |
 | `vision.context_tokens` | Generation context while describing an image (default 2048: a 1024 px image, the prompt and the description). |
 | `retrieval.top_k` | Number of events considered as evidence. |

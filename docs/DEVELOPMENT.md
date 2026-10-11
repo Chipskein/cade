@@ -43,6 +43,20 @@ go tool mage vulkan     # Vulkan build; `cade version` says Vulkan
 
 The NVIDIA driver must support the GPU: Pascal cards such as the MX250 or GTX 10xx need the 580 legacy branch (`pkg install nvidia-driver-580 nvidia-kmod-580`), which the current driver ignores, and the driver and kernel module must have the same version (`sysctl hw.nvidia.version`, `nvidia-smi`). On a GPU with little memory, lower `embedding.gpu_layers` and `generation.gpu_layers` so the models fit.
 
+## Building from source (macOS, Apple Silicon)
+
+Experimental: nobody on the project has a Mac, so this is built and tested only on GitHub's macOS runners (#53).
+
+```sh
+xcode-select --install   # the Command Line Tools: clang, the SDK with sqlite3.h
+brew install go cmake ninja git
+go tool mage cpu         # on Apple Silicon this is the Metal build: `cade version` says Metal
+go tool mage models
+go tool mage install
+```
+
+llama.cpp turns Metal and Accelerate on by default there, with the Metal shaders embedded in the binary. The models still run on the CPU by default (`gpu_layers: 0` on macOS): on GitHub's virtual Macs Metal produced garbage, and nobody has checked a real one. To try Metal, set `embedding.gpu_layers` and `generation.gpu_layers` to `-1`, and please report how it goes. The configuration is `~/Library/Application Support/cade/config.json`; the database and models stay under `~/.local/share/cade`. A downloaded release archive is not signed, so macOS blocks it until you run `xattr -d com.apple.quarantine cade`.
+
 ## Installing a release binary (Linux x86-64, CPU)
 
 ```sh

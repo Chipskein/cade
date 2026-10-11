@@ -26,12 +26,23 @@ const distImageURL = "https://raw.githubusercontent.com/Chipskein/cade/dev/asset
 const (
 	archiveSuffix  = ".tar.gz"
 	checksumSuffix = ".sha256"
-	// distAccelerator names what the archived binary computes on: Dist
-	// always builds the CPU one.
-	distAccelerator = "cpu"
 )
 
-// Dist builds the release archive, dist/cade-<version>-<os>-<arch>-cpu.tar.gz
+// distAccelerators name what the archived binary computes on: Dist builds
+// the plain binary, which is the Metal one on macOS (#53) and the CPU one
+// elsewhere.
+var distAccelerators = map[string]string{"darwin": "metal"}
+
+const defaultDistAccelerator = "cpu"
+
+func distAccelerator(platform string) string {
+	if accelerator, found := distAccelerators[platform]; found {
+		return accelerator
+	}
+	return defaultDistAccelerator
+}
+
+// Dist builds the release archive, dist/cade-<version>-<os>-<arch>-<accelerator>.tar.gz
 // for the OS and architecture it runs on (#101), and its SHA-256. The release workflow runs it with LLAMA_NATIVE=OFF so it
 // runs on any x86-64 CPU with AVX2; CUDA stays a local build (it ties the
 // binary to a driver and GPU architecture).
@@ -62,7 +73,7 @@ func (t *Tasks) distName() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("cade-%s-%s-%s-%s", t.resolveBuildStamp().version, platform, arch, distAccelerator), nil
+	return fmt.Sprintf("cade-%s-%s-%s-%s", t.resolveBuildStamp().version, platform, arch, distAccelerator(platform)), nil
 }
 
 func (t *Tasks) stageDist(name string) error {

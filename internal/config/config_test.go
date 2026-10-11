@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -123,10 +124,11 @@ func TestDefaultPathEndsWithCadeConfig(t *testing.T) {
 	}
 }
 
-func TestDefaultsOffloadAllLayers(t *testing.T) {
+func TestDefaultsUseTheSystemsGPULayers(t *testing.T) {
 	cfg := Defaults()
-	if cfg.Generation.GPULayers != -1 || cfg.Embedding.GPULayers != -1 {
-		t.Fatalf("expected all layers offloaded by default, got %d / %d", cfg.Generation.GPULayers, cfg.Embedding.GPULayers)
+	want := gpuLayersFor(runtime.GOOS)
+	if cfg.Generation.GPULayers != want || cfg.Embedding.GPULayers != want {
+		t.Fatalf("expected %d layers offloaded by default on %s, got %d / %d", want, runtime.GOOS, cfg.Generation.GPULayers, cfg.Embedding.GPULayers)
 	}
 }
 
@@ -262,5 +264,12 @@ func TestLoadAcceptsStorageOrigins(t *testing.T) {
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com"]}}`), 0o600))
 	if cfg, err := Load(path); err != nil || len(cfg.Sources.StorageOrigins) != 1 {
 		t.Fatalf("expected the chatgpt origin loaded, got %+v %v", cfg.Sources.StorageOrigins, err)
+	}
+}
+
+// On macOS the models stay on the CPU unless the user turns Metal on (#53).
+func TestGPULayersDefaultToTheCPUOnMacOSOnly(t *testing.T) {
+	if gpuLayersFor("darwin") != cpuGPULayers || gpuLayersFor("linux") != allGPULayers || gpuLayersFor("freebsd") != allGPULayers {
+		t.Fatal("expected the CPU on macOS and every layer on the GPU elsewhere")
 	}
 }
