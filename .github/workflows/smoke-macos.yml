@@ -48,14 +48,18 @@ jobs:
         run: |
           # --config, not XDG_CONFIG_HOME: on macOS the default config is
           # under ~/Library/Application Support (os.UserConfigDir).
-          for layers in -1 0; do
+          # Only the CPU answer is checked: GitHub's Macs are VMs whose
+          # virtual GPU makes Metal produce garbage (seen on 2026-10-11),
+          # so the Metal run is timed, not trusted.
+          for layers in 0 -1; do
             dir="$RUNNER_TEMP/run$layers"; mkdir -p "$dir"
             printf '{"database_path": "%s/cade.db", "embedding": {"gpu_layers": %s}, "generation": {"gpu_layers": %s}}\n' "$dir" "$layers" "$layers" > "$dir/config.json"
             ./bin/cade --config "$dir/config.json" ingest file docs
             start=$(date +%s)
-            ./bin/cade --config "$dir/config.json" ask "how do I build cade on FreeBSD?"
+            ./bin/cade --config "$dir/config.json" ask "como compilar o cade no FreeBSD?" | tee "$dir/answer.txt"
             echo "gpu_layers $layers: ask in $(( $(date +%s) - start )) s" | tee -a "$RUNNER_TEMP/timings.txt"
           done
+          grep -q "Cited sources:" "$RUNNER_TEMP/run0/answer.txt" || { echo "the CPU answer cites no source"; exit 1; }
           ./bin/cade --config "$RUNNER_TEMP/run0/config.json" doctor || true
 
       - name: Summary
