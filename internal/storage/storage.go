@@ -108,6 +108,8 @@ type EventStore interface {
 	// through the graph (#24).
 	EntityIndex
 	RelationIndex
+	// EventPager lets `cade export` walk the whole history (#85).
+	EventPager
 	Close() error
 }
 
@@ -370,6 +372,9 @@ type RelationIndex interface {
 	// either direction, nearest first; hops above MaxRelationHops are
 	// capped, and the entity itself is left out.
 	Reachable(ctx context.Context, entityID int64, hops int) ([]ReachedEntity, error)
+	// RelationsStatedBy lists the relations the event uid states, for the
+	// export (#85).
+	RelationsStatedBy(ctx context.Context, uid string) ([]Relationship, error)
 }
 
 // EntityKey names an entity by what callers know of it: an image's

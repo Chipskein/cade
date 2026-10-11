@@ -20,6 +20,11 @@ func (f *FakeEventStore) RelationsTo(_ context.Context, entityID int64, relation
 	return f.relationsWhere(func(stored storage.Relationship) bool { return stored.To.ID == entityID }, relation), f.FailWith
 }
 
+// RelationsStatedBy lists the derived relations of the event uid.
+func (f *FakeEventStore) RelationsStatedBy(_ context.Context, uid string) ([]storage.Relationship, error) {
+	return f.relationsWhere(func(stored storage.Relationship) bool { return stored.SourceEventUID == uid }, ""), f.FailWith
+}
+
 // Reachable walks the derived relations both ways, breadth first.
 func (f *FakeEventStore) Reachable(_ context.Context, entityID int64, hops int) ([]storage.ReachedEntity, error) {
 	relations := f.relationsWhere(func(storage.Relationship) bool { return true }, "")
