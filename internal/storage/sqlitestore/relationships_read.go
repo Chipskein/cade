@@ -36,12 +36,18 @@ func (s *Store) relationsWhere(ctx context.Context, condition string, entityID i
 	if err != nil {
 		return nil, fmt.Errorf("read %q relations of entity id %d: %w", relation, entityID, err)
 	}
+	return collectRelationships(rows)
+}
+
+// collectRelationships reads every row of relationshipSelect and closes
+// the rows.
+func collectRelationships(rows *sql.Rows) ([]storage.Relationship, error) {
 	defer rows.Close()
 	var relations []storage.Relationship
 	for rows.Next() {
 		stored, err := scanRelationship(rows)
 		if err != nil {
-			return nil, fmt.Errorf("scan relation of entity id %d: %w", entityID, err)
+			return nil, fmt.Errorf("scan relation: %w", err)
 		}
 		relations = append(relations, stored)
 	}

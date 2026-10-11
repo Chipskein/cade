@@ -46,6 +46,8 @@ Comandos:
                                         (também aceita --from D --to D);
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta
+  export [--source F] [--from D --to D] tudo o que o cade guarda, em JSON Lines
+                                        (um evento por linha, com os derivados)
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
   schema-discover --name N [--force] [--print] DIR
@@ -116,6 +118,8 @@ Commands:
                                         (also accepts --from D --to D);
                                         what left the source (e.g. an expired Teams
                                         cache) does not come back
+  export [--source S] [--from D --to D] everything cade keeps, as JSON Lines
+                                        (one event per line, with what was derived)
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
                                         to design the Teams ingestor
   schema-discover --name N [--force] [--print] DIR

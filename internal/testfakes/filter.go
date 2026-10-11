@@ -2,6 +2,7 @@ package testfakes
 
 import (
 	"context"
+	"time"
 
 	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
@@ -21,7 +22,11 @@ func (f *FakeEventStore) CountMatching(ctx context.Context, filter storage.Event
 // EventsMatching returns the events in the filter's period, source and
 // folder that listing.Select and the graph filter keep, oldest first.
 func (f *FakeEventStore) EventsMatching(ctx context.Context, filter storage.EventFilter) ([]event.Event, error) {
-	inPeriod, err := f.EventsBetween(ctx, filter.From, filter.To)
+	to := filter.To
+	if to.IsZero() {
+		to = time.Unix(1<<40, 0) // a zero end is unbounded, as in SQL
+	}
+	inPeriod, err := f.EventsBetween(ctx, filter.From, to)
 	var scoped []event.Event
 	for _, ev := range inPeriod {
 		if (filter.Source == "" || ev.Source == filter.Source) && filter.Graph.Keeps(ev, storage.GraphLinks{EntityIDs: f.linkedIDs(ev)}) {

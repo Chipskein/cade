@@ -66,16 +66,9 @@ func (env commandEnv) forgetUID(ctx context.Context, uid string) error {
 }
 
 func (env commandEnv) forgetMatch(ctx context.Context, text, source, from, to string, yes bool) error {
-	filter := storage.EventFilter{Source: event.Source(source)}
-	var err error
-	if filter.From, err = parseForgetDate(from); err != nil {
+	filter, err := sourceAndDays(source, from, to)
+	if err != nil {
 		return err
-	}
-	if filter.To, err = parseForgetDate(to); err != nil {
-		return err
-	}
-	if !filter.To.IsZero() {
-		filter.To = filter.To.Add(24 * time.Hour)
 	}
 	return env.withStore(ctx, func(_ config.Config, store storage.EventStore) error {
 		matches, err := store.EventsContaining(ctx, text, filter)
@@ -133,6 +126,24 @@ func (env commandEnv) deleteMatches(ctx context.Context, store storage.EventStor
 func deleteMatchesLine(done, total int, tracker *etaTracker, language Language) string {
 	prefix := language.pick("Apagando eventos: ", "Deleting events: ")
 	return prefix + progressBar(done, total) + etaSuffix(tracker, total-done)
+}
+
+// sourceAndDays is the filter of `forget --match` and `export`: a source
+// and the days from and to (YYYY-MM-DD, both included); empty is
+// unbounded.
+func sourceAndDays(source, from, to string) (storage.EventFilter, error) {
+	filter := storage.EventFilter{Source: event.Source(source)}
+	var err error
+	if filter.From, err = parseForgetDate(from); err != nil {
+		return storage.EventFilter{}, err
+	}
+	if filter.To, err = parseForgetDate(to); err != nil {
+		return storage.EventFilter{}, err
+	}
+	if !filter.To.IsZero() {
+		filter.To = filter.To.Add(24 * time.Hour)
+	}
+	return filter, nil
 }
 
 func parseForgetDate(value string) (time.Time, error) {

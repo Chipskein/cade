@@ -50,6 +50,7 @@ cade timeline --around UID   # 2h antes e depois de um evento (UID do `ask --jso
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
 cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados
+cade export > cade.jsonl     # tudo o que o cade guarda, um evento por linha
 ```
 
 Qualquer outro aplicativo que guarda os dados no IndexedDB do navegador (Chrome, Firefox, Floorp), sem código próprio: o modelo local escreve um schema uma vez, e a ingestão lê com ele.
