@@ -10,6 +10,12 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 ## Não lançado
 
+### Apagar e exportar por pessoa (#86)
+
+- **`cade forget --person NOME`** apaga tudo sobre uma pessoa depois de listar e perguntar (ou `--yes`): o que ela mandou ou escreveu (com o nome lido do e-mail, quando ligado), as mensagens que @mencionam o primeiro nome dela e as conversas só com ela, em que toda mensagem que você não mandou é dela, com as suas. Grupos ficam, a menos que ela escreva ou seja mencionada. As entidades que ficam sem evento vão junto. **`cade export --person NOME`** escreve os mesmos eventos em JSON Lines.
+- **O nome tem de apontar uma pessoa só:** "Ana", com Ana Prado e Ana Souza guardadas, para e lista as duas. Uma @menção só tem o primeiro nome, então conta para todos com esse nome; a lista mostra isso antes de apagar.
+- A lacuna de eliminação e acesso por titular da #25 no PRIVACY fica resolvida. Sem migração do banco.
+
 ### Exportação (#85)
 
 - **`cade export [--source F] [--from D --to D]`** escreve no stdout, em JSON Lines, tudo o que o cade guarda: um evento por linha com UID, fonte, hora, texto e metadados, os nomes do índice de pessoas, as entidades que ele cita, as relações que afirma e as representações dessas entidades (a descrição de uma imagem), sem vetores. Os filtros são os do `forget --match`; a contagem vai para o stderr.
