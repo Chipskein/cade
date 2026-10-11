@@ -23,7 +23,7 @@ What changed in each version, the schema migrations, and what each migration rew
 ### macOS (#53)
 
 - **Experimental macOS build, Apple Silicon:** `go tool mage cpu` on a Mac builds llama.cpp with Metal and Accelerate, the shaders embedded in the binary; `cade version` says Metal. The release adds a `darwin-arm64-metal` archive. Nobody on the project has a Mac: it is built and tested only on GitHub's `macos-14` runners, where CI runs the whole test suite.
-- **The models run on the CPU by default on macOS** (`gpu_layers: 0`). A manual smoke run on GitHub's virtual Mac (ingest the docs, then one `ask` with the default models) answered with cited sources on the CPU in 74 s; with Metal (`gpu_layers: -1`) the model generated garbage and took 355 s. That runner's GPU is virtual, so a real Mac may behave differently; `-1` turns Metal on.
+- **The models run on the CPU by default on macOS** (`gpu_layers: 0`). A one-off run on GitHub's virtual Mac (ingest the docs, then one `ask` with the default models) answered with cited sources on the CPU in 74 s; with Metal (`gpu_layers: -1`) the model generated garbage and took 355 s. That runner's GPU is virtual, so a real Mac may behave differently; `-1` turns Metal on.
 - `cade init` looks for the browsers in `~/Library/Application Support`. The background ingestion lowers its disk priority with `setiopolicy_np` (throttled I/O). The config lives in `~/Library/Application Support/cade/config.json`, or wherever `--config` points.
 - No database migration.
 
