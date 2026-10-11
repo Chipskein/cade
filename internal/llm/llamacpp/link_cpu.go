@@ -1,4 +1,4 @@
-//go:build !cuda && !vulkan
+//go:build !cuda && !vulkan && !darwin
 
 package llamacpp
 
