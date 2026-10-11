@@ -26,10 +26,13 @@ const distImageURL = "https://raw.githubusercontent.com/Chipskein/cade/dev/asset
 const (
 	archiveSuffix  = ".tar.gz"
 	checksumSuffix = ".sha256"
+	// distAccelerator names what the archived binary computes on: Dist
+	// always builds the CPU one.
+	distAccelerator = "cpu"
 )
 
-// Dist builds the release archive, dist/cade-<version>-linux-<arch>-cpu.tar.gz,
-// and its SHA-256. The release workflow runs it with LLAMA_NATIVE=OFF so it
+// Dist builds the release archive, dist/cade-<version>-<os>-<arch>-cpu.tar.gz
+// for the OS and architecture it runs on (#101), and its SHA-256. The release workflow runs it with LLAMA_NATIVE=OFF so it
 // runs on any x86-64 CPU with AVX2; CUDA stays a local build (it ties the
 // binary to a driver and GPU architecture).
 func (t *Tasks) Dist() error {
@@ -51,11 +54,15 @@ func (t *Tasks) Dist() error {
 }
 
 func (t *Tasks) distName() (string, error) {
+	platform, err := t.runner.Output(Command{Name: "go", Args: []string{"env", "GOOS"}})
+	if err != nil {
+		return "", err
+	}
 	arch, err := t.runner.Output(Command{Name: "go", Args: []string{"env", "GOARCH"}})
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("cade-%s-linux-%s-cpu", t.resolveBuildStamp().version, arch), nil
+	return fmt.Sprintf("cade-%s-%s-%s-%s", t.resolveBuildStamp().version, platform, arch, distAccelerator), nil
 }
 
 func (t *Tasks) stageDist(name string) error {

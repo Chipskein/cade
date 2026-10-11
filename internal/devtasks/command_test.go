@@ -2,6 +2,7 @@ package devtasks
 
 import (
 	"bytes"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -15,15 +16,15 @@ func TestCommandStringQuotesArgumentsWithSpaces(t *testing.T) {
 
 func TestExecRunnerOutputTrimsStdout(t *testing.T) {
 	got, err := ExecRunner{Dir: t.TempDir()}.Output(Command{Name: "go", Args: []string{"env", "GOOS"}})
-	if err != nil || got != "linux" {
-		t.Errorf("Output = %q, %v; want linux", got, err)
+	if err != nil || got != runtime.GOOS {
+		t.Errorf("Output = %q, %v; want %s", got, err, runtime.GOOS)
 	}
 }
 
 func TestExecRunnerRunEchoesAndWritesToStdout(t *testing.T) {
 	var echo, stdout bytes.Buffer
 	err := ExecRunner{Dir: t.TempDir(), Echo: &echo}.Run(Command{Name: "go", Args: []string{"env", "GOOS"}, Stdout: &stdout})
-	if err != nil || echo.String() != "go env GOOS\n" || stdout.String() != "linux\n" {
+	if err != nil || echo.String() != "go env GOOS\n" || stdout.String() != runtime.GOOS+"\n" {
 		t.Errorf("echo %q, stdout %q, err %v", echo.String(), stdout.String(), err)
 	}
 }
