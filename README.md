@@ -29,14 +29,14 @@ Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview
 
 | Source | Linux | FreeBSD | macOS | Windows |
 |--------|-------|---------|-------|---------|
-| git | ✓ tested | from source, being validated | should work | not supported |
-| browser | ✓ tested | from source, being validated | should work | not supported |
-| files | ✓ tested | from source, being validated | should work | not supported |
-| teams | ✓ tested | from source, being validated | should work | not supported |
-| images | ✓ tested | from source, being validated | should work | not supported |
+| git | ✓ tested | ✓ tested (from source) | should work | not supported |
+| browser | ✓ tested | ✓ tested (from source) | should work | not supported |
+| files | ✓ tested | ✓ tested (from source) | should work | not supported |
+| teams | ✓ tested | ✓ tested (from source) | should work | not supported |
+| images | ✓ tested | ✓ tested (from source) | should work | not supported |
 | image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | not supported |
 
-Linux x86-64 is the only CI and release target. FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI. macOS should work when built from source. Windows is not supported.
+Linux x86-64 is the only CI and release target. FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI; it was tested on FreeBSD 15.1. macOS should work when built from source. Windows is not supported.
 
 ## Examples
 

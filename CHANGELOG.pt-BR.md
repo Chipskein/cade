@@ -16,6 +16,8 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - **`go tool mage vulkan`** compila o llama.cpp com o backend Vulkan, para GPUs sem CUDA: NVIDIA no FreeBSD, AMD, Intel. O `cade version` diz Vulkan. Medido na RTX 3060 (Linux, 120 W): a suíte de busca dá recall 1,00, MRR 0,86 e rejeição 1,00 (MRR 0,83 com CUDA, porque cada backend arredonda os embeddings de um jeito um pouco diferente), e o `ask` a frio leva 1,78, 1,85, 1,89 e 2,08 s com top_k 4, 6, 8 e 12, uns 20% a mais que a CUDA (uma execução cada). Precisa dos headers do Vulkan e do SPIR-V e do `glslc`.
 - O `cade init` procura os navegadores onde cada sistema os guarda; no FreeBSD, os layouts `~/.config` e `~/.mozilla`, sem snap nem flatpak.
 - O arquivo de release leva o nome do sistema (`cade-<v>-<so>-<arq>-cpu`); o do Linux continua com o mesmo nome. Os testes do segundo plano rodam em qualquer unix (`ps` em vez de `/proc`).
+- **Testado no FreeBSD 15.1** (i5-10210U, 12 GB, MX250 com o driver legado 580): o `go tool mage check` passa; `init`, `ingest`, `ask`, `timeline`, `tasks`, `doctor` e a ingestão em segundo plano (`start`, `pause`, `resume`, `stop`) funcionam. A suíte de busca em CPU dá recall 0,97, MRR 0,84 e rejeição 1,00, como no Linux em CPU (0,97, 0,85, 1,00). O `ask` levou 10 s na CPU e 12 s com Vulkan, que usa um quinto do tempo de CPU; os testes com modelos não rodam nos 2 GB dela, porque põem todas as camadas na GPU.
+- O `doctor` só sugere o `cade compact` quando a compactação liberaria blocos inteiros; um banco novo ouvia que 72% das posições de vetores estavam vazias. Um modelo que não cabe na GPU não aparece mais como arquivo faltando.
 - Sem migração do banco.
 
 ## v0.2.0 — 2026-10-11
