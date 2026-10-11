@@ -25,6 +25,7 @@ import (
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/privatefile"
 	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
@@ -105,7 +106,7 @@ func openStore(ctx context.Context, path string, backupCreated func(backupPath s
 	}
 	// MkdirAll keeps the mode of an existing directory (`go tool mage models`
 	// creates it first, world-readable); the history must be owner-only.
-	if err := os.Chmod(directory, 0o700); err != nil {
+	if err := privatefile.Restrict(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
 	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: backupCreated})

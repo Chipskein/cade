@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/chipskein/cade/internal/dbcopy"
-	"os"
+	"github.com/chipskein/cade/internal/privatefile"
 	"time"
 )
 
@@ -142,7 +142,7 @@ func backupBefore(ctx context.Context, db *sql.DB, path string, step migration, 
 	if _, err := db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
 		return fmt.Errorf("back up %q to %q before migration %d: %w", path, backupPath, step.version, err)
 	}
-	if err := os.Chmod(backupPath, privateFileMode); err != nil {
+	if err := privatefile.Restrict(backupPath, privateFileMode); err != nil {
 		return fmt.Errorf("restrict backup %q: %w", backupPath, err)
 	}
 	if hooks.BackupCreated != nil {

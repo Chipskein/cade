@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+
+	"github.com/chipskein/cade/internal/privatefile"
 )
 
 // privateFileMode keeps the history readable by its owner only. SQLite
@@ -27,7 +29,7 @@ func restrictPermissions(path string) error {
 	}
 	file.Close()
 	for _, suffix := range sidecarSuffixes {
-		err := os.Chmod(path+suffix, privateFileMode)
+		err := privatefile.Restrict(path+suffix, privateFileMode)
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("restrict permissions of %q to %o: %w", path+suffix, privateFileMode, err)
 		}
