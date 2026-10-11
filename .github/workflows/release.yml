@@ -1,9 +1,11 @@
 name: Release
 
-# Pushing a tag vX.Y.Z on a master commit builds the CPU binary and
-# publishes a GitHub release with the archive, its SHA-256 and
+# Pushing a tag vX.Y.Z on a master commit builds one archive per system
+# and publishes a GitHub release with them, their SHA-256 and
 # docs/release-notes/vX.Y.Z.md as notes. Releases come from master only:
-# a tag on a dev commit fails here and publishes nothing.
+# a tag on a dev commit fails here and publishes nothing. The macOS
+# archive (Apple Silicon, Metal) is experimental: nobody on the project
+# has a Mac, and it is only tested here and in CI (#53).
 
 on:
   push:
@@ -13,14 +15,13 @@ permissions:
   contents: write
 
 env:
-  # Portable llama.cpp build (AVX2, FMA, F16C): the binary runs on any
-  # x86-64 CPU from the last decade, not only the runner's.
+  # Portable llama.cpp build (AVX2, FMA, F16C on x86-64): the binary runs
+  # on any CPU of its kind from the last decade, not only the runner's.
   LLAMA_NATIVE: "OFF"
 
 jobs:
-  release:
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
         with:
@@ -33,15 +34,29 @@ jobs:
             exit 1
           }
 
+      - name: Require release notes
+        run: test -s "docs/release-notes/${GITHUB_REF_NAME}.md" || { echo "missing docs/release-notes/${GITHUB_REF_NAME}.md"; exit 1; }
+
+  build:
+    needs: check
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            tools: sudo apt-get update && sudo apt-get install -y ninja-build
+          - runner: macos-14
+            tools: brew install ninja
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
 
-      - name: Require release notes
-        run: test -s "docs/release-notes/${GITHUB_REF_NAME}.md" || { echo "missing docs/release-notes/${GITHUB_REF_NAME}.md"; exit 1; }
-
       - name: Install the llama.cpp build tools
-        run: sudo apt-get update && sudo apt-get install -y ninja-build
+        run: ${{ matrix.tools }}
 
       - name: Test
         run: go tool mage test
@@ -51,6 +66,22 @@ jobs:
 
       - name: Check the binary reports the tag
         run: ./bin/cade version | tee /dev/stderr | grep -q "cade ${GITHUB_REF_NAME} ("
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.runner }}
+          path: dist/*.tar.gz*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
 
       - name: Publish the release
         env:
