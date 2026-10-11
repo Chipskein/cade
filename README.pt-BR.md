@@ -21,7 +21,7 @@ go tool mage models    # baixa os modelos em ~/.local/share/cade/models
 go tool mage install   # instala em ~/.local/bin
 ```
 
-Binários prontos para Linux x86-64 estão na [página de releases](https://github.com/Chipskein/cade/releases).
+Binários prontos para Linux x86-64, e um experimental para macOS em Apple Silicon, estão na [página de releases](https://github.com/Chipskein/cade/releases).
 
 Opcional: instale o [`chafa`](https://github.com/hpjansson/chafa) para ver uma prévia das imagens citadas no `cade ask`.
 
@@ -29,14 +29,14 @@ Opcional: instale o [`chafa`](https://github.com/hpjansson/chafa) para ver uma p
 
 | Fonte | Linux | FreeBSD | macOS | Windows |
 |-------|-------|---------|-------|---------|
-| git | ✓ testado | ✓ testado (do código-fonte) | deve funcionar | não suportado |
-| browser | ✓ testado | ✓ testado (do código-fonte) | deve funcionar | não suportado |
-| arquivos | ✓ testado | ✓ testado (do código-fonte) | deve funcionar | não suportado |
-| teams | ✓ testado | ✓ testado (do código-fonte) | deve funcionar | não suportado |
-| imagens | ✓ testado | ✓ testado (do código-fonte) | deve funcionar | não suportado |
+| git | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | não suportado |
+| browser | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | não suportado |
+| arquivos | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | não suportado |
+| teams | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | não suportado |
+| imagens | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | não suportado |
 | prévia de imagens (`chafa`) | ✓ testado | deve funcionar (`pkg install chafa`) | deve funcionar (Homebrew) | não suportado |
 
-Linux x86-64 é o único alvo de CI e releases. O FreeBSD amd64 compila do código-fonte, em CPU ou na GPU pelo Vulkan ([#101](https://github.com/Chipskein/cade/issues/101)), sem CI; foi testado no FreeBSD 15.1. macOS deve funcionar compilando a partir do código-fonte. Windows não é suportado.
+Linux x86-64 é o alvo principal de CI e releases. O macOS em Apple Silicon (Metal) tem um arquivo de release experimental, compilado e testado só nos Macs do GitHub ([#53](https://github.com/Chipskein/cade/issues/53)). O FreeBSD amd64 compila do código-fonte, em CPU ou na GPU pelo Vulkan ([#101](https://github.com/Chipskein/cade/issues/101)), sem CI; foi testado no FreeBSD 15.1. Windows não é suportado.
 
 ## Exemplos
 

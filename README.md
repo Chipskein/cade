@@ -21,7 +21,7 @@ go tool mage models    # downloads the models to ~/.local/share/cade/models
 go tool mage install   # installs to ~/.local/bin
 ```
 
-Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chipskein/cade/releases).
+Prebuilt Linux x86-64 binaries, and an experimental macOS Apple Silicon one, are on the [releases page](https://github.com/Chipskein/cade/releases).
 
 Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview of cited images in `cade ask`.
 
@@ -29,14 +29,14 @@ Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview
 
 | Source | Linux | FreeBSD | macOS | Windows |
 |--------|-------|---------|-------|---------|
-| git | ✓ tested | ✓ tested (from source) | should work | not supported |
-| browser | ✓ tested | ✓ tested (from source) | should work | not supported |
-| files | ✓ tested | ✓ tested (from source) | should work | not supported |
-| teams | ✓ tested | ✓ tested (from source) | should work | not supported |
-| images | ✓ tested | ✓ tested (from source) | should work | not supported |
+| git | ✓ tested | ✓ tested (from source) | experimental (CI only) | not supported |
+| browser | ✓ tested | ✓ tested (from source) | experimental (CI only) | not supported |
+| files | ✓ tested | ✓ tested (from source) | experimental (CI only) | not supported |
+| teams | ✓ tested | ✓ tested (from source) | experimental (CI only) | not supported |
+| images | ✓ tested | ✓ tested (from source) | experimental (CI only) | not supported |
 | image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | not supported |
 
-Linux x86-64 is the only CI and release target. FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI; it was tested on FreeBSD 15.1. macOS should work when built from source. Windows is not supported.
+Linux x86-64 is the main CI and release target. macOS on Apple Silicon (Metal) has an experimental release archive, built and tested only on GitHub's Macs ([#53](https://github.com/Chipskein/cade/issues/53)). FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI; it was tested on FreeBSD 15.1. Windows is not supported.
 
 ## Examples
 
