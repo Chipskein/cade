@@ -2,11 +2,11 @@ package benchmarks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -133,12 +133,11 @@ func answerFirstToken(b *testing.B, generator llm.Generator, embedder llm.Embedd
 	}
 }
 
-// posixFadvDontNeed is POSIX_FADV_DONTNEED on Linux.
-const posixFadvDontNeed = 4
-
 // evictFromPageCache drops paths from the page cache without root, so the
 // next load reads them from disk as after a reboot. The models must not
 // be mapped by anyone at that moment (they are closed after each run).
+// Where the OS has no way to do it (dropFromPageCache), the cold runs are
+// skipped rather than measured warm.
 func evictFromPageCache(b *testing.B, paths ...string) {
 	b.Helper()
 	for _, path := range paths {
@@ -146,10 +145,13 @@ func evictFromPageCache(b *testing.B, paths ...string) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		_, _, errno := syscall.Syscall6(syscall.SYS_FADVISE64, file.Fd(), 0, 0, posixFadvDontNeed, 0, 0)
+		err = dropFromPageCache(file)
 		file.Close()
-		if errno != 0 {
-			b.Fatalf("evict %q from the page cache: %v", path, errno)
+		if errors.Is(err, errPageCacheUnsupported) {
+			b.Skip(err)
+		}
+		if err != nil {
+			b.Fatalf("evict %q from the page cache: %v", path, err)
 		}
 	}
 }

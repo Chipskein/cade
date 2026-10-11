@@ -102,6 +102,6 @@ func migrationWording(finding doctor.Finding, language Language) string {
 }
 
 func emptyVectorSlotsWording(finding doctor.Finding, language Language) string {
-	return fmt.Sprintf(language.pick("%.0f%% das posições de vetores estão vazias; rode `cade compact`", "%.0f%% of the vector positions are empty; run `cade compact`"),
-		emptyPercent(finding.Database.VectorSlots.EmptyShare()))
+	return fmt.Sprintf(language.pick("%.0f%% das posições de vetores podem ser liberadas; rode `cade compact`", "%.0f%% of the vector positions can be freed; run `cade compact`"),
+		emptyPercent(finding.Database.VectorSlots.ReclaimableShare()))
 }

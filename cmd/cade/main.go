@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -55,6 +56,7 @@ func productionToolkit() cli.Toolkit {
 		Sources:            sourceSpecs,
 		TeamsPictures:      teamsPictures,
 		RemoveFile:         os.Remove,
+		OS:                 runtime.GOOS,
 		StoreReaders:       storeReaders,
 		SchemaFiles:        idbmap.OSSchemaFiles{},
 		StderrIsTerminal:   isTerminal(os.Stderr),

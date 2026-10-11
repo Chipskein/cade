@@ -64,6 +64,9 @@ type Toolkit struct {
 	// LoadImageDescriber loads the generation model with its vision
 	// projector; only `ingest` with images on calls it.
 	LoadImageDescriber func(generation config.ModelConfig, vision config.VisionConfig, logger *slog.Logger) (imagecaption.ClosableDescriber, error)
+	// OS is the system cade runs on (runtime.GOOS); it decides where
+	// `init` looks for browsers (#101). Empty means Linux.
+	OS string
 	// RemoveFile deletes a file; `forget --backups` deletes the database
 	// copies with it (#87).
 	RemoveFile func(path string) error

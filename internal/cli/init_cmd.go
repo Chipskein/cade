@@ -39,9 +39,9 @@ func runInit(_ context.Context, env commandEnv, args []string) error {
 // "~/..." like the defaults.
 func (env commandEnv) askSources(prompt *initPrompt, home string, sources config.SourcesConfig) config.SourcesConfig {
 	fsys, language := env.toolkit.RootFS, env.language
-	browsers := contractAll(discovery.BrowserHistories(fsys, home), home)
+	browsers := contractAll(discovery.BrowserHistories(fsys, home, discovery.RootsFor(env.toolkit.OS)), home)
 	sources.BrowserHistories = chooseFound(prompt, language.pick("Históricos de navegador", "Browser histories"), browsers, true)
-	sources.TeamsIndexedDBDirs = chooseTeams(prompt, contractAll(discovery.TeamsCaches(fsys, home), home))
+	sources.TeamsIndexedDBDirs = chooseTeams(prompt, contractAll(discovery.TeamsCaches(fsys, home, discovery.RootsFor(env.toolkit.OS)), home))
 	sources.GitRepositories = env.askRepositories(prompt, home, sources.IgnoredDirNames)
 	folders := prompt.lines(language.pick("\nPastas de notas ou documentos a indexar, uma por linha (linha vazia termina):",
 		"\nNote or document folders to index, one per line (an empty line ends):"))

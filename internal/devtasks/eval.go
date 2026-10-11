@@ -145,8 +145,11 @@ func (t *Tasks) runEval(run modelRun) error {
 // downloads the models.
 func (t *Tasks) prepareEval(models []Model) error {
 	variant := LlamaCPU
-	if slices.Contains(t.settings.ExtraGoTags, cudaTag) {
+	switch {
+	case slices.Contains(t.settings.ExtraGoTags, cudaTag):
 		variant = LlamaCUDA
+	case slices.Contains(t.settings.ExtraGoTags, vulkanTag):
+		variant = LlamaVulkan
 	}
 	if err := t.EnsureLlama(variant); err != nil {
 		return err

@@ -32,13 +32,13 @@ func TestBrowserHistoriesFindsEveryProfile(t *testing.T) {
 		home + "/.floorp/xyz.default-default/places.sqlite",
 		home + "/.mozilla/firefox/abc.default-release/places.sqlite",
 	}
-	if got := BrowserHistories(fakeProfiles(), home); !slices.Equal(got, want) {
+	if got := BrowserHistories(fakeProfiles(), home, RootsFor("linux")); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
 func TestBrowserHistoriesEmptyHome(t *testing.T) {
-	if got := BrowserHistories(testfakes.NewFakeFileSystem(), home); len(got) != 0 {
+	if got := BrowserHistories(testfakes.NewFakeFileSystem(), home, RootsFor("linux")); len(got) != 0 {
 		t.Fatalf("expected none, got %v", got)
 	}
 }
@@ -50,8 +50,30 @@ func TestTeamsCachesKeepsOnlyTeamsOrigins(t *testing.T) {
 		indexedDB + "https_teams.microsoft.com_0.indexeddb.leveldb",
 		home + "/.floorp/xyz.default-default/storage/default/https+++teams.microsoft.com/idb",
 	}
-	if got := TeamsCaches(fakeProfiles(), home); !slices.Equal(got, want) {
+	if got := TeamsCaches(fakeProfiles(), home, RootsFor("linux")); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
+// FreeBSD has the ~/.config and ~/.mozilla layouts, but no snap or
+// flatpak (#101).
+func TestRootsForFreeBSDLeaveOutSnapAndFlatpak(t *testing.T) {
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(home+"/.config/chromium/Default/History", "").
+		AddFile(home+"/snap/firefox/common/.mozilla/firefox/x.default/places.sqlite", "").
+		AddFile(home+"/.mozilla/firefox/y.default/places.sqlite", "")
+	want := []string{home + "/.config/chromium/Default/History", home + "/.mozilla/firefox/y.default/places.sqlite"}
+	if got := BrowserHistories(tree, home, RootsFor("freebsd")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if got := BrowserHistories(tree, home, RootsFor("linux")); len(got) != 3 {
+		t.Fatalf("expected Linux to see the snap profile too, got %v", got)
+	}
+}
+
+func TestRootsForAnUnknownSystemAreLinuxs(t *testing.T) {
+	if !slices.Equal(RootsFor("netbsd").Firefox, RootsFor("linux").Firefox) {
+		t.Fatal("expected Linux's roots for a system without its own")
 	}
 }
 

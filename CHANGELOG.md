@@ -8,6 +8,18 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Unreleased
+
+### FreeBSD (#101)
+
+- **cade builds from source on FreeBSD amd64**, CPU or GPU through Vulkan; there is no FreeBSD CI or release archive. The mage tasks add `/usr/local` to the cgo flags there (where `pkg install sqlite3` puts `sqlite3.h`), and llama.cpp links with libc++.
+- **`go tool mage vulkan`** builds llama.cpp with its Vulkan backend, for GPUs without CUDA: NVIDIA on FreeBSD, AMD, Intel. `cade version` says Vulkan. Measured on the RTX 3060 (Linux, 120 W): the retrieval suite gives recall 1.00, MRR 0.86 and rejection 1.00 (0.83 MRR with CUDA, since each backend rounds the embeddings slightly differently), and the cold `ask` takes 1.78, 1.85, 1.89 and 2.08 s at top_k 4, 6, 8 and 12, about 20% more than CUDA (one run each). It needs the Vulkan and SPIR-V headers and `glslc`.
+- `cade init` looks for browsers where each system keeps them; on FreeBSD, the `~/.config` and `~/.mozilla` layouts, without snap or flatpak.
+- The release archive is named after its system (`cade-<v>-<os>-<arch>-cpu`); the Linux one keeps its name. The background tests run on any unix (`ps` instead of `/proc`).
+- **Tested on FreeBSD 15.1** (i5-10210U, 12 GB, MX250 with the 580 legacy driver): `go tool mage check` passes; `init`, `ingest`, `ask`, `timeline`, `tasks`, `doctor` and the background ingestion (`start`, `pause`, `resume`, `stop`) work. The retrieval suite on CPU gives recall 0.97, MRR 0.84 and rejection 1.00, as on Linux on CPU (0.97, 0.85, 1.00). `ask` took 10 s on the CPU and 12 s with Vulkan, which uses a fifth of the CPU time; the model tests do not run on its 2 GB, since they put every layer on the GPU.
+- `doctor` suggests `cade compact` only when compaction would free whole blocks; a new database was told 72% of its vector positions were empty. A model that does not fit the GPU no longer reads as a missing file.
+- No database migration.
+
 ## v0.2.0 — 2026-10-11
 
 ### Upgrading from v0.1.0

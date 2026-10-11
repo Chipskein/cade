@@ -17,7 +17,7 @@ const (
 
 // cleanedPaths are the build outputs Clean removes; the llama.cpp checkout
 // stays, so the next build does not clone it again.
-var cleanedPaths = []string{binDir, distDir, coverageProfile, cpuBuildDir, cudaBuildDir}
+var cleanedPaths = []string{binDir, distDir, coverageProfile, cpuBuildDir, cudaBuildDir, vulkanBuildDir}
 
 // Install copies whichever binary is in bin/ (CPU or CUDA) to
 // DESTDIR/PREFIX/bin; it builds the CPU one if none exists, so `cuda install`

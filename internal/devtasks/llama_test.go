@@ -56,3 +56,15 @@ func TestEnsureLlamaCUDAPassesTheHostCompiler(t *testing.T) {
 		}
 	}
 }
+
+func TestEnsureLlamaVulkanConfiguresItsOwnBuild(t *testing.T) {
+	world := newTestWorld(t)
+	if err := world.tasks().EnsureLlama(LlamaVulkan); err != nil {
+		t.Fatal(err)
+	}
+	lines := world.runner.Lines()
+	if len(lines) != 2 || !strings.Contains(lines[0], "-B third_party/llama.cpp/build-vulkan") || !strings.HasSuffix(lines[0], "-DGGML_VULKAN=ON") ||
+		lines[1] != "cmake --build third_party/llama.cpp/build-vulkan --target llama mtmd" {
+		t.Fatalf("commands = %q", lines)
+	}
+}
