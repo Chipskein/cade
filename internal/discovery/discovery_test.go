@@ -71,6 +71,23 @@ func TestRootsForFreeBSDLeaveOutSnapAndFlatpak(t *testing.T) {
 	}
 }
 
+// macOS keeps the profiles under Application Support (#53).
+func TestRootsForMacOSAreUnderApplicationSupport(t *testing.T) {
+	support := home + "/Library/Application Support/"
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(support+"Google/Chrome/Default/History", "").
+		AddDir(support+"Google/Chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb").
+		AddFile(support+"Firefox/Profiles/abc.default-release/places.sqlite", "").
+		AddFile(home+"/.mozilla/firefox/y.default/places.sqlite", "")
+	want := []string{support + "Firefox/Profiles/abc.default-release/places.sqlite", support + "Google/Chrome/Default/History"}
+	if got := BrowserHistories(tree, home, RootsFor("darwin")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if got := TeamsCaches(tree, home, RootsFor("darwin")); len(got) != 1 {
+		t.Fatalf("expected the Teams cache of Chrome, got %v", got)
+	}
+}
+
 func TestRootsForAnUnknownSystemAreLinuxs(t *testing.T) {
 	if !slices.Equal(RootsFor("netbsd").Firefox, RootsFor("linux").Firefox) {
 		t.Fatal("expected Linux's roots for a system without its own")

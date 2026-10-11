@@ -33,8 +33,12 @@ var (
 	xdgFirefoxRoots = []string{".mozilla/firefox", ".floorp"}
 )
 
+// macSupport is where macOS apps keep their data, relative to home.
+const macSupport = "Library/Application Support/"
+
 // browserRoots are the roots per system (runtime.GOOS); snap and flatpak
-// exist only on Linux.
+// exist only on Linux. On macOS each browser keeps its profiles under
+// Application Support (#53).
 var browserRoots = map[string]BrowserRoots{
 	"linux": {
 		Chromium: append(slices.Clone(xdgChromiumRoots), "snap/chromium/common/chromium"),
@@ -42,6 +46,13 @@ var browserRoots = map[string]BrowserRoots{
 			".var/app/org.mozilla.firefox/.mozilla/firefox", ".var/app/one.ablaze.floorp/.floorp"),
 	},
 	"freebsd": {Chromium: xdgChromiumRoots, Firefox: xdgFirefoxRoots},
+	"darwin": {
+		Chromium: []string{
+			macSupport + "Google/Chrome", macSupport + "Google/Chrome Beta", macSupport + "Chromium",
+			macSupport + "BraveSoftware/Brave-Browser", macSupport + "Microsoft Edge", macSupport + "Vivaldi",
+		},
+		Firefox: []string{macSupport + "Firefox/Profiles", macSupport + "Floorp/Profiles"},
+	},
 }
 
 // RootsFor are the browser roots of goos; a system without its own gets
