@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"sync"
 
 	"github.com/magefile/mage/mg"
@@ -29,6 +30,7 @@ var tasks = sync.OnceValue(func() *devtasks.Tasks {
 		Fetcher:  devtasks.HTTPFetcher{Client: http.DefaultClient},
 		Env:      devtasks.ProcessEnvironment{},
 		Progress: os.Stderr,
+		GOOS:     runtime.GOOS,
 	})
 })
 
