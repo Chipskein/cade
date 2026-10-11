@@ -20,7 +20,7 @@ Cada fase é uma issue no GitHub, com as tasks e os arquivos de cada uma. Aqui f
 A v0.1.0 cuidou do risco no uso real: privacidade, respostas honestas, custo da resposta e imagens. A v0.2.0 faz o `cade` entender **quem e o quê** aparece nos eventos, e não só o que aconteceu. Nesta ordem:
 
 1. **Base medida:** gravar menos no disco (#51), benchmarks reproduzíveis (#14) e um plano de espaço (#40), para comparar o antes e o depois das tabelas novas.
-2. **Regras de privacidade antes dos dados novos:** as entidades concentram dados pessoais (pessoas, mensagens), então as lacunas da LGPD e do GDPR são levantadas antes (#25).
+2. **Regras de privacidade antes dos dados novos:** as entidades concentram dados pessoais (pessoas, mensagens), então as lacunas da LGPD e do GDPR são levantadas antes (#25). As três lacunas que o levantamento achou também entram: exportar tudo (#85), apagar e exportar por pessoa (#86) e as cópias de migração que guardam o que foi esquecido (#87).
 3. **Entidades e relacionamentos:** entidades (#20), relações entre elas (#21), representações multimodais (#22) e a busca que usa tudo isso (#24).
 4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19), e depois os outros armazenamentos do navegador pela mesma via (#73 a #80).
 
@@ -43,6 +43,9 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 29 | [Busca por entidades e relações](#fase-29--busca-por-entidades-e-relações) | [#24](https://github.com/Chipskein/cade/issues/24) | feito | alto | alto |
 | 30 | [Schemas de IndexedDB via modelo local](#fase-30--schemas-de-indexeddb-via-modelo-local) | [#19](https://github.com/Chipskein/cade/issues/19) | feito | médio | alto |
 | 30a | [Outras fontes do navegador](#fase-30a--outras-fontes-do-navegador) | [#73](https://github.com/Chipskein/cade/issues/73) a [#80](https://github.com/Chipskein/cade/issues/80) | a fazer | médio | alto |
+| 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | a fazer | alto | médio |
+| 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | a fazer | alto | médio |
+| 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | a fazer | médio | baixo |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
 | — | [v0.3.0](#v030) | várias | depois | — | — |
@@ -56,6 +59,7 @@ A tabela está na ordem sugerida:
 - **Entidades, relações, representações e busca (26 a 29):** cada uma depende da anterior. Cada uma começa pelos casos da suíte (`go tool mage eval`) que falham hoje; sem um caso que falhe, a fase espera. A fase 27 começa pelo passo barato de [Contexto temporal](#contexto-temporal-e-relações-entre-eventos) (`timeline --around`), para ver se ele já resolve parte dos casos.
 - **IndexedDB (30) independente:** não depende das anteriores e pode correr em paralelo a qualquer uma a partir da 22. Fica no fim da tabela porque é a que menos muda o que já existe.
 - **Outras fontes do navegador (30a) depois da 30:** a abstração (#73) vem antes dos leitores novos; as investigações não dependem de nada e podem correr a qualquer momento.
+- **Lacunas da LGPD (25a a 25c) depois da busca:** a exportação (25a) inclui os derivados das fases 26 a 29 (entidades, relações, representações, nomes lidos do e-mail), então vem depois delas. O apagar e exportar por pessoa (25b) parte da entidade `Person` e usa a exportação da 25a. As cópias de migração (25c) não dependem de nada e podem correr a qualquer momento.
 - **Empacotamento (31) por último.**
 
 ### Onde cada fase entra no código
@@ -200,7 +204,7 @@ flowchart LR
 - **Problema:** muito já existe (tudo local, PRIVACY, `forget` por fonte, UID, texto e período, `secure_delete`, banco só do dono), mas ninguém comparou isso com a LGPD e o GDPR. Falta, por exemplo, exportar os dados de uma pessoa ou de uma fonte.
 - **Mudança:** tabela "requisito → como o `cade` atende → lacuna" no PRIVACY (EN e PT), sem amarrar o `cade` a uma lei. Cada lacuna vira uma issue. As regras para a entidade `Person` (fase 26) e para dados biométricos (rostos, v0.3.0) ficam definidas aqui.
 - **Aceite:** a tabela no PRIVACY; uma issue por lacuna; as regras para `Person` definidas antes da fase 26 começar.
-- **Resultado** ([PRIVACY](../PRIVACY.pt-BR.md#dados-pessoais-e-leis-de-privacidade)): os dados pessoais por fonte (seus e de outras pessoas, e onde pode haver dado sensível), a tabela de requisitos e lacunas e cinco regras para dados sensíveis e biométricos, que valem para a fase 26 e para a #23: opt-in por tipo, nada sensível deduzido, biometria numa tabela à parte e só comparada com os seus arquivos, derivados apagados com o evento, e exportação com os derivados. Três lacunas viraram issues da v0.3.0: exportação ([#85](https://github.com/Chipskein/cade/issues/85)), apagar e exportar por pessoa ([#86](https://github.com/Chipskein/cade/issues/86)) e as cópias de migração que guardam o que foi esquecido ([#87](https://github.com/Chipskein/cade/issues/87)); a criptografia continua na #57.
+- **Resultado** ([PRIVACY](../PRIVACY.pt-BR.md#dados-pessoais-e-leis-de-privacidade)): os dados pessoais por fonte (seus e de outras pessoas, e onde pode haver dado sensível), a tabela de requisitos e lacunas e cinco regras para dados sensíveis e biométricos, que valem para a fase 26 e para a #23: opt-in por tipo, nada sensível deduzido, biometria numa tabela à parte e só comparada com os seus arquivos, derivados apagados com o evento, e exportação com os derivados. Três lacunas viraram issues, depois puxadas para a v0.2.0 como fases 25a a 25c: exportação ([#85](https://github.com/Chipskein/cade/issues/85)), apagar e exportar por pessoa ([#86](https://github.com/Chipskein/cade/issues/86)) e as cópias de migração que guardam o que foi esquecido ([#87](https://github.com/Chipskein/cade/issues/87)); a criptografia continua na #57.
 
 ---
 
@@ -292,6 +296,36 @@ Sem issue de implementação. Se um app passar a guardar mensagens ali, a issue 
 
 ---
 
+## Fase 25a — Exportar os dados guardados
+
+**Issue:** [#85](https://github.com/Chipskein/cade/issues/85).
+
+- **Problema:** não há como tirar do `cade` uma cópia completa e legível por máquina do que ele guarda. O `ask --json` devolve no máximo `top_k` eventos, e o `timeline` imprime texto. É a lacuna de acesso e portabilidade da fase 25.
+- **Mudança:** `cade export [--source F] [--from D --to D]` escreve JSON Lines no stdout, um evento por linha: UID, fonte, hora, texto, metadados e os derivados (pessoas do `event_people`, entidades, relações e representações; sem vetores). Só leitura, sem rede.
+- **Aceite:** sem filtros, devolve todos os eventos do banco (teste com o fake e com o SQLite); filtros de fonte e período iguais aos do `forget --match`; a linha "Acesso e portabilidade" do PRIVACY aponta para o comando.
+
+---
+
+## Fase 25b — Apagar e exportar por pessoa
+
+**Issue:** [#86](https://github.com/Chipskein/cade/issues/86).
+
+- **Problema:** o `forget` apaga por fonte, UID, texto e período, mas nada apaga ou exporta tudo sobre uma pessoa. Se alguém que aparece nas suas mensagens pede para sair, o `forget --match` por texto não acha as grafias que a `listing.NameKey` junta. É a lacuna de eliminação e acesso por titular da fase 25.
+- **Mudança:** `cade forget --person NOME` (com revisão e `--yes`, como o `--match`) e `cade export --person NOME`, a partir da entidade `Person` e do `event_people`, com a mesma chave de nome e, quando ligado, o nome lido do e-mail (#24). O `forget` apaga a entidade que fica sem evento (regra 4 do PRIVACY).
+- **Aceite:** `forget --person` acha as grafias juntadas e mostra a lista antes de apagar; nada do nome sobra no banco depois (teste: `event_people`, entidades, texto, pedaços, FTS).
+
+---
+
+## Fase 25c — Cópias de migração com dados esquecidos
+
+**Issue:** [#87](https://github.com/Chipskein/cade/issues/87).
+
+- **Problema:** as migrações com cópia (`cade.db.before-v*`) e o `schema-check --rekey` (`cade.db.before-rekey-*`) guardam o banco inteiro, e o `forget` não toca nelas. O que foi esquecido continua no disco até o usuário apagar as cópias à mão; o PRIVACY só avisa.
+- **Mudança:** o `forget` termina listando as cópias que existem, com data e tamanho; o `cade doctor` as mostra e diz há quanto tempo existem; uma forma explícita de apagá-las (por exemplo `cade forget --backups`, com confirmação), sem apagar nada sozinho.
+- **Aceite:** com cópias presentes, o `forget` as lista, e sem cópias não diz nada; apagar as cópias pede confirmação e nunca toca no `cade.db`.
+
+---
+
 ## Fase 31 — Empacotamento da v0.2.0
 
 O processo da v0.1.0 continua:
@@ -320,9 +354,6 @@ Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.
 | [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
 | [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
 | [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
-| [#85](https://github.com/Chipskein/cade/issues/85) | Exportar os dados guardados (`cade export`) | lacuna de acesso e portabilidade da fase 25; os derivados das fases 26 a 28 entram na exportação |
-| [#86](https://github.com/Chipskein/cade/issues/86) | Apagar e exportar tudo sobre uma pessoa | lacuna da fase 25; parte da entidade `Person` da fase 26 e da #85 |
-| [#87](https://github.com/Chipskein/cade/issues/87) | Cópias de migração com dados esquecidos | lacuna da fase 25; o PRIVACY já avisa para apagá-las à mão |
 
 ---
 
