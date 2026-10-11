@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -123,10 +124,11 @@ func TestDefaultPathEndsWithCadeConfig(t *testing.T) {
 	}
 }
 
-func TestDefaultsOffloadAllLayers(t *testing.T) {
+func TestDefaultsUseTheSystemsGPULayers(t *testing.T) {
 	cfg := Defaults()
-	if cfg.Generation.GPULayers != -1 || cfg.Embedding.GPULayers != -1 {
-		t.Fatalf("expected all layers offloaded by default, got %d / %d", cfg.Generation.GPULayers, cfg.Embedding.GPULayers)
+	want := gpuLayersFor(runtime.GOOS)
+	if cfg.Generation.GPULayers != want || cfg.Embedding.GPULayers != want {
+		t.Fatalf("expected %d layers offloaded by default on %s, got %d / %d", want, runtime.GOOS, cfg.Generation.GPULayers, cfg.Embedding.GPULayers)
 	}
 }
 
