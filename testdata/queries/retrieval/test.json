@@ -317,6 +317,31 @@
     "img-deploy"
    ],
    "modality": "imagem"
+  },
+  {
+   "question": "imagens que o João me mandou no Teams",
+   "source": "teams",
+   "people": [
+    "João"
+   ],
+   "direction": "recebidas",
+   "modality": "imagem",
+   "relevant": [
+    "t-joao-print"
+   ]
+  },
+  {
+   "question": "que erro o João mandou no print do Teams?",
+   "source": "teams",
+   "people": [
+    "João"
+   ],
+   "direction": "recebidas",
+   "topic": "erro",
+   "modality": "imagem",
+   "relevant": [
+    "t-joao-print"
+   ]
   }
  ],
  "maximum_redundancy": 0.0

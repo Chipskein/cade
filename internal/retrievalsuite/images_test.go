@@ -42,9 +42,29 @@ func TestCaptionImagesFillsTheTextOfImageEventsOnly(t *testing.T) {
 	}
 }
 
-func TestCaptionImagesRejectsAnImageOnANonFileEvent(t *testing.T) {
-	corpus := Corpus{Events: []CorpusEvent{{ID: "x", Source: event.SourceTeams, Image: "erro.png"}}}
-	if err := corpus.CaptionImages(context.Background(), t.TempDir(), &FakeFixtureDescriber{}); err == nil {
-		t.Fatal("expected an image on a Teams event to be rejected")
+func TestCaptionImagesRejectsAnImageOnAnEventWithoutOne(t *testing.T) {
+	for _, corpusEvent := range []CorpusEvent{{ID: "x", Source: event.SourceTeams, Image: "erro.png"}, {ID: "y", Source: event.SourceGit, Image: "erro.png"}} {
+		corpus := Corpus{Events: []CorpusEvent{corpusEvent}}
+		if err := corpus.CaptionImages(context.Background(), t.TempDir(), &FakeFixtureDescriber{}); err == nil {
+			t.Errorf("expected an image on %+v rejected", corpusEvent)
+		}
+	}
+}
+
+// A picture pasted in Teams goes after the message's text (#24).
+func TestCaptionImagesAddsAPictureToATeamsMessage(t *testing.T) {
+	directory := t.TempDir()
+	if err := os.WriteFile(filepath.Join(directory, "erro.png"), []byte("png"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	describer := &FakeFixtureDescriber{Image: event.Image{SHA256: "h", Status: event.CaptionDescribed, Description: "um terminal"}}
+	message := CorpusEvent{ID: "t", Source: event.SourceTeams, Image: "erro.png", Content: "João: olha\nConversa: chat João, Eu\nRecebida por você",
+		Metadata: event.Metadata{event.ImageURLsKey: "https://us-api.asm.skype.com/v1/objects/0-1/views/imgo"}}
+	corpus := Corpus{Events: []CorpusEvent{message}}
+	if err := corpus.CaptionImages(context.Background(), directory, describer); err != nil {
+		t.Fatal(err)
+	}
+	if got := corpus.Events[0]; got.Content != message.Content+"\nImagem: um terminal" || (event.Event{Metadata: got.Metadata}).Image().SHA256 != "h" {
+		t.Fatalf("expected the description after the message, got %+v", got)
 	}
 }

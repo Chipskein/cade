@@ -3990,6 +3990,38 @@
    }
   },
   {
+   "id": "t-joao-print",
+   "source": "teams",
+   "at": "2026-09-24T09:40:00-03:00",
+   "content": "João Mendes: deu isso aqui no painel\nConversa: chat João Mendes, Eu\nRecebida por você",
+   "metadata": {
+    "sender": "João Mendes",
+    "conversation": "João Mendes, Eu",
+    "conversation_kind": "chat",
+    "sent_by_me": "false",
+    "conversation_id": "19:joao@unq.gbl.spaces",
+    "message_id": "print",
+    "text": "deu isso aqui no painel",
+    "image_urls": "https://us-api.asm.skype.com/v1/objects/0-eus-d9-a1b2c3/views/imgo"
+   },
+   "image": "page-gateway.png"
+  },
+  {
+   "id": "t-joao-texto",
+   "source": "teams",
+   "at": "2026-09-24T09:45:00-03:00",
+   "content": "João Mendes: vou abrir um chamado para o time de infra\nConversa: chat João Mendes, Eu\nRecebida por você",
+   "metadata": {
+    "sender": "João Mendes",
+    "conversation": "João Mendes, Eu",
+    "conversation_kind": "chat",
+    "sent_by_me": "false",
+    "conversation_id": "19:joao@unq.gbl.spaces",
+    "message_id": "texto",
+    "text": "vou abrir um chamado para o time de infra"
+   }
+  },
+  {
    "id": "t-backup",
    "source": "teams",
    "at": "2026-09-25T08:30:00-03:00",
