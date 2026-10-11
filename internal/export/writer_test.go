@@ -106,3 +106,13 @@ func TestWriteReportsAStoreFailure(t *testing.T) {
 		t.Fatal("expected the store's error")
 	}
 }
+
+func TestWriteEventsWritesTheGivenEventsOnly(t *testing.T) {
+	store := testfakes.NewFakeEventStore()
+	store.Events = []event.Event{commitEvent("c1"), commitEvent("c2")}
+	var out bytes.Buffer
+	count, err := WriteEvents(context.Background(), store, &out, store.Events[1:])
+	if records := decode(t, &out); err != nil || count != 1 || len(records) != 1 || records[0].UID != "c2" {
+		t.Fatalf("expected only c2, got %d %+v (err %v)", count, records, err)
+	}
+}

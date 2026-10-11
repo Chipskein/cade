@@ -46,8 +46,11 @@ Comandos:
                                         (também aceita --from D --to D);
                                         o que já saiu da fonte (ex.: cache do Teams
                                         expirado) não volta
+  forget --person NOME                  apaga tudo sobre uma pessoa (o que ela mandou,
+                                        menções e chats só com ela), depois de listar
   export [--source F] [--from D --to D] tudo o que o cade guarda, em JSON Lines
-                                        (um evento por linha, com os derivados)
+                                        (um evento por linha, com os derivados);
+                                        --person NOME: só o que é sobre ela
   teams-schema DIR...                   estrutura (sem valores) de um IndexedDB
                                         do Chrome, p/ desenhar o ingestor do Teams
   schema-discover --name N [--force] [--print] DIR
@@ -118,8 +121,11 @@ Commands:
                                         (also accepts --from D --to D);
                                         what left the source (e.g. an expired Teams
                                         cache) does not come back
+  forget --person NAME                  deletes everything about a person (what they
+                                        sent, mentions, chats with only them), after listing
   export [--source S] [--from D --to D] everything cade keeps, as JSON Lines
-                                        (one event per line, with what was derived)
+                                        (one event per line, with what was derived);
+                                        --person NAME: only what is about them
   teams-schema DIR...                   structure (no values) of a Chrome IndexedDB,
                                         to design the Teams ingestor
   schema-discover --name N [--force] [--print] DIR
