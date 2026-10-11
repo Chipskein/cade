@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
@@ -25,6 +26,9 @@ type Corpus struct {
 	// Now anchors relative periods ("ontem") in the questions.
 	Now    time.Time     `json:"now"`
 	Events []CorpusEvent `json:"events"`
+	// NamesFromEmail ingests with ingest.names_from_email on, the opt-in
+	// that finds "F. Rocha" as Fernanda Rocha (#24).
+	NamesFromEmail bool `json:"names_from_email"`
 }
 
 // CaseSet is one set of questions and, for the test set, its floors.
@@ -82,7 +86,11 @@ type Case struct {
 	People    []string     `json:"people"`
 	Direction string       `json:"direction"`
 	Topic     string       `json:"topic"`
-	Relevant  []string     `json:"relevant"`
+	// Entities, Modality ("imagem") and Related are the #24 plan fields.
+	Entities []string `json:"entities"`
+	Modality string   `json:"modality"`
+	Related  bool     `json:"related"`
+	Relevant []string `json:"relevant"`
 	// PendingIssue ("#24") marks a case that fails today and waits for that
 	// issue: it is run and reported, but kept out of the floors, so a
 	// measurement can be recorded before the work that should fix it.
@@ -92,12 +100,16 @@ type Case struct {
 // pendingIssuePattern is the shape of Case.PendingIssue.
 var pendingIssuePattern = regexp.MustCompile(`^#[0-9]+$`)
 
-var directions = map[string]listing.Direction{"": listing.AnyDirection, "recebidas": listing.Received, "enviadas": listing.Sent}
+var (
+	directions = map[string]listing.Direction{"": listing.AnyDirection, "recebidas": listing.Received, "enviadas": listing.Sent}
+	modalities = map[string]entity.Type{"": "", "imagem": entity.TypeImage}
+)
 
 // Query resolves the case as `cade ask` resolves a planned question.
 func (c Case) Query(now time.Time) queryplan.Query {
 	plan := queryplan.Plan{Period: c.Period, Source: c.Source, Topic: c.Topic,
-		Criteria: listing.Criteria{Direction: directions[c.Direction], People: c.People}}
+		Criteria: listing.Criteria{Direction: directions[c.Direction], People: c.People},
+		Entities: c.Entities, Modality: modalities[c.Modality], Related: c.Related}
 	return queryplan.Resolve(c.Question, plan, queryplan.Overrides{}, now)
 }
 
@@ -147,6 +159,9 @@ func NewSuite(corpus Corpus, set CaseSet) (Suite, error) {
 func validateCase(suiteCase Case, groups map[string]bool) error {
 	if _, known := directions[suiteCase.Direction]; !known {
 		return fmt.Errorf("direction %q, expected \"\", \"recebidas\" or \"enviadas\"", suiteCase.Direction)
+	}
+	if _, known := modalities[suiteCase.Modality]; !known {
+		return fmt.Errorf("modality %q, expected \"\" or \"imagem\"", suiteCase.Modality)
 	}
 	if suiteCase.PendingIssue != "" && !pendingIssuePattern.MatchString(suiteCase.PendingIssue) {
 		return fmt.Errorf("pending_issue %q, expected an issue number like \"#24\"", suiteCase.PendingIssue)

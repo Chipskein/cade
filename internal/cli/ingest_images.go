@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"maps"
 	"path/filepath"
+	"slices"
 
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/imagecaption"
@@ -17,17 +18,25 @@ import (
 	"github.com/chipskein/cade/internal/storage"
 )
 
-// fileSourceName is the source whose directories hold the images.
-const fileSourceName = "file"
+// The file source's directories hold image files; the Teams source's
+// messages show pictures the browser cached.
+const (
+	fileSourceName  = "file"
+	teamsSourceName = "teams"
+)
 
 // describeImages is the first stage of `ingest` with images on (phase 19):
 // it plans the images of the file jobs into captions, loading the vision
 // model only if one needs describing, and frees it before the embedder
 // loads, so the two never add up in memory.
 func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, store storage.EventStore, jobs []ingestJob, captions ingest.ImageCaptions) error {
-	roots := env.imageRoots(jobs)
-	if !cfg.Sources.Images || len(roots) == 0 {
+	if !cfg.Sources.Images {
 		return nil
+	}
+	roots := env.imageRoots(jobs)
+	pictures, err := env.teamsPictures(ctx, jobs)
+	if err != nil || len(roots)+len(pictures) == 0 {
+		return err
 	}
 	index, supported := store.(imagecaption.Store)
 	if !supported {
@@ -35,7 +44,7 @@ func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, sto
 	}
 	planner := imagecaption.NewPlanner(index, env.describerLoader(cfg), imageSettings(cfg), env.logger)
 	defer planner.Close()
-	if err := env.planImages(ctx, planner, roots, cfg); err != nil {
+	if err := env.planImages(ctx, planner, imageSet{roots: roots, pictures: pictures}, cfg); err != nil {
 		return err
 	}
 	maps.Copy(captions, planner.Captions())
@@ -59,11 +68,36 @@ func (env commandEnv) imageRoots(jobs []ingestJob) []string {
 	return roots
 }
 
-func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Planner, roots []string, cfg config.Config) error {
-	total, err := env.countPendingImages(ctx, planner, roots, cfg)
+// teamsPictures are the cached pictures of the Teams jobs' messages, by
+// address.
+func (env commandEnv) teamsPictures(ctx context.Context, jobs []ingestJob) (map[string][]byte, error) {
+	pictures := map[string][]byte{}
+	for _, job := range jobs {
+		if job.spec.Name != teamsSourceName {
+			continue
+		}
+		found, err := env.toolkit.TeamsPictures(ctx, job.target)
+		if err != nil {
+			return nil, err
+		}
+		maps.Copy(pictures, found)
+	}
+	return pictures, nil
+}
+
+// imageSet is what one run describes: the image files under roots and the
+// pictures read from a cache, by address.
+type imageSet struct {
+	roots    []string
+	pictures map[string][]byte
+}
+
+func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Planner, images imageSet, cfg config.Config) error {
+	total, err := env.countPendingImages(ctx, planner, images.roots, cfg)
 	if err != nil {
 		return err
 	}
+	total += len(images.pictures)
 	status := statusLine{out: env.stderr, interactive: env.toolkit.StderrIsTerminal}
 	defer status.clear()
 	tracker := newETATracker(env.toolkit.Now, etaWindow)
@@ -78,12 +112,30 @@ func (env commandEnv) planImages(ctx context.Context, planner *imagecaption.Plan
 		status.show(line)
 		env.ingestRun.update(ingestrun.StageDescribingImages, func() string { return line })
 	})
+	if err := env.planImageFiles(ctx, planner, images.roots, cfg); err != nil {
+		return err
+	}
+	return planPictures(ctx, planner, images.pictures)
+}
+
+func (env commandEnv) planImageFiles(ctx context.Context, planner *imagecaption.Planner, roots []string, cfg config.Config) error {
 	for _, root := range roots {
 		files, err := fs.Sub(env.toolkit.RootFS, rootfs.Name(root))
 		if err != nil {
 			return fmt.Errorf("open directory %q: %w", root, err)
 		}
 		if err := planner.PlanDirectory(ctx, files, root, filesource.OptionsFor(cfg.Sources, nil)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// planPictures plans the pictures in address order, so the per-run limit
+// always picks the same ones.
+func planPictures(ctx context.Context, planner *imagecaption.Planner, pictures map[string][]byte) error {
+	for _, url := range slices.Sorted(maps.Keys(pictures)) {
+		if err := planner.PlanImageBytes(ctx, url, pictures[url]); err != nil {
 			return err
 		}
 	}

@@ -65,6 +65,21 @@ var fixtures = map[string]*image.RGBA{
 	}, shotWidth, shotHeight),
 	"diagram-fila.png": syntheticimage.Diagram("Fluxo de pedidos",
 		[]string{"API", "RabbitMQ", "Worker", "Postgres"}, shotWidth, shotHeight),
+	// The two below name a person only in the picture, so finding them by
+	// that person depends on the description (#24).
+	"slide-orion.png": syntheticimage.Page([]string{
+		"Projeto Orion - Kickoff",
+		"",
+		"Apresentado por: Joao Mendes",
+		"Entrega do piloto: novembro",
+	}, shotWidth, shotHeight),
+	"page-comprovante.png": syntheticimage.Page([]string{
+		"Comprovante de transferencia",
+		"",
+		"Favorecido: Joao Mendes",
+		"Valor: R$ 350,00",
+		"Referencia: aluguel da van da Hermes",
+	}, shotWidth, shotHeight),
 	"page-backup-injection.png": syntheticimage.Page([]string{
 		"Status do backup noturno",
 		"",

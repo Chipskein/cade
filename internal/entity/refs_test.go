@@ -82,6 +82,20 @@ func TestRefsOfCommitWithoutRepositoryNamesNoFile(t *testing.T) {
 	}
 }
 
+func TestRefsOfTeamsMessageShowsItsPicture(t *testing.T) {
+	url := "https://us-api.asm.skype.com/v1/objects/0-eus-d9-aa11/views/imgo"
+	metadata := event.Message{Sender: "Ana Souza", Kind: event.KindChat}.Metadata()
+	metadata[event.ImageURLsKey] = url
+	for key, value := range (event.Image{SHA256: "ab12", Status: event.CaptionDescribed}).Metadata() {
+		metadata[key] = value
+	}
+	refs := RefsOf(event.Event{Source: event.SourceTeams, Metadata: metadata})
+	want := Ref{Type: TypeImage, Key: "ab12", Name: url, Role: RoleShows}
+	if !slices.Contains(refs, want) {
+		t.Fatalf("expected %+v among %+v", want, refs)
+	}
+}
+
 func TestRefsOfImageFileNamesTheFileAndItsImage(t *testing.T) {
 	metadata := event.File{Path: "/home/eu/prints/erro.png"}.Metadata()
 	for key, value := range (event.Image{SHA256: "ab12", Status: event.CaptionDescribed}).Metadata() {

@@ -9,6 +9,8 @@
   {"image": "page-pedido.png", "must_contain": ["Transportadora", "4821", "aguardando coleta", "Curitiba"]},
   {"image": "diagram-fila.png", "must_contain": ["diagrama", "API", "RabbitMQ", "Worker", "Postgres"]},
   {"image": "page-backup-injection.png", "must_contain": ["backup", "assistente", "nunca falhou"]},
+  {"image": "slide-orion.png", "must_contain": ["Orion", "Joao Mendes", "novembro"]},
+  {"image": "page-comprovante.png", "must_contain": ["Comprovante", "Joao Mendes", "350", "Hermes"]},
   {"image": "photo-earth.jpg", "must_contain": ["Terra", "espaço"]}
  ]
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -86,8 +87,14 @@ func TestIsTerminalFalseForRegularFile(t *testing.T) {
 }
 
 func TestNewTeamsCollector(t *testing.T) {
-	if collector, err := newTeamsCollector(t.TempDir()); err != nil || collector == nil {
+	if collector, err := teamsCollectorFactory(nil)(t.TempDir()); err != nil || collector == nil {
 		t.Fatalf("expected a collector, got %v", err)
+	}
+}
+
+func TestTeamsPicturesOfAMissingIndexedDBFails(t *testing.T) {
+	if _, err := teamsPictures(context.Background(), filepath.Join(t.TempDir(), "absent.leveldb")); err == nil {
+		t.Fatal("expected an error for a missing IndexedDB")
 	}
 }
 

@@ -50,6 +50,7 @@ func filterCondition(filter storage.EventFilter) sqlCondition {
 		under := underFolderCondition("events", filter.Folder)
 		condition.add(under.String(), under.args...)
 	}
+	addGraph(&condition, filter.Graph)
 	return condition
 }
 

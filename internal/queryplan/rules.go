@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/textnorm"
@@ -30,6 +31,9 @@ var (
 		"recebi": listing.Received, "recebidas": listing.Received, "received": listing.Received,
 		"enviei": listing.Sent, "mandei": listing.Sent, "enviadas": listing.Sent, "sent": listing.Sent,
 	}
+	// ruleImageNouns ask for images, a modality rather than a source: a
+	// print may be a file or a message's attachment.
+	ruleImageNouns   = wordSet("imagem imagens foto fotos print prints captura capturas screenshot screenshots image images photo photos picture pictures")
 	ruleTaskNouns    = wordSet("tarefa tarefas task tasks ticket tickets card cards demanda demandas issue issues")
 	ruleSummaryWords = wordSet("resuma resumo resumir summarize summary")
 	ruleListAllWords = wordSet("tudo everything timeline")
@@ -96,6 +100,7 @@ type ruleReading struct {
 	source    event.Source
 	direction listing.Direction
 	tasks     bool
+	images    bool
 	summary   bool
 	listAll   bool
 }
@@ -130,6 +135,8 @@ func (r *ruleReading) addCue(word string) bool {
 	switch {
 	case ruleTaskNouns[word]:
 		r.tasks = true
+	case ruleImageNouns[word]:
+		r.images = true
 	case ruleSummaryWords[word]:
 		r.summary = true
 	case ruleListAllWords[word]:
@@ -141,17 +148,18 @@ func (r *ruleReading) addCue(word string) bool {
 }
 
 // plan turns the reading into a Plan; false when it is ambiguous: a
-// direction outside messages, a task question naming a source, or an
-// "o que" that may ask for an answer or for the list.
+// direction outside messages, a task question naming a source or images,
+// or an "o que" that may ask for an answer or for the list.
 func (r ruleReading) plan(period, text string) (Plan, bool) {
-	if (r.direction != listing.AnyDirection && r.source != event.SourceTeams) || (r.tasks && r.source != "") {
+	if (r.direction != listing.AnyDirection && r.source != event.SourceTeams) || (r.tasks && r.namesItems()) {
 		return Plan{}, false
 	}
-	plan := Plan{Period: period, Source: r.source, Criteria: listing.Criteria{Direction: r.direction}, ReadByRules: true}
+	plan := Plan{Period: period, Source: r.source, Criteria: listing.Criteria{Direction: r.direction},
+		Modality: r.modality(), ReadByRules: true}
 	switch {
 	case r.tasks:
 		plan.Mode, plan.TaskStatus = ModeTasks, taskStatusIn(text)
-	case r.summary || (r.source == "" && !r.listAll):
+	case r.summary || (!r.namesItems() && !r.listAll):
 		plan.Mode = ModeAnswer
 	case ruleAskingCues.MatchString(text):
 		return Plan{}, false
@@ -159,6 +167,19 @@ func (r ruleReading) plan(period, text string) (Plan, bool) {
 		plan.Mode = ModeList
 	}
 	return plan, true
+}
+
+// namesItems reports a noun for the items themselves ("commits",
+// "imagens"), which makes the question a listing.
+func (r ruleReading) namesItems() bool {
+	return r.source != "" || r.images
+}
+
+func (r ruleReading) modality() entity.Type {
+	if r.images {
+		return entity.TypeImage
+	}
+	return ""
 }
 
 // taskStatusIn reads the status as guardTaskReport accepts it: "não

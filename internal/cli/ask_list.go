@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/listing"
 	"github.com/chipskein/cade/internal/queryplan"
@@ -29,7 +30,7 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 	events, matched, unknown := query.Criteria.Apply(events)
 	reportPeople(env.stderr, matched, nil, env.language)
 	reportNamesAsText(env.stderr, unknown, env.language)
-	events = eventsMentioningAll(events, unknown)
+	events = eventsMentioningAll(eventsHolding(events, query.Modality), append(unknown, query.Entities...))
 	if events, err = env.narrowByTopic(ctx, models, query.Topic, events); err != nil {
 		return err
 	}
@@ -39,6 +40,21 @@ func (env commandEnv) listForQuery(ctx context.Context, store storage.EventStore
 	session.status.clear()
 	renderTimeline(env.stdout, days, events, env.language)
 	return nil
+}
+
+// eventsHolding keeps the events holding an entity of kind (images), as
+// the store's graph filter does; "" keeps every event.
+func eventsHolding(events []event.Event, kind entity.Type) []event.Event {
+	if kind == "" {
+		return events
+	}
+	var kept []event.Event
+	for _, ev := range events {
+		if storage.Holds(ev, kind) {
+			kept = append(kept, ev)
+		}
+	}
+	return kept
 }
 
 func (env commandEnv) narrowByTopic(ctx context.Context, models *askModels, topic string, events []event.Event) ([]event.Event, error) {

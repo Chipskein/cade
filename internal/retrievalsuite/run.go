@@ -46,7 +46,7 @@ func Run(ctx context.Context, deps Dependencies, suite Suite, onCase CaseDone) (
 // and returns an answerer over them; generator may be nil when nothing is
 // generated.
 func ingestCorpus(ctx context.Context, deps Dependencies, suite Suite, generator llm.Generator) (*rag.Answerer, error) {
-	pipeline := ingest.NewPipeline(deps.Store, deps.Embedder, deps.DocumentPrefix, deps.Logger)
+	pipeline := ingest.NewPipeline(deps.Store, deps.Embedder, deps.DocumentPrefix, deps.Logger).WithEmailAliases(suite.NamesFromEmail)
 	if _, err := pipeline.Run(ctx, corpusCollector{events: suite.events()}, nil); err != nil {
 		return nil, fmt.Errorf("ingest corpus of %d events: %w", len(suite.events()), err)
 	}

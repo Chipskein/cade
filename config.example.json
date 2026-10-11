@@ -2,6 +2,7 @@
   "database_path": "~/.local/share/cade/cade.db",
   "ingest": {
     "redact": true,
+    "names_from_email": false,
     "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } },
     "max_image_bytes": 20971520,
     "max_images_per_run": 50,

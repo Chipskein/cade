@@ -36,10 +36,10 @@ Backups of your home directory include `cade.db`.
 
 | Source | Stored | Not stored |
 |---|---|---|
-| **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time | diffs, file contents |
+| **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time; with `ingest.names_from_email` on, the name the author's e-mail spells | diffs, file contents |
 | **browser** | every visit: URL with credential parameters removed, page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
 | **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names; with `sources.images` on, a description of each png, jpeg and webp image written by the local model (what it shows and the text visible in it), with the image's SHA-256, its size in pixels, and the model and prompt version | binary contents, image pixels; configured ignored directories and credential file globs |
-| **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version | calendar, call history, notifications, files; messages deleted before ingestion |
+| **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version, the address of each picture shown; with `sources.images` on, a description of each picture the browser still has cached, as for images | calendar, call history, notifications, files, the pictures themselves; messages deleted before ingestion |
 | **apps through a schema** (e.g. `whatsapp`) | what the schema maps: message and conversation ids, conversation name, sender id and name, time, whether you sent it, the text when the app keeps it readable, the schema name and revision | anything else in the app's IndexedDB; for WhatsApp Web, the text (encrypted by the app, never decrypted) and media |
 | **whatsapp-backup** | every message of the Android `msgstore.db` you decrypted: text or caption, attachment file name, message and conversation ids, group name, sender id (and name, when WhatsApp Web already had it), time, whether you sent it | media files, contacts (`wa.db`), system notices, calls, deleted messages, reactions; the decryption key |
 
@@ -61,6 +61,7 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 - Messages come from the IndexedDB that Teams on the web keeps in Chrome, Firefox or Floorp. cade copies the whole IndexedDB directory to a temporary folder (the live files are locked), decodes only the message, conversation and profile stores, and deletes the copy.
 - Only what the Teams client has cached is available. Older messages are not fetched, since cade never talks to Microsoft.
 - An edited message replaces the stored text on the next ingestion. A message deleted in Teams after being ingested **stays** in cade until you run `cade forget teams`.
+- **Pictures in messages** (with `sources.images` on): cade reads, from the HTTP cache of the same browser profile (`~/.cache/<browser>/<profile>/Cache/Cache_Data` on Linux), only the pictures whose addresses the messages show, describes them in memory like image files and keeps the description, never the picture. A picture the browser no longer has keeps only its address. A Firefox profile's cache is not read.
 - `cade teams-schema` prints the structure of an IndexedDB (store names, field names, types, counts) with no values, so its output can be shared for diagnosis.
 
 ## Other apps through IndexedDB schemas
@@ -112,11 +113,11 @@ Both models run in-process through llama.cpp.
 - The keyword index follows the text: an edit, `reindex` and `forget` remove the old words from it too.
 - Events with the same text (a page visited several times) share one set of chunks, embeddings and keyword entries. `forget` of one of them deletes that event, its hash or path entry and its date from the embedding; the shared chunks stay while another event has the text, and go with the last one.
 - The people index (`event_people`) holds the names in each message and commit (sender or author, conversation title, first names after "@"), so a question about a person is filtered in the database. It follows the events: an edit replaces an event's names, and `forget` deletes them with the events.
-- Entities (`entities`, `event_entities`) name what several events refer to: a person by the same names the people index keeps (not conversation titles), a file by its path. A person entity holds only a name found in an event, no e-mail or id and nothing inferred. `forget` and an edit delete an entity once no event refers to it (rule 4 below); while another event does, it keeps the first spelling stored.
+- Entities (`entities`, `event_entities`) name what several events refer to: a person by the same names the people index keeps (not conversation titles), a file by its path. A person entity holds only a name found in an event, no e-mail or id and nothing inferred, unless you turn on `ingest.names_from_email`: then a commit's author also gets the name its e-mail spells (`fernanda.rocha@…` for "F. Rocha"), in the people index and as an entity. Turning it off deletes those names on the next `cade ingest git`. `forget` and an edit delete an entity once no event refers to it (rule 4 below); while another event does, it keeps the first spelling stored.
 - Relations (`relationships`) say that a commit's author changed each of its files: two entities and the event that states it, nothing else. `forget` of the event, or of either entity, deletes the relation.
 - Replaced text, such as an edited message or an older version of a file, is zeroed as well (SQLite `secure_delete`). Only the current version of a file is kept; `file_modifications` keeps the date and size of each earlier version, not its text, and `forget file` deletes it.
 - A file deleted from its folder leaves answers but stays in the database (and the timeline) until `cade forget file`. For an image, that includes its description, which a copy of the same image found later reuses.
-- An image's description and visible text are kept once per image (by its SHA-256), as representations of the image (`representations`), and in the text of each file event that holds it, for the search. `forget file` and `forget --uid` of the image's last copy delete them; while another copy is stored, it keeps them. `cade reindex --captions` replaces descriptions in place, zeroing the old text. A representation's vector (`representation_vectors`) goes with it; nothing writes one yet.
+- An image's description and visible text are kept once per image (by its SHA-256), as representations of the image (`representations`), and in the text of each event that holds it, for the search: an image file, a Teams message with the picture, or a WhatsApp photo linked to the file of the same name. `forget` of the image's last copy deletes them; while another copy, or a message showing the picture, is stored, it keeps them. `cade reindex --captions` replaces descriptions in place, zeroing the old text. A representation's vector (`representation_vectors`) goes with it; nothing writes one yet.
 - `forget` does not touch migration backups (`cade.db.before-v*`); delete them yourself.
 - Copies made outside cade are not affected: backups, snapshots, or `cade ask --json` output you saved.
 - `forget --uid` and confirmed `forget --match` remove the event, chunks, embeddings, keyword and people indexes, and file history; only its UID and deletion date remain to prevent re-ingestion. `forget <source>` clears that forgotten-UID list. Retention is off by default; set `ingest.retention.max_age_days` per source to opt in.
@@ -137,7 +138,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
 | **teams**, **apps through a schema** and **whatsapp-backup** | your messages | other people's messages, names and ids | yes, whatever people write |
 | **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
-| **entities** (`entities`) | your name, your files' paths | the same names as the people index, without conversation titles | no |
+| **entities** (`entities`) | your name, your files' paths | the same names as the people index, without conversation titles; with `ingest.names_from_email` on, the names commit authors' e-mails spell | no |
 
 ### Requirements and gaps
 
@@ -159,7 +160,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 
 These bind the work that adds personal data, starting with people as entities ([#20](https://github.com/Chipskein/cade/issues/20)) and faces ([#23](https://github.com/Chipskein/cade/issues/23)):
 
-1. **Opt-in per kind.** A new kind of personal data (face vectors, anything a person entity holds beyond the names events already have) is off until you turn it on in `cade init` or the configuration. Turning it off stops collecting it, and one command deletes what was kept.
+1. **Opt-in per kind.** A new kind of personal data (face vectors, anything a person entity holds beyond the names events already have, such as the name read from an e-mail by `ingest.names_from_email`) is off until you turn it on in `cade init` or the configuration. Turning it off stops collecting it, and one command deletes what was kept.
 2. **Nothing sensitive is inferred.** cade never derives health, religion, politics, ethnicity, sex life or similar traits, and never asks a model to. A person entity holds only what a source states: names and ids found in events.
 3. **Biometrics stay apart.** Face vectors live in their own table, never in event text or image descriptions, never reach the generation model, and are compared only with faces from your own files. A face gets a name only from you.
 4. **What is derived follows its event.** `forget` of an event deletes the entities, relations, representations and face vectors that came only from it, and a person left with no event is deleted. Entities follow this since migration 15 (#20).

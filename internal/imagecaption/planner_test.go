@@ -224,3 +224,27 @@ func TestCloseFreesALoadedModelOnce(t *testing.T) {
 		t.Fatalf("expected the model closed, got closed=%v err=%v", world.describer.Closed, err)
 	}
 }
+
+const pastedImageURL = "https://us-api.asm.skype.com/v1/objects/0-eus-d9-aa11/views/imgo"
+
+func TestPlanImageBytesDescribesAPictureByItsAddress(t *testing.T) {
+	world := newPlanWorld(10)
+	raw := pngFile(t, 30, 10, 3).Data
+	if err := world.planner.PlanImageBytes(context.Background(), pastedImageURL, raw); err != nil {
+		t.Fatal(err)
+	}
+	got := world.planner.Captions()[pastedImageURL]
+	if got.Status != event.CaptionDescribed || got.Description != "um terminal" || got.Width != 30 || world.planner.Tally() != (Tally{Described: 1}) {
+		t.Fatalf("expected the picture described under its address, got %+v", got)
+	}
+}
+
+func TestPlanImageBytesLeavesATooLargePictureUnread(t *testing.T) {
+	world := newPlanWorld(10)
+	if err := world.planner.PlanImageBytes(context.Background(), pastedImageURL, make([]byte, 2<<20)); err != nil {
+		t.Fatal(err)
+	}
+	if got := world.planner.Captions()[pastedImageURL]; got.Status != event.CaptionUnreadable || world.loads != 0 {
+		t.Fatalf("expected unreadable without loading the model, got %+v (%d loads)", got, world.loads)
+	}
+}

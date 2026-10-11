@@ -12,6 +12,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
@@ -49,6 +50,8 @@ func (f FakeCollector) CollectEvents(_ context.Context, emit ingest.EmitFunc) er
 
 // fakeWorld bundles the fakes behind one Toolkit so tests can inspect them.
 type fakeWorld struct {
+	// teamsPictures are what the browser's cache holds for Teams.
+	teamsPictures map[string][]byte
 	store         *testfakes.FakeEventStore
 	embedder      *testfakes.FakeEmbedder
 	generator     *testfakes.FakeGenerator
@@ -125,6 +128,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 			return w.describer, nil
 		},
 		LoadGenerator: w.loadGenerator,
+		TeamsPictures: func(context.Context, string) (map[string][]byte, error) { return w.teamsPictures, nil },
 		Sources:       w.sources,
 		StoreReaders:  w.storeReaders,
 		SchemaFiles:   idbmap.OSSchemaFiles{},
@@ -162,6 +166,7 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 	return []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: newCollector},
 		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: newFileCollector},
+		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newCollector},
 	}
 }
 
@@ -323,6 +328,14 @@ func TestDescribePlan(t *testing.T) {
 	query := queryplan.Query{Mode: queryplan.ModeList, Topic: "redis", Source: event.SourceTeams,
 		Criteria: listing.Criteria{Direction: listing.Received, People: []string{"Ana"}}}
 	if got := describeQuery(query, Portuguese); got != "listar · teams · pessoas: Ana · recebidas · assunto: redis" {
+		t.Fatalf("unexpected description %q", got)
+	}
+}
+
+func TestDescribePlanWithTheGraphFields(t *testing.T) {
+	query := queryplan.Query{Mode: queryplan.ModeAnswer, Entities: []string{"João"}, Modality: entity.TypeImage, Related: true,
+		Criteria: listing.Criteria{People: []string{"Pedro"}}}
+	if got := describeQuery(query, English); got != "answer · people: Pedro · images · appearing: João · related" {
 		t.Fatalf("unexpected description %q", got)
 	}
 }

@@ -1,5 +1,6 @@
 {
  "now": "2026-09-26T10:00:00-03:00",
+ "names_from_email": true,
  "events": [
   {
    "id": "g1",
@@ -3935,6 +3936,90 @@
     "path": "/home/eu/prints/page-backup-injection.png"
    },
    "image": "page-backup-injection.png"
+  },
+  {
+   "id": "img-orion",
+   "source": "file",
+   "at": "2026-09-23T14:00:00-03:00",
+   "content": "",
+   "metadata": {
+    "path": "/home/eu/prints/slide-orion.png"
+   },
+   "image": "slide-orion.png"
+  },
+  {
+   "id": "wa-comprovante",
+   "group": "comprovante",
+   "source": "whatsapp",
+   "at": "2026-09-24T18:05:00-03:00",
+   "content": "Pedro Alves: \nConversa: conversa Pedro Alves\nRecebida por você",
+   "metadata": {
+    "sender": "Pedro Alves",
+    "conversation": "Pedro Alves",
+    "conversation_kind": "conversa",
+    "sent_by_me": "false",
+    "conversation_id": "5511900000007@c.us",
+    "message_id": "false_5511900000007@c.us_3EB0A1",
+    "attachment": "IMG-20260924-WA0007.png"
+   }
+  },
+  {
+   "id": "img-comprovante",
+   "group": "comprovante",
+   "source": "file",
+   "at": "2026-09-24T18:06:00-03:00",
+   "content": "",
+   "metadata": {
+    "path": "/home/eu/WhatsApp/Media/WhatsApp Images/IMG-20260924-WA0007.png"
+   },
+   "image": "page-comprovante.png"
+  },
+  {
+   "id": "wa-joao",
+   "source": "whatsapp",
+   "at": "2026-09-24T18:07:00-03:00",
+   "content": "Pedro Alves: o João já devolveu a van, pode fechar a conta da Hermes\nConversa: conversa Pedro Alves\nRecebida por você",
+   "metadata": {
+    "sender": "Pedro Alves",
+    "conversation": "Pedro Alves",
+    "conversation_kind": "conversa",
+    "sent_by_me": "false",
+    "conversation_id": "5511900000007@c.us",
+    "message_id": "false_5511900000007@c.us_3EB0A2",
+    "text": "o João já devolveu a van, pode fechar a conta da Hermes"
+   }
+  },
+  {
+   "id": "t-joao-print",
+   "source": "teams",
+   "at": "2026-09-24T09:40:00-03:00",
+   "content": "João Mendes: deu isso aqui no painel\nConversa: chat João Mendes, Eu\nRecebida por você",
+   "metadata": {
+    "sender": "João Mendes",
+    "conversation": "João Mendes, Eu",
+    "conversation_kind": "chat",
+    "sent_by_me": "false",
+    "conversation_id": "19:joao@unq.gbl.spaces",
+    "message_id": "print",
+    "text": "deu isso aqui no painel",
+    "image_urls": "https://us-api.asm.skype.com/v1/objects/0-eus-d9-a1b2c3/views/imgo"
+   },
+   "image": "page-gateway.png"
+  },
+  {
+   "id": "t-joao-texto",
+   "source": "teams",
+   "at": "2026-09-24T09:45:00-03:00",
+   "content": "João Mendes: vou abrir um chamado para o time de infra\nConversa: chat João Mendes, Eu\nRecebida por você",
+   "metadata": {
+    "sender": "João Mendes",
+    "conversation": "João Mendes, Eu",
+    "conversation_kind": "chat",
+    "sent_by_me": "false",
+    "conversation_id": "19:joao@unq.gbl.spaces",
+    "message_id": "texto",
+    "text": "vou abrir um chamado para o time de infra"
+   }
   },
   {
    "id": "t-backup",

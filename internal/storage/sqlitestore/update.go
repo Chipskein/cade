@@ -50,6 +50,9 @@ func updateEventIn(ctx context.Context, tx *sql.Tx, ev event.Event, chunks []sto
 	if err := relinkEntities(ctx, tx, eventID, ev); err != nil {
 		return err
 	}
+	if err := linkAttachedImages(ctx, tx, eventID, ev); err != nil {
+		return err
+	}
 	if err := rerelateEntities(ctx, tx, eventID, ev); err != nil {
 		return err
 	}

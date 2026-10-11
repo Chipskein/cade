@@ -104,6 +104,10 @@ type EventStore interface {
 	EventsContaining(ctx context.Context, text string, filter EventFilter) ([]event.Event, error)
 	DeleteBefore(ctx context.Context, source event.Source, before time.Time) (int, error)
 	VectorCompactor
+	// EntityIndex and RelationIndex let retrieval widen a question
+	// through the graph (#24).
+	EntityIndex
+	RelationIndex
 	Close() error
 }
 
@@ -134,8 +138,8 @@ type SimilarityQuery struct {
 
 // EventFilter selects events exactly, as listing.Select does in memory:
 // timestamp in [From, To), the source (empty means all), the message
-// direction, any of People (everyone when empty), and files under Folder
-// (anywhere when empty).
+// direction, any of People (everyone when empty), files under Folder
+// (anywhere when empty), and Graph.
 type EventFilter struct {
 	From      time.Time
 	To        time.Time
@@ -143,6 +147,7 @@ type EventFilter struct {
 	Direction listing.Direction
 	People    []listing.PersonMatcher
 	Folder    string
+	Graph     GraphFilter
 }
 
 // LexicalQuery describes a filtered keyword search. Match is an FTS5

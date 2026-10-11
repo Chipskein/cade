@@ -11,6 +11,7 @@
 |---|---|
 | `database_path` | Path to the SQLite database. |
 | `ingest.redact` | Mask recognized secrets in event text (default `true`). File globs and URL parameter removal always apply. |
+| `ingest.names_from_email` | Keep on each commit the name its author's e-mail spells (`fernanda.rocha@…` for `F. Rocha`), so `ask` finds the person in git and in messages (default `false`). A new kind of personal data, so off until you turn it on; the next `cade ingest git` fills the stored commits, and turning it off deletes the names on the next one. See [PRIVACY](../PRIVACY.md). |
 | `ingest.max_image_bytes` | Images larger than this are not described (default 20 MiB); they keep their name only, like other binaries. |
 | `ingest.max_images_per_run` | New images described per `ingest` (default 50, ~20 min on a 6-core CPU); the rest wait for the next runs. |
 | `ingest.background.threads` | CPU threads for both models in `ingest start` and `ingest --gentle` runs (default `2`; `0` = physical cores). |

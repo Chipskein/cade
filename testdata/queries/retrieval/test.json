@@ -234,8 +234,7 @@
    "people": [
     "Fernanda"
    ],
-   "topic": "conciliação de boletos",
-   "pending_issue": "#24"
+   "topic": "conciliação de boletos"
   },
   {
    "question": "o que eu estava lendo quando corrigi o webhook de pagamento?",
@@ -254,7 +253,95 @@
     "Rui"
    ],
    "topic": "retry do ERP",
-   "pending_issue": "#24"
+   "related": true
+  },
+  {
+   "question": "imagens em que o João aparece",
+   "relevant": [
+    "img-orion",
+    "comprovante"
+   ],
+   "entities": [
+    "João"
+   ],
+   "modality": "imagem"
+  },
+  {
+   "question": "imagens do projeto Orion",
+   "relevant": [
+    "img-orion"
+   ],
+   "entities": [
+    "projeto Orion"
+   ],
+   "modality": "imagem"
+  },
+  {
+   "question": "imagens que o Pedro me mandou",
+   "people": [
+    "Pedro"
+   ],
+   "direction": "recebidas",
+   "relevant": [
+    "comprovante"
+   ],
+   "modality": "imagem"
+  },
+  {
+   "question": "imagens do João que o Pedro me mandou",
+   "people": [
+    "Pedro"
+   ],
+   "direction": "recebidas",
+   "relevant": [
+    "comprovante"
+   ],
+   "entities": [
+    "João"
+   ],
+   "modality": "imagem"
+  },
+  {
+   "question": "quais commits mexeram no arquivo do retry do ERP?",
+   "source": "git",
+   "topic": "arquivo do retry do ERP",
+   "relevant": [
+    "gr1",
+    "gr3"
+   ]
+  },
+  {
+   "question": "qual era o erro naquele print?",
+   "topic": "erro",
+   "relevant": [
+    "img-deploy"
+   ],
+   "modality": "imagem"
+  },
+  {
+   "question": "imagens que o João me mandou no Teams",
+   "source": "teams",
+   "people": [
+    "João"
+   ],
+   "direction": "recebidas",
+   "modality": "imagem",
+   "relevant": [
+    "t-joao-print"
+   ]
+  },
+  {
+   "question": "que erro o João mandou no print do Teams?",
+   "source": "teams",
+   "people": [
+    "João"
+   ],
+   "direction": "recebidas",
+   "topic": "erro",
+   "modality": "imagem",
+   "relevant": [
+    "t-joao-print"
+   ]
   }
  ],
  "maximum_redundancy": 0.0

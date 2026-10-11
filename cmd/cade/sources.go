@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.Sour
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: gitCollectorFactory(cfg.Sources)},
 		{Name: "browser", DefaultTargets: cfg.Sources.BrowserHistories, NewCollector: newBrowserCollector},
 		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources, captions)},
-		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: newTeamsCollector},
+		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: teamsCollectorFactory(captions)},
 		{Name: whatsappBackupSource, DefaultTargets: cfg.Sources.WhatsAppBackups, NewCollector: newWhatsAppBackupCollector},
 	}
 	return append(builtIn, schemaSpecs(cfg.Sources, idbmap.NewSchemaDir(idbmap.OSSchemaFiles{}, cfg.Sources.IndexedDBSchemaDir), builtIn)...)
@@ -74,8 +75,19 @@ func newWhatsAppBackupCollector(path string) (ingest.EventCollector, error) {
 	return whatsappsource.NewCollector(openSQLiteFile, path), nil
 }
 
-func newTeamsCollector(indexedDBDir string) (ingest.EventCollector, error) {
-	return teamssource.NewCollector(readIndexedDB, indexedDBDir), nil
+func teamsCollectorFactory(captions ingest.ImageCaptions) func(string) (ingest.EventCollector, error) {
+	return func(indexedDBDir string) (ingest.EventCollector, error) {
+		return teamssource.NewCollector(readIndexedDB, indexedDBDir).WithCaptions(captions), nil
+	}
+}
+
+// teamsPictures reads the pictures of a Teams IndexedDB's messages from
+// the HTTP cache of the same browser profile.
+func teamsPictures(ctx context.Context, indexedDBDir string) (map[string][]byte, error) {
+	configDir, _ := os.UserConfigDir()
+	cacheDir, _ := os.UserCacheDir()
+	collector := teamssource.NewCollector(readIndexedDB, indexedDBDir)
+	return collector.Pictures(ctx, teamssource.HTTPCacheDirs(indexedDBDir, configDir, cacheDir))
 }
 
 func gitCollectorFactory(sources config.SourcesConfig) func(string) (ingest.EventCollector, error) {

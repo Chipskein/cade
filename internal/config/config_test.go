@@ -178,6 +178,15 @@ func TestDefaultsLeaveImagesOffWithUsableLimits(t *testing.T) {
 	}
 }
 
+func TestNamesFromEmailAreOffUntilTurnedOn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	testcheck.NoError(t, os.WriteFile(path, []byte(`{"ingest": {"names_from_email": true}}`), 0o600))
+	cfg, err := Load(path)
+	if Defaults().Ingest.NamesFromEmail || err != nil || !cfg.Ingest.NamesFromEmail || !cfg.Ingest.Redact {
+		t.Fatalf("expected off by default and on when set, other ingest fields kept, got %+v (err %v)", cfg.Ingest, err)
+	}
+}
+
 func TestLoadRejectsImagesWithoutAPerRunLimit(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.json")
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"images": true}, "ingest": {"max_images_per_run": 0}}`), 0o600))

@@ -23,6 +23,12 @@ func (a *Answerer) retrieveAmong(ctx context.Context, query queryplan.Query, emb
 	if err != nil {
 		return nil, err
 	}
+	return a.selectAmong(ctx, embedding, query, filter)
+}
+
+// selectAmong ranks the filtered events exactly, or through the vector
+// index when too many match.
+func (a *Answerer) selectAmong(ctx context.Context, embedding []float32, query queryplan.Query, filter storage.EventFilter) ([]storage.ScoredEvent, error) {
 	tooMany, err := a.tooManyToRank(ctx, filter)
 	if err != nil {
 		return nil, err
@@ -43,23 +49,45 @@ func (a *Answerer) rankAmong(ctx context.Context, embedding []float32, query que
 	if err != nil {
 		return nil, err
 	}
-	ranked = usableEvidence(ranked, query)
+	return a.topAmong(ctx, usableEvidence(ranked, query), query)
+}
+
+// topAmong is the first top_k of ranked, one per picture for a question
+// through the graph.
+func (a *Answerer) topAmong(ctx context.Context, ranked []storage.ScoredEvent, query queryplan.Query) ([]storage.ScoredEvent, error) {
+	if query.NeedsGraph() {
+		return a.foldSharedImages(ctx, ranked, a.settings.TopK)
+	}
 	return ranked[:min(len(ranked), a.settings.TopK)], nil
 }
 
-// resolveFilter is the question's period (or all time), source, folder and
-// criteria, with each name resolved against the stored events.
+// resolveFilter is the question's period (or all time), source, folder,
+// modality and criteria, with each name resolved against the stored
+// events, widened through the graph when the question asks for others.
 func (a *Answerer) resolveFilter(ctx context.Context, query queryplan.Query, observer AnswerObserver) (storage.EventFilter, error) {
-	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source, Folder: query.Folder}
-	if query.Days != nil {
-		scope.From, scope.To = query.Days.Start(), query.Days.End()
-	}
-	filter, resolution, err := storage.ResolveCriteria(ctx, a.store, scope, query.Criteria)
+	filter, resolution, err := storage.ResolveCriteria(ctx, a.store, a.scopeOf(query), query.Criteria)
 	if err != nil {
 		return storage.EventFilter{}, err
 	}
-	observer.notifyPeople(resolution.Matched, resolution.Unknown)
-	return filter, nil
+	filter, unknownEntities, err := storage.ResolveAppearing(ctx, a.store, filter, query.Entities)
+	if err != nil {
+		return storage.EventFilter{}, err
+	}
+	observer.notifyPeople(resolution.Matched, append(resolution.Unknown, unknownEntities...))
+	if !query.Related {
+		return filter, nil
+	}
+	return a.widenByRelations(ctx, filter)
+}
+
+// scopeOf is what the question restricts before any name is resolved.
+func (a *Answerer) scopeOf(query queryplan.Query) storage.EventFilter {
+	scope := storage.EventFilter{From: time.Unix(0, 0), To: a.now().AddDate(1, 0, 0), Source: query.Source, Folder: query.Folder,
+		Graph: storage.GraphFilter{Modality: query.Modality}}
+	if query.Days != nil {
+		scope.From, scope.To = query.Days.Start(), query.Days.End()
+	}
+	return scope
 }
 
 // tooManyToRank reports whether more events match than
@@ -90,9 +118,9 @@ func (a *Answerer) searchAmong(ctx context.Context, embedding []float32, query q
 		if err != nil {
 			return nil, err
 		}
-		distinct := usableEvidence(bestChunkPerEvent(hits), query)
-		if len(distinct) >= a.settings.TopK || search.Limit >= maxNeighbours {
-			return distinct[:min(len(distinct), a.settings.TopK)], nil
+		top, err := a.topAmong(ctx, usableEvidence(bestChunkPerEvent(hits), query), query)
+		if err != nil || len(top) >= a.settings.TopK || search.Limit >= maxNeighbours {
+			return top, err
 		}
 	}
 }

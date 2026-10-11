@@ -37,6 +37,20 @@ func TestDescribedImageTextLeavesTheMetadataForRepresentations(t *testing.T) {
 	}
 }
 
+// A picture pasted in Teams is described like a file (#24).
+func TestADescribedPictureInAMessageIsRepresentedToo(t *testing.T) {
+	store := openTestStore(t)
+	message := event.Message{Sender: "Ana Souza", Kind: event.KindChat}.Metadata()
+	for key, value := range (event.Image{SHA256: "h2", Status: event.CaptionDescribed, Description: "print do erro 502"}).Metadata() {
+		message[key] = value
+	}
+	mustSave(t, store, event.Event{UID: "teams-1", Source: event.SourceTeams, Timestamp: baseTime, Content: "Ana Souza: \nImagem: print do erro 502", Metadata: message}, nil)
+	stored, err := store.RepresentationsOf(context.Background(), imageOwner("h2"))
+	if err != nil || len(stored) != 1 || stored[0].Content != "print do erro 502" {
+		t.Fatalf("expected the picture's description as a representation, got %+v (err %v)", stored, err)
+	}
+}
+
 func TestDescribingAgainReplacesAndDropsTheVisibleText(t *testing.T) {
 	store := openTestStore(t)
 	ev := imageFileEvent("/prints/erro.png", "h1", event.CaptionDescribed, "panic: nil map")

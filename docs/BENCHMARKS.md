@@ -148,29 +148,32 @@ MRR went up, but recall on the test set fell from 1.00 to 0.94, and the criterio
 
 ## Question interpretation
 
-> `go tool mage evalPlan` (`bench/plan-baseline.txt`) · 2026-09-30 · `f4e5379` · CUDA · Qwen3.5-2B
+> `go tool mage evalPlan` (`bench/plan-baseline.txt`) · 2026-10-11 · `b2fcc29` · CUDA (RTX 3060 at 120 W) · Qwen3.5-2B
 
-Suite of 155 questions: 131 fully correct, 69 read by the rules alone, none of them wrong.
+Suite of 165 questions: 142 fully correct, 70 read by the rules alone, none of them wrong. The last three fields came with #24 (entities a picture shows, the image modality, widening through the relationships), with ten questions for them.
 
 ```mermaid
 xychart-beta
   title "Planner accuracy per field (%), Qwen3.5-2B"
-  x-axis ["mode", "days", "source", "people", "direction", "topic", "status"]
+  x-axis ["mode", "days", "source", "people", "direction", "topic", "status", "entities", "modality", "related"]
   y-axis "accuracy (%)" 90 --> 100
-  bar [96, 100, 95, 97, 97, 97, 100]
+  bar [96, 100, 96, 99, 98, 95, 100, 99, 100, 100]
 ```
 
 | Field | Correct | Wilson 95% |
 |---|---:|---|
-| `mode` | 149/155 | 92%–98% |
-| `days` | 155/155 | 98%–100% |
-| `source` | 147/155 | 90%–97% |
-| `people` | 150/155 | 93%–99% |
-| `direction` | 150/155 | 93%–99% |
-| `topic` | 151/155 | 94%–99% |
-| `status` | 155/155 | 98%–100% |
+| `mode` | 159/165 | 92%–98% |
+| `days` | 165/165 | 98%–100% |
+| `source` | 159/165 | 92%–98% |
+| `people` | 163/165 | 96%–100% |
+| `direction` | 162/165 | 95%–99% |
+| `topic` | 157/165 | 91%–98% |
+| `status` | 165/165 | 98%–100% |
+| `entities` | 164/165 | 97%–100% |
+| `modality` | 165/165 | 98%–100% |
+| `related` | 165/165 | 98%–100% |
 
-On 2026-09-27, with 153 questions, 135 were fully correct. The most frequent errors are message listings read as a question to answer (`mode`) and person names missing from `people`. The comparison with other models is under [History](#history).
+On 2026-09-30, with 155 questions and seven fields, `mode` was 149, `source` 147, `people` 150, `direction` 150 and `topic` 151. The longer prompt of #24 moved `topic` by a few questions on the old cases (148/155), within the interval; the model still reads "o João aparece" and "fotos do João" as João being the sender. The most frequent errors are message listings read as a question to answer (`mode`) and a topic left out or rewritten. The comparison with other models is under [History](#history).
 
 ## `ask` latency per stage
 
