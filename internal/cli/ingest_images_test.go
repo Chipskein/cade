@@ -45,7 +45,7 @@ func addImage(t *testing.T, world *fakeWorld, path string, seed byte) {
 func storedFile(t *testing.T, world *fakeWorld, path string) event.Event {
 	t.Helper()
 	for _, ev := range world.store.Events {
-		if ev.Source == event.SourceFile && ev.File().Path == path {
+		if ev.Source == event.SourceFile && ev.File().Path == testfakes.SystemPath(path) {
 			return ev
 		}
 	}

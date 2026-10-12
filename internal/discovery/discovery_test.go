@@ -88,6 +88,25 @@ func TestRootsForMacOSAreUnderApplicationSupport(t *testing.T) {
 	}
 }
 
+// Windows keeps the profiles in AppData, and the new Teams desktop app is
+// a source of Teams messages only (#54).
+func TestRootsForWindowsAreUnderAppDataWithTheTeamsApp(t *testing.T) {
+	local, teams := home+"/AppData/Local/", home+"/"+windowsTeamsWebView+"/WV2Profile_tfw/"
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(local+"Microsoft/Edge/User Data/Default/History", "").
+		AddFile(home+"/AppData/Roaming/Mozilla/Firefox/Profiles/abc.default-release/places.sqlite", "").
+		AddFile(teams+"History", "").
+		AddDir(teams + "IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb")
+	want := []string{home + "/AppData/Local/Microsoft/Edge/User Data/Default/History", home + "/AppData/Roaming/Mozilla/Firefox/Profiles/abc.default-release/places.sqlite"}
+	if got := BrowserHistories(tree, home, RootsFor("windows")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	wantTeams := []string{teams + "IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"}
+	if got := TeamsCaches(tree, home, RootsFor("windows")); !slices.Equal(got, wantTeams) {
+		t.Fatalf("expected %v, got %v", wantTeams, got)
+	}
+}
+
 func TestRootsForAnUnknownSystemAreLinuxs(t *testing.T) {
 	if !slices.Equal(RootsFor("netbsd").Firefox, RootsFor("linux").Firefox) {
 		t.Fatal("expected Linux's roots for a system without its own")
@@ -107,14 +126,14 @@ func fakeSourceTree() testfakes.FakeFileSystem {
 }
 
 func TestGitRepositoriesFindsRepositoriesOnce(t *testing.T) {
-	want := []string{"/src/api", "/src/org/team/web", "/src/worktree"}
+	want := []string{testfakes.SystemPath("/src/api"), testfakes.SystemPath("/src/org/team/web"), testfakes.SystemPath("/src/worktree")}
 	if got := GitRepositories(fakeSourceTree(), "/src", []string{"node_modules"}); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
 func TestGitRepositoriesRootItselfIsRepository(t *testing.T) {
-	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{"/src/api"}) {
+	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{testfakes.SystemPath("/src/api")}) {
 		t.Fatalf("expected the root, got %v", got)
 	}
 }

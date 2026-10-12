@@ -78,6 +78,7 @@ type testWorld struct {
 	fetcher  *FakeModelFetcher
 	progress *bytes.Buffer
 	env      FakeEnvironment
+	goos     string
 }
 
 func newTestWorld(t *testing.T) *testWorld {
@@ -90,7 +91,7 @@ func newTestWorld(t *testing.T) *testWorld {
 }
 
 func (w *testWorld) tasks() *Tasks {
-	return NewTasks(Dependencies{Root: w.root, Runner: w.runner, Fetcher: w.fetcher, Env: w.env, Progress: w.progress})
+	return NewTasks(Dependencies{Root: w.root, Runner: w.runner, Fetcher: w.fetcher, Env: w.env, Progress: w.progress, GOOS: w.goos})
 }
 
 func (w *testWorld) writeFile(t *testing.T, relative, content string) string {

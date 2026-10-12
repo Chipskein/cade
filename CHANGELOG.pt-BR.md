@@ -24,7 +24,16 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 
 - **Build experimental para macOS, Apple Silicon:** o `go tool mage cpu` num Mac compila o llama.cpp com Metal e Accelerate, com os shaders dentro do binário; o `cade version` diz Metal. O release ganha um arquivo `darwin-arm64-metal`. Ninguém no projeto tem Mac: ele é compilado e testado só nos runners `macos-14` do GitHub, onde o CI roda a suíte de testes inteira.
 - **No macOS os modelos rodam na CPU por padrão** (`gpu_layers: 0`). Uma execução avulsa no Mac virtual do GitHub (ingerir a doc e fazer um `ask` com os modelos padrão) respondeu com fontes citadas na CPU em 74 s; com Metal (`gpu_layers: -1`) o modelo gerou lixo e levou 355 s. A GPU desse runner é virtual, então um Mac de verdade pode se comportar diferente; `-1` liga o Metal.
-- O `cade init` procura os navegadores em `~/Library/Application Support`. A ingestão em segundo plano baixa a prioridade de disco com `setiopolicy_np` (I/O estrangulado). A config fica em `~/Library/Application Support/cade/config.json`, ou onde o `--config` apontar.
+- O `cade init` procura os navegadores em `~/Library/Application Support`, e os schemas de IndexedDB ficam ao lado do `config.json` lá. A ingestão em segundo plano baixa a prioridade de disco com `setiopolicy_np` (I/O estrangulado). A config fica em `~/Library/Application Support/cade/config.json`, ou onde o `--config` apontar.
+- Sem migração do banco.
+
+### Windows (#54)
+
+- **Build experimental para Windows, x86-64, CPU:** compilado com o MinGW no shell UCRT64 do MSYS2; o `cade.exe` é ligado de forma estática e só importa DLLs do sistema. O release ganha um `windows-amd64-cpu.zip`. Ninguém no projeto tem uma máquina Windows: ele é compilado e testado nas máquinas `windows-latest` do GitHub e, compilado de forma cruzada, no wine, onde os testes de todos os pacotes passam, menos dois que rodam o comando `go`.
+- **Os caminhos são gravados com `/` em todo sistema** (`C:/Users/eu/notas`), então os filtros por pasta, os UIDs, as entidades e o `ask --json` ficam iguais aos do Linux; uma pergunta também pode citar uma pasta como `C:\...`. Um só sistema de arquivos alcança todas as unidades.
+- **Onde as coisas ficam:** config e schemas de IndexedDB em `%APPDATA%\cade`, banco e modelos em `%LOCALAPPDATA%\cade` (onde o `go tool mage models` passa a baixá-los), estado da ingestão em `%LOCALAPPDATA%\cade\state`. O `cade init` procura os navegadores em `AppData` e o cache do novo app desktop do Teams (ainda não conferido numa máquina de verdade).
+- **Ingestão em segundo plano:** o lock usa o `LockFileEx`; o `pause` suspende o processo; o `--gentle` usa o modo de segundo plano; o `stop` deixa um pedido de parada no diretório de estado, que a ingestão confere a cada meio segundo em qualquer sistema e trata como Ctrl-C, e espera até 30 s antes de encerrar o processo. No Linux o SIGTERM continua chegando na hora.
+- **Arquivos só do dono** mantêm o modo `600` no unix; no Windows o cade não chama mais o `chmod`, que falhava no `-shm` aberto do SQLite. A barra de progresso liga o processamento VT do console e volta à saída simples onde o console recusa.
 - Sem migração do banco.
 
 ## v0.2.0 — 2026-10-11

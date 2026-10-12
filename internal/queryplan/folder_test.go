@@ -1,6 +1,9 @@
 package queryplan
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 const folderTestHome = "/home/ana"
 
@@ -17,5 +20,12 @@ func TestFolderInReadsTypedPaths(t *testing.T) {
 		if got := FolderIn(question, folderTestHome); got != want {
 			t.Errorf("FolderIn(%q) = %q, want %q", question, got, want)
 		}
+	}
+}
+
+func TestFolderInReadsAWindowsPathWithSlashes(t *testing.T) {
+	question := "arquivos em " + filepath.FromSlash("C:/Users/ana/notas") + "?"
+	if got := FolderIn(question, folderTestHome); got != "C:/Users/ana/notas" {
+		t.Fatalf("expected C:/Users/ana/notas, got %q", got)
 	}
 }

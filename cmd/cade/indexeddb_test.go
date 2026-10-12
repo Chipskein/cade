@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -26,15 +28,19 @@ func TestReadIndexedDBReadsChromiumDirectories(t *testing.T) {
 
 func TestReadIndexedDBRefusesADirectoryOfNoKnownLayout(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := readIndexedDB(dir); err == nil || !strings.Contains(err.Error(), dir) {
+	if _, err := readIndexedDB(dir); err == nil || !strings.Contains(err.Error(), strconv.Quote(dir)) {
 		t.Fatalf("readIndexedDB(empty dir) error = %v; want a refusal naming the directory", err)
 	}
 }
 
+// uriSpecialFileName has every character a file: URI reads specially that
+// the system allows in a name; Windows forbids "?" (#54).
+var uriSpecialFileName = map[bool]string{false: "2838935879%e2gF?a#b.sqlite", true: "2838935879%e2gF#b.sqlite"}
+
 // Firefox names IndexedDB files with "%"; unescaped in a file: URI it would
 // be read as an escape and open (or create) another file.
 func TestOpenSQLiteFileKeepsURISpecialCharacters(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "2838935879%e2gF?a#b.sqlite")
+	path := filepath.Join(t.TempDir(), uriSpecialFileName[runtime.GOOS == "windows"])
 	db, err := openSQLiteFile(path)
 	if err != nil {
 		t.Fatalf("open %q: %v", path, err)

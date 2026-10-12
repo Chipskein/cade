@@ -16,7 +16,7 @@ import (
 func TestPromptStatePathDependsOnIdentityAndTokens(t *testing.T) {
 	store := promptStateStore{dir: "/cache", identity: "a"}
 	same := store.pathForTokens([]int32{1, 2, 3})
-	if same != store.pathForTokens([]int32{1, 2, 3}) || filepath.Dir(same) != "/cache" || !strings.HasSuffix(same, promptStateExtension) {
+	if same != store.pathForTokens([]int32{1, 2, 3}) || filepath.Dir(same) != filepath.Clean("/cache") || !strings.HasSuffix(same, promptStateExtension) {
 		t.Fatalf("expected a stable path under /cache, got %q", same)
 	}
 	otherTokens := store.pathForTokens([]int32{1, 2, 4})
@@ -34,7 +34,7 @@ func TestPromptStateStoreDisabledWithoutDirectory(t *testing.T) {
 }
 
 func TestPromptStateStoreNeedsTheModelFile(t *testing.T) {
-	if _, err := newPromptStateStore(t.TempDir(), ModelOptions{Path: "/missing.gguf"}, 4096); err == nil || !strings.Contains(err.Error(), "/missing.gguf") {
+	if _, err := newPromptStateStore(t.TempDir(), ModelOptions{Path: "/missing.gguf"}, 4096); err == nil || !strings.Contains(err.Error(), "missing.gguf") {
 		t.Fatalf("expected an error naming the model, got %v", err)
 	}
 }

@@ -25,18 +25,40 @@ const (
 // Dir holds the state file, the lock and the background log.
 type Dir string
 
-// DefaultDir is $XDG_STATE_HOME/cade, or ~/.local/state/cade.
+// stateLayout says where a system keeps an app's state: under the
+// directory a variable names, or under the home directory without it.
+type stateLayout struct {
+	variable      string
+	underVariable string
+	underHome     string
+}
+
+// xdgStateLayout is $XDG_STATE_HOME/cade, or ~/.local/state/cade.
+var xdgStateLayout = stateLayout{variable: "XDG_STATE_HOME", underVariable: "cade", underHome: ".local/state/cade"}
+
+// stateLayoutsBySystem: Windows keeps it in %LOCALAPPDATA%, beside the
+// database (#54).
+var stateLayoutsBySystem = map[string]stateLayout{
+	"windows": {variable: "LOCALAPPDATA", underVariable: "cade/state", underHome: "AppData/Local/cade/state"},
+}
+
+// DefaultDir is where goos keeps cade's state: $XDG_STATE_HOME/cade or
+// ~/.local/state/cade, and %LOCALAPPDATA%\cade\state on Windows.
 //
-//	dir, err := ingestrun.DefaultDir(os.Getenv, os.UserHomeDir)
-func DefaultDir(getenv func(string) string, homeDir func() (string, error)) (Dir, error) {
-	if state := getenv("XDG_STATE_HOME"); filepath.IsAbs(state) {
-		return Dir(filepath.Join(state, "cade")), nil
+//	dir, err := ingestrun.DefaultDir(runtime.GOOS, os.Getenv, os.UserHomeDir)
+func DefaultDir(goos string, getenv func(string) string, homeDir func() (string, error)) (Dir, error) {
+	layout, found := stateLayoutsBySystem[goos]
+	if !found {
+		layout = xdgStateLayout
+	}
+	if base := getenv(layout.variable); filepath.IsAbs(base) {
+		return Dir(filepath.Join(base, filepath.FromSlash(layout.underVariable))), nil
 	}
 	home, err := homeDir()
 	if err != nil {
 		return "", fmt.Errorf("locate home directory for the ingest state: %w", err)
 	}
-	return Dir(filepath.Join(home, ".local", "state", "cade")), nil
+	return Dir(filepath.Join(home, filepath.FromSlash(layout.underHome))), nil
 }
 
 func (d Dir) StatePath() string { return filepath.Join(string(d), stateFileName) }

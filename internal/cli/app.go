@@ -51,7 +51,7 @@ type Toolkit struct {
 	OpenStore func(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error)
 	// InspectDatabase reads the database without migrating it (doctor).
 	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
-	// RootFS is the filesystem at "/" (see rootfs), where init looks for
+	// RootFS is the user's filesystem under rootfs names, where init looks for
 	// sources and doctor checks the configured paths.
 	RootFS  fs.FS
 	HomeDir func() (string, error)
@@ -114,6 +114,8 @@ type IngestRunTools struct {
 	// LogPath receives the output of background runs.
 	LogPath   string
 	Processes procctl.Processes
+	// Stops carries `ingest stop` to the run where no signal can (#54).
+	Stops ingestrun.StopRequests
 	// Clock paces the models of background and gentle runs.
 	Clock pacing.Clock
 	// Detached is set in the process `ingest start` started.

@@ -1,9 +1,9 @@
-//go:build !unix
+//go:build !unix && !windows
 
 package ingestrun
 
-// Acquire does not lock where flock is missing: only Linux is supported,
-// and a second run there is refused by the unix build.
+// Acquire does not lock on a system with neither flock nor LockFileEx;
+// cade supports none (the unix and Windows builds lock).
 func (l FileLock) Acquire() (func(), error) {
 	return func() {}, l.Dir.Create()
 }

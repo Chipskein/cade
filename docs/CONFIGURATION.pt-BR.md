@@ -4,7 +4,7 @@
 
 # Referência de configuração
 
-`cade init` grava `~/.config/cade/config.json` (no macOS, `~/Library/Application Support/cade/config.json`; `cade --config ARQUIVO` escolhe outro). Você pode usar o
+`cade init` grava `~/.config/cade/config.json` (no macOS, `~/Library/Application Support/cade/config.json`; no Windows, `%APPDATA%\cade\config.json`; `cade --config ARQUIVO` escolhe outro). Você pode usar o
 [`config.example.json`](../config.example.json) como referência completa.
 
 | Campo | Finalidade |
@@ -102,7 +102,7 @@ Com `sources.images` ligado, cada imagem custa cerca de 1,8 s numa RTX 3060 e 21
 - Mensagens apagadas na origem depois da ingestão permanecem no cade até `cade forget`.
 - Ingere apenas mensagens de chat — não eventos de calendário nem histórico de chamadas.
 
-Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil do Teams: um diretório `*.indexeddb.leveldb` no Chromium (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) ou o diretório `idb` da origem do Teams no Firefox e no Floorp (ex.: `~/.floorp/<perfil>/storage/default/https+++teams.microsoft.com/idb`).
+Aponte `sources.teams_indexeddb_dirs` para o diretório do IndexedDB do perfil do Teams: um diretório `*.indexeddb.leveldb` no Chromium (ex.: `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) ou o diretório `idb` da origem do Teams no Firefox e no Floorp (ex.: `~/.floorp/<perfil>/storage/default/https+++teams.microsoft.com/idb`). No Windows, o `cade init` também oferece o novo app desktop do Teams, cujo perfil WebView2 guarda o mesmo IndexedDB (`~/AppData/Local/Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams/EBWebView/WV2Profile_tfw/IndexedDB/…`); esse caminho ainda não foi conferido numa máquina de verdade (#54).
 
 ## Outros aplicativos por schemas de IndexedDB *(experimental)*
 
@@ -218,7 +218,7 @@ cade ingest stop        # encerra e libera a memória; o que já foi gravado fic
 
 - **Progresso:** a ingestão em andamento grava a etapa e a linha de progresso em `~/.local/state/cade/ingest-state.json` (ou em `$XDG_STATE_HOME`) cerca de uma vez por segundo; `status` lê de qualquer terminal, e o `cade doctor` mostra quando a última rodou e como terminou. Execuções em segundo plano escrevem a saída em `ingest.log`, na mesma pasta.
 - **ETA:** a descrição de imagens e as fontes `file` e `git` mostram um ETA, pelo tempo dos itens recentes; `browser` e `teams` não conseguem contar os eventos antes e mostram a taxa.
-- **Pausar ou parar:** `pause` congela o processo (SIGSTOP): ele não usa CPU nem GPU, mas os modelos ficam na memória (~2,5 GB de VRAM no padrão), e `resume` o continua na hora. `stop` o encerra (SIGTERM, como o Ctrl-C) e libera a memória; `resume` então roda de novo, pulando eventos gravados e imagens descritas sem usar os modelos, e continua de onde parou.
+- **Pausar ou parar:** `pause` congela o processo (SIGSTOP): ele não usa CPU nem GPU, mas os modelos ficam na memória (~2,5 GB de VRAM no padrão), e `resume` o continua na hora. `stop` o encerra (SIGTERM, como o Ctrl-C) e libera a memória; `resume` então roda de novo, pulando eventos gravados e imagens descritas sem usar os modelos, e continua de onde parou. No Windows, que não tem sinais (#54), `pause` suspende as threads do processo, `stop` deixa um pedido de parada que a ingestão vê em meio segundo e espera até 30 s ela terminar antes de encerrá-la à força, e `--gentle` usa o modo de segundo plano (prioridade baixa de CPU, I/O e memória); o estado fica em `%LOCALAPPDATA%\cade\state`.
 - **Uma por vez:** enquanto uma ingestão está rodando ou pausada, iniciar outra (`cade ingest …` ou `start`) é recusado com o pid dela. Uma interrompida ou que falhou não bloqueia novas execuções, para que um timer nunca pare de ingerir por causa de uma falha antiga.
 
 ### Como os limites funcionam

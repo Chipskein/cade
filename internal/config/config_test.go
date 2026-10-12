@@ -14,7 +14,7 @@ import (
 func TestLoadMissingFileReturnsExpandedDefaults(t *testing.T) {
 	cfg, err := Load(filepath.Join(t.TempDir(), "absent.json"))
 	home, _ := os.UserHomeDir()
-	if err != nil || cfg.DatabasePath != filepath.Join(home, ".local/share/cade/cade.db") {
+	if err != nil || cfg.DatabasePath != ExpandHomeIn(defaultDataDir+"/cade.db", home) {
 		t.Fatalf("expected expanded default database path, got %q (err %v)", cfg.DatabasePath, err)
 	}
 }
@@ -69,10 +69,7 @@ func TestWriteThenLoadOwnerOnly(t *testing.T) {
 	if err != nil || loaded.Retrieval.TopK != Defaults().Retrieval.TopK || loaded.Sources.Directories[0] != "/notes" {
 		t.Fatalf("expected the config to round-trip, got %+v (err %v)", loaded, err)
 	}
-	info, err := os.Stat(path)
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("expected mode 600, got %v (err %v)", info.Mode(), err)
-	}
+	testcheck.OwnerOnly(t, path)
 }
 
 func TestWriteRefusesOverwrite(t *testing.T) {
@@ -98,6 +95,19 @@ func TestContractHome(t *testing.T) {
 func TestContractHomeWithoutHome(t *testing.T) {
 	if got := ContractHome("/src/app", ""); got != "/src/app" {
 		t.Fatalf("expected the path unchanged, got %q", got)
+	}
+}
+
+func TestContractHomeComparesNativeSeparatorsAsSlashes(t *testing.T) {
+	home := filepath.FromSlash("C:/Users/me")
+	if got := ContractHome(filepath.FromSlash("C:/Users/me/src"), home); got != "~/src" {
+		t.Fatalf("expected ~/src, got %q", got)
+	}
+}
+
+func TestExpandHomeInWritesSlashes(t *testing.T) {
+	if got := ExpandHomeIn("~/notes/a", filepath.FromSlash("C:/Users/me")); got != "C:/Users/me/notes/a" {
+		t.Fatalf("expected C:/Users/me/notes/a, got %q", got)
 	}
 }
 
@@ -218,10 +228,10 @@ func TestLoadExpandsIndexedDBSchemaPaths(t *testing.T) {
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"indexeddb_dirs": {"whatsapp": ["~/.floorp/p/storage/default/https+++web.whatsapp.com/idb"]}}}`), 0o600))
 	cfg, err := Load(path)
 	home, _ := os.UserHomeDir()
-	if err != nil || cfg.Sources.IndexedDBSchemaDir != filepath.Join(home, ".config/cade/idb-schemas") {
+	if err != nil || cfg.Sources.IndexedDBSchemaDir != ExpandHomeIn(defaultIndexedDBSchemaDir, home) {
 		t.Fatalf("expected the default schema directory expanded, got %q (err %v)", cfg.Sources.IndexedDBSchemaDir, err)
 	}
-	if got := cfg.Sources.IndexedDBDirs["whatsapp"]; len(got) != 1 || !strings.HasPrefix(got[0], home+"/.floorp/") {
+	if got := cfg.Sources.IndexedDBDirs["whatsapp"]; len(got) != 1 || !strings.HasPrefix(got[0], filepath.ToSlash(home)+"/.floorp/") {
 		t.Fatalf("expected the whatsapp directory expanded, got %v", got)
 	}
 }
@@ -264,6 +274,21 @@ func TestLoadAcceptsStorageOrigins(t *testing.T) {
 	testcheck.NoError(t, os.WriteFile(path, []byte(`{"sources": {"storage_origins": ["https://chatgpt.com"]}}`), 0o600))
 	if cfg, err := Load(path); err != nil || len(cfg.Sources.StorageOrigins) != 1 {
 		t.Fatalf("expected the chatgpt origin loaded, got %+v %v", cfg.Sources.StorageOrigins, err)
+	}
+}
+
+func TestDataAndSchemaDirsFollowEachSystem(t *testing.T) {
+	cases := []struct{ goos, data, schemas string }{
+		{"linux", "~/.local/share/cade", "~/.config/cade"},
+		{"freebsd", "~/.local/share/cade", "~/.config/cade"},
+		{"darwin", "~/.local/share/cade", "~/Library/Application Support/cade"},
+		{"windows", "~/AppData/Local/cade", "~/AppData/Roaming/cade"},
+	}
+	for _, c := range cases {
+		data, schemas := DataDirFor(c.goos), bySystem(configDirsBySystem, xdgConfigDir, c.goos)
+		if data != c.data || schemas != c.schemas {
+			t.Errorf("%s: expected %s and %s, got %s and %s", c.goos, c.data, c.schemas, data, schemas)
+		}
 	}
 }
 

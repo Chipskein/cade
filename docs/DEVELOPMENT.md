@@ -57,6 +57,21 @@ go tool mage install
 
 llama.cpp turns Metal and Accelerate on by default there, with the Metal shaders embedded in the binary. The models still run on the CPU by default (`gpu_layers: 0` on macOS): on GitHub's virtual Macs Metal produced garbage, and nobody has checked a real one. To try Metal, set `embedding.gpu_layers` and `generation.gpu_layers` to `-1`, and please report how it goes. The configuration is `~/Library/Application Support/cade/config.json`; the database and models stay under `~/.local/share/cade`. A downloaded release archive is not signed, so macOS blocks it until you run `xattr -d com.apple.quarantine cade`.
 
+## Building from source (Windows, x86-64)
+
+Experimental: nobody on the project has a Windows machine, so this is built and tested only on GitHub's Windows runners and, as cross-compiled binaries, under wine (#54). CPU only: cgo needs gcc, which MinGW provides, and CUDA does not build with MinGW.
+
+1. Install [Go](https://go.dev/dl/), [Git for Windows](https://git-scm.com/download/win) (the `git` source calls `git`) and [MSYS2](https://www.msys2.org/).
+2. In the MSYS2 UCRT64 shell, with Go on the `PATH`:
+
+```sh
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-sqlite3
+go tool mage cpu      # bin/cade.exe, linked statically: it needs no MinGW DLL to run
+go tool mage models   # to ~/AppData/Local/cade/models
+```
+
+The configuration is `%APPDATA%\cade\config.json`; the database and models live in `%LOCALAPPDATA%\cade`, and paths are stored with `/` (`C:/Users/me/notes`), as on Linux. The release zip is not signed, so SmartScreen may warn before the first run. The image preview needs `chafa` on the `PATH` (`scoop install chafa`).
+
 ## Installing a release binary (Linux x86-64, CPU)
 
 ```sh

@@ -1,0 +1,3 @@
+# Text files keep LF on every system: a Windows checkout with CRLF broke the
+# tests that read go.mod and LICENSE, and would change embedded files (#54).
+* text=auto eol=lf

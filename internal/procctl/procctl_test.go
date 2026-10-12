@@ -15,9 +15,6 @@ import (
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
-// detachedHelperVariable makes the test binary act as the detached child.
-const detachedHelperVariable = "CADE_PROCCTL_HELPER"
-
 // TestMain lets StartDetached be tested by starting this test binary,
 // the executable os.Executable finds, as the detached process.
 func TestMain(m *testing.M) {
@@ -103,21 +100,6 @@ func TestStartDetachedReportsUnwritableLog(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "open ingest log") {
 		t.Fatalf("expected the log path reported, got %v", err)
 	}
-}
-
-// waitForLog polls, since a released child cannot be waited for.
-func waitForLog(t *testing.T, path string) string {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(path)
-		if err == nil && strings.HasSuffix(string(raw), "\n") {
-			return string(raw)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("the detached process wrote nothing to %s in 10s", path)
-	return ""
 }
 
 func TestLowerPriorityRenicesThisProcess(t *testing.T) {

@@ -6,14 +6,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testcheck"
 )
 
 func TestModelsDownloadsOnlyMissingModels(t *testing.T) {
 	world := newTestWorld(t)
 	tasks := world.tasks()
-	world.writeFile(t, strings.TrimPrefix(tasks.Settings().ModelPath(EmbeddingModel), world.root+"/"), "already here")
+	relative, err := filepath.Rel(world.root, tasks.Settings().ModelPath(EmbeddingModel))
+	testcheck.NoError(t, err)
+	world.writeFile(t, relative, "already here")
 	if err := tasks.Models(); err != nil {
 		t.Fatal(err)
 	}

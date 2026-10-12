@@ -3,6 +3,7 @@ package devtasks
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func TestEnsureLlamaClonesAndBuildsCPU(t *testing.T) {
 func TestEnsureLlamaCUDARequiresNvcc(t *testing.T) {
 	world := newTestWorld(t)
 	err := world.tasks().EnsureLlama(LlamaCUDA)
-	if err == nil || !strings.Contains(err.Error(), filepath.Join(world.root, "cuda", "bin", "nvcc")) {
+	if err == nil || !strings.Contains(err.Error(), strconv.Quote(filepath.Join(world.root, "cuda", "bin", "nvcc"))) {
 		t.Errorf("err = %v, want it to name the missing nvcc", err)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -310,10 +311,12 @@ func ExpandHome(path string) string {
 }
 
 // ContractHome writes a path under home as "~/...", like the defaults,
-// so the file stays valid if the home directory moves.
+// so the file stays valid if the home directory moves. Both are compared
+// with "/", the separator cade stores on every system (#54).
 //
 //	config.ContractHome("/home/me/src/app", "/home/me") // "~/src/app"
 func ContractHome(path, home string) string {
+	path, home = filepath.ToSlash(path), filepath.ToSlash(home)
 	if path == home {
 		return "~"
 	}
@@ -323,13 +326,17 @@ func ContractHome(path, home string) string {
 	return path
 }
 
-// ExpandHomeIn is ExpandHome with a given home directory.
+// ExpandHomeIn is ExpandHome with a given home directory. The result
+// uses "/", which Windows accepts too, so paths read the same in the
+// database on every system (#54).
+//
+//	config.ExpandHomeIn("~/notes", `C:\Users\me`) // "C:/Users/me/notes" on Windows
 func ExpandHomeIn(path, home string) string {
 	if path == "~" {
-		return home
+		return filepath.ToSlash(home)
 	}
 	if strings.HasPrefix(path, "~/") {
-		return filepath.Join(home, path[2:])
+		return pathpkg.Join(filepath.ToSlash(home), path[2:])
 	}
 	return path
 }

@@ -4,7 +4,7 @@
 
 # Configuration reference
 
-`cade init` writes `~/.config/cade/config.json` (on macOS, `~/Library/Application Support/cade/config.json`; `cade --config FILE` picks another). You can use
+`cade init` writes `~/.config/cade/config.json` (on macOS, `~/Library/Application Support/cade/config.json`; on Windows, `%APPDATA%\cade\config.json`; `cade --config FILE` picks another). You can use
 [`config.example.json`](../config.example.json) as a full reference.
 
 | Field | Purpose |
@@ -102,7 +102,7 @@ With `sources.images` on, each image costs about 1.8 s on an RTX 3060 and 21 s o
 - Messages deleted at the source after ingestion remain in cade until `cade forget`.
 - Ingests only chat messages — not calendar events or call history.
 
-Point `sources.teams_indexeddb_dirs` at the IndexedDB directory of your Teams profile: a `*.indexeddb.leveldb` directory in Chromium (e.g. `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) or the `idb` directory of the Teams origin in Firefox and Floorp (e.g. `~/.floorp/<profile>/storage/default/https+++teams.microsoft.com/idb`).
+Point `sources.teams_indexeddb_dirs` at the IndexedDB directory of your Teams profile: a `*.indexeddb.leveldb` directory in Chromium (e.g. `~/.config/teams-for-linux/Partitions/teams-4-linux/IndexedDB/https_teams.cloud.microsoft_0.indexeddb.leveldb`) or the `idb` directory of the Teams origin in Firefox and Floorp (e.g. `~/.floorp/<profile>/storage/default/https+++teams.microsoft.com/idb`). On Windows, `cade init` also offers the new Teams desktop app, whose WebView2 profile keeps the same IndexedDB (`~/AppData/Local/Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams/EBWebView/WV2Profile_tfw/IndexedDB/…`); this path is not yet checked on a real machine (#54).
 
 ## Other applications through IndexedDB schemas *(experimental)*
 
@@ -218,7 +218,7 @@ cade ingest stop        # ends it and frees the memory; what it stored so far st
 
 - **Progress:** the running ingestion records its stage and progress line in `~/.local/state/cade/ingest-state.json` (or under `$XDG_STATE_HOME`) about once a second; `status` reads it from any terminal, and `cade doctor` shows when the last one ran and how it ended. Background runs write their output to `ingest.log` in the same folder.
 - **ETA:** image descriptions and the `file` and `git` sources show an ETA, from how long the recent items took; `browser` and `teams` cannot count their events up front and show the rate instead.
-- **Pause or stop:** `pause` freezes the process (SIGSTOP): it uses no CPU or GPU, but its models stay in memory (~2.5 GB of VRAM with the defaults), and `resume` continues it at once. `stop` ends it (SIGTERM, like Ctrl-C) and frees the memory; `resume` then runs it again, skipping stored events and described images without touching the models, so it picks up where it was.
+- **Pause or stop:** `pause` freezes the process (SIGSTOP): it uses no CPU or GPU, but its models stay in memory (~2.5 GB of VRAM with the defaults), and `resume` continues it at once. `stop` ends it (SIGTERM, like Ctrl-C) and frees the memory; `resume` then runs it again, skipping stored events and described images without touching the models, so it picks up where it was. On Windows, which has no signals (#54), `pause` suspends the process's threads, `stop` leaves a stop request the run sees within half a second and waits up to 30 s for it to end before ending it outright, and `--gentle` uses background mode (low CPU, I/O and memory priority); the state lives in `%LOCALAPPDATA%\cade\state`.
 - **One at a time:** while an ingestion is running or paused, starting another one (`cade ingest …` or `start`) is refused with its pid. An interrupted or failed one does not block new runs, so a timer never stops ingesting because of an old failure.
 
 ### How the limits work

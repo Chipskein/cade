@@ -41,3 +41,14 @@ func TestFlatDirectoryMissingSource(t *testing.T) {
 		t.Fatal("expected an error for a missing source directory")
 	}
 }
+
+func TestFlatDirectorySkipsTheLevelDBLock(t *testing.T) {
+	source, destination := t.TempDir(), filepath.Join(t.TempDir(), "copy")
+	testcheck.NoError(t, os.WriteFile(filepath.Join(source, "CURRENT"), []byte("MANIFEST-000001"), 0o600))
+	testcheck.NoError(t, os.WriteFile(filepath.Join(source, levelDBLockFile), nil, 0o600))
+	err := FlatDirectory(source, destination)
+	entries, _ := os.ReadDir(destination)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "CURRENT" {
+		t.Fatalf("expected only CURRENT, got %v (err %v)", entries, err)
+	}
+}

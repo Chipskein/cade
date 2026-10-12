@@ -32,6 +32,8 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 
 Backups da sua pasta pessoal incluem o `cade.db`.
 
+No Windows (#54) os mesmos arquivos ficam em `%LOCALAPPDATA%\cade` (banco, modelos e, em `state`, o estado da ingestão) e `%APPDATA%\cade` (config e schemas), e as cópias temporárias em `%TEMP%`. O Windows não tem permissões de arquivo nesse formato, então a coluna de modo não vale lá: essas pastas são privadas do seu usuário pelas permissões padrão delas. Além dos perfis dos navegadores em `AppData`, o `cade init` procura o cache do novo app desktop do Teams (`AppData/Local/Packages/MSTeams_8wekyb3d8bbwe/…`); ele só é lido se você escolher.
+
 ## O que cada fonte guarda
 
 | Fonte | Guarda | Não guarda |

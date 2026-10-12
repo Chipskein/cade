@@ -28,6 +28,26 @@ const (
 	checksumSuffix = ".sha256"
 )
 
+// archiveFormat is how a release archive is written and named.
+type archiveFormat struct {
+	suffix string
+	write  func(archive, baseDir, entry string) error
+}
+
+// archiveFormats are what each system opens without extra tools: Windows
+// Explorer opens a zip (#54), elsewhere tar.gz.
+var (
+	tarGzFormat    = archiveFormat{suffix: archiveSuffix, write: writeTarGz}
+	archiveFormats = map[string]archiveFormat{"windows": {suffix: zipSuffix, write: writeZip}}
+)
+
+func archiveFormatFor(platform string) archiveFormat {
+	if format, found := archiveFormats[platform]; found {
+		return format
+	}
+	return tarGzFormat
+}
+
 // distAccelerators name what the archived binary computes on: Dist builds
 // the plain binary, which is the Metal one on macOS (#53) and the CPU one
 // elsewhere.
@@ -43,37 +63,40 @@ func distAccelerator(platform string) string {
 }
 
 // Dist builds the release archive, dist/cade-<version>-<os>-<arch>-<accelerator>.tar.gz
-// for the OS and architecture it runs on (#101), and its SHA-256. The release workflow runs it with LLAMA_NATIVE=OFF so it
+// (.zip on Windows) for the OS and architecture it runs on (#101), and its SHA-256. The release workflow runs it with LLAMA_NATIVE=OFF so it
 // runs on any x86-64 CPU with AVX2; CUDA stays a local build (it ties the
 // binary to a driver and GPU architecture).
 func (t *Tasks) Dist() error {
 	if err := t.BuildCPU(); err != nil {
 		return err
 	}
-	name, err := t.distName()
+	name, platform, err := t.distName()
 	if err != nil {
 		return err
 	}
 	if err := t.stageDist(name); err != nil {
 		return err
 	}
-	archive := t.path(filepath.Join(distDir, name+archiveSuffix))
-	if err := writeTarGz(archive, t.path(distDir), name); err != nil {
+	format := archiveFormatFor(platform)
+	archive := t.path(filepath.Join(distDir, name+format.suffix))
+	if err := format.write(archive, t.path(distDir), name); err != nil {
 		return err
 	}
 	return writeChecksum(archive)
 }
 
-func (t *Tasks) distName() (string, error) {
+// distName is the archive's name without suffix, and the platform it is
+// for.
+func (t *Tasks) distName() (string, string, error) {
 	platform, err := t.runner.Output(Command{Name: "go", Args: []string{"env", "GOOS"}})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	arch, err := t.runner.Output(Command{Name: "go", Args: []string{"env", "GOARCH"}})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	return fmt.Sprintf("cade-%s-%s-%s-%s", t.resolveBuildStamp().version, platform, arch, distAccelerator(platform)), nil
+	return fmt.Sprintf("cade-%s-%s-%s-%s", t.resolveBuildStamp().version, platform, arch, distAccelerator(platform)), platform, nil
 }
 
 func (t *Tasks) stageDist(name string) error {
@@ -81,7 +104,7 @@ func (t *Tasks) stageDist(name string) error {
 	if err := os.RemoveAll(staging); err != nil {
 		return err
 	}
-	if err := copyFile(t.path(binaryPath), filepath.Join(staging, filepath.Base(binaryPath)), executableMode); err != nil {
+	if err := copyFile(t.path(t.binary()), filepath.Join(staging, filepath.Base(t.binary())), executableMode); err != nil {
 		return err
 	}
 	for _, file := range distFiles {
@@ -131,9 +154,12 @@ func addToTar(tarball *tar.Writer, baseDir, path string) error {
 	if err != nil {
 		return err
 	}
-	if header.Name, err = filepath.Rel(baseDir, path); err != nil {
+	relative, err := filepath.Rel(baseDir, path)
+	if err != nil {
 		return err
 	}
+	// Archive entries use "/" whatever system wrote them (#54).
+	header.Name = filepath.ToSlash(relative)
 	if err := tarball.WriteHeader(header); err != nil || info.IsDir() {
 		return err
 	}

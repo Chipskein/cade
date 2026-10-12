@@ -11,6 +11,7 @@ import (
 	"testing/fstest"
 
 	"github.com/chipskein/cade/internal/event"
+	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/testfakes"
 )
 
@@ -23,6 +24,10 @@ type recaptionWorld struct {
 	recaptioner *Recaptioner
 }
 
+// recaptionImageName is the stored image's name in the fake filesystem:
+// "prints/erro.png" on unix, under the working drive on Windows (#54).
+var recaptionImageName = rootfs.Name("/prints/erro.png")
+
 func newRecaptionWorld(t *testing.T) *recaptionWorld {
 	t.Helper()
 	file := pngFile(t, 30, 10, 1)
@@ -31,7 +36,7 @@ func newRecaptionWorld(t *testing.T) *recaptionWorld {
 	stored := storedImage("/prints/erro.png", old)
 	stored.Content = "erro.png\n" + old.SearchableText()
 	stored.Metadata["custom"] = "kept"
-	world := &recaptionWorld{files: fstest.MapFS{"prints/erro.png": file}, describer: &testfakes.FakeImageDescriber{Reply: fakeReply}, stored: stored}
+	world := &recaptionWorld{files: fstest.MapFS{recaptionImageName: file}, describer: &testfakes.FakeImageDescriber{Reply: fakeReply}, stored: stored}
 	load := func() (ClosableDescriber, error) { return world.describer, nil }
 	world.recaptioner = NewRecaptioner(world.files, load, "Qwen3.5-2B-Q4_K_M.gguf", slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	return world
@@ -58,11 +63,11 @@ func TestRecaptionReplacesTheDescriptionAndKeepsTheRest(t *testing.T) {
 
 func TestRecaptionSkipsAChangedOrMissingFile(t *testing.T) {
 	world := newRecaptionWorld(t)
-	world.files["prints/erro.png"] = pngFile(t, 30, 10, 2)
+	world.files[recaptionImageName] = pngFile(t, 30, 10, 2)
 	if _, recaptioned, err := world.recaptioner.Recaption(context.Background(), world.stored); err != nil || recaptioned {
 		t.Fatalf("expected a changed file skipped, got %v (err %v)", recaptioned, err)
 	}
-	delete(world.files, "prints/erro.png")
+	delete(world.files, recaptionImageName)
 	if _, recaptioned, err := world.recaptioner.Recaption(context.Background(), world.stored); err != nil || recaptioned || len(world.describer.Images) != 0 {
 		t.Fatalf("expected a missing file skipped without the model, got %v (err %v)", recaptioned, err)
 	}

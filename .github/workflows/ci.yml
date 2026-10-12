@@ -127,6 +127,68 @@ jobs:
           go tool mage cpu
           ./bin/cade version | tee /dev/stderr | grep -q "Metal build"
 
+  windows:
+    # Windows x86-64 with MinGW (#54): cgo needs gcc, which MSYS2's UCRT64
+    # provides with cmake, ninja and sqlite3.h. Nobody on the project has a
+    # Windows machine, so this job is how the port is checked.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          # Keeps the Go that setup-go installed on the PATH.
+          path-type: inherit
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-sqlite3
+
+      - name: Read pinned versions
+        id: versions
+        run: |
+          echo "llama=$(go tool mage print LLAMA_TAG)-$(go tool mage print LLAMA_CMAKE_FLAGS | sha256sum | cut -c1-8)" >> "$GITHUB_OUTPUT"
+          echo "golangci=$(go tool mage print GOLANGCI_LINT_VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the llama.cpp build
+        uses: actions/cache@v4
+        with:
+          path: third_party/llama.cpp
+          key: llama-${{ runner.os }}-${{ runner.arch }}-${{ steps.versions.outputs.llama }}-portable
+
+      - name: Build llama.cpp
+        run: go tool mage llama
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${{ steps.versions.outputs.golangci }}
+
+      - name: go vet
+        run: go tool mage vet
+
+      - name: golangci-lint
+        run: PATH="$(go env GOPATH | cygpath -u -f -)/bin:$PATH" go tool mage lint
+
+      - name: Tests
+        run: go tool mage test
+
+      - name: The binary runs
+        run: |
+          go tool mage cpu
+          # MSYS2 has no /dev/stderr for tee.
+          version=$(./bin/cade.exe version)
+          echo "$version"
+          grep -q "CPU build" <<< "$version"
+
   coverage-badge:
     # Only the main line's coverage goes on the README badge.
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'

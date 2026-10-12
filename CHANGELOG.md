@@ -24,7 +24,16 @@ What changed in each version, the schema migrations, and what each migration rew
 
 - **Experimental macOS build, Apple Silicon:** `go tool mage cpu` on a Mac builds llama.cpp with Metal and Accelerate, the shaders embedded in the binary; `cade version` says Metal. The release adds a `darwin-arm64-metal` archive. Nobody on the project has a Mac: it is built and tested only on GitHub's `macos-14` runners, where CI runs the whole test suite.
 - **The models run on the CPU by default on macOS** (`gpu_layers: 0`). A one-off run on GitHub's virtual Mac (ingest the docs, then one `ask` with the default models) answered with cited sources on the CPU in 74 s; with Metal (`gpu_layers: -1`) the model generated garbage and took 355 s. That runner's GPU is virtual, so a real Mac may behave differently; `-1` turns Metal on.
-- `cade init` looks for the browsers in `~/Library/Application Support`. The background ingestion lowers its disk priority with `setiopolicy_np` (throttled I/O). The config lives in `~/Library/Application Support/cade/config.json`, or wherever `--config` points.
+- `cade init` looks for the browsers in `~/Library/Application Support`, and the IndexedDB schemas sit beside `config.json` there. The background ingestion lowers its disk priority with `setiopolicy_np` (throttled I/O). The config lives in `~/Library/Application Support/cade/config.json`, or wherever `--config` points.
+- No database migration.
+
+### Windows (#54)
+
+- **Experimental Windows build, x86-64, CPU:** built with MinGW in MSYS2's UCRT64 shell; `cade.exe` is linked statically and imports only system DLLs. The release adds a `windows-amd64-cpu.zip`. Nobody on the project has a Windows machine: it is built and tested on GitHub's `windows-latest` runners and, cross-compiled, under wine, where every package's tests pass except two that run the `go` command.
+- **Paths are stored with `/` on every system** (`C:/Users/me/notes`), so folder filters, UIDs, entities and `ask --json` read the same as on Linux; a question may name a folder as `C:\...` too. One filesystem reaches every drive.
+- **Where things live:** config and IndexedDB schemas in `%APPDATA%\cade`, database and models in `%LOCALAPPDATA%\cade` (where `go tool mage models` now downloads them), ingest state in `%LOCALAPPDATA%\cade\state`. `cade init` looks for the browsers under `AppData` and for the new Teams desktop app's cache (not yet checked on a real machine).
+- **Background ingestion:** the lock uses `LockFileEx`; `pause` suspends the process; `--gentle` uses background mode; `stop` leaves a stop request in the state directory, which a run on any system checks every half second and treats as Ctrl-C, then waits up to 30 s before ending the process. On Linux the SIGTERM still arrives at once.
+- **Owner-only files** keep their `600` mode on unix; on Windows cade no longer calls `chmod`, which failed on SQLite's open `-shm` file. The progress bar turns on the console's VT processing, and falls back to plain output where the console refuses.
 - No database migration.
 
 ## v0.2.0 — 2026-10-11
