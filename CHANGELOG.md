@@ -8,7 +8,14 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-## Unreleased
+## v0.2.1 — 2026-10-11
+
+cade runs beyond Linux: FreeBSD from source (CPU or Vulkan), and experimental release archives for macOS on Apple Silicon and Windows x86-64, which nobody on the project could try on a real machine.
+
+### Upgrading from v0.2.0
+
+- **Nothing to migrate on Linux:** same database, models, config and `ask --json`. No `reindex`. `go tool mage eval` on the RTX 3060 (120 W) gives what v0.2.0 gave: the plan fully right on 142 of 165 questions, image description coverage 1.00, retrieval on the test set recall 1.00, MRR 0.83, rejection 1.00.
+- **New on Linux too:** `go tool mage vulkan`; `doctor` no longer suggests `compact` on a new database; a model that does not fit the GPU says so instead of "file missing".
 
 ### FreeBSD (#101)
 

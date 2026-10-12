@@ -8,7 +8,14 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 
-## Não lançado
+## v0.2.1 — 2026-10-11
+
+O cade roda além do Linux: FreeBSD a partir do código-fonte (CPU ou Vulkan), e arquivos de release experimentais para macOS em Apple Silicon e Windows x86-64, que ninguém no projeto pôde testar numa máquina de verdade.
+
+### Atualizar da v0.2.0
+
+- **Nada para migrar no Linux:** o mesmo banco, os mesmos modelos, a mesma config e o mesmo `ask --json`. Sem `reindex`. O `go tool mage eval` na RTX 3060 (120 W) dá o mesmo que a v0.2.0: o plano totalmente certo em 142 de 165 perguntas, cobertura das descrições de imagem 1,00, e a busca no conjunto de teste com recall 1,00, MRR 0,83 e rejeição 1,00.
+- **Novo no Linux também:** `go tool mage vulkan`; o `doctor` não sugere mais `compact` num banco novo; um modelo que não cabe na GPU diz isso, e não "arquivo faltando".
 
 ### FreeBSD (#101)
 
