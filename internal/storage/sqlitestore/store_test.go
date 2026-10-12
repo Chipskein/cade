@@ -280,10 +280,7 @@ func TestOpenCreatesOwnerOnlyDatabase(t *testing.T) {
 	defer store.Close()
 	mustSave(t, store, sampleEvent("a", event.SourceGit, 0), nil)
 	for _, suffix := range []string{"", "-wal"} {
-		info, err := os.Stat(path + suffix)
-		if err != nil || info.Mode().Perm() != 0o600 {
-			t.Fatalf("expected %s to be 0600, got %v (err %v)", path+suffix, info.Mode().Perm(), err)
-		}
+		testcheck.OwnerOnly(t, path+suffix)
 	}
 }
 
@@ -298,8 +295,8 @@ func TestOpenRestrictsExistingDatabase(t *testing.T) {
 	}
 	store.Close()
 	for _, suffix := range []string{"", "-shm"} {
-		if info, _ := os.Stat(path + suffix); info != nil && info.Mode().Perm() != 0o600 {
-			t.Fatalf("expected %s tightened to 0600, got %v", path+suffix, info.Mode().Perm())
+		if _, err := os.Stat(path + suffix); err == nil {
+			testcheck.OwnerOnly(t, path+suffix)
 		}
 	}
 }

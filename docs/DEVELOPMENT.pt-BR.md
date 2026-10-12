@@ -21,6 +21,57 @@ O `models` baixa o modelo de embedding, o de geração e o projetor de visão de
 
 Opcional em tempo de execução: [`chafa`](https://github.com/hpjansson/chafa) (ex.: `pacman -S chafa`, `apt install chafa`, `brew install chafa`). O `cade ask` o procura no `PATH` e desenha cada png, jpeg ou webp citado logo abaixo da citação, só quando a saída padrão é um terminal. Sem ele, ou se ele falhar, a citação sai como antes. Ele não é ligado ao binário: compilá-lo exige meson e glib, um conjunto de ferramentas mais pesado que o do llama.cpp para um recurso só visual.
 
+## Compilando a partir do código-fonte (FreeBSD)
+
+FreeBSD amd64, só do código-fonte: não há CI nem arquivo de release para FreeBSD (#101).
+
+```sh
+pkg install go cmake ninja git sqlite3
+go tool mage cpu        # build CPU
+go tool mage models
+go tool mage install
+```
+
+As tarefas passam `CGO_CFLAGS="-I/usr/local/include -D__COSMOPOLITAN__"` e `CGO_LDFLAGS=-L/usr/local/lib`: o `pkg` põe o `sqlite3.h` em `/usr/local`, e o macro pula typedefs do sqlite-vec que dependem de um header que o FreeBSD não inclui por ele (`internal/devtasks/cgo_env.go`). Defina-as você mesmo para rodar `go build` ou `go test` direto. O llama.cpp é compilado com o clang do sistema e ligado à libc++.
+
+**GPU:** a NVIDIA não distribui o CUDA Toolkit para FreeBSD, então a GPU é usada pelo Vulkan, que também roda GPUs AMD e Intel:
+
+```sh
+pkg install vulkan-loader vulkan-headers spirv-headers shaderc   # mais o nvidia-driver, ou o drm-kmod para AMD e Intel
+go tool mage vulkan     # build Vulkan; o `cade version` diz Vulkan
+```
+
+O driver da NVIDIA precisa suportar a GPU: placas Pascal como a MX250 ou as GTX 10xx precisam do ramo legado 580 (`pkg install nvidia-driver-580 nvidia-kmod-580`), que o driver atual ignora, e o driver e o módulo do kernel precisam ter a mesma versão (`sysctl hw.nvidia.version`, `nvidia-smi`). Numa GPU com pouca memória, diminua `embedding.gpu_layers` e `generation.gpu_layers` para os modelos caberem.
+
+## Compilando a partir do código-fonte (macOS, Apple Silicon)
+
+Experimental: ninguém no projeto tem Mac, então isto é compilado e testado só nos runners de macOS do GitHub (#53).
+
+```sh
+xcode-select --install   # as Command Line Tools: clang, o SDK com o sqlite3.h
+brew install go cmake ninja git
+go tool mage cpu         # no Apple Silicon este é o build Metal: o `cade version` diz Metal
+go tool mage models
+go tool mage install
+```
+
+Lá o llama.cpp liga Metal e Accelerate por padrão, com os shaders do Metal dentro do binário. Os modelos ainda rodam na CPU por padrão (`gpu_layers: 0` no macOS): nos Macs virtuais do GitHub o Metal gerou lixo, e ninguém conferiu num Mac de verdade. Para testar o Metal, ponha `embedding.gpu_layers` e `generation.gpu_layers` em `-1`, e conte como foi. A configuração fica em `~/Library/Application Support/cade/config.json`; o banco e os modelos continuam em `~/.local/share/cade`. Um arquivo de release baixado não é assinado, então o macOS o bloqueia até você rodar `xattr -d com.apple.quarantine cade`.
+
+## Compilando a partir do código-fonte (Windows, x86-64)
+
+Experimental: ninguém no projeto tem uma máquina Windows, então ele é compilado e testado só nas máquinas Windows do GitHub e, como binário compilado de forma cruzada, no wine (#54). Só CPU: o cgo precisa do gcc, que o MinGW traz, e a CUDA não compila com o MinGW.
+
+1. Instale o [Go](https://go.dev/dl/), o [Git for Windows](https://git-scm.com/download/win) (a fonte `git` chama o `git`) e o [MSYS2](https://www.msys2.org/).
+2. No shell UCRT64 do MSYS2, com o Go no `PATH`:
+
+```sh
+pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-sqlite3
+go tool mage cpu      # bin/cade.exe, ligado de forma estática: não precisa de DLL do MinGW para rodar
+go tool mage models   # em ~/AppData/Local/cade/models
+```
+
+A configuração é `%APPDATA%\cade\config.json`; o banco e os modelos ficam em `%LOCALAPPDATA%\cade`, e os caminhos são gravados com `/` (`C:/Users/eu/notas`), como no Linux. O zip do release não é assinado, então o SmartScreen pode avisar antes da primeira execução. A prévia de imagens precisa do `chafa` no `PATH` (`scoop install chafa`).
+
 ## Instalando o binário de release (Linux x86-64, CPU)
 
 ```sh
@@ -53,11 +104,13 @@ go tool mage check  # o que a CI roda: fmtCheck, vet, lint e test
 
 | Alvo | O que faz |
 | --- | --- |
-| `build` (padrão) | binário CPU em `bin/cade` |
+| `build` (padrão) | binário NVIDIA em `bin/cade`, como o `cuda` |
+| `cpu` | binário CPU em `bin/cade` |
 | `cuda` | binário NVIDIA em `bin/cade` (requer CUDA Toolkit) |
+| `vulkan` | binário Vulkan em `bin/cade`, para GPUs sem CUDA (requer os headers do Vulkan e do SPIR-V e o `glslc`) |
 | `install` / `uninstall` | copia `bin/cade` para `$DESTDIR$PREFIX/bin` (padrão `~/.local/bin`) / remove |
 | `dist` | arquivo de release e SHA-256 em `dist/` |
-| `llama` / `llamaCuda` | clona o llama.cpp fixado e compila as bibliotecas (os outros alvos fazem isso quando preciso) |
+| `llama` / `llamaCuda` / `llamaVulkan` | clona o llama.cpp fixado e compila as bibliotecas (os outros alvos fazem isso quando preciso) |
 | `models` | baixa os modelos em `$MODELS_DIR` (padrão `~/.local/share/cade/models`) |
 | `test` / `cover` | testes unitários / com a tabela de cobertura por função |
 | `fuzz` | os alvos de fuzz dos leitores, `$FUZZTIME` cada (padrão `30s`) |

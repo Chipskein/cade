@@ -3,7 +3,6 @@ package idbmap
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -18,12 +17,12 @@ var ErrNoEarlierRevision = errors.New("no earlier revision in history")
 
 // HistoryPath is where revision of the schema called name is kept.
 func (d SchemaDir) HistoryPath(name string, revision int) string {
-	return filepath.Join(d.path, historyDir, name+"."+strconv.Itoa(revision)+schemaFileSuffix)
+	return d.join(historyDir, name+"."+strconv.Itoa(revision)+schemaFileSuffix)
 }
 
 // CandidatePath is where a regenerated schema waits for review.
 func (d SchemaDir) CandidatePath(name string) string {
-	return filepath.Join(d.path, name+candidateSuffix)
+	return d.join(name + candidateSuffix)
 }
 
 // Replace saves next as its name's schema, keeping the current one in
@@ -101,7 +100,7 @@ func (d SchemaDir) previousRevision(name string, current int) (Schema, error) {
 
 // historyRevisions lists the revisions kept for name.
 func (d SchemaDir) historyRevisions(name string) ([]int, error) {
-	files, err := d.files.ListFiles(filepath.Join(d.path, historyDir))
+	files, err := d.files.ListFiles(d.join(historyDir))
 	if err != nil {
 		return nil, err
 	}

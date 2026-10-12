@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -80,11 +81,12 @@ type fakeWorld struct {
 	describerOpenAtEmbedderLoad bool
 	// runState, runLock, processes and pacingClock back the ingest run
 	// tools; detached makes this process the one `ingest start` started.
-	runState    *testfakes.FakeRunStateFile
-	runLock     *testfakes.FakeIngestLock
-	processes   *testfakes.FakeProcesses
-	pacingClock *testfakes.FakePacingClock
-	detached    bool
+	runState     *testfakes.FakeRunStateFile
+	runLock      *testfakes.FakeIngestLock
+	processes    *testfakes.FakeProcesses
+	stopRequests *testfakes.FakeStopRequests
+	pacingClock  *testfakes.FakePacingClock
+	detached     bool
 	// loadedEmbedding and loadedGeneration are the settings the models
 	// were last loaded with.
 	loadedEmbedding config.EmbeddingConfig
@@ -104,7 +106,8 @@ func newFakeWorld() *fakeWorld {
 		store: testfakes.NewFakeEventStore(), embedder: &testfakes.FakeEmbedder{},
 		generator: &testfakes.FakeGenerator{}, cfg: cfg, files: testfakes.NewFakeFileSystem(),
 		runState: &testfakes.FakeRunStateFile{}, runLock: &testfakes.FakeIngestLock{}, processes: &testfakes.FakeProcesses{StartedPID: 4321},
-		pacingClock: &testfakes.FakePacingClock{Current: cliNow},
+		stopRequests: &testfakes.FakeStopRequests{},
+		pacingClock:  &testfakes.FakePacingClock{Current: cliNow},
 	}
 }
 
@@ -139,7 +142,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		Language:      w.language,
 		DateOrder:     w.dateOrder,
 		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
-			Clock: w.pacingClock, Detached: w.detached, PID: 1234},
+			Stops: w.stopRequests, Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
 }
 
@@ -168,9 +171,15 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 	newCollector := func(string) (ingest.EventCollector, error) { return collector, nil }
 	newFileCollector := newCollector
 	if w.realFiles {
+		// The root is made absolute as in production, so it names the
+		// same files as the image planner on Windows too (#54).
 		newFileCollector = func(root string) (ingest.EventCollector, error) {
-			files, err := fs.Sub(w.files, rootfs.Name(root))
-			return filesource.NewCollector(files, root, filesource.OptionsFor(cfg.Sources, captions)), err
+			absolute, err := filepath.Abs(root)
+			if err != nil {
+				return nil, err
+			}
+			files, err := fs.Sub(w.files, rootfs.Name(absolute))
+			return filesource.NewCollector(files, absolute, filesource.OptionsFor(cfg.Sources, captions)), err
 		}
 	}
 	return []ingest.SourceSpec{

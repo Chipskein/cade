@@ -24,13 +24,18 @@ func (t *Tasks) BuildCUDA() error {
 	return t.buildBinary(LlamaCUDA, fts5Tag, cudaTag)
 }
 
+// BuildVulkan compiles the Vulkan binary into bin/cade (#101).
+func (t *Tasks) BuildVulkan() error {
+	return t.buildBinary(LlamaVulkan, fts5Tag, vulkanTag)
+}
+
 func (t *Tasks) buildBinary(variant LlamaVariant, tags ...string) error {
 	if err := t.EnsureLlama(variant); err != nil {
 		return err
 	}
 	stamp := t.resolveBuildStamp()
 	return t.runner.Run(Command{Name: "go", Args: []string{
-		"build", "-tags", joinTags(tags...), "-ldflags", stamp.linkerFlags(), "-o", binaryPath, mainPackage,
+		"build", "-tags", joinTags(tags...), "-ldflags", stamp.linkerFlags(), "-o", t.binary(), mainPackage,
 	}})
 }
 

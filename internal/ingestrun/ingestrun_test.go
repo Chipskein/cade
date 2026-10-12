@@ -18,32 +18,59 @@ func homeAt(path string) func() (string, error) {
 	return func() (string, error) { return path, nil }
 }
 
+// environmentWith answers one variable, as os.Getenv would.
+func environmentWith(variable, value string) func(string) string {
+	return func(name string) string {
+		if name == variable {
+			return value
+		}
+		return ""
+	}
+}
+
 func TestDefaultDirFollowsXDGStateHome(t *testing.T) {
-	getenv := func(string) string { return "/xdg/state" }
-	dir, err := DefaultDir(getenv, homeAt("/home/ana"))
-	if err != nil || dir != "/xdg/state/cade" {
-		t.Fatalf("expected /xdg/state/cade, got %q (err %v)", dir, err)
+	base := t.TempDir()
+	dir, err := DefaultDir("linux", environmentWith("XDG_STATE_HOME", base), homeAt(t.TempDir()))
+	if want := filepath.Join(base, "cade"); err != nil || string(dir) != want {
+		t.Fatalf("expected %q, got %q (err %v)", want, dir, err)
 	}
 }
 
 func TestDefaultDirFallsBackToLocalState(t *testing.T) {
-	dir, err := DefaultDir(noEnvironment, homeAt("/home/ana"))
-	if err != nil || dir != "/home/ana/.local/state/cade" {
-		t.Fatalf("expected ~/.local/state/cade, got %q (err %v)", dir, err)
+	home := t.TempDir()
+	dir, err := DefaultDir("linux", noEnvironment, homeAt(home))
+	if want := filepath.Join(home, ".local", "state", "cade"); err != nil || string(dir) != want {
+		t.Fatalf("expected %q, got %q (err %v)", want, dir, err)
+	}
+}
+
+func TestDefaultDirOnWindowsIsUnderLocalAppData(t *testing.T) {
+	base := t.TempDir()
+	dir, err := DefaultDir("windows", environmentWith("LOCALAPPDATA", base), homeAt(t.TempDir()))
+	if want := filepath.Join(base, "cade", "state"); err != nil || string(dir) != want {
+		t.Fatalf("expected %q, got %q (err %v)", want, dir, err)
+	}
+}
+
+func TestDefaultDirOnWindowsWithoutLocalAppDataIsUnderHome(t *testing.T) {
+	home := t.TempDir()
+	dir, err := DefaultDir("windows", noEnvironment, homeAt(home))
+	if want := filepath.Join(home, "AppData", "Local", "cade", "state"); err != nil || string(dir) != want {
+		t.Fatalf("expected %q, got %q (err %v)", want, dir, err)
 	}
 }
 
 func TestDefaultDirReportsMissingHome(t *testing.T) {
 	missing := func() (string, error) { return "", errors.New("$HOME is not defined") }
-	if _, err := DefaultDir(noEnvironment, missing); err == nil || !strings.Contains(err.Error(), "home directory") {
+	if _, err := DefaultDir("linux", noEnvironment, missing); err == nil || !strings.Contains(err.Error(), "home directory") {
 		t.Fatalf("expected the missing home reported, got %v", err)
 	}
 }
 
 func TestDirPaths(t *testing.T) {
-	dir := Dir("/state/cade")
+	dir := Dir(filepath.FromSlash("/state/cade"))
 	paths := []string{dir.StatePath(), dir.LockPath(), dir.LogPath()}
-	want := []string{"/state/cade/ingest-state.json", "/state/cade/ingest.lock", "/state/cade/ingest.log"}
+	want := []string{filepath.Join(string(dir), "ingest-state.json"), filepath.Join(string(dir), "ingest.lock"), filepath.Join(string(dir), "ingest.log")}
 	if !slices.Equal(paths, want) {
 		t.Fatalf("expected %v, got %v", want, paths)
 	}
@@ -63,11 +90,7 @@ func TestStateFileReadsWhatItWrote(t *testing.T) {
 func TestStateFileIsOwnerOnly(t *testing.T) {
 	dir := Dir(filepath.Join(t.TempDir(), "cade"))
 	testcheck.NoError(t, JSONStateFile{Dir: dir}.Write(State{PID: 1}))
-	info, err := os.Stat(dir.StatePath())
-	testcheck.NoError(t, err)
-	if info.Mode().Perm() != stateFileMode {
-		t.Fatalf("expected mode %o, got %o", stateFileMode, info.Mode().Perm())
-	}
+	testcheck.OwnerOnly(t, dir.StatePath())
 }
 
 func TestStateFileWithoutRunIsNotFound(t *testing.T) {
@@ -136,5 +159,21 @@ func TestStateIsResumableWhenItStoppedEarly(t *testing.T) {
 	}
 	if (State{PID: 7, Status: StatusRunning}).IsResumable(aliveOnly(7)) {
 		t.Fatal("expected a live run not resumable")
+	}
+}
+
+func TestStopRequestIsAskedUntilCleared(t *testing.T) {
+	requests := FileStopRequests{Dir: Dir(filepath.Join(t.TempDir(), "cade"))}
+	if requests.Asked() {
+		t.Fatal("expected no request before Ask")
+	}
+	testcheck.NoError(t, requests.Ask())
+	if !requests.Asked() {
+		t.Fatal("expected the request asked")
+	}
+	testcheck.NoError(t, requests.Clear())
+	testcheck.NoError(t, requests.Clear())
+	if requests.Asked() {
+		t.Fatal("expected no request once cleared")
 	}
 }

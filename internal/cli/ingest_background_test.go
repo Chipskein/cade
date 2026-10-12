@@ -241,6 +241,42 @@ func TestIngestStopTerminatesTheLiveRun(t *testing.T) {
 	}
 }
 
+func TestIngestStopAsksTheRunToStopFirst(t *testing.T) {
+	world := newFakeWorld()
+	world.runState.State, world.runState.Found = runningState(77), true
+	world.processes.AlivePIDs = []int{77}
+	if code, _, _ := world.run("ingest", "stop"); code != 0 || world.stopRequests.Asks != 1 {
+		t.Fatalf("expected the stop asked once, got %d asks (exit %d)", world.stopRequests.Asks, code)
+	}
+}
+
+// A request left by an earlier stop must not stop the next run (#54).
+func TestAStaleStopRequestDoesNotStopANewRun(t *testing.T) {
+	world := newFakeWorld()
+	world.stopRequests.Requested = true
+	code, _, stderr := world.run("ingest", "git", "/src/api")
+	if code != 0 || world.runState.State.Status != ingestrun.StatusFinished || world.stopRequests.Requested {
+		t.Fatalf("expected a finished run and the request cleared, got %d %+v %q", code, world.runState.State, stderr)
+	}
+}
+
+// Regression (#54): on Windows the stop request is the only way `ingest
+// stop` reaches the run, which must stop as on Ctrl-C.
+func TestAStopRequestCancelsTheRunLikeCtrlC(t *testing.T) {
+	world := newFakeWorld()
+	world.stopRequests.Requested = true
+	ctx, stop := commandEnv{toolkit: world.toolkit()}.watchStopRequest(context.Background())
+	defer stop()
+	select {
+	case <-ctx.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected the run's context cancelled after the stop request")
+	}
+	if !errors.Is(ctx.Err(), context.Canceled) {
+		t.Fatalf("expected a cancellation, got %v", ctx.Err())
+	}
+}
+
 func TestIngestStopWithNothingRunning(t *testing.T) {
 	world := newFakeWorld()
 	world.runState.State, world.runState.Found = runningState(77), true

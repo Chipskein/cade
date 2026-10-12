@@ -25,9 +25,9 @@ var httpCacheSubdir = filepath.Join("Cache", "Cache_Data")
 //	dirs := teamssource.HTTPCacheDirs("~/.config/google-chrome/Default/IndexedDB/https_teams…leveldb", "~/.config", "~/.cache")
 func HTTPCacheDirs(indexedDBDir, configDir, cacheDir string) []string {
 	profile := filepath.Dir(filepath.Dir(indexedDBDir))
-	dirs := []string{filepath.Join(profile, httpCacheSubdir)}
+	dirs := []string{filepath.ToSlash(filepath.Join(profile, httpCacheSubdir))}
 	if relative, err := filepath.Rel(configDir, profile); err == nil && !strings.HasPrefix(relative, "..") {
-		dirs = slices.Insert(dirs, 0, filepath.Join(cacheDir, relative, httpCacheSubdir))
+		dirs = slices.Insert(dirs, 0, filepath.ToSlash(filepath.Join(cacheDir, relative, httpCacheSubdir)))
 	}
 	return dirs
 }

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -18,13 +19,16 @@ import (
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/console"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/privatefile"
 	"github.com/chipskein/cade/internal/procctl"
+	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/storage/sqlitestore"
 )
@@ -45,7 +49,7 @@ func productionToolkit() cli.Toolkit {
 		WriteConfig:        config.Write,
 		OpenStore:          openStore,
 		InspectDatabase:    sqlitestore.Inspect,
-		RootFS:             os.DirFS("/"),
+		RootFS:             rootfs.System(),
 		HomeDir:            os.UserHomeDir,
 		Stdin:              os.Stdin,
 		Build:              buildinfo.Read(),
@@ -55,10 +59,11 @@ func productionToolkit() cli.Toolkit {
 		Sources:            sourceSpecs,
 		TeamsPictures:      teamsPictures,
 		RemoveFile:         os.Remove,
+		OS:                 runtime.GOOS,
 		StoreReaders:       storeReaders,
 		SchemaFiles:        idbmap.OSSchemaFiles{},
-		StderrIsTerminal:   isTerminal(os.Stderr),
-		StdoutIsTerminal:   isTerminal(os.Stdout),
+		StderrIsTerminal:   console.ANSITerminal(os.Stderr),
+		StdoutIsTerminal:   console.ANSITerminal(os.Stdout),
 		RenderImagePreview: renderImagePreview,
 		Language:           cli.LanguageFromEnv(os.Getenv),
 		DateOrder:          cli.DateOrderFromEnv(os.Getenv),
@@ -74,6 +79,7 @@ func ingestRunTools() cli.IngestRunTools {
 		Lock:      ingestrun.FileLock{Dir: dir},
 		LogPath:   dir.LogPath(),
 		Processes: procctl.System{},
+		Stops:     ingestrun.FileStopRequests{Dir: dir},
 		Clock:     pacing.SystemClock{},
 		Detached:  os.Getenv(cli.DetachedIngestVariable) == "1",
 		PID:       os.Getpid(),
@@ -83,7 +89,7 @@ func ingestRunTools() cli.IngestRunTools {
 // ingestRunDir falls back to the temporary directory without a home, where
 // the database path cannot be expanded either and ingest fails first.
 func ingestRunDir() ingestrun.Dir {
-	dir, err := ingestrun.DefaultDir(os.Getenv, os.UserHomeDir)
+	dir, err := ingestrun.DefaultDir(runtime.GOOS, os.Getenv, os.UserHomeDir)
 	if err != nil {
 		return ingestrun.Dir(filepath.Join(os.TempDir(), "cade"))
 	}
@@ -102,7 +108,7 @@ func openStore(ctx context.Context, path string, backupCreated func(backupPath s
 	}
 	// MkdirAll keeps the mode of an existing directory (`go tool mage models`
 	// creates it first, world-readable); the history must be owner-only.
-	if err := os.Chmod(directory, 0o700); err != nil {
+	if err := privatefile.Restrict(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
 	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: backupCreated})
@@ -146,13 +152,6 @@ func modelOptions(settings config.ModelConfig) llamacpp.ModelOptions {
 		Threads:       settings.Threads,
 		GPULayers:     settings.GPULayers,
 	}
-}
-
-// isTerminal reports whether file is a character device (a TTY), so the
-// CLI knows it may redraw a progress line in place.
-func isTerminal(file *os.File) bool {
-	info, err := file.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // sqliteURIEscaper escapes what a file: URI would otherwise read as an

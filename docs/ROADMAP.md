@@ -4,7 +4,7 @@
 
 # cade — roadmap
 
-O que falta para a v0.2.0, e em que ordem. A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
+O que falta, e em que ordem. A [v0.2.0](https://github.com/Chipskein/cade/releases/tag/v0.2.0) saiu em 2026-10-11, e a v0.2.1 leva o cade ao FreeBSD, ao macOS e ao Windows ([fase 32](#fase-32--freebsd-macos-e-windows-v021)). A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
 
 Cada fase é uma issue no GitHub, com as tasks e os arquivos de cada uma. Aqui fica a ordem, o porquê e o aceite resumido.
 
@@ -24,7 +24,7 @@ A v0.1.0 cuidou do risco no uso real: privacidade, respostas honestas, custo da 
 3. **Entidades e relacionamentos:** entidades (#20), relações entre elas (#21), representações multimodais (#22) e a busca que usa tudo isso (#24).
 4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19), e depois os outros armazenamentos do navegador pela mesma via (#73 a #80).
 
-Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
+Rostos ficam para a [v0.3.0](#v030). macOS e Windows, planejados para ela, saíram antes, na v0.2.1, junto com o FreeBSD.
 
 ## Situação
 
@@ -46,7 +46,8 @@ Rostos, macOS e Windows ficam para a [v0.3.0](#v030).
 | 25a | [Exportar os dados guardados](#fase-25a--exportar-os-dados-guardados) | [#85](https://github.com/Chipskein/cade/issues/85) | feito | alto | médio |
 | 25b | [Apagar e exportar por pessoa](#fase-25b--apagar-e-exportar-por-pessoa) | [#86](https://github.com/Chipskein/cade/issues/86) | feito | alto | médio |
 | 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | feito | médio | baixo |
-| 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | a fazer | pré-requisito do lançamento | baixo |
+| 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | feito | pré-requisito do lançamento | baixo |
+| 32 | [FreeBSD, macOS e Windows (v0.2.1)](#fase-32--freebsd-macos-e-windows-v021) | [#101](https://github.com/Chipskein/cade/issues/101), [#53](https://github.com/Chipskein/cade/issues/53), [#54](https://github.com/Chipskein/cade/issues/54) | feito | médio | alto |
 | — | [Pendências](#pendências) | — | em aberto | — | — |
 | — | [v0.3.0](#v030) | várias | depois | — | — |
 | — | [A definir](#a-definir) | — | em aberto | — | — |
@@ -338,6 +339,21 @@ O processo da v0.1.0 continua:
 2. Conferir os [critérios de release](#critérios-de-release).
 3. Levar o `dev` para o `master` por PR com merge commit e criar a tag lá: `git tag v0.2.0 origin/master && git push origin v0.2.0`. O workflow testa, gera o binário e publica o release; uma tag fora do `master` falha sem publicar.
 
+**Resultado:** a v0.2.0 saiu em 2026-10-11 (PRs #99 e #100, tag no `master`).
+
+## Fase 32 — FreeBSD, macOS e Windows (v0.2.1)
+
+- **Problema:** o cade só rodava no Linux. O laptop do mantenedor é FreeBSD, e ninguém no projeto tem Mac ou Windows.
+- **Mudança:** a base comum (nome do arquivo de release, flags de link e raízes de navegador por sistema) veio com o FreeBSD (#101). Em seguida vieram o macOS com Metal (#53) e o Windows com MinGW (#54). Os detalhes estão no CHANGELOG.
+- **Validação:**
+  - **FreeBSD:** no laptop, sem CI.
+  - **macOS e Windows:** nos jobs `macos-14` e `windows-latest`, que são obrigatórios. O Windows também roda como binário compilado de forma cruzada no wine.
+- **Resultado:**
+  - **FreeBSD:** a suíte de busca em CPU dá o mesmo que no Linux.
+  - **macOS:** usa CPU por padrão, porque o Metal gerou lixo nos Macs virtuais.
+  - **Windows:** o CI achou um bug que o wine escondia, o `LOCK` do LevelDB travado pelo navegador. Ele foi corrigido.
+  - **Arquivos:** os de macOS e Windows saem como experimentais. Os critérios de uso real numa máquina de verdade ficaram sem verificar quando a #53 e a #54 fecharam.
+
 ---
 
 ## Pendências
@@ -353,8 +369,6 @@ Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.
 | Issue | Tema | Por que depois |
 | ----- | ---- | -------------- |
 | [#23](https://github.com/Chipskein/cade/issues/23) | Rostos | depende das fases 25 a 28; precisa de outro runtime de inferência e de um modelo com licença compatível com a GPLv3; opt-in, porque é dado biométrico |
-| [#53](https://github.com/Chipskein/cade/issues/53) | macOS (Apple Silicon, Metal) | 5 tasks, pronta para começar; não traz nada novo para quem já usa no Linux |
-| [#54](https://github.com/Chipskein/cade/issues/54) | Windows 11 x86-64, só CPU | a maior issue aberta (12 tasks); depende da task 4 da #53 e usa o ponto de commit da fase 22 |
 | [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
 | [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
 | [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
@@ -434,7 +448,7 @@ As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO
 
 A versão sai quando:
 
-- [ ] a CI está verde no commit da tag;
+- [x] a CI está verde no commit da tag;
 - [x] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
 - [x] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam (com as 32 perguntas da v0.1.0: recall 0,96 e MRR 0,83 contra 0,94 e 0,83; o conjunto novo, mais difícil, dá MRR 0,80; [BENCHMARKS](BENCHMARKS.pt-BR.md#v020-contra-a-v010));
 - [x] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;

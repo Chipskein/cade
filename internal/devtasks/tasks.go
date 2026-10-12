@@ -33,6 +33,7 @@ const (
 	// so only `mage bench` compiles it in.
 	dbstatTag = "sqlite_dbstat"
 	cudaTag   = "cuda"
+	vulkanTag = "vulkan"
 )
 
 // Dependencies are what Tasks needs from the outside world.
@@ -44,6 +45,9 @@ type Dependencies struct {
 	Env     Environment
 	// Progress receives lines such as the fuzz target being run.
 	Progress io.Writer
+	// GOOS is the system the tasks run on (runtime.GOOS); it decides the
+	// cgo flags a build needs there (cgo_env.go).
+	GOOS string
 }
 
 // Tasks runs the development tasks the magefile exposes.
@@ -54,6 +58,7 @@ type Tasks struct {
 	env      Environment
 	progress io.Writer
 	settings Settings
+	goos     string
 }
 
 // NewTasks loads the settings from deps.Env.
@@ -61,9 +66,19 @@ type Tasks struct {
 //	tasks := NewTasks(Dependencies{Root: ".", Runner: ExecRunner{Dir: "."}, ...})
 func NewTasks(deps Dependencies) *Tasks {
 	return &Tasks{
-		root: deps.Root, runner: deps.Runner, fetcher: deps.Fetcher, env: deps.Env,
-		progress: deps.Progress, settings: LoadSettings(deps.Env),
+		root: deps.Root, runner: withCgoEnv(deps.Runner, deps.GOOS, deps.Env), fetcher: deps.Fetcher, env: deps.Env,
+		progress: deps.Progress, settings: LoadSettings(deps.Env, deps.GOOS), goos: deps.GOOS,
 	}
+}
+
+// executableSuffixes: Windows runs only files named .exe (#54).
+var executableSuffixes = map[string]string{"windows": ".exe"}
+
+// binary is bin/cade as the system the tasks run on names an executable.
+//
+//	t.binary() // "bin/cade.exe" on Windows
+func (t *Tasks) binary() string {
+	return binaryPath + executableSuffixes[t.goos]
 }
 
 // Settings returns the settings in effect.

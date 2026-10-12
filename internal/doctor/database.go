@@ -7,7 +7,8 @@ import (
 
 // CompactWorthEmptyShare is where doctor suggests `cade compact`: at 27%
 // empty positions the reference machine's database shrank 21% (#65);
-// below 20% a rewrite of the whole file buys little.
+// below 20% a rewrite of the whole file buys little. It is measured on
+// what compaction can free (ReclaimableShare), not on every empty position.
 const CompactWorthEmptyShare = 0.2
 
 func checkKeywordSearch(database storage.DatabaseState) Finding {
@@ -40,7 +41,7 @@ func databaseProblem(database storage.DatabaseState, configuredModel string) Pro
 		return ProblemReindexPending
 	case database.SchemaVersion < database.LatestSchemaVersion:
 		return ProblemMigrationPending
-	case database.VectorSlots.EmptyShare() >= CompactWorthEmptyShare:
+	case database.VectorSlots.ReclaimableShare() >= CompactWorthEmptyShare:
 		return ProblemEmptyVectorSlots
 	}
 	return ProblemNone

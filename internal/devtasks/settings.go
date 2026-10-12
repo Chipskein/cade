@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/chipskein/cade/internal/config"
 )
 
 // EnvVar names an environment variable that overrides a build setting,
@@ -58,7 +60,7 @@ var settingDefaults = map[EnvVar]string{
 }
 
 const (
-	modelsDirUnderHome = ".local/share/cade/models"
+	modelsUnderDataDir = "/models"
 	prefixUnderHome    = ".local"
 	nvccUnderCudaHome  = "bin/nvcc"
 	goTagSeparator     = ","
@@ -100,15 +102,17 @@ type Settings struct {
 	modelPaths  map[Model]string
 }
 
-// LoadSettings applies env over the defaults.
+// LoadSettings applies env over the defaults; the models go where cade on
+// goos looks for them (config.DataDirFor).
 //
-//	settings := LoadSettings(ProcessEnvironment{})
-func LoadSettings(env Environment) Settings {
+//	settings := LoadSettings(ProcessEnvironment{}, runtime.GOOS)
+func LoadSettings(env Environment, goos string) Settings {
 	home := setting(env, EnvHome)
+	modelsDir := filepath.FromSlash(config.ExpandHomeIn(config.DataDirFor(goos)+modelsUnderDataDir, home))
 	settings := Settings{
 		CudaArch: setting(env, EnvCudaArch), CudaHome: setting(env, EnvCudaHome),
 		NvccCCBin: setting(env, EnvNvccCCBin), LlamaNative: setting(env, EnvLlamaNative),
-		ModelsDir: settingOr(env, EnvModelsDir, filepath.Join(home, modelsDirUnderHome)),
+		ModelsDir: settingOr(env, EnvModelsDir, modelsDir),
 		Prefix:    settingOr(env, EnvPrefix, filepath.Join(home, prefixUnderHome)),
 		DestDir:   setting(env, EnvDestDir), EvalTimeout: setting(env, EnvEvalTimeout),
 		FuzzTime: setting(env, EnvFuzzTime), Scale: setting(env, EnvScale),

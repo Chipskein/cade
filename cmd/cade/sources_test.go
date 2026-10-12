@@ -78,14 +78,6 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
-func TestIsTerminalFalseForRegularFile(t *testing.T) {
-	file, _ := os.CreateTemp(t.TempDir(), "out")
-	defer file.Close()
-	if isTerminal(file) {
-		t.Fatal("a regular file is not a terminal")
-	}
-}
-
 func TestNewTeamsCollector(t *testing.T) {
 	if collector, err := teamsCollectorFactory(nil)(t.TempDir()); err != nil || collector == nil {
 		t.Fatalf("expected a collector, got %v", err)

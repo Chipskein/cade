@@ -57,7 +57,7 @@ func TestInitRecordsEveryAnswer(t *testing.T) {
 		!slices.Equal(sources.TeamsIndexedDBDirs, []string{"~/.config/google-chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"}) {
 		t.Fatalf("expected the second history and the Teams cache, got %+v", sources)
 	}
-	if !slices.Equal(sources.GitRepositories, []string{"~/src/api"}) || !slices.Equal(sources.Directories, []string{"~/notas", "/srv/docs"}) {
+	if !slices.Equal(sources.GitRepositories, []string{"~/src/api"}) || !slices.Equal(sources.Directories, []string{"~/notas", testfakes.SystemPath("/srv/docs")}) {
 		t.Fatalf("expected ~/src/api and two folders, got %+v", sources)
 	}
 }

@@ -3,6 +3,7 @@ package devtasks
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func TestEnsureLlamaClonesAndBuildsCPU(t *testing.T) {
 func TestEnsureLlamaCUDARequiresNvcc(t *testing.T) {
 	world := newTestWorld(t)
 	err := world.tasks().EnsureLlama(LlamaCUDA)
-	if err == nil || !strings.Contains(err.Error(), filepath.Join(world.root, "cuda", "bin", "nvcc")) {
+	if err == nil || !strings.Contains(err.Error(), strconv.Quote(filepath.Join(world.root, "cuda", "bin", "nvcc"))) {
 		t.Errorf("err = %v, want it to name the missing nvcc", err)
 	}
 }
@@ -54,5 +55,17 @@ func TestEnsureLlamaCUDAPassesTheHostCompiler(t *testing.T) {
 		if !strings.Contains(configure, flag) {
 			t.Errorf("configure %q lacks %q", configure, flag)
 		}
+	}
+}
+
+func TestEnsureLlamaVulkanConfiguresItsOwnBuild(t *testing.T) {
+	world := newTestWorld(t)
+	if err := world.tasks().EnsureLlama(LlamaVulkan); err != nil {
+		t.Fatal(err)
+	}
+	lines := world.runner.Lines()
+	if len(lines) != 2 || !strings.Contains(lines[0], "-B third_party/llama.cpp/build-vulkan") || !strings.HasSuffix(lines[0], "-DGGML_VULKAN=ON") ||
+		lines[1] != "cmake --build third_party/llama.cpp/build-vulkan --target llama mtmd" {
+		t.Fatalf("commands = %q", lines)
 	}
 }

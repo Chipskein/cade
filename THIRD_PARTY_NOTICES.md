@@ -13,6 +13,7 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `s2`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache and Snappy streams in the Firefox Cache API; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
 | [andybalholm/brotli](https://github.com/andybalholm/brotli) | v1.2.6 | MIT | decoding brotli (`br`) bodies of the browsers' HTTP cache |
 | [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
+| [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | v0.48.0 (`windows`, only in the Windows build) | BSD-3-Clause, the same text as the Go standard library's below | the ingest lock on Windows |
 
 The sqlite-vec Go module ships without a license file; its texts below come from the upstream repository (`LICENSE-MIT`, `LICENSE-APACHE`). A test (`internal/buildinfo`) fails when `go.mod` gains a module this file does not name.
 
@@ -29,7 +30,7 @@ The models are not part of the binary or of this repository: `go tool mage model
 
 ## Go standard library and runtime
 
-Also the license of golang.org/x/image.
+Also the license of golang.org/x/image and golang.org/x/sys.
 
 ```
 Copyright 2009 The Go Authors.

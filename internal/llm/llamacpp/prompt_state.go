@@ -19,6 +19,7 @@ import (
 	"unsafe"
 
 	"github.com/chipskein/cade/internal/llm"
+	"github.com/chipskein/cade/internal/privatefile"
 )
 
 // Each `cade ask` is a new process, so promptCache never helps the planner
@@ -189,5 +190,5 @@ func (g *Generator) writeMemory(path string, prefix []C.llama_token) error {
 	if C.llama_state_seq_save_file(g.loaded.ctx, cPath, 0, &prefix[0], C.size_t(len(prefix))) == 0 {
 		return fmt.Errorf("save prompt state of %d tokens to %q: llama.cpp wrote nothing", len(prefix), path)
 	}
-	return os.Chmod(path, 0o600)
+	return privatefile.Restrict(path, 0o600)
 }

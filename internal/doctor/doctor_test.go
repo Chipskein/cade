@@ -218,6 +218,7 @@ func TestDatabaseProblems(t *testing.T) {
 		"no model":    {func(d *storage.DatabaseState) { d.EmbeddingModel = "" }, ProblemNone},
 		"few empty":   {func(d *storage.DatabaseState) { d.VectorSlots = storage.VectorSlots{Slots: 1024, Vectors: 1000} }, ProblemNone},
 		"many empty":  {func(d *storage.DatabaseState) { d.VectorSlots = storage.VectorSlots{Slots: 2048, Vectors: 1000} }, ProblemEmptyVectorSlots},
+		"young":       {func(d *storage.DatabaseState) { d.VectorSlots = storage.VectorSlots{Slots: 1024, Vectors: 290} }, ProblemNone},
 	}
 	for name, c := range cases {
 		database := currentDatabase()

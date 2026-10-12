@@ -146,6 +146,9 @@ func runIngestStop(_ context.Context, env commandEnv, args []string) error {
 		printNoIngestRunning(env)
 		return err
 	}
+	if err := env.toolkit.IngestRuns.Stops.Ask(); err != nil {
+		return err
+	}
 	if err := env.toolkit.IngestRuns.Processes.Terminate(state.PID); err != nil {
 		return err
 	}

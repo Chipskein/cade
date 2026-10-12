@@ -17,18 +17,18 @@ const (
 
 // cleanedPaths are the build outputs Clean removes; the llama.cpp checkout
 // stays, so the next build does not clone it again.
-var cleanedPaths = []string{binDir, distDir, coverageProfile, cpuBuildDir, cudaBuildDir}
+var cleanedPaths = []string{binDir, distDir, coverageProfile, cpuBuildDir, cudaBuildDir, vulkanBuildDir}
 
 // Install copies whichever binary is in bin/ (CPU or CUDA) to
 // DESTDIR/PREFIX/bin; it builds the CPU one if none exists, so `cuda install`
 // keeps the GPU build.
 func (t *Tasks) Install() error {
-	if !fileExists(t.path(binaryPath)) {
+	if !fileExists(t.path(t.binary())) {
 		if err := t.Build(); err != nil {
 			return err
 		}
 	}
-	return copyFile(t.path(binaryPath), t.installedPath(), executableMode)
+	return copyFile(t.path(t.binary()), t.installedPath(), executableMode)
 }
 
 // Uninstall removes the installed binary.
@@ -53,7 +53,7 @@ func (t *Tasks) Clean() error {
 // installedPath joins DESTDIR and PREFIX by concatenation, as make did:
 // DESTDIR is a staging root prepended to an absolute PREFIX.
 func (t *Tasks) installedPath() string {
-	return filepath.Join(t.settings.DestDir+t.settings.Prefix, installedName)
+	return filepath.Join(t.settings.DestDir+t.settings.Prefix, installedName+executableSuffixes[t.goos])
 }
 
 func copyFile(source, destination string, mode fs.FileMode) error {

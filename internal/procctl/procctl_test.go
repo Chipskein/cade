@@ -1,4 +1,4 @@
-//go:build linux
+//go:build unix
 
 package procctl
 
@@ -14,9 +14,6 @@ import (
 
 	"github.com/chipskein/cade/internal/testcheck"
 )
-
-// detachedHelperVariable makes the test binary act as the detached child.
-const detachedHelperVariable = "CADE_PROCCTL_HELPER"
 
 // TestMain lets StartDetached be tested by starting this test binary,
 // the executable os.Executable finds, as the detached process.
@@ -65,15 +62,22 @@ func TestTerminateStopsAPausedProcess(t *testing.T) {
 	}
 }
 
-// waitForProcessState polls the state letter of /proc/PID/stat: "T" is
+// processField reads one ps column of pid, such as its state or nice:
+// ps exists on every unix, where /proc does not (FreeBSD does not mount
+// it, macOS has none; #101).
+func processField(pid int, column string) (string, error) {
+	out, err := exec.Command("ps", "-o", column+"=", "-p", strconv.Itoa(pid)).Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+// waitForProcessState polls the first letter of ps's state: "T" is
 // stopped by a signal, "S" sleeping.
 func waitForProcessState(t *testing.T, pid int, want string) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-		fields := strings.Fields(string(raw))
-		if err == nil && len(fields) > 2 && fields[2] == want {
+		state, err := processField(pid, "stat")
+		if err == nil && strings.HasPrefix(state, want) {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
@@ -98,29 +102,15 @@ func TestStartDetachedReportsUnwritableLog(t *testing.T) {
 	}
 }
 
-// waitForLog polls, since a released child cannot be waited for.
-func waitForLog(t *testing.T, path string) string {
-	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
-	for time.Now().Before(deadline) {
-		raw, err := os.ReadFile(path)
-		if err == nil && strings.HasSuffix(string(raw), "\n") {
-			return string(raw)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("the detached process wrote nothing to %s in 10s", path)
-	return ""
-}
-
 func TestLowerPriorityRenicesThisProcess(t *testing.T) {
 	if err := (System{}).LowerPriority(); err != nil {
 		t.Fatalf("expected the priority lowered, got %v", err)
 	}
-	nice, err := syscall.Getpriority(syscall.PRIO_PROCESS, 0)
+	// ps, since Go's Getpriority returns 20 - nice on Linux and nice on
+	// the BSDs.
+	nice, err := processField(os.Getpid(), "nice")
 	testcheck.NoError(t, err)
-	// Go returns the raw syscall value on Linux: 20 - nice.
-	if nice != 20-lowestNice {
-		t.Fatalf("expected nice %d, got raw priority %d", lowestNice, nice)
+	if nice != strconv.Itoa(lowestNice) {
+		t.Fatalf("expected nice %d, got %q", lowestNice, nice)
 	}
 }

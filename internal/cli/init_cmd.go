@@ -26,6 +26,9 @@ func runInit(_ context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locate home directory: %w", err)
 	}
+	// Written with "/" like every path init finds, so ContractHome
+	// recognizes them under it on Windows too (#54).
+	home = resolvePath(home, home)
 	cfg := config.Defaults()
 	cfg.Sources = env.askSources(newInitPrompt(env.toolkit.Stdin, env.stdout, language), home, cfg.Sources)
 	if err := env.toolkit.WriteConfig(env.configPath, cfg); err != nil {
@@ -39,9 +42,9 @@ func runInit(_ context.Context, env commandEnv, args []string) error {
 // "~/..." like the defaults.
 func (env commandEnv) askSources(prompt *initPrompt, home string, sources config.SourcesConfig) config.SourcesConfig {
 	fsys, language := env.toolkit.RootFS, env.language
-	browsers := contractAll(discovery.BrowserHistories(fsys, home), home)
+	browsers := contractAll(discovery.BrowserHistories(fsys, home, discovery.RootsFor(env.toolkit.OS)), home)
 	sources.BrowserHistories = chooseFound(prompt, language.pick("Históricos de navegador", "Browser histories"), browsers, true)
-	sources.TeamsIndexedDBDirs = chooseTeams(prompt, contractAll(discovery.TeamsCaches(fsys, home), home))
+	sources.TeamsIndexedDBDirs = chooseTeams(prompt, contractAll(discovery.TeamsCaches(fsys, home, discovery.RootsFor(env.toolkit.OS)), home))
 	sources.GitRepositories = env.askRepositories(prompt, home, sources.IgnoredDirNames)
 	folders := prompt.lines(language.pick("\nPastas de notas ou documentos a indexar, uma por linha (linha vazia termina):",
 		"\nNote or document folders to index, one per line (an empty line ends):"))
@@ -111,13 +114,14 @@ func (env commandEnv) printInitSummary(sources config.SourcesConfig) {
 }
 
 // resolvePath makes a typed path absolute: "~" is home, a relative path
-// is under the working directory.
+// is under the working directory. It writes "/", as the config and the
+// database keep paths on every system (#54).
 func resolvePath(path, home string) string {
 	absolute, err := filepath.Abs(config.ExpandHomeIn(path, home))
 	if err != nil {
 		return path
 	}
-	return absolute
+	return filepath.ToSlash(absolute)
 }
 
 func resolveAll(paths []string, home string) []string {

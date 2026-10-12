@@ -1,6 +1,7 @@
 package queryplan
 
 import (
+	pathpkg "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,7 +13,8 @@ import (
 // ~/Documents"). A fixed rule, not a planner field: the model has no slot
 // for paths and folded "~/Documents" into the topic, so files from every
 // folder answered.
-var folderInQuestion = regexp.MustCompile(`(?:^|[\s"'(])(~/[^\s"'?,;)]*|/[^\s"'?,;)]+)`)
+// A Windows path ("C:\\Users\\ana" or "C:/Users/ana") counts too (#54).
+var folderInQuestion = regexp.MustCompile(`(?:^|[\s"'(])(~/[^\s"'?,;)]*|/[^\s"'?,;)]+|[A-Za-z]:[/\\][^\s"'?,;)]*)`)
 
 // folderTrailing is punctuation that ends a sentence, not the path.
 const folderTrailing = ".:!"
@@ -27,5 +29,5 @@ func FolderIn(question, home string) string {
 		return ""
 	}
 	path := strings.TrimRight(match[1], folderTrailing)
-	return filepath.Clean(config.ExpandHomeIn(path, home))
+	return pathpkg.Clean(filepath.ToSlash(config.ExpandHomeIn(path, home)))
 }

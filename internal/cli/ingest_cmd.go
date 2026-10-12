@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/event"
@@ -69,12 +70,49 @@ func runRecordedIngest(ctx context.Context, env commandEnv, args []string, mode 
 		return err
 	}
 	defer release()
+	env.clearStopRequest()
+	defer env.clearStopRequest()
+	ctx, stopWatching := env.watchStopRequest(ctx)
+	defer stopWatching()
 	env.ingestRun = newIngestRun(env, args, mode)
 	env.ingestRun.start()
 	env.lowerPriorityIfGentle()
 	err = env.executeIngest(ctx, plan)
 	env.ingestRun.finish(err)
 	return err
+}
+
+// stopPollInterval is how often a run checks whether `ingest stop` asked
+// it to stop.
+const stopPollInterval = 500 * time.Millisecond
+
+// watchStopRequest cancels the run's context once `ingest stop` asks, as
+// Ctrl-C would, so what was stored stays; on Windows that is the only way
+// the request arrives (#54). The returned func ends the watch.
+func (env commandEnv) watchStopRequest(ctx context.Context) (context.Context, context.CancelFunc) {
+	stops := env.toolkit.IngestRuns.Stops
+	ctx, cancel := context.WithCancel(ctx)
+	go func() {
+		ticker := time.NewTicker(stopPollInterval)
+		defer ticker.Stop()
+		for !stops.Asked() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+		cancel()
+	}()
+	return ctx, cancel
+}
+
+// clearStopRequest drops a request left by an earlier stop, so it never
+// stops this run, and this run's own once it ends.
+func (env commandEnv) clearStopRequest() {
+	if err := env.toolkit.IngestRuns.Stops.Clear(); err != nil {
+		env.logger.Warn("stop request not cleared; the next ingest may stop at once", "error", err.Error())
+	}
 }
 
 func (env commandEnv) executeIngest(ctx context.Context, plan ingestPlan) error {

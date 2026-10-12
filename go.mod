@@ -9,6 +9,7 @@ require (
 	github.com/magefile/mage v1.17.2
 	github.com/mattn/go-sqlite3 v1.14.52
 	golang.org/x/image v0.46.0
+	golang.org/x/sys v0.48.0
 )
 
 tool github.com/magefile/mage

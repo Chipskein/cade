@@ -30,8 +30,15 @@ func File(source, destination string) error {
 	return output.Close()
 }
 
+// levelDBLockFile is LevelDB's lock: empty, and held by the browser while
+// it runs. Windows refuses to read a file another process locks, even an
+// empty one, so copying it failed every IndexedDB read with the browser
+// open (#54, seen on the Windows CI); no reader needs it.
+const levelDBLockFile = "LOCK"
+
 // FlatDirectory copies the regular files directly inside source into
-// destination (created if needed); subdirectories are not copied.
+// destination (created if needed); subdirectories and LevelDB's lock
+// file are not copied.
 func FlatDirectory(source, destination string) error {
 	entries, err := os.ReadDir(source)
 	if err != nil {
@@ -41,7 +48,7 @@ func FlatDirectory(source, destination string) error {
 		return fmt.Errorf("create %q: %w", destination, err)
 	}
 	for _, entry := range entries {
-		if !entry.Type().IsRegular() {
+		if !entry.Type().IsRegular() || entry.Name() == levelDBLockFile {
 			continue
 		}
 		if err := File(filepath.Join(source, entry.Name()), filepath.Join(destination, entry.Name())); err != nil {

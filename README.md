@@ -13,7 +13,7 @@
 
 ## Install
 
-From source (Linux; Go 1.27+, `gcc`, `cmake`, `ninja`, `git`):
+From source (Linux or FreeBSD; Go 1.27+, a C/C++ compiler, `cmake`, `ninja`, `git`; FreeBSD steps in [DEVELOPMENT](docs/DEVELOPMENT.md#building-from-source-freebsd)):
 
 ```sh
 go tool mage build     # NVIDIA (CUDA Toolkit); `go tool mage cpu` without a GPU
@@ -21,22 +21,22 @@ go tool mage models    # downloads the models to ~/.local/share/cade/models
 go tool mage install   # installs to ~/.local/bin
 ```
 
-Prebuilt Linux x86-64 binaries are on the [releases page](https://github.com/Chipskein/cade/releases).
+Prebuilt Linux x86-64 binaries, and experimental macOS Apple Silicon and Windows x86-64 ones, are on the [releases page](https://github.com/Chipskein/cade/releases); macOS and Windows build steps are in [DEVELOPMENT](docs/DEVELOPMENT.md).
 
 Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview of cited images in `cade ask`.
 
 ## Platform support
 
-| Source | Linux | macOS | Windows |
-|--------|-------|-------|---------|
-| git | ✓ tested | should work | not supported |
-| browser | ✓ tested | should work | not supported |
-| files | ✓ tested | should work | not supported |
-| teams | ✓ tested | should work | not supported |
-| images | ✓ tested | should work | not supported |
-| image preview (`chafa`) | ✓ tested | should work (Homebrew) | not supported |
+| Source | Linux | FreeBSD | macOS | Windows |
+|--------|-------|---------|-------|---------|
+| git | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| browser | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| files | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| teams | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| images | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | should work (scoop) |
 
-Linux x86-64 is the only CI and release target. macOS should work when built from source. Windows is not supported.
+Linux x86-64 is the main CI and release target. macOS on Apple Silicon (Metal) has an experimental release archive, built and tested only on GitHub's Macs ([#53](https://github.com/Chipskein/cade/issues/53)). FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI; it was tested on FreeBSD 15.1. Windows x86-64 (CPU, MinGW) has an experimental zip, built and tested only on GitHub's Windows runners and under wine ([#54](https://github.com/Chipskein/cade/issues/54)).
 
 ## Examples
 

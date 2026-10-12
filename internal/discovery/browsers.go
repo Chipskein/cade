@@ -6,25 +6,87 @@ package discovery
 import (
 	"io/fs"
 	"path"
+	"slices"
 	"sort"
 	"strings"
 
 	"github.com/chipskein/cade/internal/rootfs"
 )
 
-// chromiumRoots are the user-data directories of Chromium-based browsers
-// on Linux, relative to home; each holds one directory per profile.
-var chromiumRoots = []string{
-	".config/google-chrome", ".config/google-chrome-beta", ".config/chromium",
-	".config/BraveSoftware/Brave-Browser", ".config/microsoft-edge", ".config/vivaldi",
-	"snap/chromium/common/chromium",
+// BrowserRoots are where one system's browsers keep their profiles,
+// relative to home: Chromium-based user-data directories, each with one
+// directory per profile, and Firefox (or Floorp, a fork with the same
+// layout) profile directories. TeamsApps are the user-data directories of
+// desktop apps built on a Chromium WebView, read only for their Teams
+// cache: their history is the app's, not the user's browsing.
+type BrowserRoots struct {
+	Chromium  []string
+	Firefox   []string
+	TeamsApps []string
 }
 
-// firefoxRoots hold Firefox profiles (the usual install, snap and
-// flatpak) and those of Floorp, a Firefox fork with the same layout.
-var firefoxRoots = []string{
-	".mozilla/firefox", "snap/firefox/common/.mozilla/firefox", ".var/app/org.mozilla.firefox/.mozilla/firefox",
-	".floorp", ".var/app/one.ablaze.floorp/.floorp",
+// xdgChromiumRoots and xdgFirefoxRoots follow ~/.config and ~/.mozilla, as
+// on Linux and FreeBSD (the ports' Chromium and the Linux browsers that
+// linux-browser-installer runs there).
+var (
+	xdgChromiumRoots = []string{
+		".config/google-chrome", ".config/google-chrome-beta", ".config/chromium",
+		".config/BraveSoftware/Brave-Browser", ".config/microsoft-edge", ".config/vivaldi",
+	}
+	xdgFirefoxRoots = []string{".mozilla/firefox", ".floorp"}
+)
+
+// macSupport is where macOS apps keep their data, relative to home.
+const macSupport = "Library/Application Support/"
+
+// Windows keeps Chromium profiles under %LOCALAPPDATA% and Firefox's
+// under %APPDATA%, relative to home in their default places.
+const (
+	windowsLocal   = "AppData/Local/"
+	windowsRoaming = "AppData/Roaming/"
+)
+
+// windowsTeamsWebView is the new Teams desktop app's WebView2 user data;
+// its WV2Profile_tfw profile keeps the same IndexedDB as Teams on the web
+// (#54). Not checked on a real machine yet.
+const windowsTeamsWebView = windowsLocal + "Packages/MSTeams_8wekyb3d8bbwe/LocalCache/Microsoft/MSTeams/EBWebView"
+
+// browserRoots are the roots per system (runtime.GOOS); snap and flatpak
+// exist only on Linux. On macOS each browser keeps its profiles under
+// Application Support (#53).
+var browserRoots = map[string]BrowserRoots{
+	"linux": {
+		Chromium: append(slices.Clone(xdgChromiumRoots), "snap/chromium/common/chromium"),
+		Firefox: append(slices.Clone(xdgFirefoxRoots), "snap/firefox/common/.mozilla/firefox",
+			".var/app/org.mozilla.firefox/.mozilla/firefox", ".var/app/one.ablaze.floorp/.floorp"),
+	},
+	"freebsd": {Chromium: xdgChromiumRoots, Firefox: xdgFirefoxRoots},
+	"darwin": {
+		Chromium: []string{
+			macSupport + "Google/Chrome", macSupport + "Google/Chrome Beta", macSupport + "Chromium",
+			macSupport + "BraveSoftware/Brave-Browser", macSupport + "Microsoft Edge", macSupport + "Vivaldi",
+		},
+		Firefox: []string{macSupport + "Firefox/Profiles", macSupport + "Floorp/Profiles"},
+	},
+	"windows": {
+		Chromium: []string{
+			windowsLocal + "Google/Chrome/User Data", windowsLocal + "Google/Chrome Beta/User Data", windowsLocal + "Chromium/User Data",
+			windowsLocal + "BraveSoftware/Brave-Browser/User Data", windowsLocal + "Microsoft/Edge/User Data", windowsLocal + "Vivaldi/User Data",
+		},
+		Firefox:   []string{windowsRoaming + "Mozilla/Firefox/Profiles", windowsRoaming + "Floorp/Profiles"},
+		TeamsApps: []string{windowsTeamsWebView},
+	},
+}
+
+// RootsFor are the browser roots of goos; a system without its own gets
+// Linux's, the most complete of the ~/.config layouts.
+//
+//	roots := discovery.RootsFor(runtime.GOOS)
+func RootsFor(goos string) BrowserRoots {
+	if roots, known := browserRoots[goos]; known {
+		return roots
+	}
+	return browserRoots["linux"]
 }
 
 // Teams on the web keeps its cache in one IndexedDB per origin
@@ -43,21 +105,22 @@ const (
 // files of every profile under home, sorted.
 //
 //	histories := discovery.BrowserHistories(os.DirFS("/"), "/home/me")
-func BrowserHistories(fsys fs.FS, home string) []string {
-	histories := filesInProfiles(fsys, home, chromiumRoots, "History")
-	histories = append(histories, filesInProfiles(fsys, home, firefoxRoots, "places.sqlite")...)
+func BrowserHistories(fsys fs.FS, home string, roots BrowserRoots) []string {
+	histories := filesInProfiles(fsys, home, roots.Chromium, "History")
+	histories = append(histories, filesInProfiles(fsys, home, roots.Firefox, "places.sqlite")...)
 	sort.Strings(histories)
 	return histories
 }
 
 // TeamsCaches returns the Teams IndexedDB directories of every Chromium
 // and Firefox profile under home, sorted.
-func TeamsCaches(fsys fs.FS, home string) []string {
+func TeamsCaches(fsys fs.FS, home string, roots BrowserRoots) []string {
 	var caches []string
+	chromiumRoots := append(slices.Clone(roots.Chromium), roots.TeamsApps...)
 	for _, indexedDB := range filesInProfiles(fsys, home, chromiumRoots, "IndexedDB") {
 		caches = append(caches, teamsDirsIn(fsys, indexedDB)...)
 	}
-	for _, storage := range filesInProfiles(fsys, home, firefoxRoots, firefoxOriginStorage) {
+	for _, storage := range filesInProfiles(fsys, home, roots.Firefox, firefoxOriginStorage) {
 		caches = append(caches, firefoxTeamsDirsIn(fsys, storage)...)
 	}
 	sort.Strings(caches)

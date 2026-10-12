@@ -2,6 +2,7 @@ package testfakes
 
 import (
 	"slices"
+	"sync"
 
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/procctl"
@@ -81,4 +82,36 @@ func (p *FakeProcesses) StartDetached(command procctl.DetachedCommand) (int, err
 func (p *FakeProcesses) LowerPriority() error {
 	p.PriorityLowered = true
 	return p.PriorityError
+}
+
+// FakeStopRequests keeps the stop request in memory and counts the asks
+// and clears. The run's watcher reads it from another goroutine, hence
+// the lock.
+type FakeStopRequests struct {
+	mutex     sync.Mutex
+	Requested bool
+	Asks      int
+	Clears    int
+}
+
+func (r *FakeStopRequests) Ask() error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.Requested = true
+	r.Asks++
+	return nil
+}
+
+func (r *FakeStopRequests) Asked() bool {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	return r.Requested
+}
+
+func (r *FakeStopRequests) Clear() error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+	r.Requested = false
+	r.Clears++
+	return nil
 }

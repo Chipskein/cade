@@ -4,6 +4,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/chipskein/cade/internal/testfakes"
 )
 
 func TestParseChoice(t *testing.T) {
@@ -38,10 +40,10 @@ func TestPickIndexesKeepsOrderGiven(t *testing.T) {
 }
 
 func TestResolvePath(t *testing.T) {
-	if got := resolvePath("~/src", "/home/ana"); got != "/home/ana/src" {
-		t.Fatalf("expected /home/ana/src, got %q", got)
+	if want := testfakes.SystemPath("/home/ana/src"); resolvePath("~/src", "/home/ana") != want {
+		t.Fatalf("expected %s, got %q", want, resolvePath("~/src", "/home/ana"))
 	}
-	if got := resolvePath("/srv/../srv/docs", "/home/ana"); got != "/srv/docs" {
+	if got := resolvePath("/srv/../srv/docs", "/home/ana"); got != testfakes.SystemPath("/srv/docs") {
 		t.Fatalf("expected a clean absolute path, got %q", got)
 	}
 }

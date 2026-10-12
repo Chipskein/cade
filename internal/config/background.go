@@ -31,7 +31,7 @@ const (
 // Two threads leave most of a 6-core CPU free; 50% busy halves the load;
 // 500 images take ~30 min at 50% on an RTX 3060 and ~6 h on a 6-core CPU.
 func defaultBackground() BackgroundConfig {
-	return BackgroundConfig{Threads: 2, GPULayers: allGPULayers, BusyPercent: 50, MaxImagesPerRun: 500}
+	return BackgroundConfig{Threads: 2, GPULayers: defaultGPULayers, BusyPercent: 50, MaxImagesPerRun: 500}
 }
 
 // WithBackgroundLimits is c as a background or gentle ingestion runs it.

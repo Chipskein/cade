@@ -13,7 +13,7 @@
 
 ## Instalação
 
-A partir do código-fonte (Linux; Go 1.27+, `gcc`, `cmake`, `ninja`, `git`):
+A partir do código-fonte (Linux ou FreeBSD; Go 1.27+, um compilador C/C++, `cmake`, `ninja`, `git`; no FreeBSD, veja o [DEVELOPMENT](docs/DEVELOPMENT.pt-BR.md#compilando-a-partir-do-código-fonte-freebsd)):
 
 ```sh
 go tool mage build     # NVIDIA (CUDA Toolkit); `go tool mage cpu` sem GPU
@@ -21,22 +21,22 @@ go tool mage models    # baixa os modelos em ~/.local/share/cade/models
 go tool mage install   # instala em ~/.local/bin
 ```
 
-Binários prontos para Linux x86-64 estão na [página de releases](https://github.com/Chipskein/cade/releases).
+Binários prontos para Linux x86-64, e experimentais para macOS em Apple Silicon e Windows x86-64, estão na [página de releases](https://github.com/Chipskein/cade/releases); os passos de build no macOS e no Windows estão no [DEVELOPMENT](docs/DEVELOPMENT.pt-BR.md).
 
 Opcional: instale o [`chafa`](https://github.com/hpjansson/chafa) para ver uma prévia das imagens citadas no `cade ask`.
 
 ## Plataformas suportadas
 
-| Fonte | Linux | macOS | Windows |
-|-------|-------|-------|---------|
-| git | ✓ testado | deve funcionar | não suportado |
-| browser | ✓ testado | deve funcionar | não suportado |
-| arquivos | ✓ testado | deve funcionar | não suportado |
-| teams | ✓ testado | deve funcionar | não suportado |
-| imagens | ✓ testado | deve funcionar | não suportado |
-| prévia de imagens (`chafa`) | ✓ testado | deve funcionar (Homebrew) | não suportado |
+| Fonte | Linux | FreeBSD | macOS | Windows |
+|-------|-------|---------|-------|---------|
+| git | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| browser | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| arquivos | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| teams | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| imagens | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| prévia de imagens (`chafa`) | ✓ testado | deve funcionar (`pkg install chafa`) | deve funcionar (Homebrew) | deve funcionar (scoop) |
 
-Linux x86-64 é o único alvo de CI e releases. macOS deve funcionar compilando a partir do código-fonte. Windows não é suportado.
+Linux x86-64 é o alvo principal de CI e releases. O macOS em Apple Silicon (Metal) tem um arquivo de release experimental, compilado e testado só nos Macs do GitHub ([#53](https://github.com/Chipskein/cade/issues/53)). O FreeBSD amd64 compila do código-fonte, em CPU ou na GPU pelo Vulkan ([#101](https://github.com/Chipskein/cade/issues/101)), sem CI; foi testado no FreeBSD 15.1. O Windows x86-64 (CPU, MinGW) tem um zip experimental, compilado e testado só nas máquinas Windows do GitHub e no wine ([#54](https://github.com/Chipskein/cade/issues/54)).
 
 ## Exemplos
 

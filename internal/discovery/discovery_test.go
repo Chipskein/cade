@@ -32,13 +32,13 @@ func TestBrowserHistoriesFindsEveryProfile(t *testing.T) {
 		home + "/.floorp/xyz.default-default/places.sqlite",
 		home + "/.mozilla/firefox/abc.default-release/places.sqlite",
 	}
-	if got := BrowserHistories(fakeProfiles(), home); !slices.Equal(got, want) {
+	if got := BrowserHistories(fakeProfiles(), home, RootsFor("linux")); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
 func TestBrowserHistoriesEmptyHome(t *testing.T) {
-	if got := BrowserHistories(testfakes.NewFakeFileSystem(), home); len(got) != 0 {
+	if got := BrowserHistories(testfakes.NewFakeFileSystem(), home, RootsFor("linux")); len(got) != 0 {
 		t.Fatalf("expected none, got %v", got)
 	}
 }
@@ -50,8 +50,66 @@ func TestTeamsCachesKeepsOnlyTeamsOrigins(t *testing.T) {
 		indexedDB + "https_teams.microsoft.com_0.indexeddb.leveldb",
 		home + "/.floorp/xyz.default-default/storage/default/https+++teams.microsoft.com/idb",
 	}
-	if got := TeamsCaches(fakeProfiles(), home); !slices.Equal(got, want) {
+	if got := TeamsCaches(fakeProfiles(), home, RootsFor("linux")); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
+// FreeBSD has the ~/.config and ~/.mozilla layouts, but no snap or
+// flatpak (#101).
+func TestRootsForFreeBSDLeaveOutSnapAndFlatpak(t *testing.T) {
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(home+"/.config/chromium/Default/History", "").
+		AddFile(home+"/snap/firefox/common/.mozilla/firefox/x.default/places.sqlite", "").
+		AddFile(home+"/.mozilla/firefox/y.default/places.sqlite", "")
+	want := []string{home + "/.config/chromium/Default/History", home + "/.mozilla/firefox/y.default/places.sqlite"}
+	if got := BrowserHistories(tree, home, RootsFor("freebsd")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if got := BrowserHistories(tree, home, RootsFor("linux")); len(got) != 3 {
+		t.Fatalf("expected Linux to see the snap profile too, got %v", got)
+	}
+}
+
+// macOS keeps the profiles under Application Support (#53).
+func TestRootsForMacOSAreUnderApplicationSupport(t *testing.T) {
+	support := home + "/Library/Application Support/"
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(support+"Google/Chrome/Default/History", "").
+		AddDir(support+"Google/Chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb").
+		AddFile(support+"Firefox/Profiles/abc.default-release/places.sqlite", "").
+		AddFile(home+"/.mozilla/firefox/y.default/places.sqlite", "")
+	want := []string{support + "Firefox/Profiles/abc.default-release/places.sqlite", support + "Google/Chrome/Default/History"}
+	if got := BrowserHistories(tree, home, RootsFor("darwin")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if got := TeamsCaches(tree, home, RootsFor("darwin")); len(got) != 1 {
+		t.Fatalf("expected the Teams cache of Chrome, got %v", got)
+	}
+}
+
+// Windows keeps the profiles in AppData, and the new Teams desktop app is
+// a source of Teams messages only (#54).
+func TestRootsForWindowsAreUnderAppDataWithTheTeamsApp(t *testing.T) {
+	local, teams := home+"/AppData/Local/", home+"/"+windowsTeamsWebView+"/WV2Profile_tfw/"
+	tree := testfakes.NewFakeFileSystem().
+		AddFile(local+"Microsoft/Edge/User Data/Default/History", "").
+		AddFile(home+"/AppData/Roaming/Mozilla/Firefox/Profiles/abc.default-release/places.sqlite", "").
+		AddFile(teams+"History", "").
+		AddDir(teams + "IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb")
+	want := []string{home + "/AppData/Local/Microsoft/Edge/User Data/Default/History", home + "/AppData/Roaming/Mozilla/Firefox/Profiles/abc.default-release/places.sqlite"}
+	if got := BrowserHistories(tree, home, RootsFor("windows")); !slices.Equal(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	wantTeams := []string{teams + "IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb"}
+	if got := TeamsCaches(tree, home, RootsFor("windows")); !slices.Equal(got, wantTeams) {
+		t.Fatalf("expected %v, got %v", wantTeams, got)
+	}
+}
+
+func TestRootsForAnUnknownSystemAreLinuxs(t *testing.T) {
+	if !slices.Equal(RootsFor("netbsd").Firefox, RootsFor("linux").Firefox) {
+		t.Fatal("expected Linux's roots for a system without its own")
 	}
 }
 
@@ -68,14 +126,14 @@ func fakeSourceTree() testfakes.FakeFileSystem {
 }
 
 func TestGitRepositoriesFindsRepositoriesOnce(t *testing.T) {
-	want := []string{"/src/api", "/src/org/team/web", "/src/worktree"}
+	want := []string{testfakes.SystemPath("/src/api"), testfakes.SystemPath("/src/org/team/web"), testfakes.SystemPath("/src/worktree")}
 	if got := GitRepositories(fakeSourceTree(), "/src", []string{"node_modules"}); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
 	}
 }
 
 func TestGitRepositoriesRootItselfIsRepository(t *testing.T) {
-	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{"/src/api"}) {
+	if got := GitRepositories(fakeSourceTree(), "/src/api", nil); !slices.Equal(got, []string{testfakes.SystemPath("/src/api")}) {
 		t.Fatalf("expected the root, got %v", got)
 	}
 }

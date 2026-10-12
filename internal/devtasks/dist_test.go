@@ -18,6 +18,7 @@ const distTestName = "cade-v9.9.9-linux-amd64-cpu"
 func TestDistArchivesTheBinaryAndDocs(t *testing.T) {
 	world := newTestWorld(t)
 	world.env[EnvVersion] = "v9.9.9"
+	world.runner.Outputs["go env GOOS"] = "linux"
 	world.runner.Outputs["go env GOARCH"] = "amd64"
 	world.writeFile(t, binaryPath, "binary")
 	for _, file := range distFiles {
@@ -32,6 +33,28 @@ func TestDistArchivesTheBinaryAndDocs(t *testing.T) {
 		t.Errorf("archive holds %q, want %q", got, want)
 	}
 	assertChecksum(t, archive)
+}
+
+// The archive says the OS it was built on (#101).
+func TestDistNamesTheOperatingSystem(t *testing.T) {
+	world := newTestWorld(t)
+	world.env[EnvVersion] = "v9.9.9"
+	world.runner.Outputs["go env GOOS"] = "freebsd"
+	world.runner.Outputs["go env GOARCH"] = "amd64"
+	if name, _, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-freebsd-amd64-cpu" {
+		t.Fatalf("distName = %q, %v; want the FreeBSD name", name, err)
+	}
+}
+
+// The macOS archive holds the Metal build (#53).
+func TestDistNamesTheMetalBuildOnMacOS(t *testing.T) {
+	world := newTestWorld(t)
+	world.env[EnvVersion] = "v9.9.9"
+	world.runner.Outputs["go env GOOS"] = "darwin"
+	world.runner.Outputs["go env GOARCH"] = "arm64"
+	if name, _, err := world.tasks().distName(); err != nil || name != "cade-v9.9.9-darwin-arm64-metal" {
+		t.Fatalf("distName = %q, %v; want the macOS Metal name", name, err)
+	}
 }
 
 func prefixed(prefix string, names []string) []string {
@@ -77,9 +100,6 @@ func assertChecksum(t *testing.T, archive string) {
 	line, err := os.ReadFile(archive + checksumSuffix)
 	if err != nil || string(line) != hex.EncodeToString(sum[:])+"  "+filepath.Base(archive)+"\n" {
 		t.Errorf("checksum file = %q, %v", line, err)
-	}
-	if !strings.HasSuffix(archive, archiveSuffix) {
-		t.Errorf("archive %q lacks %s", archive, archiveSuffix)
 	}
 }
 

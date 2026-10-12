@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/chipskein/cade/internal/dbcopy"
-	"os"
 	"time"
 
+	"github.com/chipskein/cade/internal/privatefile"
 	"github.com/chipskein/cade/internal/storage"
 )
 
@@ -70,7 +70,7 @@ func (s *Store) backupBeforeRekey(ctx context.Context) (string, error) {
 	if _, err := s.db.ExecContext(ctx, `VACUUM INTO ?`, backupPath); err != nil {
 		return "", fmt.Errorf("back up %q to %q before the rekey: %w", path, backupPath, err)
 	}
-	if err := os.Chmod(backupPath, privateFileMode); err != nil {
+	if err := privatefile.Restrict(backupPath, privateFileMode); err != nil {
 		return "", fmt.Errorf("restrict backup %q: %w", backupPath, err)
 	}
 	return backupPath, nil

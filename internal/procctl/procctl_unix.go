@@ -5,13 +5,8 @@ package procctl
 import (
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"syscall"
 )
-
-// logFileMode is owner-only: the log names the ingested targets.
-const logFileMode = 0o600
 
 // Alive sends signal 0, which checks the process without touching it.
 // EPERM means it exists under another user.
@@ -46,23 +41,5 @@ func signalProcess(pid int, signal syscall.Signal, action string) error {
 // StartDetached runs in a new session (setsid): no controlling terminal,
 // so no SIGHUP when it closes. stdin is /dev/null.
 func (System) StartDetached(command DetachedCommand) (int, error) {
-	executable, err := os.Executable()
-	if err != nil {
-		return 0, fmt.Errorf("locate the cade executable: %w", err)
-	}
-	logFile, err := os.OpenFile(command.LogPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, logFileMode)
-	if err != nil {
-		return 0, fmt.Errorf("open ingest log %q: %w", command.LogPath, err)
-	}
-	defer logFile.Close()
-	process := exec.Command(executable, command.Args...)
-	process.Env = append(os.Environ(), command.Env...)
-	process.Stdout, process.Stderr = logFile, logFile
-	process.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := process.Start(); err != nil {
-		return 0, fmt.Errorf("start %s %v: %w", executable, command.Args, err)
-	}
-	// Release sets Pid to -1, so it is read first.
-	pid := process.Process.Pid
-	return pid, process.Process.Release()
+	return startDetached(command, &syscall.SysProcAttr{Setsid: true})
 }

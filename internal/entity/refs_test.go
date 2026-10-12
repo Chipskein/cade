@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -68,6 +69,14 @@ func TestRefsOfCommitNamesEachChangedFileUnderItsRepository(t *testing.T) {
 		{Type: TypeFile, Key: "/src/api/erp/retry.go", Name: "retry.go", Role: RoleChanged},
 		{Type: TypeFile, Key: "/src/api/README.md", Name: "README.md", Role: RoleChanged},
 	}
+	if got := RefsOf(ev); !slices.Equal(got, want) {
+		t.Fatalf("expected %+v, got %+v", want, got)
+	}
+}
+
+func TestRefsOfCommitKeysAWindowsRepositoryFileWithSlashes(t *testing.T) {
+	ev := event.Event{Source: event.SourceGit, Metadata: event.Commit{Repository: filepath.FromSlash("C:/src/api"), Files: []string{"erp/retry.go"}}.Metadata()}
+	want := []Ref{{Type: TypeFile, Key: "C:/src/api/erp/retry.go", Name: "retry.go", Role: RoleChanged}}
 	if got := RefsOf(ev); !slices.Equal(got, want) {
 		t.Fatalf("expected %+v, got %+v", want, got)
 	}
