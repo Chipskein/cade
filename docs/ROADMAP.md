@@ -57,7 +57,8 @@ A v0.2.0 ensinou o `cade` a entender quem e o quê aparece nos eventos. A v0.3.0
 | 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | feito | médio | baixo |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | feito | pré-requisito do lançamento | baixo |
 | 32 | [FreeBSD, macOS e Windows (v0.2.1)](#fase-32--freebsd-macos-e-windows-v021) | [#101](https://github.com/Chipskein/cade/issues/101), [#53](https://github.com/Chipskein/cade/issues/53), [#54](https://github.com/Chipskein/cade/issues/54) | feito | médio | alto |
-| 33 | [Criptografia do banco](#fase-33--criptografia-do-banco) | [#57](https://github.com/Chipskein/cade/issues/57) | em andamento | alto | médio |
+| 33 | [Criptografia do banco](#fase-33--criptografia-do-banco) | [#57](https://github.com/Chipskein/cade/issues/57) | feito | alto | médio |
+| 33a | [Banco cifrado (opt-in)](#fase-33a--banco-cifrado-opt-in) | [#111](https://github.com/Chipskein/cade/issues/111) | a fazer | alto | alto |
 | 34 | [Pendências da v0.2.1 e do CI](#fase-34--pendências-da-v021-e-do-ci) | [#110](https://github.com/Chipskein/cade/issues/110) | a fazer | médio | baixo |
 | 35 | [Busca em PDFs](#fase-35--busca-em-pdfs) | [#108](https://github.com/Chipskein/cade/issues/108) | a fazer | alto | médio |
 | 36 | [Busca em áudios pela transcrição](#fase-36--busca-em-áudios-pela-transcrição) | [#59](https://github.com/Chipskein/cade/issues/59) | a fazer | alto | alto |
@@ -79,7 +80,7 @@ A tabela está na ordem sugerida. Na v0.2.0:
 - **Empacotamento (31) por último.**
 
 Na v0.3.0:
-- **Criptografia primeiro (33):** se a decisão for cifrar, o formato do arquivo muda numa migração. É melhor que isso aconteça antes de as fases 35 a 38 guardarem documentos, transcrições e rostos.
+- **Criptografia primeiro (33, 33a):** a decisão foi cifrar, como opt-in. A conversão é só para quem ligar, então não bloqueia as fases seguintes, mas a abertura com chave (`inspect`, `doctor`, backups) precisa existir antes de as fases 35 a 38 guardarem documentos, transcrições e rostos.
 - **Pendências logo depois (34):** são baratas, não dependem de nada e podem correr em paralelo, mas esperam alguém com um Mac ou um Windows de verdade.
 - **PDFs antes de áudio (35):** usam a fonte de arquivos e a descrição de imagem da fase 19 para as páginas escaneadas, sem runtime novo. Também estreiam a citação com posição no arquivo ("p. 12"), que áudio e vídeo repetem com o instante.
 - **Áudio antes de vídeo (36, 37):** o vídeo usa a transcrição do áudio para a trilha de fala.
@@ -387,6 +388,24 @@ O processo da v0.1.0 continua:
 - **Problema:** hoje o banco é protegido só pelas permissões (`600`) e pela recomendação de criptografia de disco no PRIVACY. Além do arquivo principal, os dados ficam no WAL e nas cópias de migração. Não se sabe se isso basta.
 - **Mudança:** investigação sem código no repositório. Um protótipo fora dele compara o SQLite3 Multiple Ciphers e o SQLCipher com o build atual: sqlite-vec, FTS5 e migrações funcionando; se o WAL e o `VACUUM INTO` das cópias saem cifrados; como converter um banco existente; e o custo nos benchmarks de storage. A pesquisa cobre a ameaça (o que a criptografia do banco cobre que o disco cifrado e as permissões não cobrem), onde guardar a chave sem rede em cada sistema (inclusive no timer do systemd, sem sessão gráfica) e a licença.
 - **Aceite:** dados e ameaças no PRIVACY (EN e PT), cada pergunta da issue respondida com a medição, e a decisão registrada aqui. Se a decisão for cifrar, a implementação vira uma issue nova e uma fase depois desta.
+- **Resultado** ([medições na #57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529), [PRIVACY](../PRIVACY.pt-BR.md#criptografia)): cifrar como opt-in, com o SQLite3 Multiple Ciphers (MIT, sem OpenSSL), na [fase 33a](#fase-33a--banco-cifrado-opt-in).
+  - **Testes e cópias:** os dois candidatos passaram nos 168 testes do storage com a chave. O WAL e as cópias do `VACUUM INTO` saem cifrados.
+  - **Conversão:** uma cópia de 808 MB do banco real foi convertida em 3,5–7,4 s, com +1,4% de espaço (+2,4% no SQLCipher).
+  - **Custo:** decifrar cada página lida, de 2 a 10 vezes nas consultas com 100 mil eventos e o cache de 2 MB; com o cache de 256 MB e quente, nada no sqlite3mc. Como cada `ask` começa frio, o custo é uns 10% por pergunta.
+  - **Chave:** o `systemd-creds --user` funciona sem sessão gráfica, inclusive no timer.
+  - **Por que opt-in:** a criptografia de disco continua sendo a proteção principal, e perder a chave perde dados que as fontes já expiraram.
+
+## Fase 33a — Banco cifrado (opt-in)
+
+**Issue:** [#111](https://github.com/Chipskein/cade/issues/111).
+
+- **Problema:** o banco, o WAL e as cópias de migração ficam em texto puro. Um backup ou uma sincronização do `$HOME` os leva para fora da máquina legíveis.
+- **Mudança:**
+  - O amalgamation do sqlite3mc entra no lugar do da SQLite no go-sqlite3. Sem chave, ele se comporta igual, então os leitores de outros arquivos SQLite não mudam.
+  - Provedores de chave por sistema, atrás de uma interface do projeto: `systemd-creds`, Keychain, DPAPI e frase-senha.
+  - `cade encrypt` e `cade decrypt`, com backup e chave de recuperação.
+  - Um `cache_size` maior compensa a decifragem.
+- **Aceite:** sem `cade encrypt`, tudo igual a hoje. Depois dele, nenhum texto legível no banco, no WAL e nas cópias novas, e `ask`, `ingest` (inclusive pelo timer), `forget`, `doctor` e `export` funcionando. O custo frio e quente no BENCHMARKS. CI verde no Linux, macOS e Windows.
 
 ## Fase 34 — Pendências da v0.2.1 e do CI
 
@@ -504,7 +523,8 @@ Os da [v0.2.0](https://github.com/Chipskein/cade/blob/v0.2.0/docs/ROADMAP.md#cri
 - [ ] a CI está verde no commit da tag, nos jobs de Linux, macOS e Windows;
 - [ ] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
 - [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.2.0, em todos os tamanhos da curva de escala, e os casos novos de PDF, áudio e vídeo passam;
-- [ ] a decisão sobre a criptografia do banco está no PRIVACY; se for cifrar, a migração faz backup antes, tem teste em `migrations_test.go`, e nenhuma cópia gravada pelo cade fica em texto puro sem aviso;
+- [x] a decisão sobre a criptografia do banco está no PRIVACY (fase 33);
+- [ ] o `cade encrypt` (fase 33a) faz backup antes, tem teste de que o banco, o WAL e as cópias novas não têm texto legível, e o `doctor` avisa das cópias antigas em texto puro;
 - [ ] cada fonte nova (PDFs, áudios, vídeos, rostos) vem desligada por padrão, e o PRIVACY diz o que ela extrai e onde fica;
 - [ ] `forget` (por fonte, por evento e por pessoa) apaga as representações novas: texto de PDF, transcrições, quadros e rostos (teste de privacidade);
 - [ ] os rostos seguem as regras para dados biométricos do PRIVACY, com um comando que apaga todos;
