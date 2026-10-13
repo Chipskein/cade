@@ -4,7 +4,7 @@
 
 # cade — roadmap
 
-O que falta, e em que ordem. A [v0.2.0](https://github.com/Chipskein/cade/releases/tag/v0.2.0) saiu em 2026-10-11, e a v0.2.1 leva o cade ao FreeBSD, ao macOS e ao Windows ([fase 32](#fase-32--freebsd-macos-e-windows-v021)). A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
+O que falta, e em que ordem. A [v0.2.1](https://github.com/Chipskein/cade/releases/tag/v0.2.1) saiu em 2026-10-11 e levou o cade ao FreeBSD, ao macOS e ao Windows ([fase 32](#fase-32--freebsd-macos-e-windows-v021)). O que vem agora é a [v0.3.0](#foco-da-v030), da fase 33 em diante. A [v0.2.0](https://github.com/Chipskein/cade/releases/tag/v0.2.0) saiu no mesmo dia. A [v0.1.0](https://github.com/Chipskein/cade/releases/tag/v0.1.0) saiu em 2026-09-30; o que ela e a v0.0.0 entregaram, fase a fase (0 a 21) e com as medições, está no [CHANGELOG](../CHANGELOG.pt-BR.md), e os gráficos em [BENCHMARKS.pt-BR.md](BENCHMARKS.pt-BR.md). Qual componente chama qual está em [ARCHITECTURE.md](ARCHITECTURE.md). Os requisitos citados no código (`RF`, `RNF`, `CA`) estão em [USECASES.md](USECASES.md).
 
 Cada fase é uma issue no GitHub, com as tasks e os arquivos de cada uma. Aqui fica a ordem, o porquê e o aceite resumido.
 
@@ -24,7 +24,16 @@ A v0.1.0 cuidou do risco no uso real: privacidade, respostas honestas, custo da 
 3. **Entidades e relacionamentos:** entidades (#20), relações entre elas (#21), representações multimodais (#22) e a busca que usa tudo isso (#24).
 4. **IndexedDB por schema:** indexar outras aplicações que usam IndexedDB sem escrever um coletor para cada uma (#19), e depois os outros armazenamentos do navegador pela mesma via (#73 a #80).
 
-Rostos ficam para a [v0.3.0](#v030). macOS e Windows, planejados para ela, saíram antes, na v0.2.1, junto com o FreeBSD.
+Rostos ficaram para a v0.3.0. macOS e Windows, planejados para ela, saíram antes, na v0.2.1, junto com o FreeBSD.
+
+## Foco da v0.3.0
+
+A v0.2.0 ensinou o `cade` a entender quem e o quê aparece nos eventos. A v0.3.0 o leva a **outros tipos de arquivo**: documentos, áudio, vídeo e rostos. Antes disso, protege o que já está guardado. Nesta ordem:
+
+1. **Proteger antes de acrescentar:** decidir se o banco passa a ser cifrado (#57) antes de entrar mais dado sensível. O formato do arquivo muda numa migração, e é mais barato mudá-lo antes das tabelas novas.
+2. **Fechar o que ficou aberto:** macOS e Windows numa máquina real e as medições do CI (#110).
+3. **Fontes multimodais:** PDFs (#108), áudios pela transcrição (#59), vídeos pelos quadros e pela fala (#60) e rostos (#23). Todos usam as representações da [fase 28](#fase-28--representações-multimodais), vêm desligados por padrão e seguem as [regras para dados sensíveis e biométricos](../PRIVACY.pt-BR.md#regras-para-dados-sensíveis-e-biométricos).
+4. **Custo da pergunta:** o modo daemon do `ask` (#109), medido no fim, com o `ask` como as fases anteriores o deixarem.
 
 ## Situação
 
@@ -48,11 +57,18 @@ Rostos ficam para a [v0.3.0](#v030). macOS e Windows, planejados para ela, saír
 | 25c | [Cópias de migração com dados esquecidos](#fase-25c--cópias-de-migração-com-dados-esquecidos) | [#87](https://github.com/Chipskein/cade/issues/87) | feito | médio | baixo |
 | 31 | [Empacotamento da v0.2.0](#fase-31--empacotamento-da-v020) | — | feito | pré-requisito do lançamento | baixo |
 | 32 | [FreeBSD, macOS e Windows (v0.2.1)](#fase-32--freebsd-macos-e-windows-v021) | [#101](https://github.com/Chipskein/cade/issues/101), [#53](https://github.com/Chipskein/cade/issues/53), [#54](https://github.com/Chipskein/cade/issues/54) | feito | médio | alto |
-| — | [Pendências](#pendências) | — | em aberto | — | — |
-| — | [v0.3.0](#v030) | várias | depois | — | — |
+| 33 | [Criptografia do banco](#fase-33--criptografia-do-banco) | [#57](https://github.com/Chipskein/cade/issues/57) | feito | alto | médio |
+| 33a | [Banco cifrado (opt-in)](#fase-33a--banco-cifrado-opt-in) | [#111](https://github.com/Chipskein/cade/issues/111) | a fazer | alto | alto |
+| 34 | [Pendências da v0.2.1 e do CI](#fase-34--pendências-da-v021-e-do-ci) | [#110](https://github.com/Chipskein/cade/issues/110) | a fazer | médio | baixo |
+| 35 | [Busca em PDFs](#fase-35--busca-em-pdfs) | [#108](https://github.com/Chipskein/cade/issues/108) | a fazer | alto | médio |
+| 36 | [Busca em áudios pela transcrição](#fase-36--busca-em-áudios-pela-transcrição) | [#59](https://github.com/Chipskein/cade/issues/59) | a fazer | alto | alto |
+| 37 | [Busca em vídeos pelos quadros e pela fala](#fase-37--busca-em-vídeos-pelos-quadros-e-pela-fala) | [#60](https://github.com/Chipskein/cade/issues/60) | a fazer | médio | alto |
+| 38 | [Rostos](#fase-38--rostos) | [#23](https://github.com/Chipskein/cade/issues/23) | a fazer | médio | alto |
+| 39 | [Modo daemon do `ask`](#fase-39--modo-daemon-do-ask) | [#109](https://github.com/Chipskein/cade/issues/109) | a fazer | médio | médio |
+| 40 | [Empacotamento da v0.3.0](#fase-40--empacotamento-da-v030) | — | a fazer | pré-requisito do lançamento | baixo |
 | — | [A definir](#a-definir) | — | em aberto | — | — |
 
-A tabela está na ordem sugerida:
+A tabela está na ordem sugerida. Na v0.2.0:
 - **Lotes e benchmarks primeiro (22, 23):** as tabelas novas das fases 26 a 28 aumentam a escrita por evento, e o tamanho e o tempo delas só podem ser comparados com uma base medida e reproduzível.
 - **Espaço logo depois (24):** mede o tamanho por tabela na base da fase 23 e decide quantização, compressão e deduplicação antes de as fases 26 a 28 criarem tabelas novas, que já nascem no formato escolhido.
 - **Alavancas de espaço (24a a 24c):** as escolhidas na fase 24, da mais barata para a mais cara. A 24a não tem perda e não muda a busca. A 24b reescreve os vetores e precisa do `evalRetrieval`. A 24c muda o caminho da busca e pode esperar se a 24b já bastar; a fase 28 (#22, representações) é a primeira tabela nova que depende do formato dos vetores.
@@ -63,9 +79,18 @@ A tabela está na ordem sugerida:
 - **Lacunas da LGPD (25a a 25c) depois da busca:** a exportação (25a) inclui os derivados das fases 26 a 29 (entidades, relações, representações, nomes lidos do e-mail), então vem depois delas. O apagar e exportar por pessoa (25b) parte da entidade `Person` e usa a exportação da 25a. As cópias de migração (25c) não dependem de nada e podem correr a qualquer momento.
 - **Empacotamento (31) por último.**
 
+Na v0.3.0:
+- **Criptografia primeiro (33, 33a):** a decisão foi cifrar, como opt-in. A conversão é só para quem ligar, então não bloqueia as fases seguintes, mas a abertura com chave (`inspect`, `doctor`, backups) precisa existir antes de as fases 35 a 38 guardarem documentos, transcrições e rostos.
+- **Pendências logo depois (34):** são baratas, não dependem de nada e podem correr em paralelo, mas esperam alguém com um Mac ou um Windows de verdade.
+- **PDFs antes de áudio (35):** usam a fonte de arquivos e a descrição de imagem da fase 19 para as páginas escaneadas, sem runtime novo. Também estreiam a citação com posição no arquivo ("p. 12"), que áudio e vídeo repetem com o instante.
+- **Áudio antes de vídeo (36, 37):** o vídeo usa a transcrição do áudio para a trilha de fala.
+- **Rostos por último entre as fontes (38):** é dado biométrico, precisa de outro runtime de inferência e de um modelo com licença compatível com a GPLv3.
+- **Daemon no fim (39):** é independente e pode correr em paralelo. Fica no fim porque só dá para decidir se compensa medindo o `ask` como as fases anteriores o deixarem.
+- **Empacotamento (40) por último.**
+
 ### Onde cada fase entra no código
 
-Os mesmos componentes dos diagramas de [ARCHITECTURE.md](ARCHITECTURE.md); em destaque, os que cada fase muda. As fases 23 a 25 são de medição e docs e não aparecem.
+Fases da v0.2.0, com os mesmos componentes dos diagramas de [ARCHITECTURE.md](ARCHITECTURE.md); em destaque, os que cada fase muda. As fases 23 a 25 são de medição e docs e não aparecem.
 
 ```mermaid
 flowchart LR
@@ -356,22 +381,83 @@ O processo da v0.1.0 continua:
 
 ---
 
-## Pendências
+## Fase 33 — Criptografia do banco
 
-- **CI (fase 10, da v0.0.0):** registrar o tempo com o cache quente, um PR com teste ou `gofmt` quebrado ficando vermelho, e quanto o `eval.yml` leva em CPU.
+**Issue:** [#57](https://github.com/Chipskein/cade/issues/57).
 
----
+- **Problema:** hoje o banco é protegido só pelas permissões (`600`) e pela recomendação de criptografia de disco no PRIVACY. Além do arquivo principal, os dados ficam no WAL e nas cópias de migração. Não se sabe se isso basta.
+- **Mudança:** investigação sem código no repositório. Um protótipo fora dele compara o SQLite3 Multiple Ciphers e o SQLCipher com o build atual: sqlite-vec, FTS5 e migrações funcionando; se o WAL e o `VACUUM INTO` das cópias saem cifrados; como converter um banco existente; e o custo nos benchmarks de storage. A pesquisa cobre a ameaça (o que a criptografia do banco cobre que o disco cifrado e as permissões não cobrem), onde guardar a chave sem rede em cada sistema (inclusive no timer do systemd, sem sessão gráfica) e a licença.
+- **Aceite:** dados e ameaças no PRIVACY (EN e PT), cada pergunta da issue respondida com a medição, e a decisão registrada aqui. Se a decisão for cifrar, a implementação vira uma issue nova e uma fase depois desta.
+- **Resultado** ([medições na #57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529), [PRIVACY](../PRIVACY.pt-BR.md#criptografia)): cifrar como opt-in, com o SQLite3 Multiple Ciphers (MIT, sem OpenSSL), na [fase 33a](#fase-33a--banco-cifrado-opt-in).
+  - **Testes e cópias:** os dois candidatos passaram nos 168 testes do storage com a chave. O WAL e as cópias do `VACUUM INTO` saem cifrados.
+  - **Conversão:** uma cópia de 808 MB do banco real foi convertida em 3,5–7,4 s, com +1,4% de espaço (+2,4% no SQLCipher).
+  - **Custo:** decifrar cada página lida, de 2 a 10 vezes nas consultas com 100 mil eventos e o cache de 2 MB; com o cache de 256 MB e quente, nada no sqlite3mc. Como cada `ask` começa frio, o custo é uns 10% por pergunta.
+  - **Chave:** o `systemd-creds --user` funciona sem sessão gráfica, inclusive no timer.
+  - **Por que opt-in:** a criptografia de disco continua sendo a proteção principal, e perder a chave perde dados que as fontes já expiraram.
 
-## v0.3.0
+## Fase 33a — Banco cifrado (opt-in)
 
-Já têm issue, com as tasks e os arquivos de cada uma. Ficam para depois da v0.2.0:
+**Issue:** [#111](https://github.com/Chipskein/cade/issues/111).
 
-| Issue | Tema | Por que depois |
-| ----- | ---- | -------------- |
-| [#23](https://github.com/Chipskein/cade/issues/23) | Rostos | depende das fases 25 a 28; precisa de outro runtime de inferência e de um modelo com licença compatível com a GPLv3; opt-in, porque é dado biométrico |
-| [#57](https://github.com/Chipskein/cade/issues/57) | Decisão sobre criptografia do banco | investigação sem código; a fase 25 aponta para ela no PRIVACY |
-| [#59](https://github.com/Chipskein/cade/issues/59) | Busca em áudios pela transcrição | depende das fases 25 e 28; falta escolher o modelo e o runtime (`mtmd` do llama.cpp ou whisper.cpp) com licença compatível com a GPLv3; opt-in |
-| [#60](https://github.com/Chipskein/cade/issues/60) | Busca em vídeos pelos quadros e pela fala | depende da #59 e da fase 28; a decodificação (FFmpeg ou alternativa) é a decisão de licença mais difícil; opt-in |
+- **Problema:** o banco, o WAL e as cópias de migração ficam em texto puro. Um backup ou uma sincronização do `$HOME` os leva para fora da máquina legíveis.
+- **Mudança:**
+  - O amalgamation do sqlite3mc entra no lugar do da SQLite no go-sqlite3. Sem chave, ele se comporta igual, então os leitores de outros arquivos SQLite não mudam.
+  - Provedores de chave por sistema, atrás de uma interface do projeto: `systemd-creds`, Keychain, DPAPI e frase-senha.
+  - `cade encrypt` e `cade decrypt`, com backup e chave de recuperação.
+  - Um `cache_size` maior compensa a decifragem.
+- **Aceite:** sem `cade encrypt`, tudo igual a hoje. Depois dele, nenhum texto legível no banco, no WAL e nas cópias novas, e `ask`, `ingest` (inclusive pelo timer), `forget`, `doctor` e `export` funcionando. O custo frio e quente no BENCHMARKS. CI verde no Linux, macOS e Windows.
+
+## Fase 34 — Pendências da v0.2.1 e do CI
+
+**Issue:** [#110](https://github.com/Chipskein/cade/issues/110).
+
+- **Problema:** o macOS (#53) e o Windows (#54) foram validados só nos runners do GitHub. Os critérios de uso real ficaram sem verificar, e o Metal gerou lixo num Mac virtual. Do CI da fase 10 (v0.0.0), faltam o tempo com o cache quente, um PR quebrado ficando vermelho e quanto o `eval.yml` leva em CPU.
+- **Mudança:** medir o CI e registrar em `docs/DEVELOPMENT.md`. Rodar os critérios da #53 e da #54 numa máquina de verdade, se alguém com um Mac ou um Windows puder. No Mac, se o Metal funcionar, voltar o padrão para a GPU.
+- **Aceite:** as medições do CI em EN e PT. Os critérios das duas plataformas verificados, ou a pendência registrada aqui com o motivo.
+
+## Fase 35 — Busca em PDFs
+
+**Issue:** [#108](https://github.com/Chipskein/cade/issues/108).
+
+- **Problema:** a fonte de arquivos indexa texto e imagens, mas não PDFs. Relatórios, contratos e artigos salvos ficam de fora.
+- **Mudança:** PDFs entram como eventos da fonte de arquivos (extração de texto → pedaços → `TextEmbedder` → `sqlite-vec` e `chunks_fts`), com a página no metadado para citar ("relatorio.pdf, p. 12"). As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO/DETR) planejado na v0.0.0. Pelo mesmo caminho, uma página escaneada é renderizada como imagem e descrita, em vez de passar pelo Tesseract. A biblioteca de extração e renderização precisa de licença compatível com a GPLv3 ([LICENSING.pt-BR.md](LICENSING.pt-BR.md)) e de funcionar nas quatro plataformas.
+- **Aceite:** um PDF é encontrado por uma frase dele, com a página na citação; casos novos na suíte de recuperação; o custo de ingestão por página em CPU medido; `forget` e PRIVACY cobrindo o texto extraído.
+
+## Fase 36 — Busca em áudios pela transcrição
+
+**Issue:** [#59](https://github.com/Chipskein/cade/issues/59).
+
+- **Problema:** gravações de reunião, notas de voz e podcasts baixados não têm texto a buscar.
+- **Mudança:** transcrever os áudios da fonte de arquivos no `ingest` e guardar a transcrição como representação (fase 28), com o instante de cada trecho para citar ("reuniao.m4a, 12:40"). Antes, escolher o runtime (`mtmd` do llama.cpp ou whisper.cpp) e o modelo, com a licença compatível com a GPLv3, e a decodificação sem ffmpeg. Vem desligada por padrão (`sources.audio`).
+- **Aceite:** um áudio é encontrado por uma frase dita nele; o custo por minuto em CPU e GPU e a taxa de erro (PT e EN) no BENCHMARKS; `forget` cobrindo as transcrições; `go tool mage eval` sem piorar.
+
+## Fase 37 — Busca em vídeos pelos quadros e pela fala
+
+**Issue:** [#60](https://github.com/Chipskein/cade/issues/60).
+
+- **Problema:** gravações de tela e reuniões gravadas não têm texto a buscar.
+- **Mudança:** tratar o vídeo como quadros amostrados (descritos como na fase 19) mais uma trilha de áudio (transcrita como na fase 36). Os dois viram representações com o instante. A decodificação (FFmpeg por cgo, o binário do sistema ou Go puro para alguns formatos) é a decisão de licença mais difícil da versão. Vem desligada por padrão (`sources.video`).
+- **Aceite:** um vídeo é encontrado pelo que aparece e pelo que é dito, com o instante na citação; o custo por minuto no BENCHMARKS; `forget` cobrindo quadros e transcrições; `go tool mage eval` e `evalCaptions` sem piorar.
+
+## Fase 38 — Rostos
+
+**Issue:** [#23](https://github.com/Chipskein/cade/issues/23).
+
+- **Problema:** a descrição de uma imagem diz o que ela mostra, não quem está nela. "Todas as imagens em que João aparece" não tem resposta.
+- **Mudança:** detecção e embedding de rostos como representações (fase 28). Uma pessoa é cadastrada a partir de imagens, e cada correspondência sugerida é confirmada ou rejeitada antes de virar a relação `Person` → `appears_in` → `Image` (fase 27). Precisa de outro runtime de inferência e de um modelo com licença compatível com a GPLv3. É dado biométrico: segue as [regras do PRIVACY](../PRIVACY.pt-BR.md#regras-para-dados-sensíveis-e-biométricos), com opt-in e um comando que apaga tudo.
+- **Aceite:** os critérios da issue; os rostos fora por padrão; `forget` cobrindo os rostos; PRIVACY com a seção de dados biométricos.
+
+## Fase 39 — Modo daemon do `ask`
+
+**Issue:** [#109](https://github.com/Chipskein/cade/issues/109).
+
+- **Problema:** cada `cade ask` carrega os dois modelos. Com o cache de página frio, isso domina na GPU (7,7 s de 8,5 s). Em CPU, o que domina é ler as evidências, que um daemon não evita; a fase 17 reduziu esse custo com o `top_k` 6.
+- **Mudança:** primeiro medir. Se compensar, um processo opt-in que mantém os modelos carregados, atende o `cade ask` por um socket Unix só do dono e encerra depois de um tempo parado. Sem código de rede no binário.
+- **Aceite:** a decisão medida, com o tempo ganho por pergunta contra a memória ocupada (~2,5 GB de GPU ou ~3,9 GB de RAM). Se implementado, `ask` e `ask --json` iguais com e sem o daemon.
+
+## Fase 40 — Empacotamento da v0.3.0
+
+O processo da [fase 31](#fase-31--empacotamento-da-v020): CHANGELOG (EN e PT) com a versão e a data, `docs/release-notes/v0.3.0.md` avisando das migrações com cópia e das fontes novas, e o que for opt-in. Depois, conferir os [critérios de release](#critérios-de-release), levar o `dev` para o `master` por PR com merge commit e criar a tag no `master` só depois do merge.
 
 ---
 
@@ -415,12 +501,6 @@ Nomes com partícula ("de Souza"), sobrenomes compostos e a ignorância de acent
 
 Modo contínuo com intervalo configurável. A fase 20 (timer do systemd) resolve o essencial até lá.
 
-### Modo daemon para o `ask`
-
-- **Problema:** cada `cade ask` carrega os dois modelos. Com o cache de página frio, isso domina na GPU (7,7 s de 8,5 s). Em CPU, o que domina é ler as evidências, que um daemon não evita; a fase 17 reduziu esse custo com o `top_k` 6.
-- **Mudança possível:** um processo que mantém os modelos carregados, atendendo o `cade ask` por um socket Unix só do dono, e que encerra depois de um tempo parado.
-- **A verificar:** se vale a memória ocupada o tempo todo (~2,5 GB de GPU ou ~3,9 GB de RAM).
-
 ### Reranking dos candidatos
 
 - **Medido na fase 17** ([BENCHMARKS](BENCHMARKS.pt-BR.md#reranking-fase-17-reprovado), `go tool mage evalRerank`): reordenar 30 candidatos com o `bge-reranker-v2-m3` antes do corte subiu o MRR de 0,83 para 0,91 com 1 mil e 10 mil eventos, mas o recall no teste caiu de 1,00 para 0,94 e o custo foi de 0,57 s por pergunta em CPU, mais 418 MB de modelo.
@@ -434,29 +514,22 @@ Reavaliar quando a curva de escala passar de 1 milhão de eventos ou a busca pas
 
 `go tool mage dist` em `linux-arm64`, se houver quem use. Exige runner arm64 no workflow e conferir o llama.cpp com `LLAMA_NATIVE=OFF` lá.
 
-### Busca em PDFs
-
-As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO/DETR) planejado na v0.0.0: isso dispensa outra biblioteca de inferência e o problema de licença do YOLO (AGPL-3.0). Os PDFs continuam aqui.
-
-- **Encaixe:** extensão natural do pipeline (extração de texto → pedaços → `TextEmbedder` → `sqlite-vec` e `chunks_fts`), como eventos da fonte de arquivos, com a página no metadado para citar ("relatorio.pdf, p. 12").
-- **PDFs escaneados:** renderizar a página como imagem e reaproveitar a descrição da fase 19, em vez de Tesseract. A verificar: a biblioteca de extração e renderização (licença compatível com a GPLv3, via cgo ou Go puro; veja [LICENSING.pt-BR.md](LICENSING.pt-BR.md)).
-- **Avaliação e privacidade:** casos novos na suíte de recuperação, custo de ingestão por página em CPU, e `forget`/PRIVACY cobrindo o texto extraído.
-
 ---
 
 ## Critérios de release
 
-A versão sai quando:
+Os da [v0.2.0](https://github.com/Chipskein/cade/blob/v0.2.0/docs/ROADMAP.md#critérios-de-release) foram cumpridos. A v0.3.0 sai quando:
 
-- [x] a CI está verde no commit da tag;
-- [x] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
-- [x] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.1.0, em todos os tamanhos da curva de escala, e os casos novos das fases 26 a 29 passam (com as 32 perguntas da v0.1.0: recall 0,96 e MRR 0,83 contra 0,94 e 0,83; o conjunto novo, mais difícil, dá MRR 0,80; [BENCHMARKS](BENCHMARKS.pt-BR.md#v020-contra-a-v010));
-- [x] todas as migrações que reescrevem dados (entidades, representações) fazem backup antes e têm teste em `migrations_test.go`;
-- [x] `forget` (por fonte e por evento) apaga os dados de todas as tabelas novas: entidades órfãs, relações e representações (teste de privacidade);
-- [x] os bytes escritos por evento na primeira ingestão caíram (fase 22), e o tamanho do banco com as tabelas novas está medido contra o da fase 24;
-- [x] cada número do BENCHMARKS tem o comando que o reproduz, em EN e PT, e o baseline é atualizado com GPU, CPU e cold start;
-- [x] a tabela de requisitos da LGPD e do GDPR está no PRIVACY, e as regras para a entidade `Person` são seguidas;
-- [x] o schema de IndexedDB gerado para o Teams produz os mesmos eventos do coletor atual, e o PRIVACY diz o que o modelo vê na descoberta;
-- [x] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
-- [x] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json`;
-- [x] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.
+- [ ] a CI está verde no commit da tag, nos jobs de Linux, macOS e Windows;
+- [ ] `go tool mage check` e `go tool mage eval` passam, com as métricas reportadas no conjunto de **teste**;
+- [ ] recall, MRR e rejeição no teste ficam iguais ou melhores que o baseline da v0.2.0, em todos os tamanhos da curva de escala, e os casos novos de PDF, áudio e vídeo passam;
+- [x] a decisão sobre a criptografia do banco está no PRIVACY (fase 33);
+- [ ] o `cade encrypt` (fase 33a) faz backup antes, tem teste de que o banco, o WAL e as cópias novas não têm texto legível, e o `doctor` avisa das cópias antigas em texto puro;
+- [ ] cada fonte nova (PDFs, áudios, vídeos, rostos) vem desligada por padrão, e o PRIVACY diz o que ela extrai e onde fica;
+- [ ] `forget` (por fonte, por evento e por pessoa) apaga as representações novas: texto de PDF, transcrições, quadros e rostos (teste de privacidade);
+- [ ] os rostos seguem as regras para dados biométricos do PRIVACY, com um comando que apaga todos;
+- [ ] cada runtime, modelo e biblioteca nova tem a licença compatível com a GPLv3 registrada no LICENSING, em EN e PT;
+- [ ] o custo por página, por minuto de áudio e por minuto de vídeo está no BENCHMARKS, em CPU e GPU, com o comando que o reproduz;
+- [ ] README, PRIVACY e CHANGELOG estão atualizados, em inglês e português;
+- [ ] as notas de versão avisam das migrações com cópia e de qualquer mudança no `ask --json` (a página e o instante na citação);
+- [ ] nenhum nome real de pessoa, cliente ou empresa em código, testes, corpus ou documentação.

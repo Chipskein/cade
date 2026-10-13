@@ -14,7 +14,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 - **A rede só é usada no build:** `go tool mage llama` clona o llama.cpp do GitHub e `go tool mage models` baixa os dois modelos e o projetor de visão do modelo de geração do Hugging Face.
 - **`cade init` e `cade doctor` olham nomes, não conteúdo:** o init lista as pastas de perfil e confere quais têm `History`, `places.sqlite` ou IndexedDB do Teams, e procura `.git` sob o diretório que você indicar; o doctor lê os primeiros bytes dos modelos e dos históricos (as assinaturas `GGUF` e `SQLite format 3`) e abre o banco só para leitura.
 - **Tudo fica num arquivo SQLite**, legível só pelo seu usuário (permissão `600`, pasta `700`).
-- **O banco não é criptografado.** Quem estiver logado como você, ou tiver o seu disco, consegue lê-lo. Use criptografia de disco.
+- **O banco não é criptografado.** Quem estiver logado como você, ou tiver o seu disco, consegue lê-lo. Use criptografia de disco; cifrar o banco vai ser opt-in ([Criptografia](#criptografia)).
 
 ## Onde os dados ficam
 
@@ -33,6 +33,34 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 Backups da sua pasta pessoal incluem o `cade.db`.
 
 No Windows (#54) os mesmos arquivos ficam em `%LOCALAPPDATA%\cade` (banco, modelos e, em `state`, o estado da ingestão) e `%APPDATA%\cade` (config e schemas), e as cópias temporárias em `%TEMP%`. O Windows não tem permissões de arquivo nesse formato, então a coluna de modo não vale lá: essas pastas são privadas do seu usuário pelas permissões padrão delas. Além dos perfis dos navegadores em `AppData`, o `cade init` procura o cache do novo app desktop do Teams (`AppData/Local/Packages/MSTeams_8wekyb3d8bbwe/…`); ele só é lido se você escolher.
+
+## Criptografia
+
+O banco não é cifrado hoje. Cifrá-lo vai ser opt-in ([#111](https://github.com/Chipskein/cade/issues/111)). As medições por trás dessa decisão estão na [#57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529).
+
+Contra o que cada camada protege:
+
+| Situação | Permissão `600` | Criptografia de disco | Banco cifrado (#111) |
+|---|---|---|---|
+| outra conta na máquina | sim | não | sim |
+| disco roubado ou perdido, máquina desligada | não | sim | sim |
+| backup ou sincronização da sua pasta pessoal para outro lugar | não | não (a cópia sai do disco já decifrada) | sim, enquanto a chave fica na máquina |
+| cópias de migração e de rekey (`cade.db.before-*`) | sim | sim, neste disco | sim, cifradas com a mesma chave |
+| máquina ligada e desbloqueada, ou outro programa rodando como você | não | não | não: o que roda como você pede a chave como o cade pede |
+
+- **A criptografia de disco continua sendo a proteção principal.** O banco cifrado acrescenta as cópias que saem da máquina. Ele custa uns 10% de um `ask` frio com 100 mil eventos, e perder a chave perde o banco. As fontes expiram (o cache do Teams, uns 90 dias de histórico do Chrome), então os dados não podem ser ingeridos de novo.
+- **O que vai ser cifrado:** o `cade.db`, o log de escrita dele (`-wal`) e as cópias de migração e de rekey gravadas depois de ligar a criptografia.
+- **O que continua em texto puro:**
+  - as cópias gravadas antes de ligar a criptografia, até o `cade forget --backups`;
+  - a saída do `cade export` e a do `ask --json` que você salvar;
+  - o `ingest.log` e o `ingest-state.json` (alvos e progresso, sem texto de mensagens);
+  - o estado do prompt em `~/.cache/cade/prompt-state`;
+  - as cópias temporárias das fontes em `/tmp`, tão legíveis quanto as próprias fontes.
+- **Onde a chave vai ficar:** nunca ao lado do banco.
+  - No Linux com systemd 256 ou mais novo: `systemd-creds --user`, presa à máquina e ao TPM, quando houver. Funciona sem sessão gráfica, então o timer do systemd pode usá-la.
+  - No macOS: o Keychain.
+  - No Windows: a DPAPI.
+  - Nos outros: uma frase-senha.
 
 ## O que cada fonte guarda
 
@@ -154,7 +182,7 @@ O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os
 | Correção | uma mensagem ou arquivo editado substitui o texto guardado na próxima ingestão | o cade nunca edita o texto: corrija a fonte e ingira de novo |
 | Eliminação | `forget` por fonte, UID, texto e período, com `secure_delete`, compactação e o WAL esvaziado; `forget --person NOME` apaga tudo sobre uma pessoa (o que ela mandou ou escreveu, as mensagens que a @mencionam, os chats só com ela) depois de listar, e `export --person NOME` entrega isso a ela antes | as cópias de migração e de rekey guardam o que foi esquecido até o `cade forget --backups`; o `forget` e o `doctor` as listam, mas nada as apaga sozinho |
 | Exclusão na origem | uma edição substitui o texto | uma mensagem apagada no app fica até o `forget`; um cache expirado não tem como avisar o cade de que ela foi apagada |
-| Segurança | arquivos só do dono, sem rede, cópias temporárias removidas | o banco não é cifrado → [#57](https://github.com/Chipskein/cade/issues/57) |
+| Segurança | arquivos só do dono, sem rede, cópias temporárias removidas | o banco não é cifrado; cifrá-lo vai ser opt-in ([Criptografia](#criptografia), [#111](https://github.com/Chipskein/cade/issues/111)) |
 | Dados sensíveis (LGPD art. 11, GDPR art. 9) | guardados como qualquer texto; nunca detectados, rotulados ou deduzidos | regras abaixo |
 | Dados biométricos | nenhum: a descrição de uma imagem diz o que ela mostra, não quem está nela | regras abaixo, antes da [#23](https://github.com/Chipskein/cade/issues/23) |
 
