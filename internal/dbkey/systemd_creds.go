@@ -2,14 +2,8 @@ package dbkey
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io/fs"
-	"os"
 	"regexp"
 	"strconv"
-
-	"github.com/chipskein/cade/internal/privatefile"
 )
 
 const (
@@ -22,9 +16,7 @@ const (
 	// --user, which needs no root and works without a graphical session,
 	// so also under cade-ingest.timer (#57).
 	systemdCredsUserVersion = 256
-	credentialFileMode      = 0o600
 	stdStream               = "-"
-	partialCredentialSuffix = ".part"
 )
 
 var systemdVersionPattern = regexp.MustCompile(`^systemd (\d+)`)
@@ -58,8 +50,8 @@ func SystemdCredsUsable(ctx context.Context, runner CommandRunner) bool {
 
 // Load decrypts the credential file; a missing file is ErrNoKey.
 func (s SystemdCreds) Load(ctx context.Context) ([]byte, error) {
-	if _, err := os.Stat(s.Path); errors.Is(err, fs.ErrNotExist) {
-		return nil, fmt.Errorf("no credential file %q: %w", s.Path, ErrNoKey)
+	if err := missingKeyFile(s.Path); err != nil {
+		return nil, err
 	}
 	return s.Runner.Run(ctx, nil, systemdCredsProgram, "--user", "decrypt", credentialName, s.Path, stdStream)
 }
@@ -67,22 +59,16 @@ func (s SystemdCreds) Load(ctx context.Context) ([]byte, error) {
 // Save encrypts key into a partial file, owner-only, and renames it over
 // Path, so a failure leaves the old credential in place.
 func (s SystemdCreds) Save(ctx context.Context, key []byte) error {
-	partial := s.Path + partialCredentialSuffix
+	partial := s.Path + partialKeyFileSuffix
 	if _, err := s.Runner.Run(ctx, key, systemdCredsProgram, "--user", "encrypt", credentialName, stdStream, partial); err != nil {
 		return err
 	}
-	if err := privatefile.Restrict(partial, credentialFileMode); err != nil {
-		return fmt.Errorf("restrict credential %q to %o: %w", partial, credentialFileMode, err)
-	}
-	return os.Rename(partial, s.Path)
+	return publishKeyFile(partial, s.Path)
 }
 
 // Remove deletes the credential file.
 func (s SystemdCreds) Remove(context.Context) error {
-	if err := os.Remove(s.Path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("remove credential %q: %w", s.Path, err)
-	}
-	return nil
+	return removeKeyFile(s.Path)
 }
 
 func (s SystemdCreds) Location() string {

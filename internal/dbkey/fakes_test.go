@@ -77,3 +77,18 @@ func (f *FakeSecurityRunner) Run(_ context.Context, stdin []byte, program string
 	}
 	return nil, errors.New("unexpected call " + strings.Join(args, " "))
 }
+
+// FakeBlobProtector seals by prefixing and refuses a blob it did not seal,
+// as DPAPI refuses another account's.
+type FakeBlobProtector struct{}
+
+func (FakeBlobProtector) Protect(data []byte) ([]byte, error) {
+	return append([]byte(sealedPrefix), data...), nil
+}
+
+func (FakeBlobProtector) Unprotect(blob []byte) ([]byte, error) {
+	if !bytes.HasPrefix(blob, []byte(sealedPrefix)) {
+		return nil, errors.New("the data is invalid")
+	}
+	return bytes.TrimPrefix(blob, []byte(sealedPrefix)), nil
+}

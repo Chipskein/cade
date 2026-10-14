@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -35,15 +36,15 @@ func TestSystemdCredsSavesAndLoadsTheKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if runtime.GOOS != "windows" && info.Mode().Perm() != credentialFileMode {
-		t.Errorf("credential mode = %o, want %o", info.Mode().Perm(), credentialFileMode)
+	if runtime.GOOS != "windows" && info.Mode().Perm() != keyFileMode {
+		t.Errorf("credential mode = %o, want %o", info.Mode().Perm(), keyFileMode)
 	}
 }
 
 func TestSystemdCredsWithoutAFileHoldsNoKey(t *testing.T) {
 	vault, runner := newSystemdCreds(t)
 	_, err := vault.Load(context.Background())
-	if !errors.Is(err, ErrNoKey) || !strings.Contains(err.Error(), vault.Path) || len(runner.Calls) != 0 {
+	if !errors.Is(err, ErrNoKey) || !strings.Contains(err.Error(), strconv.Quote(vault.Path)) || len(runner.Calls) != 0 {
 		t.Errorf("err = %v, calls %q; want ErrNoKey naming the file, without running systemd-creds", err, runner.Calls)
 	}
 }
