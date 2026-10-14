@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -134,6 +135,31 @@ func TestOpenStoreAndInspectWithAKey(t *testing.T) {
 	}
 	if state, err := inspectDatabase(t.Context(), path, key); err != nil || !state.Encrypted {
 		t.Errorf("inspect = %+v, %v; want the encrypted database read", state, err)
+	}
+}
+
+func TestReplaceDatabaseKeyEncryptsTheFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	store, err := openStore(t.Context(), path, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	if err := replaceDatabaseKey(t.Context(), path, nil, []byte("new key"), path+".before"); err != nil {
+		t.Fatal(err)
+	}
+	if encrypted, err := sqlitestore.IsEncrypted(path); err != nil || !encrypted {
+		t.Errorf("IsEncrypted = %v, %v; want the file encrypted", encrypted, err)
+	}
+}
+
+func TestKeyVaultIsThePlatforms(t *testing.T) {
+	vault := keyVault(t.Context(), "/data/cade.db")
+	if runtime.GOOS == "freebsd" && vault != nil {
+		t.Errorf("vault = %#v on FreeBSD, want none", vault)
+	}
+	if (runtime.GOOS == "darwin" || runtime.GOOS == "windows") && vault == nil {
+		t.Errorf("no vault on %s, want the system's", runtime.GOOS)
 	}
 }
 

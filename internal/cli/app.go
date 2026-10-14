@@ -59,6 +59,19 @@ type Toolkit struct {
 	// DatabaseKeys is where the key of the encrypted database at path is
 	// looked for; prompt asks for a typed passphrase.
 	DatabaseKeys func(ctx context.Context, databasePath, prompt string) dbkey.Search
+	// KeyVault is the system's store for the key of the database at path,
+	// which `encrypt` fills and `decrypt` empties; nil where there is none
+	// and the key is a passphrase.
+	KeyVault func(ctx context.Context, databasePath string) dbkey.KeyVault
+	// ReplaceDatabaseKey rewrites the database under newKey (nil: plain
+	// text) after copying it to backup.
+	ReplaceDatabaseKey func(ctx context.Context, path string, oldKey, newKey []byte, backup string) error
+	// PassphraseTerminal asks for a new passphrase without echoing it.
+	PassphraseTerminal dbkey.PassphraseTerminal
+	// Random generates the database key (crypto/rand.Reader).
+	Random io.Reader
+	// Getenv reads CADE_DB_PASSPHRASE for `encrypt` (os.Getenv).
+	Getenv func(string) string
 	// RootFS is the user's filesystem under rootfs names, where init looks for
 	// sources and doctor checks the configured paths.
 	RootFS  fs.FS
@@ -220,6 +233,8 @@ func subcommands() map[string]subcommand {
 		"tasks":        runTasks,
 		"reindex":      runReindex,
 		"compact":      runCompact,
+		"encrypt":      runEncrypt,
+		"decrypt":      runDecrypt,
 		"version":      runVersion,
 	}
 }

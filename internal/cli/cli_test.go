@@ -105,6 +105,21 @@ type fakeWorld struct {
 	keyVault  *testfakes.FakeKeyVault
 	openedKey []byte
 	openError error
+	// noVault makes the system one without a key store; encryptedCopies
+	// are the copies whose header is encrypted; replacements record the
+	// keys each conversion was asked for, and replaceError fails it.
+	noVault         bool
+	encryptedCopies map[string]bool
+	replacements    []keyReplacement
+	replaceError    error
+	passphrases     *testfakes.FakePassphraseTerminal
+	env             map[string]string
+}
+
+// keyReplacement is one ReplaceDatabaseKey call.
+type keyReplacement struct {
+	path, backup   string
+	oldKey, newKey []byte
 }
 
 func newFakeWorld() *fakeWorld {
@@ -117,6 +132,7 @@ func newFakeWorld() *fakeWorld {
 		stopRequests: &testfakes.FakeStopRequests{},
 		pacingClock:  &testfakes.FakePacingClock{Current: cliNow},
 		keyVault:     &testfakes.FakeKeyVault{Place: "the fake vault"},
+		passphrases:  &testfakes.FakePassphraseTerminal{}, env: map[string]string{},
 	}
 }
 
@@ -127,12 +143,20 @@ func (w *fakeWorld) toolkit() Toolkit {
 		WriteConfig:       w.writeConfig,
 		OpenStore:         w.openStore,
 		InspectDatabase:   w.inspectDatabase,
-		DatabaseEncrypted: func(string) (bool, error) { return w.encrypted, nil },
+		DatabaseEncrypted: w.databaseEncrypted,
 		DatabaseKeys:      func(context.Context, string, string) dbkey.Search { return dbkey.Search{w.keyVault} },
-		RootFS:            w.files,
-		HomeDir:           func() (string, error) { return "/home/ana", nil },
-		Stdin:             strings.NewReader(w.stdin),
-		Build:             w.build,
+		KeyVault:          w.vault,
+		ReplaceDatabaseKey: func(_ context.Context, path string, oldKey, newKey []byte, backup string) error {
+			w.replacements = append(w.replacements, keyReplacement{path: path, backup: backup, oldKey: oldKey, newKey: newKey})
+			return w.replaceError
+		},
+		PassphraseTerminal: w.passphrases,
+		Random:             strings.NewReader(strings.Repeat("k", 64)),
+		Getenv:             func(name string) string { return w.env[name] },
+		RootFS:             w.files,
+		HomeDir:            func() (string, error) { return "/home/ana", nil },
+		Stdin:              strings.NewReader(w.stdin),
+		Build:              w.build,
 		LoadEmbedder: func(settings config.EmbeddingConfig, _ *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
 			w.loadedEmbedding = settings
@@ -168,6 +192,21 @@ func (w *fakeWorld) openStore(_ context.Context, _ string, key []byte, _ func(st
 func (w *fakeWorld) inspectDatabase(_ context.Context, _ string, key []byte) (storage.DatabaseState, error) {
 	w.openedKey = key
 	return w.database, w.openError
+}
+
+// databaseEncrypted answers for the database and its copies.
+func (w *fakeWorld) databaseEncrypted(path string) (bool, error) {
+	if encrypted, isCopy := w.encryptedCopies[path]; isCopy {
+		return encrypted, nil
+	}
+	return w.encrypted, nil
+}
+
+func (w *fakeWorld) vault(context.Context, string) dbkey.KeyVault {
+	if w.noVault {
+		return nil
+	}
+	return w.keyVault
 }
 
 // removeFile deletes from the fake filesystem, recording what it deleted.
