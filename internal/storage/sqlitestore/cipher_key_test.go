@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -93,7 +94,7 @@ func TestOpenRejectsAKeyThatDoesNotMatchTheFile(t *testing.T) {
 			before, err := os.ReadFile(c.path)
 			testcheck.NoError(t, err)
 			_, err = OpenWithKey(context.Background(), c.path, c.key, Hooks{})
-			if !errors.Is(err, ErrCipherKeyRejected) || !strings.Contains(err.Error(), c.want) || !strings.Contains(err.Error(), c.path) {
+			if !errors.Is(err, ErrCipherKeyRejected) || !strings.Contains(err.Error(), c.want) || !strings.Contains(err.Error(), strconv.Quote(c.path)) {
 				t.Errorf("err = %v, want ErrCipherKeyRejected naming %s and saying %q", err, c.path, c.want)
 			}
 			if after, _ := os.ReadFile(c.path); !bytes.Equal(before, after) {

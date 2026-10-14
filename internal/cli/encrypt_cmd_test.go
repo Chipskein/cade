@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/chipskein/cade/internal/dbkey"
+	"github.com/chipskein/cade/internal/rootfs"
 )
 
 const encryptedDatabasePath = "/data/cade.db"
@@ -70,7 +71,7 @@ func TestEncryptAsksForAPassphraseTwice(t *testing.T) {
 
 func TestEncryptCreatesAMissingDatabaseEncrypted(t *testing.T) {
 	world := newEncryptionWorld()
-	delete(world.files.MapFS, "data/cade.db")
+	delete(world.files.MapFS, rootfs.Name(encryptedDatabasePath))
 	code, stdout, stderr := world.run("encrypt", "--yes")
 	if code != 0 || len(world.replacements) != 0 || !bytes.Equal(world.openedKey, generatedKey) || strings.Contains(stdout, "Copy from before") {
 		t.Fatalf("code %d, replacements %+v, opened with %x, stderr %q; want the store created with the key", code, world.replacements, world.openedKey, stderr)
