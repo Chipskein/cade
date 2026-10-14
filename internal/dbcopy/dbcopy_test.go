@@ -17,6 +17,27 @@ func TestNamesSayWhatTheCopyWasFor(t *testing.T) {
 	if got := BeforeRekey("/data/cade.db", copiedAt); got != "/data/cade.db.before-rekey-20261011-101500" {
 		t.Errorf("BeforeRekey = %q", got)
 	}
+	if got := BeforeEncrypt("/data/cade.db", copiedAt); got != "/data/cade.db.before-encrypt-20261011-101500" {
+		t.Errorf("BeforeEncrypt = %q", got)
+	}
+	if got := BeforeDecrypt("/data/cade.db", copiedAt); got != "/data/cade.db.before-decrypt-20261011-101500" {
+		t.Errorf("BeforeDecrypt = %q", got)
+	}
+	if got := Converting("/data/cade.db"); got != "/data/cade.db.converting" {
+		t.Errorf("Converting = %q", got)
+	}
+}
+
+func TestFindListsTheEncryptionCopies(t *testing.T) {
+	fsys := fstest.MapFS{
+		rootfs.Name(BeforeEncrypt("/data/cade.db", copiedAt)): &fstest.MapFile{ModTime: copiedAt},
+		rootfs.Name(BeforeDecrypt("/data/cade.db", copiedAt)): &fstest.MapFile{ModTime: copiedAt.Add(time.Hour)},
+		rootfs.Name(Converting("/data/cade.db")):              &fstest.MapFile{ModTime: copiedAt.Add(2 * time.Hour)},
+	}
+	copies, err := Find(fsys, "/data/cade.db")
+	if err != nil || len(copies) != 3 || copies[2].Path != "/data/cade.db.converting" {
+		t.Fatalf("expected the encrypt, decrypt and converting copies, got %+v (err %v)", copies, err)
+	}
 }
 
 func TestFindListsOnlyTheCopiesOldestFirst(t *testing.T) {

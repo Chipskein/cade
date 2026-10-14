@@ -195,3 +195,59 @@ func TestDoctorWarnsAboutAVanishedIngestion(t *testing.T) {
 		t.Fatalf("expected a warning for a run whose process is gone, got:\n%s", stdout)
 	}
 }
+
+func TestDoctorSaysTheDatabaseIsInPlainText(t *testing.T) {
+	code, stdout, _ := doctorWorld().run("doctor")
+	if code != 0 || !strings.Contains(stdout, "ok     criptografia           texto puro (`cade encrypt` cifra)\n") {
+		t.Errorf("code %d, stdout %q; want the plain-text line", code, stdout)
+	}
+}
+
+func TestDoctorSaysWhereTheKeyIs(t *testing.T) {
+	world := doctorWorld()
+	world.language, world.encrypted, world.keyVault.Key = English, true, generatedKey
+	world.database.Encrypted = true
+	code, stdout, stderr := world.run("doctor")
+	if code != 0 || !strings.Contains(stdout, "encryption             encrypted; key in the fake vault\n") || string(world.openedKey) != string(generatedKey) {
+		t.Errorf("code %d, key %q, stdout %q, stderr %q; want the key's place", code, world.openedKey, stdout, stderr)
+	}
+}
+
+func TestDoctorWarnsAboutPlainCopiesOfAnEncryptedDatabase(t *testing.T) {
+	world := doctorWorld()
+	world.language, world.encrypted, world.keyVault.Key = English, true, generatedKey
+	world.database.Encrypted = true
+	world.files.AddFile("/home/ana/cade.db.before-v18-20261001-000000", "plain copy")
+	world.encryptedCopies = map[string]bool{"/home/ana/cade.db.before-v18-20261001-000000": false}
+	code, stdout, _ := world.run("doctor")
+	if code != 0 || !strings.Contains(stdout, "1 database copy still in plain text, from before it was encrypted") {
+		t.Errorf("code %d, stdout %q; want the plain copy warned about", code, stdout)
+	}
+}
+
+func TestDoctorFailsWithoutTheKeyAndChecksTheRest(t *testing.T) {
+	world := doctorWorld()
+	world.language, world.encrypted = English, true
+	world.database = storage.DatabaseState{Exists: true, Encrypted: true, Unreadable: true, FTS5: true, LatestSchemaVersion: 7}
+	world.cfg.Generation.ModelPath = "/home/ana/models/absent.gguf"
+	code, stdout, stderr := world.run("doctor")
+	if code != 1 || !strings.Contains(stderr, "2 problems to fix") || world.openedKey != nil {
+		t.Fatalf("code %d, stderr %q; want the key and the model as failures", code, stderr)
+	}
+	for _, line := range []string{"fail   encryption             encrypted\n", "looked in: the fake vault", "set CADE_DB_RECOVERY_KEY to the recovery key", "ok     database"} {
+		if !strings.Contains(stdout, line) {
+			t.Errorf("stdout lacks %q:\n%s", line, stdout)
+		}
+	}
+}
+
+func TestDoctorReportsARejectedKey(t *testing.T) {
+	world := doctorWorld()
+	world.language, world.encrypted, world.keyVault.Key = English, true, []byte("old key")
+	world.openError = errors.New("the key given does not decrypt it")
+	world.database = storage.DatabaseState{Exists: true, Encrypted: true, Unreadable: true, FTS5: true, LatestSchemaVersion: 7}
+	_, stdout, _ := world.run("doctor")
+	if !strings.Contains(stdout, "does not decrypt it (key read from the fake vault)") {
+		t.Errorf("stdout = %q, want the rejection and the key's source", stdout)
+	}
+}

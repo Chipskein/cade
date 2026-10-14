@@ -14,7 +14,7 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 - **Network is used only at build time:** `go tool mage llama` clones llama.cpp from GitHub and `go tool mage models` downloads the two models and the generation model's vision projector from Hugging Face.
 - **`cade init` and `cade doctor` look at names, not content:** init lists profile directories and checks which of them hold a `History`, `places.sqlite` or Teams IndexedDB, and looks for `.git` under the directory you name; doctor reads the first bytes of the models and histories (the `GGUF` and `SQLite format 3` signatures) and opens the database read-only.
 - **Everything is in one SQLite file**, readable only by your user account (mode `600`, directory `700`).
-- **The database is not encrypted.** Anyone logged in as you, or with your disk, can read it. Use disk encryption; encrypting the database will be opt-in ([Encryption](#encryption)).
+- **The database is not encrypted unless you run `cade encrypt`.** Without it, anyone logged in as you, or with your disk, can read it. Use disk encryption either way ([Encryption](#encryption)).
 
 ## Where data lives
 
@@ -22,6 +22,8 @@ cade reads your commits, browser history, files and Teams messages, so it holds 
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | events, their text, their chunks (offsets into the text, one set per distinct text), embeddings, a keyword index of the words of each chunk, a keyword index of commit hashes and file paths, file edit history | `600` |
 | `~/.local/share/cade/cade.db.before-v*`, `cade.db.before-rekey-*` | copy saved before a schema migration that rewrites data, or before `schema-check --rekey`; same contents as the database | `600` |
+| `~/.local/share/cade/cade.db.before-encrypt-*`, `cade.db.before-decrypt-*`, `cade.db.converting` | copy saved by `cade encrypt` (encrypted) or `cade decrypt` (plain text), and the database while one of them rewrites it; same contents as the database | `600` |
+| `~/.local/share/cade/cade.db.key.cred` (Linux), `%LOCALAPPDATA%\cade\cade.db.key.dpapi` (Windows) | the database key, sealed by `systemd-creds` or DPAPI, after `cade encrypt`; on macOS it is the Keychain item `cade-database` | `600` |
 | `~/.config/cade/config.json` | your commit identities if you list them (`git_identities`), and which repositories, histories, directories, Teams profiles and IndexedDB directories to read | `600` |
 | `~/.config/cade/idb-schemas/` | one schema per app: database and store names, field paths and their types, the conditions you or the model wrote (such as message type values); no message, name or id. `history/` keeps replaced revisions, `*.candidate.json` refused ones | `600` |
 | `~/.local/share/cade/cade.db.before-rekey-*` | copy saved before `schema-check --rekey` renames UIDs; same contents as the database | `600` |
@@ -36,7 +38,7 @@ On Windows (#54) the same files live in `%LOCALAPPDATA%\cade` (database, models,
 
 ## Encryption
 
-The database is not encrypted today. Encrypting it will be opt-in ([#111](https://github.com/Chipskein/cade/issues/111)). The measurements behind this decision are in [#57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529).
+The database is encrypted only after `cade encrypt` ([#111](https://github.com/Chipskein/cade/issues/111)); `cade decrypt` puts it back in plain text. How to use it is in [CONFIGURATION](docs/CONFIGURATION.md#database-encryption). The measurements behind the decision are in [#57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529), and today's in [BENCHMARKS](docs/BENCHMARKS.md#encrypted-database-111).
 
 What each layer protects against:
 
@@ -45,22 +47,24 @@ What each layer protects against:
 | another account on the machine | yes | no | yes |
 | stolen or lost disk, machine off | no | yes | yes |
 | backup or sync of your home directory to another place | no | no (the copy leaves the disk decrypted) | yes, while the key stays on the machine |
-| migration and rekey copies (`cade.db.before-*`) | yes | yes, on this disk | yes, encrypted with the same key |
+| migration, rekey and encrypt copies (`cade.db.before-*`) written after `cade encrypt` | yes | yes, on this disk | yes, encrypted with the same key |
 | machine on and unlocked, or another program running as you | no | no | no: anything running as you can ask for the key as cade does |
 
-- **Disk encryption stays the main protection.** An encrypted database adds the copies that leave the machine. It costs about 10% of a cold `ask` with 100,000 events, and losing the key loses the database. The sources expire (the Teams cache, about 90 days of Chrome history), so the data cannot be ingested again.
-- **What will be encrypted:** `cade.db`, its write-ahead log (`-wal`) and the migration and rekey copies written after encryption is turned on.
-- **What will stay plaintext:**
-  - copies written before encryption was turned on, until `cade forget --backups`;
+- **Disk encryption stays the main protection.** An encrypted database adds the copies that leave the machine. With 100,000 events it adds about 0.3 s to a cold `ask`, plus 0.8 s for `systemd-creds` on Linux, and losing the key loses the database. The sources expire (the Teams cache, about 90 days of Chrome history), so the data cannot be ingested again. Keep the recovery key `cade encrypt` prints off the machine.
+- **What is encrypted:** `cade.db`, its write-ahead log (`-wal`) and the migration, rekey and encrypt copies written after `cade encrypt`.
+- **What stays plaintext:**
+  - copies written before `cade encrypt`, until `cade forget --backups`; `cade encrypt` lists them and `cade doctor` warns while any is left;
+  - the copy `cade decrypt` takes, like the database it leaves;
   - `cade export` output and `ask --json` output you saved;
   - `ingest.log` and `ingest-state.json` (targets and progress, no message text);
   - the prompt state in `~/.cache/cade/prompt-state`;
   - the temporary copies of the sources in `/tmp`, which are as readable as the sources themselves.
-- **Where the key will live:** never next to the database.
-  - On Linux with systemd 256 or later: `systemd-creds --user`, bound to the machine and to the TPM when there is one. It works without a graphical session, so the systemd timer can use it.
-  - On macOS: the Keychain.
-  - On Windows: DPAPI.
-  - Elsewhere: a passphrase.
+- **Where the key lives:** never in plain text, and never inside the database.
+  - On Linux with systemd 256 or later: sealed by `systemd-creds --user`, with the host key and the TPM when there is one, in `cade.db.key.cred` next to the database. A copy of that file opens nothing on another machine. It works without a graphical session, so the systemd timer can use it.
+  - On macOS: the login Keychain.
+  - On Windows: sealed by DPAPI for your account, in `cade.db.key.dpapi` next to the database. DPAPI's own key lives in your profile, so a backup of the whole profile plus your Windows password would open it.
+  - Elsewhere (FreeBSD, Linux before systemd 256): a passphrase, from `CADE_DB_PASSPHRASE` or typed at the terminal; sqlite3mc derives the key from it, so a short one can be guessed from a copy of the file.
+  - Anywhere: the recovery key, in `CADE_DB_RECOVERY_KEY`, opens the database where none of the above has the key.
 
 ## What each source stores
 
@@ -182,7 +186,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 | Rectification | an edited message or file replaces the stored text on the next ingestion | cade never edits text itself: correct the source and ingest again |
 | Erasure | `forget` by source, UID, text and period, with `secure_delete`, compaction and an emptied WAL; `forget --person NAME` erases everything about one person (what they sent or wrote, the messages that @mention them, their one-to-one chats) after listing it, and `export --person NAME` gives it to them first | migration and rekey copies keep forgotten data until `cade forget --backups`; `forget` and `doctor` list them, but nothing deletes them by itself |
 | Deletion at the source | an edit replaces the text | a message deleted in the app stays until `forget`; an expired cache cannot tell cade it was deleted |
-| Security | owner-only files, no network, temporary copies removed | the database is not encrypted; encrypting it will be opt-in ([Encryption](#encryption), [#111](https://github.com/Chipskein/cade/issues/111)) |
+| Security | owner-only files, no network, temporary copies removed, opt-in database encryption (`cade encrypt`) | the database is encrypted only if you turn it on; exports, `ask --json` output and temporary copies stay plain ([Encryption](#encryption)) |
 | Sensitive data (LGPD art. 11, GDPR art. 9) | stored like any text; never detected, labelled or inferred | rules below |
 | Biometric data | none: an image description says what a picture shows, not who is in it | rules below, before [#23](https://github.com/Chipskein/cade/issues/23) |
 

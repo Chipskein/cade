@@ -532,6 +532,26 @@ xychart-beta
 - `synchronous=NORMAL` não mudou nada porque já era o modo em uso: o `go-sqlite3` é compilado com `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`.
 - Uma segunda ingestão sem nada novo escreve ~0,1 MB, antes e depois.
 
+## Banco cifrado (#111)
+
+> `go test -tags sqlite_fts5 -run '^$' -bench EncryptedSearch -benchtime 10x -count 3 ./internal/storage/sqlitestore` (`BenchmarkEncryptedSearch`, saída bruta em `bench/encrypted-database.txt`) · 2026-10-13 · `79bce47` · 100 mil eventos sintéticos, banco em tmpfs, mediana de 3 · conversão: `cade encrypt --yes` e `cade decrypt --yes` numa cópia do histórico real (1,5 GB, NVMe), 3 vezes cada.
+
+**Quente** repete a consulta numa conexão só. **Frio** abre uma conexão nova para cada consulta, como cada `cade ask` é um processo novo, com o cache da SQLite vazio; o cache de arquivos do sistema fica quente nos dois. **Abrir** inclui a derivação da chave (PBKDF2 da cifra chacha20), não o cofre.
+
+| ms | texto puro | cifrado, cache de 256 MB (o que o `cade` usa) | cifrado, 2 MB da SQLite |
+|---|---:|---:|---:|
+| abrir | 0,25 | 26,2 | 26,1 |
+| busca vetorial sem filtro, quente | 83,9 | 99,0 (+18%) | 271,2 |
+| busca vetorial sem filtro, fria | 83,4 | 289,3 | 272,4 |
+| palavras comuns, FTS5, quente | 216,8 | 163,0 (−25%) | 1.007,7 |
+| palavras comuns, FTS5, fria | 214,2 | 304,3 | 1.016,2 |
+
+- **`cache_size`:** a abertura com chave usa 256 MB (`_cache_size=-262144`). Com os 2 MB da SQLite, cada busca decifra as páginas de novo, mesmo quente (1,0 s na busca por palavras). Os 256 MB são um teto, não uma reserva: o cache cresce só com as páginas lidas.
+- **Um `ask` frio:** abrir e uma busca de cada tipo dá 298 ms em texto puro e 620 ms cifrado, **+322 ms** com 100 mil eventos, contra ~8,5 s de um `ask` na GPU. Quase tudo é decifrar as páginas na primeira leitura.
+- **O cofre soma o seu tempo:** no Linux, o `systemd-creds --user` leva **0,83 s** para abrir a chave a cada comando, com o TPM ou só com a chave do host (`--with-key=host`), então um `ask` frio custa uns 1,15 s a mais no total. Keychain e DPAPI não foram medidos (#110).
+- **Conversão do histórico real (1,5 GB):** `cade encrypt` 10,3–10,7 s, `cade decrypt` 11,1–11,2 s, cada um com a sua cópia completa de antes. O arquivo cifrado ficou com 1.504,8 MB, de 1.508,2 MB em texto puro, e manteve esse tamanho nas outras vezes; um banco decifrado guarda os 32 bytes por página que a cifra reserva (byte 20 do cabeçalho).
+- **Ler um dia desse histórico** (16.700 eventos, `timeline`): 0,16 s em texto puro, 1,4 s cifrado, dos quais 0,85 s são do `systemd-creds`.
+
 ## Descrição de imagens
 
 > `go tool mage bench` e `GO_TAGS= go tool mage bench` (`BenchmarkDescribeImage`) · qualidade: `go tool mage eval` (`TestCaptionSuiteWithModel`) · 2026-09-30 · `f4e5379`

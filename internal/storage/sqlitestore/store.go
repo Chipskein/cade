@@ -43,12 +43,25 @@ func Open(ctx context.Context, path string) (*Store, error) {
 // deleted or replaced (an edited message), instead of leaving it in free
 // pages.
 func OpenWithHooks(ctx context.Context, path string, hooks Hooks) (*Store, error) {
+	return OpenWithKey(ctx, path, nil, hooks)
+}
+
+// storeParams are the driver params of a read-write open.
+const storeParams = "_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on&_secure_delete=on"
+
+// OpenWithKey is OpenWithHooks on a database encrypted with key (#111):
+// a new file is created encrypted, and its WAL and migration copies are
+// encrypted with the same key. A key that does not match the file fails
+// with ErrCipherKeyRejected, leaving the file as it was.
+//
+//	store, err := sqlitestore.OpenWithKey(ctx, path, key, sqlitestore.Hooks{})
+func OpenWithKey(ctx context.Context, path string, key CipherKey, hooks Hooks) (*Store, error) {
 	if err := restrictPermissions(path); err != nil {
 		return nil, err
 	}
-	db, err := sql.Open(DriverName, "file:"+path+"?_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=on&_secure_delete=on")
+	db, err := openKeyed(ctx, path, storeParams, key)
 	if err != nil {
-		return nil, fmt.Errorf("open database %q: %w", path, err)
+		return nil, err
 	}
 	// One connection: SQLite serialises writes anyway, and this keeps the
 	// lazily created vec0 table visible to every statement.

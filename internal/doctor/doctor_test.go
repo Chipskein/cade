@@ -76,16 +76,16 @@ func findingFor(t *testing.T, findings []Finding, subject Subject, path string) 
 }
 
 func TestHealthyInstallHasNoProblems(t *testing.T) {
-	findings := Diagnose(healthyInstall(), configPath, healthyConfig(), currentDatabase())
-	if len(findings) != 9 || CountBySeverity(findings, SeverityOK) != 9 {
-		t.Fatalf("expected 9 clean findings, got %+v", findings)
+	findings := Diagnose(healthyInstall(), configPath, healthyConfig(), currentDatabase(), Encryption{})
+	if len(findings) != 10 || CountBySeverity(findings, SeverityOK) != 10 {
+		t.Fatalf("expected 10 clean findings, got %+v", findings)
 	}
 }
 
 func TestMissingConfigFileAndSourcesAreWarnings(t *testing.T) {
 	cfg := healthyConfig()
 	cfg.Sources = config.Defaults().Sources
-	findings := Diagnose(healthyInstall(), "/elsewhere/config.json", cfg, currentDatabase())
+	findings := Diagnose(healthyInstall(), "/elsewhere/config.json", cfg, currentDatabase(), Encryption{})
 	if findingFor(t, findings, SubjectConfigFile, "/elsewhere/config.json").Problem != ProblemNoConfigFile {
 		t.Fatalf("expected the missing config file reported, got %+v", findings)
 	}
@@ -98,7 +98,7 @@ func TestModelProblems(t *testing.T) {
 	fsys := healthyInstall().AddFile(generationPath, "<html>not found</html>")
 	cfg := healthyConfig()
 	cfg.Embedding.ModelPath = "/models/absent.gguf"
-	findings := Diagnose(fsys, configPath, cfg, currentDatabase())
+	findings := Diagnose(fsys, configPath, cfg, currentDatabase(), Encryption{})
 	if got := findingFor(t, findings, SubjectEmbeddingModel, "/models/absent.gguf"); got.Problem != ProblemMissing || got.Setting != "embedding.model_path" {
 		t.Fatalf("expected the missing embedding model, got %+v", got)
 	}
@@ -110,13 +110,13 @@ func TestModelProblems(t *testing.T) {
 func TestVisionProjectorCheckedOnlyWithImagesOn(t *testing.T) {
 	cfg := healthyConfig()
 	cfg.Vision.ProjectorPath = "/models/absent-mmproj.gguf"
-	for _, finding := range Diagnose(healthyInstall(), configPath, cfg, currentDatabase()) {
+	for _, finding := range Diagnose(healthyInstall(), configPath, cfg, currentDatabase(), Encryption{}) {
 		if finding.Subject == SubjectVisionProjector {
 			t.Fatalf("expected no projector check with images off, got %+v", finding)
 		}
 	}
 	cfg.Sources.Images = true
-	got := findingFor(t, Diagnose(healthyInstall(), configPath, cfg, currentDatabase()), SubjectVisionProjector, "/models/absent-mmproj.gguf")
+	got := findingFor(t, Diagnose(healthyInstall(), configPath, cfg, currentDatabase(), Encryption{}), SubjectVisionProjector, "/models/absent-mmproj.gguf")
 	if got.Problem != ProblemMissing || got.Setting != "vision.projector_path" {
 		t.Fatalf("expected the missing projector reported with images on, got %+v", got)
 	}
@@ -130,7 +130,7 @@ func TestVisionProjectorPairingMismatchIsWarned(t *testing.T) {
 	fsys := healthyInstall().
 		AddFile(cfg.Generation.ModelPath, ggufWithSizeLabel("4B")).
 		AddFile(cfg.Vision.ProjectorPath, ggufWithSizeLabel("2B"))
-	findings := Diagnose(fsys, configPath, cfg, currentDatabase())
+	findings := Diagnose(fsys, configPath, cfg, currentDatabase(), Encryption{})
 	got := mismatchFinding(t, findings)
 	if got.PairedModelSize != "4B" || got.ProjectorSize != "2B" || got.PairedModelPath != cfg.Generation.ModelPath {
 		t.Fatalf("expected a pairing mismatch naming both sizes, got %+v", got)
@@ -159,7 +159,7 @@ func TestVisionProjectorPairingMatchHasNoProblem(t *testing.T) {
 	fsys := healthyInstall().
 		AddFile(cfg.Generation.ModelPath, ggufWithSizeLabel("2B")).
 		AddFile(cfg.Vision.ProjectorPath, ggufWithSizeLabel("2B"))
-	for _, finding := range Diagnose(fsys, configPath, cfg, currentDatabase()) {
+	for _, finding := range Diagnose(fsys, configPath, cfg, currentDatabase(), Encryption{}) {
 		if finding.Subject == SubjectVisionProjector && finding.Problem != ProblemNone {
 			t.Fatalf("expected matching sizes to report no problem, got %+v", finding)
 		}
@@ -171,7 +171,7 @@ func TestVisionProjectorPairingSkippedWithoutSizeLabels(t *testing.T) {
 	cfg.Sources.Images = true
 	cfg.Vision.ProjectorPath = "/models/mmproj.gguf"
 	fsys := healthyInstall().AddFile(cfg.Vision.ProjectorPath, "GGUF\x03rest")
-	got := findingFor(t, Diagnose(fsys, configPath, cfg, currentDatabase()), SubjectVisionProjector, cfg.Vision.ProjectorPath)
+	got := findingFor(t, Diagnose(fsys, configPath, cfg, currentDatabase(), Encryption{}), SubjectVisionProjector, cfg.Vision.ProjectorPath)
 	if got.Problem != ProblemNone {
 		t.Fatalf("expected no problem when neither file carries a size_label, got %+v", got)
 	}
@@ -184,7 +184,7 @@ func TestSourceProblems(t *testing.T) {
 	cfg.Sources.BrowserHistories = []string{"/chrome/Bookmarks", "/chrome"}
 	cfg.Sources.Directories = []string{"/notes.md"}
 	cfg.Sources.TeamsIndexedDBDirs = []string{"/empty-idb"}
-	findings := Diagnose(fsys, configPath, cfg, currentDatabase())
+	findings := Diagnose(fsys, configPath, cfg, currentDatabase(), Encryption{})
 	want := map[string]Problem{
 		"/src/plain": ProblemNotGitRepository, "/src/absent": ProblemMissing, "/chrome/Bookmarks": ProblemNotSQLite,
 		"/chrome": ProblemNotAFile, "/notes.md": ProblemNotADirectory, "/empty-idb": ProblemNotLevelDB,
@@ -199,7 +199,7 @@ func TestSourceProblems(t *testing.T) {
 func TestKeywordSearchWithoutFTS5(t *testing.T) {
 	database := currentDatabase()
 	database.FTS5 = false
-	findings := Diagnose(healthyInstall(), configPath, healthyConfig(), database)
+	findings := Diagnose(healthyInstall(), configPath, healthyConfig(), database, Encryption{})
 	if findingFor(t, findings, SubjectKeywordSearch, "").Problem != ProblemNoFTS5 {
 		t.Fatalf("expected FTS5 reported, got %+v", findings)
 	}
@@ -271,5 +271,41 @@ func TestProblemSeverity(t *testing.T) {
 		if got := problem.Severity(); got != want {
 			t.Errorf("problem %d: expected severity %d, got %d", problem, want, got)
 		}
+	}
+}
+
+func TestEncryptionFindings(t *testing.T) {
+	cases := map[string]struct {
+		encryption Encryption
+		want       Problem
+	}{
+		"plain":                {Encryption{}, ProblemNone},
+		"encrypted, key found": {Encryption{Encrypted: true, KeyLocation: "the login Keychain"}, ProblemNone},
+		"plain copies left":    {Encryption{Encrypted: true, KeyLocation: "the login Keychain", PlainCopies: 2}, ProblemPlainCopies},
+		"key not found":        {Encryption{Encrypted: true, KeyError: "no database key", PlainCopies: 2}, ProblemKeyNotFound},
+	}
+	for name, c := range cases {
+		got := findingFor(t, Diagnose(healthyInstall(), configPath, healthyConfig(), currentDatabase(), c.encryption), SubjectEncryption, "")
+		if got.Problem != c.want || got.Encryption != c.encryption {
+			t.Errorf("%s: finding %+v, want problem %d with the encryption", name, got, c.want)
+		}
+	}
+	if ProblemPlainCopies.Severity() != SeverityWarning || ProblemKeyNotFound.Severity() != SeverityFailure {
+		t.Error("plain copies must warn and a missing key must fail")
+	}
+}
+
+// Without the key nothing inside the database is known, so its schema
+// and model are not judged; the encryption finding carries the failure.
+func TestUnreadableDatabaseIsNotJudged(t *testing.T) {
+	database := storage.DatabaseState{Exists: true, Encrypted: true, Unreadable: true, FTS5: true, LatestSchemaVersion: currentDatabase().LatestSchemaVersion}
+	findings := Diagnose(healthyInstall(), configPath, healthyConfig(), database, Encryption{Encrypted: true, KeyError: "no database key"})
+	for _, finding := range findings {
+		if finding.Subject == SubjectDatabase && finding.Problem != ProblemNone {
+			t.Errorf("database finding %+v, want no judgement without the key", finding)
+		}
+	}
+	if CountBySeverity(findings, SeverityFailure) != 1 {
+		t.Errorf("failures in %+v, want only the missing key", findings)
 	}
 }

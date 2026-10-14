@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/dbkey"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
@@ -48,9 +49,29 @@ type Toolkit struct {
 	WriteConfig       func(path string, cfg config.Config) error
 	// OpenStore migrates the database if needed; backupCreated hears where
 	// a migration saved the copy.
-	OpenStore func(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error)
+	// key opens an encrypted database (#111); nil opens a plain one.
+	OpenStore func(ctx context.Context, path string, key []byte, backupCreated func(backupPath string)) (storage.EventStore, error)
 	// InspectDatabase reads the database without migrating it (doctor).
-	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
+	InspectDatabase func(ctx context.Context, path string, key []byte) (storage.DatabaseState, error)
+	// DatabaseEncrypted reads the database's header: only an encrypted
+	// one needs its key looked for (#111).
+	DatabaseEncrypted func(path string) (bool, error)
+	// DatabaseKeys is where the key of the encrypted database at path is
+	// looked for; prompt asks for a typed passphrase.
+	DatabaseKeys func(ctx context.Context, databasePath, prompt string) dbkey.Search
+	// KeyVault is the system's store for the key of the database at path,
+	// which `encrypt` fills and `decrypt` empties; nil where there is none
+	// and the key is a passphrase.
+	KeyVault func(ctx context.Context, databasePath string) dbkey.KeyVault
+	// ReplaceDatabaseKey rewrites the database under newKey (nil: plain
+	// text) after copying it to backup.
+	ReplaceDatabaseKey func(ctx context.Context, path string, oldKey, newKey []byte, backup string) error
+	// PassphraseTerminal asks for a new passphrase without echoing it.
+	PassphraseTerminal dbkey.PassphraseTerminal
+	// Random generates the database key (crypto/rand.Reader).
+	Random io.Reader
+	// Getenv reads CADE_DB_PASSPHRASE for `encrypt` (os.Getenv).
+	Getenv func(string) string
 	// RootFS is the user's filesystem under rootfs names, where init looks for
 	// sources and doctor checks the configured paths.
 	RootFS  fs.FS
@@ -212,6 +233,8 @@ func subcommands() map[string]subcommand {
 		"tasks":        runTasks,
 		"reindex":      runReindex,
 		"compact":      runCompact,
+		"encrypt":      runEncrypt,
+		"decrypt":      runDecrypt,
 		"version":      runVersion,
 	}
 }

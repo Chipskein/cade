@@ -8,12 +8,15 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) and ggml | `b11195` (`LLAMA_TAG`) | MIT | the `llama`, `mtmd` (vision) and `ggml` static libraries (no tools, server, downloader or subprocesses) |
 | Libraries vendored by llama.cpp and compiled into `mtmd` and `vendor-hash` (the linker drops what cade does not call) | same tag | stb_image: MIT or public domain; miniaudio: MIT-0 or public domain; xxHash: BSD-2-Clause; rotate-bits: MIT; sha1 and sha256: public domain; sheredom/subprocess: Unlicense | image decoding and hashing inside `mtmd` |
 | [mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | v1.14.52 | MIT | SQLite driver (cgo) |
-| [SQLite](https://sqlite.org) | bundled with go-sqlite3 | public domain | the database engine, with FTS5 |
+| [SQLite](https://sqlite.org) | 3.53.4, inside the sqlite3mc amalgamation | public domain | the database engine, with FTS5 |
+| [SQLite3 Multiple Ciphers](https://github.com/utelle/SQLite3MultipleCiphers) (sqlite3mc) | 2.5.1 | MIT | replaces the SQLite amalgamation bundled with go-sqlite3, so the database can be encrypted (#111); without a key it is plain SQLite |
+| Code compiled into the sqlite3mc amalgamation | same version | AEGIS (Frank Denis): MIT; SHA-2 (Olivier Gay): BSD-3-Clause; Argon2 and BLAKE2: CC0-1.0 or Apache-2.0 (used here under CC0); fastpbkdf2 and Argon2's encoding (Thomas Pornin): CC0-1.0; AES (Rijndael), ChaCha20-Poly1305 (sqleet), SHA-1 and MD5: public domain | the ciphers and key derivation |
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
 | [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `s2`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache and Snappy streams in the Firefox Cache API; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
 | [andybalholm/brotli](https://github.com/andybalholm/brotli) | v1.2.6 | MIT | decoding brotli (`br`) bodies of the browsers' HTTP cache |
 | [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
-| [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | v0.48.0 (`windows`, only in the Windows build) | BSD-3-Clause, the same text as the Go standard library's below | the ingest lock on Windows |
+| [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | v0.48.0 (`windows`, `unix`) | BSD-3-Clause, the same text as the Go standard library's below | the ingest lock and DPAPI on Windows; the terminal for `golang.org/x/term` |
+| [golang.org/x/term](https://pkg.go.dev/golang.org/x/term) | v0.46.0 | BSD-3-Clause, the same text as the Go standard library's below | reading the database passphrase without echoing it (#111) |
 
 The sqlite-vec Go module ships without a license file; its texts below come from the upstream repository (`LICENSE-MIT`, `LICENSE-APACHE`). A test (`internal/buildinfo`) fails when `go.mod` gains a module this file does not name.
 
@@ -207,6 +210,75 @@ The author disclaims copyright to this source code. In place of a legal notice, 
 
 (https://sqlite.org/copyright.html: SQLite is in the public domain.)
 ```
+
+## SQLite3 Multiple Ciphers
+
+```
+MIT License
+
+Copyright (c) 2019-2026 Ulrich Telle
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## AEGIS, inside sqlite3mc
+
+The MIT license, the same text as SQLite3 Multiple Ciphers' above, with this copyright line:
+
+```
+Copyright (c) 2023-2024 Frank Denis
+```
+
+## SHA-2, inside sqlite3mc
+
+```
+FIPS 180-2 SHA-224/256/384/512 implementation
+
+Copyright (C) 2005, 2007 Olivier Gay <olivier.gay@a3.epfl.ch>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+3. Neither the name of the project nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL THE PROJECT OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.
+```
+
+The rest of the code compiled into sqlite3mc (Argon2, BLAKE2, fastpbkdf2, AES, ChaCha20-Poly1305, SHA-1, MD5) is in the public domain or under CC0 1.0 and asks for no notice.
 
 ## sqlite-vec, MIT license
 

@@ -41,6 +41,10 @@ Comandos:
   compact                               devolve ao disco o espaço dos vetores apagados
                                         (sem recalcular embeddings); precisa de espaço
                                         livre para uma cópia dos vetores
+  encrypt [--yes]                       cifra o banco com uma chave guardada no cofre
+                                        do sistema (ou uma frase-senha) e mostra a
+                                        chave de recuperação
+  decrypt [--yes]                       volta o banco para texto puro e apaga a chave
   forget <fonte> | --uid UID            apaga eventos de uma fonte ou um evento;
   forget --match TEXTO [--source F]     localiza eventos; --yes confirma em scripts
                                         (também aceita --from D --to D);
@@ -118,6 +122,11 @@ Commands:
   compact                               returns the space of deleted vectors to the
                                         disk (no embedding recomputed); needs free
                                         space for a copy of the vectors
+  encrypt [--yes]                       encrypts the database with a key kept in the
+                                        system's vault (or a passphrase) and shows
+                                        the recovery key
+  decrypt [--yes]                       puts the database back in plain text and
+                                        deletes the key
   forget <source> | --uid UID           deletes a source's events or one event;
   forget --match TEXT [--source S]      finds events; --yes confirms in scripts
                                         (also accepts --from D --to D);

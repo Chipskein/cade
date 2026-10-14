@@ -14,7 +14,7 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 - **A rede só é usada no build:** `go tool mage llama` clona o llama.cpp do GitHub e `go tool mage models` baixa os dois modelos e o projetor de visão do modelo de geração do Hugging Face.
 - **`cade init` e `cade doctor` olham nomes, não conteúdo:** o init lista as pastas de perfil e confere quais têm `History`, `places.sqlite` ou IndexedDB do Teams, e procura `.git` sob o diretório que você indicar; o doctor lê os primeiros bytes dos modelos e dos históricos (as assinaturas `GGUF` e `SQLite format 3`) e abre o banco só para leitura.
 - **Tudo fica num arquivo SQLite**, legível só pelo seu usuário (permissão `600`, pasta `700`).
-- **O banco não é criptografado.** Quem estiver logado como você, ou tiver o seu disco, consegue lê-lo. Use criptografia de disco; cifrar o banco vai ser opt-in ([Criptografia](#criptografia)).
+- **O banco não é cifrado, a menos que você rode `cade encrypt`.** Sem isso, quem estiver logado como você, ou tiver o seu disco, consegue lê-lo. Use criptografia de disco de qualquer jeito ([Criptografia](#criptografia)).
 
 ## Onde os dados ficam
 
@@ -22,6 +22,8 @@ O cade lê seus commits, histórico do navegador, arquivos e mensagens do Teams,
 |---|---|---|
 | `~/.local/share/cade/cade.db` (+ `-wal`, `-shm`) | eventos, texto, pedaços (posições no texto, um conjunto por texto distinto), embeddings, índice das palavras de cada pedaço, índice de hashes de commit e caminhos de arquivo, histórico de edição de arquivos | `600` |
 | `~/.local/share/cade/cade.db.before-v*`, `cade.db.before-rekey-*` | cópia salva antes de uma migração de esquema que reescreve dados, ou antes do `schema-check --rekey`; mesmo conteúdo do banco | `600` |
+| `~/.local/share/cade/cade.db.before-encrypt-*`, `cade.db.before-decrypt-*`, `cade.db.converting` | cópia salva pelo `cade encrypt` (cifrada) ou pelo `cade decrypt` (em texto puro), e o banco enquanto um deles o reescreve; mesmo conteúdo do banco | `600` |
+| `~/.local/share/cade/cade.db.key.cred` (Linux), `%LOCALAPPDATA%\cade\cade.db.key.dpapi` (Windows) | a chave do banco, selada pelo `systemd-creds` ou pela DPAPI, depois do `cade encrypt`; no macOS é o item `cade-database` do Keychain | `600` |
 | `~/.config/cade/config.json` | suas identidades de commit, se você as listar (`git_identities`), e quais repositórios, históricos, pastas, perfis do Teams e diretórios de IndexedDB ler | `600` |
 | `~/.config/cade/idb-schemas/` | um schema por aplicativo: nomes de bancos e stores, caminhos dos campos e seus tipos, as condições que você ou o modelo escreveram (como valores de tipo de mensagem); nenhuma mensagem, nome ou id. `history/` guarda as revisões substituídas, `*.candidate.json` as recusadas | `600` |
 | `~/.local/share/cade/cade.db.before-rekey-*` | cópia salva antes de o `schema-check --rekey` renomear UIDs; mesmo conteúdo do banco | `600` |
@@ -36,7 +38,7 @@ No Windows (#54) os mesmos arquivos ficam em `%LOCALAPPDATA%\cade` (banco, model
 
 ## Criptografia
 
-O banco não é cifrado hoje. Cifrá-lo vai ser opt-in ([#111](https://github.com/Chipskein/cade/issues/111)). As medições por trás dessa decisão estão na [#57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529).
+O banco só é cifrado depois do `cade encrypt` ([#111](https://github.com/Chipskein/cade/issues/111)); o `cade decrypt` o volta para texto puro. Como usar está na [CONFIGURAÇÃO](docs/CONFIGURATION.pt-BR.md#criptografia-do-banco). As medições por trás da decisão estão na [#57](https://github.com/Chipskein/cade/issues/57#issuecomment-6156058529), e as de hoje nos [BENCHMARKS](docs/BENCHMARKS.pt-BR.md#banco-cifrado-111).
 
 Contra o que cada camada protege:
 
@@ -45,22 +47,24 @@ Contra o que cada camada protege:
 | outra conta na máquina | sim | não | sim |
 | disco roubado ou perdido, máquina desligada | não | sim | sim |
 | backup ou sincronização da sua pasta pessoal para outro lugar | não | não (a cópia sai do disco já decifrada) | sim, enquanto a chave fica na máquina |
-| cópias de migração e de rekey (`cade.db.before-*`) | sim | sim, neste disco | sim, cifradas com a mesma chave |
+| cópias de migração, de rekey e do encrypt (`cade.db.before-*`) gravadas depois do `cade encrypt` | sim | sim, neste disco | sim, cifradas com a mesma chave |
 | máquina ligada e desbloqueada, ou outro programa rodando como você | não | não | não: o que roda como você pede a chave como o cade pede |
 
-- **A criptografia de disco continua sendo a proteção principal.** O banco cifrado acrescenta as cópias que saem da máquina. Ele custa uns 10% de um `ask` frio com 100 mil eventos, e perder a chave perde o banco. As fontes expiram (o cache do Teams, uns 90 dias de histórico do Chrome), então os dados não podem ser ingeridos de novo.
-- **O que vai ser cifrado:** o `cade.db`, o log de escrita dele (`-wal`) e as cópias de migração e de rekey gravadas depois de ligar a criptografia.
+- **A criptografia de disco continua sendo a proteção principal.** O banco cifrado acrescenta as cópias que saem da máquina. Com 100 mil eventos ele soma uns 0,3 s a um `ask` frio, mais 0,8 s do `systemd-creds` no Linux, e perder a chave perde o banco. As fontes expiram (o cache do Teams, uns 90 dias de histórico do Chrome), então os dados não podem ser ingeridos de novo. Guarde fora da máquina a chave de recuperação que o `cade encrypt` mostra.
+- **O que é cifrado:** o `cade.db`, o log de escrita dele (`-wal`) e as cópias de migração, de rekey e do encrypt gravadas depois do `cade encrypt`.
 - **O que continua em texto puro:**
-  - as cópias gravadas antes de ligar a criptografia, até o `cade forget --backups`;
+  - as cópias gravadas antes do `cade encrypt`, até o `cade forget --backups`; o `cade encrypt` as lista e o `cade doctor` avisa enquanto sobrar alguma;
+  - a cópia que o `cade decrypt` tira, como o banco que ele deixa;
   - a saída do `cade export` e a do `ask --json` que você salvar;
   - o `ingest.log` e o `ingest-state.json` (alvos e progresso, sem texto de mensagens);
   - o estado do prompt em `~/.cache/cade/prompt-state`;
   - as cópias temporárias das fontes em `/tmp`, tão legíveis quanto as próprias fontes.
-- **Onde a chave vai ficar:** nunca ao lado do banco.
-  - No Linux com systemd 256 ou mais novo: `systemd-creds --user`, presa à máquina e ao TPM, quando houver. Funciona sem sessão gráfica, então o timer do systemd pode usá-la.
-  - No macOS: o Keychain.
-  - No Windows: a DPAPI.
-  - Nos outros: uma frase-senha.
+- **Onde a chave fica:** nunca em texto puro, e nunca dentro do banco.
+  - No Linux com systemd 256 ou mais novo: selada pelo `systemd-creds --user`, com a chave do host e o TPM, quando houver, em `cade.db.key.cred` ao lado do banco. Uma cópia desse arquivo não abre nada em outra máquina. Funciona sem sessão gráfica, então o timer do systemd pode usá-la.
+  - No macOS: o Keychain de login.
+  - No Windows: selada pela DPAPI para a sua conta, em `cade.db.key.dpapi` ao lado do banco. A chave da própria DPAPI fica no seu perfil, então um backup do perfil inteiro mais a sua senha do Windows a abririam.
+  - Nos outros (FreeBSD, Linux antes do systemd 256): uma frase-senha, do `CADE_DB_PASSPHRASE` ou digitada no terminal; o sqlite3mc deriva a chave dela, então uma curta pode ser adivinhada a partir de uma cópia do arquivo.
+  - Em qualquer um: a chave de recuperação, no `CADE_DB_RECOVERY_KEY`, abre o banco onde nenhum dos anteriores tem a chave.
 
 ## O que cada fonte guarda
 
@@ -182,7 +186,7 @@ O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os
 | Correção | uma mensagem ou arquivo editado substitui o texto guardado na próxima ingestão | o cade nunca edita o texto: corrija a fonte e ingira de novo |
 | Eliminação | `forget` por fonte, UID, texto e período, com `secure_delete`, compactação e o WAL esvaziado; `forget --person NOME` apaga tudo sobre uma pessoa (o que ela mandou ou escreveu, as mensagens que a @mencionam, os chats só com ela) depois de listar, e `export --person NOME` entrega isso a ela antes | as cópias de migração e de rekey guardam o que foi esquecido até o `cade forget --backups`; o `forget` e o `doctor` as listam, mas nada as apaga sozinho |
 | Exclusão na origem | uma edição substitui o texto | uma mensagem apagada no app fica até o `forget`; um cache expirado não tem como avisar o cade de que ela foi apagada |
-| Segurança | arquivos só do dono, sem rede, cópias temporárias removidas | o banco não é cifrado; cifrá-lo vai ser opt-in ([Criptografia](#criptografia), [#111](https://github.com/Chipskein/cade/issues/111)) |
+| Segurança | arquivos só do dono, sem rede, cópias temporárias removidas, criptografia do banco opt-in (`cade encrypt`) | o banco só é cifrado se você ligar; exportações, a saída do `ask --json` e as cópias temporárias continuam em texto puro ([Criptografia](#criptografia)) |
 | Dados sensíveis (LGPD art. 11, GDPR art. 9) | guardados como qualquer texto; nunca detectados, rotulados ou deduzidos | regras abaixo |
 | Dados biométricos | nenhum: a descrição de uma imagem diz o que ela mostra, não quem está nela | regras abaixo, antes da [#23](https://github.com/Chipskein/cade/issues/23) |
 

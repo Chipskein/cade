@@ -13,6 +13,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/dbkey"
 	"github.com/chipskein/cade/internal/entity"
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/idbmap"
@@ -97,6 +98,28 @@ type fakeWorld struct {
 	otherStores webstore.Readers
 	// readerSources are the sources each StoreReaders call was given.
 	readerSources []config.SourcesConfig
+	// encrypted makes the database encrypted, with its key looked for in
+	// keyVault; openedKey is what the store was opened or inspected
+	// with, and openError fails the open (#111).
+	encrypted bool
+	keyVault  *testfakes.FakeKeyVault
+	openedKey []byte
+	openError error
+	// noVault makes the system one without a key store; encryptedCopies
+	// are the copies whose header is encrypted; replacements record the
+	// keys each conversion was asked for, and replaceError fails it.
+	noVault         bool
+	encryptedCopies map[string]bool
+	replacements    []keyReplacement
+	replaceError    error
+	passphrases     *testfakes.FakePassphraseTerminal
+	env             map[string]string
+}
+
+// keyReplacement is one ReplaceDatabaseKey call.
+type keyReplacement struct {
+	path, backup   string
+	oldKey, newKey []byte
 }
 
 func newFakeWorld() *fakeWorld {
@@ -108,6 +131,8 @@ func newFakeWorld() *fakeWorld {
 		runState: &testfakes.FakeRunStateFile{}, runLock: &testfakes.FakeIngestLock{}, processes: &testfakes.FakeProcesses{StartedPID: 4321},
 		stopRequests: &testfakes.FakeStopRequests{},
 		pacingClock:  &testfakes.FakePacingClock{Current: cliNow},
+		keyVault:     &testfakes.FakeKeyVault{Place: "the fake vault"},
+		passphrases:  &testfakes.FakePassphraseTerminal{}, env: map[string]string{},
 	}
 }
 
@@ -116,12 +141,22 @@ func (w *fakeWorld) toolkit() Toolkit {
 		DefaultConfigPath: func() (string, error) { return "/cfg/config.json", nil },
 		LoadConfig:        func(string) (config.Config, error) { return w.cfg, nil },
 		WriteConfig:       w.writeConfig,
-		OpenStore:         func(context.Context, string, func(string)) (storage.EventStore, error) { return w.store, nil },
-		InspectDatabase:   func(context.Context, string) (storage.DatabaseState, error) { return w.database, nil },
-		RootFS:            w.files,
-		HomeDir:           func() (string, error) { return "/home/ana", nil },
-		Stdin:             strings.NewReader(w.stdin),
-		Build:             w.build,
+		OpenStore:         w.openStore,
+		InspectDatabase:   w.inspectDatabase,
+		DatabaseEncrypted: w.databaseEncrypted,
+		DatabaseKeys:      func(context.Context, string, string) dbkey.Search { return dbkey.Search{w.keyVault} },
+		KeyVault:          w.vault,
+		ReplaceDatabaseKey: func(_ context.Context, path string, oldKey, newKey []byte, backup string) error {
+			w.replacements = append(w.replacements, keyReplacement{path: path, backup: backup, oldKey: oldKey, newKey: newKey})
+			return w.replaceError
+		},
+		PassphraseTerminal: w.passphrases,
+		Random:             strings.NewReader(strings.Repeat("k", 64)),
+		Getenv:             func(name string) string { return w.env[name] },
+		RootFS:             w.files,
+		HomeDir:            func() (string, error) { return "/home/ana", nil },
+		Stdin:              strings.NewReader(w.stdin),
+		Build:              w.build,
 		LoadEmbedder: func(settings config.EmbeddingConfig, _ *slog.Logger) (ClosableEmbedder, error) {
 			w.embedderLoads++
 			w.loadedEmbedding = settings
@@ -144,6 +179,39 @@ func (w *fakeWorld) toolkit() Toolkit {
 		IngestRuns: IngestRunTools{State: w.runState, Lock: w.runLock, LogPath: "/state/cade/ingest.log", Processes: w.processes,
 			Stops: w.stopRequests, Clock: w.pacingClock, Detached: w.detached, PID: 1234},
 	}
+}
+
+func (w *fakeWorld) openStore(_ context.Context, _ string, key []byte, _ func(string)) (storage.EventStore, error) {
+	w.openedKey = key
+	if w.openError != nil {
+		return nil, w.openError
+	}
+	return w.store, nil
+}
+
+// inspectDatabase fails with openError only for a key, as the real one
+// reports an encrypted database without one as Unreadable.
+func (w *fakeWorld) inspectDatabase(_ context.Context, _ string, key []byte) (storage.DatabaseState, error) {
+	w.openedKey = key
+	if key == nil {
+		return w.database, nil
+	}
+	return w.database, w.openError
+}
+
+// databaseEncrypted answers for the database and its copies.
+func (w *fakeWorld) databaseEncrypted(path string) (bool, error) {
+	if encrypted, isCopy := w.encryptedCopies[path]; isCopy {
+		return encrypted, nil
+	}
+	return w.encrypted, nil
+}
+
+func (w *fakeWorld) vault(context.Context, string) dbkey.KeyVault {
+	if w.noVault {
+		return nil
+	}
+	return w.keyVault
 }
 
 // removeFile deletes from the fake filesystem, recording what it deleted.

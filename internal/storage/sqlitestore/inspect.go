@@ -17,6 +17,15 @@ import (
 //
 //	state, err := sqlitestore.Inspect(ctx, "/home/me/.local/share/cade/cade.db")
 func Inspect(ctx context.Context, path string) (storage.DatabaseState, error) {
+	return InspectWithKey(ctx, path, nil)
+}
+
+// InspectWithKey is Inspect on a database encrypted with key (#111).
+// Without a key, an encrypted database is reported Unreadable, not an
+// error, so doctor still checks the rest; a wrong key is an error.
+//
+//	state, err := sqlitestore.InspectWithKey(ctx, path, key)
+func InspectWithKey(ctx context.Context, path string, key CipherKey) (storage.DatabaseState, error) {
 	state := storage.DatabaseState{LatestSchemaVersion: schemaMigrations[len(schemaMigrations)-1].version}
 	info, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -26,17 +35,28 @@ func Inspect(ctx context.Context, path string) (storage.DatabaseState, error) {
 	if err != nil {
 		return state, fmt.Errorf("stat database %q: %w", path, err)
 	}
-	db, err := sql.Open(DriverName, "file:"+path+"?mode=ro")
+	if state.Encrypted, err = IsEncrypted(path); err != nil {
+		return state, err
+	}
+	state.Exists, state.SizeBytes = true, info.Size()
+	if state.Encrypted && len(key) == 0 {
+		state.Unreadable = true
+		state.FTS5, err = inMemoryFTS5(ctx)
+		return state, err
+	}
+	db, err := openKeyed(ctx, path, readOnlyParams, key)
 	if err != nil {
-		return state, fmt.Errorf("open database %q read-only: %w", path, err)
+		return state, err
 	}
 	defer db.Close()
-	state.Exists, state.SizeBytes = true, info.Size()
 	if err := readDatabaseState(ctx, db, &state); err != nil {
 		return state, fmt.Errorf("inspect database %q: %w", path, err)
 	}
 	return state, nil
 }
+
+// readOnlyParams open the database without writing to it.
+const readOnlyParams = "mode=ro"
 
 func inMemoryFTS5(ctx context.Context) (bool, error) {
 	db, err := sql.Open(DriverName, ":memory:")

@@ -532,6 +532,26 @@ xychart-beta
 - `synchronous=NORMAL` changed nothing because it was already the mode in use: `go-sqlite3` is compiled with `SQLITE_DEFAULT_WAL_SYNCHRONOUS=1`.
 - A second ingestion with nothing new writes ~0.1 MB, before and after.
 
+## Encrypted database (#111)
+
+> `go test -tags sqlite_fts5 -run '^$' -bench EncryptedSearch -benchtime 10x -count 3 ./internal/storage/sqlitestore` (`BenchmarkEncryptedSearch`, raw output in `bench/encrypted-database.txt`) · 2026-10-13 · `79bce47` · 100 k synthetic events, database on tmpfs, median of 3 · conversion: `cade encrypt --yes` and `cade decrypt --yes` on a copy of the real history (1.5 GB, NVMe), 3 runs each.
+
+**Warm** repeats the query on one connection. **Cold** opens a new connection for each query, as each `cade ask` is a new process whose SQLite cache starts empty; the system's file cache stays warm in both. **Open** includes the key derivation (PBKDF2 of the chacha20 cipher), not the vault.
+
+| ms | plain | encrypted, 256 MB cache (what `cade` uses) | encrypted, SQLite's 2 MB |
+|---|---:|---:|---:|
+| open | 0.25 | 26.2 | 26.1 |
+| vector search, no filter, warm | 83.9 | 99.0 (+18%) | 271.2 |
+| vector search, no filter, cold | 83.4 | 289.3 | 272.4 |
+| common words, FTS5, warm | 216.8 | 163.0 (−25%) | 1,007.7 |
+| common words, FTS5, cold | 214.2 | 304.3 | 1,016.2 |
+
+- **`cache_size`:** a keyed open sets 256 MB (`_cache_size=-262144`). With SQLite's 2 MB, every search decrypts its pages again, even warm (1.0 s for the word search). 256 MB is a ceiling, not an allocation: the cache grows only with the pages read.
+- **A cold `ask`:** open plus one search of each kind is 298 ms plain and 620 ms encrypted, **+322 ms** at 100 k events, against ~8.5 s for a GPU `ask`. Most of it is decrypting the pages on first read.
+- **The vault adds its own time:** on Linux, `systemd-creds --user` takes **0.83 s** to unseal the key on every command, with the TPM or with the host key alone (`--with-key=host`), so a cold `ask` costs about 1.15 s more in all. The Keychain and DPAPI were not measured (#110).
+- **Conversion of the real history (1.5 GB):** `cade encrypt` 10.3–10.7 s, `cade decrypt` 11.1–11.2 s, each with its full copy from before. The encrypted file came out at 1,504.8 MB, from 1,508.2 MB plain, and kept that size in later runs; a decrypted database keeps the 32 bytes per page the cipher reserves (header offset 20).
+- **Reading one day of that history** (16,700 events, `timeline`): 0.16 s plain, 1.4 s encrypted, 0.85 s of which is `systemd-creds`.
+
 ## Image description
 
 > `go tool mage bench` and `GO_TAGS= go tool mage bench` (`BenchmarkDescribeImage`) · quality: `go tool mage eval` (`TestCaptionSuiteWithModel`) · 2026-09-30 · `f4e5379`

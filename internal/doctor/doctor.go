@@ -22,6 +22,7 @@ const (
 	SubjectKeywordSearch
 	SubjectDatabase
 	SubjectSource
+	SubjectEncryption
 )
 
 // Severity orders findings: warnings leave cade usable, failures do not.
@@ -52,6 +53,21 @@ type Finding struct {
 	PairedModelPath string
 	PairedModelSize string
 	ProjectorSize   string
+	// Encryption details a SubjectEncryption finding.
+	Encryption Encryption
+}
+
+// Encryption is what the CLI learned looking for the database's key
+// (#111), which Diagnose cannot look for itself: the key lives outside
+// the filesystem it reads.
+type Encryption struct {
+	Encrypted bool
+	// KeyLocation is where the key was found; KeyError why it was not,
+	// or why the database rejected it.
+	KeyLocation string
+	KeyError    string
+	// PlainCopies counts the database copies still in plain text.
+	PlainCopies int
 }
 
 // Severity is the finding's problem's severity.
@@ -63,8 +79,8 @@ func (f Finding) Severity() Severity {
 // rootfs); database comes from reading the database without opening it
 // as a store, so diagnosing never migrates it.
 //
-//	findings := doctor.Diagnose(os.DirFS("/"), configPath, cfg, state)
-func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage.DatabaseState) []Finding {
+//	findings := doctor.Diagnose(os.DirFS("/"), configPath, cfg, state, encryption)
+func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage.DatabaseState, encryption Encryption) []Finding {
 	generation := checkModel(fsys, SubjectGenerationModel, "generation.model_path", cfg.Generation.ModelPath)
 	findings := []Finding{
 		checkConfigFile(fsys, configPath),
@@ -72,6 +88,7 @@ func Diagnose(fsys fs.FS, configPath string, cfg config.Config, database storage
 		generation,
 		checkKeywordSearch(database),
 		checkDatabase(cfg, database),
+		checkEncryption(encryption),
 	}
 	if gates := checkThresholdCalibration(cfg, database); gates.Problem != ProblemNone {
 		findings = append(findings, gates)
@@ -110,7 +127,7 @@ func ConfiguredCalibration(cfg config.Config) storage.ThresholdCalibration {
 func checkThresholdCalibration(cfg config.Config, database storage.DatabaseState) Finding {
 	current := ConfiguredCalibration(cfg)
 	calibration := database.ThresholdCalibration.OrIndexedWith(database.EmbeddingModel, current)
-	if !database.Exists || !calibration.OutdatedFor(current) {
+	if !database.Exists || database.Unreadable || !calibration.OutdatedFor(current) {
 		return Finding{}
 	}
 	database.ThresholdCalibration = calibration

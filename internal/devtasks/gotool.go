@@ -29,8 +29,17 @@ func (t *Tasks) BuildVulkan() error {
 	return t.buildBinary(LlamaVulkan, fts5Tag, vulkanTag)
 }
 
+// prepareCgo builds what the cgo packages compile or link against: the
+// encrypting SQLite driver (#111) and the llama.cpp variant.
+func (t *Tasks) prepareCgo(variant LlamaVariant) error {
+	if err := t.EnsureSQLite3MC(); err != nil {
+		return err
+	}
+	return t.EnsureLlama(variant)
+}
+
 func (t *Tasks) buildBinary(variant LlamaVariant, tags ...string) error {
-	if err := t.EnsureLlama(variant); err != nil {
+	if err := t.prepareCgo(variant); err != nil {
 		return err
 	}
 	stamp := t.resolveBuildStamp()
@@ -41,7 +50,7 @@ func (t *Tasks) buildBinary(variant LlamaVariant, tags ...string) error {
 
 // Test runs every unit test.
 func (t *Tasks) Test() error {
-	if err := t.EnsureLlama(LlamaCPU); err != nil {
+	if err := t.prepareCgo(LlamaCPU); err != nil {
 		return err
 	}
 	return t.runner.Run(Command{Name: "go", Args: []string{"test", "-tags", fts5Tag, allPackages}})
@@ -50,7 +59,7 @@ func (t *Tasks) Test() error {
 // Cover runs the tests with a coverage profile and prints the per-function
 // table, with the total last.
 func (t *Tasks) Cover() error {
-	if err := t.EnsureLlama(LlamaCPU); err != nil {
+	if err := t.prepareCgo(LlamaCPU); err != nil {
 		return err
 	}
 	test := Command{Name: "go", Args: []string{"test", "-tags", fts5Tag, "-coverprofile=" + coverageProfile, allPackages}}
@@ -62,7 +71,7 @@ func (t *Tasks) Cover() error {
 
 // Vet runs go vet.
 func (t *Tasks) Vet() error {
-	if err := t.EnsureLlama(LlamaCPU); err != nil {
+	if err := t.prepareCgo(LlamaCPU); err != nil {
 		return err
 	}
 	return t.runner.Run(Command{Name: "go", Args: []string{"vet", "-tags", fts5Tag, allPackages}})
@@ -71,7 +80,7 @@ func (t *Tasks) Vet() error {
 // Lint runs golangci-lint (linters in .golangci.yml). Install the pinned
 // version with: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@<GolangciLintVersion>
 func (t *Tasks) Lint() error {
-	if err := t.EnsureLlama(LlamaCPU); err != nil {
+	if err := t.prepareCgo(LlamaCPU); err != nil {
 		return err
 	}
 	return t.runner.Run(Command{Name: "golangci-lint", Args: []string{"run", allPackages}})

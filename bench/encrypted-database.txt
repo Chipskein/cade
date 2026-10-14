@@ -1,0 +1,51 @@
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/storage/sqlitestore
+cpu: AMD Ryzen 5 5500                               
+BenchmarkEncryptedSearch/plain/open-12         	      10	    263246 ns/op
+BenchmarkEncryptedSearch/plain/open-12         	      10	    244148 ns/op
+BenchmarkEncryptedSearch/plain/open-12         	      10	    250011 ns/op
+BenchmarkEncryptedSearch/plain/similar/warm-12 	      10	  83896042 ns/op
+BenchmarkEncryptedSearch/plain/similar/warm-12 	      10	  83972630 ns/op
+BenchmarkEncryptedSearch/plain/similar/warm-12 	      10	  83902494 ns/op
+BenchmarkEncryptedSearch/plain/similar/cold-12 	      10	  83440097 ns/op
+BenchmarkEncryptedSearch/plain/similar/cold-12 	      10	  83406085 ns/op
+BenchmarkEncryptedSearch/plain/similar/cold-12 	      10	  83773772 ns/op
+BenchmarkEncryptedSearch/plain/lexical/warm-12 	      10	 216755665 ns/op
+BenchmarkEncryptedSearch/plain/lexical/warm-12 	      10	 219688462 ns/op
+BenchmarkEncryptedSearch/plain/lexical/warm-12 	      10	 211358046 ns/op
+BenchmarkEncryptedSearch/plain/lexical/cold-12 	      10	 213624451 ns/op
+BenchmarkEncryptedSearch/plain/lexical/cold-12 	      10	 214154530 ns/op
+BenchmarkEncryptedSearch/plain/lexical/cold-12 	      10	 215880032 ns/op
+BenchmarkEncryptedSearch/encrypted/open-12     	      10	  26374262 ns/op
+BenchmarkEncryptedSearch/encrypted/open-12     	      10	  26161775 ns/op
+BenchmarkEncryptedSearch/encrypted/open-12     	      10	  25953612 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/warm-12         	      10	 101187000 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/warm-12         	      10	  99049213 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/warm-12         	      10	  98085835 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/cold-12         	      10	 306862074 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/cold-12         	      10	 285419848 ns/op
+BenchmarkEncryptedSearch/encrypted/similar/cold-12         	      10	 289345530 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/warm-12         	      10	 166199812 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/warm-12         	      10	 156495505 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/warm-12         	      10	 163038836 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/cold-12         	      10	 304250057 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/cold-12         	      10	 306028032 ns/op
+BenchmarkEncryptedSearch/encrypted/lexical/cold-12         	      10	 301610140 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/open-12       	      10	  26628675 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/open-12       	      10	  26125816 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/open-12       	      10	  25999417 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/warm-12         	      10	 270764918 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/warm-12         	      10	 271153426 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/warm-12         	      10	 271316393 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/cold-12         	      10	 272483922 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/cold-12         	      10	 270618700 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/similar/cold-12         	      10	 272391486 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/warm-12         	      10	1003671614 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/warm-12         	      10	1007723500 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/warm-12         	      10	1011950215 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/cold-12         	      10	1018732166 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/cold-12         	      10	1016171459 ns/op
+BenchmarkEncryptedSearch/encrypted,cache=2MB/lexical/cold-12         	      10	1013142246 ns/op
+PASS
+ok  	github.com/chipskein/cade/internal/storage/sqlitestore	155.508s

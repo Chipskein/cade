@@ -70,8 +70,19 @@ func (f *FakeModelFetcher) Fetch(url string, destination io.Writer) error {
 	return f.FailWith
 }
 
-// testWorld is a repository root in a temporary directory with llama.cpp
-// already built, so tasks go straight to the command under test.
+// FakeArchiveFetcher serves Body for every URL, like a release download.
+type FakeArchiveFetcher struct {
+	Body []byte
+}
+
+func (f FakeArchiveFetcher) Fetch(_ string, destination io.Writer) error {
+	_, err := destination.Write(f.Body)
+	return err
+}
+
+// testWorld is a repository root in a temporary directory with the SQLite
+// driver and llama.cpp already built, so tasks go straight to the command
+// under test.
 type testWorld struct {
 	root     string
 	runner   *FakeCommandRunner
@@ -87,6 +98,7 @@ func newTestWorld(t *testing.T) *testWorld {
 	world := &testWorld{root: root, runner: &FakeCommandRunner{Outputs: map[string]string{}}, fetcher: &FakeModelFetcher{},
 		progress: &bytes.Buffer{}, env: FakeEnvironment{EnvHome: filepath.Join(root, "home"), EnvCudaHome: filepath.Join(root, "cuda")}}
 	world.writeFile(t, cpuBuildDir+"/"+lastLlamaLibrary, "")
+	world.writeFile(t, sqlite3mcStampFile, sqlite3mcStamp)
 	return world
 }
 

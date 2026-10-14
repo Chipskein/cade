@@ -204,6 +204,31 @@ O `cade ingest whatsapp-backup [ARQUIVO…]` lê uma cópia de cada arquivo; o a
 
 Rode o `ingest whatsapp` antes do primeiro `ingest whatsapp-backup`, para que as mensagens que o Web tem sejam completadas em vez de ganharem id novo. Um histórico grande demora na primeira vez: o texto de cada mensagem passa pelo embedding.
 
+## Criptografia do banco
+
+Desligada por padrão ([#111](https://github.com/Chipskein/cade/issues/111)). A criptografia de disco continua sendo a proteção principal; o banco cifrado acrescenta as cópias da sua pasta pessoal que saem da máquina (backups, sincronização). O que ela cobre e o que não cobre está no [PRIVACY](../PRIVACY.pt-BR.md#criptografia); o custo, nos [BENCHMARKS](BENCHMARKS.pt-BR.md#banco-cifrado-111).
+
+```sh
+cade encrypt   # pede confirmação (--yes em scripts); mostra a chave de recuperação
+cade doctor    # "criptografia": onde a chave está, e cópias ainda em texto puro
+cade decrypt   # volta para texto puro; tira a chave do cofre
+```
+
+- **A chave:** o `cade encrypt` gera uma chave aleatória e a guarda no cofre do sistema, e a lê de volta antes de mexer no banco. Onde não há cofre, a chave é uma frase-senha (12 caracteres ou mais).
+
+| Sistema | Onde a chave fica |
+|---|---|
+| Linux com systemd 256 ou mais novo | `systemd-creds --user`, selada em `cade.db.key.cred` ao lado do banco; soma ~0,8 s a cada comando |
+| macOS | o Keychain de login, item `cade-database` |
+| Windows | DPAPI, selada em `cade.db.key.dpapi` ao lado do banco |
+| FreeBSD, Linux mais antigo | uma frase-senha: `CADE_DB_PASSPHRASE`, ou digitada no terminal |
+
+- **Chave de recuperação:** o `cade encrypt` a mostra uma vez, em grupos de cinco caracteres. Guarde fora da máquina (num gerenciador de senhas, no papel). Numa máquina cujo cofre não tem a chave (reinstalação, TPM novo, cópia restaurada em outro lugar), defina `CADE_DB_RECOVERY_KEY` com ela; um erro de digitação falha na soma de verificação. Sem a chave e sem a chave de recuperação o banco não abre, e as fontes de onde ele veio podem ter expirado.
+- **Onde a chave é procurada**, nesta ordem: `CADE_DB_RECOVERY_KEY`, `CADE_DB_PASSPHRASE`, o cofre, uma frase-senha digitada no terminal. Quando nenhum a tem, o erro lista todos os lugares. Um banco em texto puro abre como antes, sem procurar.
+- **Ingestão agendada:** o timer do systemd lê o `systemd-creds` sem sessão gráfica. Com frase-senha, ponha `CADE_DB_PASSPHRASE` no ambiente do serviço (`systemctl --user edit cade-ingest.service`), já que o timer não tem terminal para digitá-la.
+- **Cópias:** o `cade encrypt` e o `cade decrypt` tiram antes uma cópia completa (`cade.db.before-encrypt-*`, cifrada; `cade.db.before-decrypt-*`, em texto puro), precisam de espaço livre para duas cópias do banco e seguram a trava da ingestão enquanto rodam. As cópias de antes do `cade encrypt` continuam em texto puro: ele as lista, o `cade doctor` avisa enquanto sobrar alguma e o `cade forget --backups` as apaga.
+- **Antes da primeira ingestão,** o `cade encrypt` cria o banco já cifrado, então nada é gravado em texto puro.
+
 ## Ingestão em segundo plano
 
 Uma ingestão longa (a primeira, uma pasta com milhares de imagens) pode rodar por horas sem prender um terminal nem a máquina inteira:

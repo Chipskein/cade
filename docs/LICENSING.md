@@ -28,13 +28,18 @@ Taken from `go version -m bin/cade`, from `go.mod` and from the cgo `LDFLAGS` of
 | llama.cpp and ggml (`b11195`) | MIT | yes | yes |
 | Libraries vendored by llama.cpp in `mtmd` and `vendor-hash` (stb_image, miniaudio, xxHash, rotate-bits, sha1, sha256, sheredom/subprocess) | MIT, MIT-0, BSD-2-Clause, public domain, Unlicense | yes | yes |
 | mattn/go-sqlite3 v1.14.52 | MIT | yes | yes |
-| SQLite (bundled with go-sqlite3) | public domain | yes | yes |
+| SQLite 3.53.4, inside the sqlite3mc amalgamation | public domain | yes | yes |
+| SQLite3 Multiple Ciphers 2.5.1, in place of the SQLite bundled with go-sqlite3 (#111) | MIT | yes | yes |
+| Code compiled into sqlite3mc (AEGIS, SHA-2, Argon2, BLAKE2, fastpbkdf2, AES, ChaCha20-Poly1305, SHA-1, MD5) | MIT, BSD-3-Clause, CC0-1.0 or Apache-2.0 (used under CC0), public domain | yes | yes |
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT or Apache-2.0, used under MIT | yes, under MIT only | yes, under either |
 | klauspost/compress v1.20.1 (`snappy`, `s2`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | yes | yes |
 | andybalholm/brotli v1.2.6 | MIT | yes | yes |
 | golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | yes | yes |
+| golang.org/x/term v0.46.0 | BSD-3-Clause | yes | yes |
 
 The vendored llama.cpp libraries were not listed in `THIRD_PARTY_NOTICES.md` before this review; they are now, with the texts that require a notice.
+
+SQLite3 Multiple Ciphers came in on 2026-10-13 for the encrypted database (#111), after #57 compared it with SQLCipher. Both are compatible; sqlite3mc was chosen partly because SQLCipher needs OpenSSL (Apache-2.0) on Linux and Windows, which a GPLv2 binary could not link and which adds another library to every build. `go tool mage` builds it from the release amalgamation, checked against its SHA-256 (`internal/devtasks/sqlite3mc.go`).
 
 ## Outside the binary
 

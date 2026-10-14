@@ -24,11 +24,11 @@ func runDoctor(ctx context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return err
 	}
-	database, err := env.toolkit.InspectDatabase(ctx, cfg.DatabasePath)
+	database, encryption, err := env.inspectForDoctor(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}
-	findings := doctor.Diagnose(env.toolkit.RootFS, env.configPath, cfg, database)
+	findings := doctor.Diagnose(env.toolkit.RootFS, env.configPath, cfg, database, encryption)
 	home, _ := env.toolkit.HomeDir()
 	renderFindings(env.stdout, findings, language, home)
 	if err := env.renderDatabaseCopies(cfg.DatabasePath); err != nil {
@@ -108,7 +108,7 @@ func boolToCount(value bool) int {
 // what it means and how to fix it.
 func renderFindings(out io.Writer, findings []doctor.Finding, language Language, home string) {
 	for _, finding := range findings {
-		fmt.Fprintf(out, "%-6s %-22s %s\n", severityLabel(finding.Severity(), language), subjectLabel(finding, language), findingTarget(finding, home))
+		fmt.Fprintf(out, "%-6s %-22s %s\n", severityLabel(finding.Severity(), language), subjectLabel(finding, language), findingTarget(finding, home, language))
 		if finding.Problem != doctor.ProblemNone {
 			fmt.Fprintf(out, "%-29s → %s\n", "", problemText(finding, language))
 		}
@@ -116,11 +116,26 @@ func renderFindings(out io.Writer, findings []doctor.Finding, language Language,
 }
 
 // findingTarget is the checked path, or what was checked when no path.
-func findingTarget(finding doctor.Finding, home string) string {
-	if finding.Subject == doctor.SubjectKeywordSearch {
+func findingTarget(finding doctor.Finding, home string, language Language) string {
+	switch finding.Subject {
+	case doctor.SubjectKeywordSearch:
 		return "SQLite FTS5"
+	case doctor.SubjectEncryption:
+		return encryptionTarget(finding.Encryption, language)
 	}
 	return config.ContractHome(finding.Path, home)
+}
+
+// encryptionTarget says whether the database is encrypted and where its
+// key is (#111).
+func encryptionTarget(encryption doctor.Encryption, language Language) string {
+	switch {
+	case !encryption.Encrypted:
+		return language.pick("texto puro (`cade encrypt` cifra)", "plain text (`cade encrypt` encrypts it)")
+	case encryption.KeyLocation != "":
+		return fmt.Sprintf(language.pick("cifrado; chave em %s", "encrypted; key in %s"), encryption.KeyLocation)
+	}
+	return language.pick("cifrado", "encrypted")
 }
 
 var (
@@ -158,6 +173,7 @@ func subjectLabel(finding doctor.Finding, language Language) string {
 		doctor.SubjectVisionProjector: language.pick("projetor de visão", "vision projector"),
 		doctor.SubjectKeywordSearch:   language.pick("busca por palavras", "keyword search"),
 		doctor.SubjectDatabase:        language.pick("banco", "database"),
+		doctor.SubjectEncryption:      language.pick("criptografia", "encryption"),
 	}
 	if finding.Subject != doctor.SubjectSource {
 		return labels[finding.Subject]

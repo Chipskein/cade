@@ -8,6 +8,18 @@
 
 O que mudou em cada versão, as migrações de esquema e o que cada uma reescreve. O que está planejado a seguir está em [docs/ROADMAP.md](docs/ROADMAP.md). Os gráficos estão em [docs/BENCHMARKS.pt-BR.md](docs/BENCHMARKS.pt-BR.md).
 
+## Em desenvolvimento (v0.3.0)
+
+### Banco cifrado (#111)
+
+- **`cade encrypt`** cifra o banco com o SQLite3 Multiple Ciphers (chacha20), opt-in. A chave é aleatória e fica no cofre do sistema (`systemd-creds --user` no Linux com systemd 256+, o Keychain no macOS, a DPAPI no Windows), ou é uma frase-senha onde não há cofre (FreeBSD, Linux mais antigo). Ele mostra uma chave de recuperação para guardar fora da máquina; o `CADE_DB_RECOVERY_KEY` abre o banco onde o cofre não tem a chave. Antes da primeira ingestão, cria o banco já cifrado.
+- **`cade decrypt`** volta para texto puro e tira a chave do cofre.
+- **Todo comando** acha a chave sozinho, inclusive a ingestão agendada; sem ela, o erro lista todos os lugares procurados. O WAL e as cópias de migração saem cifrados com a mesma chave.
+- **`cade doctor`** diz se o banco está cifrado e onde a chave está, avisa enquanto houver cópias de antes do `cade encrypt` em texto puro (o `cade forget --backups` as apaga) e, sem a chave, ainda confere todo o resto.
+- **Custo** com 100 mil eventos: uns 0,3 s a mais num `ask` frio, mais 0,8 s do `systemd-creds` no Linux; converter o histórico real de 1,5 GB leva ~11 s ([BENCHMARKS](docs/BENCHMARKS.pt-BR.md#banco-cifrado-111)).
+- **Build:** o driver da SQLite agora traz o amalgamation do sqlite3mc (SQLite 3.53.4, a mesma de antes), baixado pelo `go tool mage` e conferido pelo SHA-256. Um banco em texto puro, e os arquivos dos navegadores e do WhatsApp, abrem como antes. Dependência nova: `golang.org/x/term` (frase-senha sem eco).
+- Sem migração do banco.
+
 ## v0.2.1 — 2026-10-11
 
 O cade roda além do Linux: FreeBSD a partir do código-fonte (CPU ou Vulkan), e arquivos de release experimentais para macOS em Apple Silicon e Windows x86-64, que ninguém no projeto pôde testar numa máquina de verdade.
