@@ -20,6 +20,7 @@ import (
 	"github.com/chipskein/cade/internal/cli"
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/console"
+	"github.com/chipskein/cade/internal/dbkey"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/imagepreview"
@@ -48,7 +49,9 @@ func productionToolkit() cli.Toolkit {
 		LoadConfig:         config.Load,
 		WriteConfig:        config.Write,
 		OpenStore:          openStore,
-		InspectDatabase:    sqlitestore.Inspect,
+		InspectDatabase:    inspectDatabase,
+		DatabaseEncrypted:  sqlitestore.IsEncrypted,
+		DatabaseKeys:       databaseKeys,
 		RootFS:             rootfs.System(),
 		HomeDir:            os.UserHomeDir,
 		Stdin:              os.Stdin,
@@ -101,7 +104,7 @@ func renderImagePreview(path string) string {
 	return previewer.Render(context.Background(), path)
 }
 
-func openStore(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error) {
+func openStore(ctx context.Context, path string, key []byte, backupCreated func(backupPath string)) (storage.EventStore, error) {
 	directory := filepath.Dir(path)
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create database directory for %q: %w", path, err)
@@ -111,7 +114,19 @@ func openStore(ctx context.Context, path string, backupCreated func(backupPath s
 	if err := privatefile.Restrict(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("restrict database directory %q to 700: %w", directory, err)
 	}
-	return sqlitestore.OpenWithHooks(ctx, path, sqlitestore.Hooks{BackupCreated: backupCreated})
+	return sqlitestore.OpenWithKey(ctx, path, key, sqlitestore.Hooks{BackupCreated: backupCreated})
+}
+
+func inspectDatabase(ctx context.Context, path string, key []byte) (storage.DatabaseState, error) {
+	return sqlitestore.InspectWithKey(ctx, path, key)
+}
+
+// databaseKeys looks for the key of an encrypted database (#111) in the
+// variables, the system's secret store and, last, the terminal.
+func databaseKeys(ctx context.Context, databasePath, prompt string) dbkey.Search {
+	vault, _ := dbkey.PlatformVault(ctx, runtime.GOOS, databasePath, dbkey.ExecRunner{})
+	terminal := dbkey.TerminalPrompt{In: os.Stdin, Out: os.Stderr}
+	return dbkey.NewSearch(dbkey.SearchOptions{Getenv: os.Getenv, Vault: vault, Terminal: terminal, Prompt: prompt})
 }
 
 func loadEmbedder(settings config.EmbeddingConfig, logger *slog.Logger) (cli.ClosableEmbedder, error) {

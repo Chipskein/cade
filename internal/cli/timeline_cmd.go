@@ -57,7 +57,7 @@ func (env commandEnv) withStore(ctx context.Context, use func(config.Config, sto
 	if err != nil {
 		return err
 	}
-	store, err := env.toolkit.OpenStore(ctx, cfg.DatabasePath, env.reportBackup)
+	store, err := env.openStore(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}

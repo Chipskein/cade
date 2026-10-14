@@ -24,7 +24,7 @@ func runDoctor(ctx context.Context, env commandEnv, args []string) error {
 	if err != nil {
 		return err
 	}
-	database, err := env.toolkit.InspectDatabase(ctx, cfg.DatabasePath)
+	database, err := env.inspectDatabase(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}

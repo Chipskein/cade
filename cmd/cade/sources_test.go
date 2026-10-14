@@ -11,6 +11,7 @@ import (
 	"github.com/chipskein/cade/internal/config"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/ingest"
+	"github.com/chipskein/cade/internal/storage/sqlitestore"
 )
 
 func TestSourceSpecsRegistersAllSources(t *testing.T) {
@@ -113,9 +114,32 @@ func TestModelOptionsCopiesSettings(t *testing.T) {
 
 func TestOpenStoreCreatesParentDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nested", "cade.db")
-	store, err := openStore(t.Context(), path, nil)
+	store, err := openStore(t.Context(), path, nil, nil)
 	if err != nil {
 		t.Fatalf("expected store, got %v", err)
 	}
 	store.Close()
+}
+
+func TestOpenStoreAndInspectWithAKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "cade.db")
+	key := []byte("a key of the database, 32 bytes")
+	store, err := openStore(t.Context(), path, key, nil)
+	if err != nil {
+		t.Fatalf("expected store, got %v", err)
+	}
+	store.Close()
+	if encrypted, err := sqlitestore.IsEncrypted(path); err != nil || !encrypted {
+		t.Fatalf("IsEncrypted = %v, %v; want an encrypted file", encrypted, err)
+	}
+	if state, err := inspectDatabase(t.Context(), path, key); err != nil || !state.Encrypted {
+		t.Errorf("inspect = %+v, %v; want the encrypted database read", state, err)
+	}
+}
+
+func TestDatabaseKeysLooksInTheVariablesFirstAndTheTerminalLast(t *testing.T) {
+	locations := databaseKeys(t.Context(), filepath.Join(t.TempDir(), "cade.db"), "Passphrase: ").Locations()
+	if !strings.HasPrefix(locations, "the variable CADE_DB_RECOVERY_KEY") || !strings.HasSuffix(locations, "a passphrase typed at the terminal") {
+		t.Errorf("locations = %q, want the variables first and the terminal last", locations)
+	}
 }

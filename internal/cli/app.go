@@ -14,6 +14,7 @@ import (
 
 	"github.com/chipskein/cade/internal/buildinfo"
 	"github.com/chipskein/cade/internal/config"
+	"github.com/chipskein/cade/internal/dbkey"
 	"github.com/chipskein/cade/internal/idbmap"
 	"github.com/chipskein/cade/internal/imagecaption"
 	"github.com/chipskein/cade/internal/ingest"
@@ -48,9 +49,16 @@ type Toolkit struct {
 	WriteConfig       func(path string, cfg config.Config) error
 	// OpenStore migrates the database if needed; backupCreated hears where
 	// a migration saved the copy.
-	OpenStore func(ctx context.Context, path string, backupCreated func(backupPath string)) (storage.EventStore, error)
+	// key opens an encrypted database (#111); nil opens a plain one.
+	OpenStore func(ctx context.Context, path string, key []byte, backupCreated func(backupPath string)) (storage.EventStore, error)
 	// InspectDatabase reads the database without migrating it (doctor).
-	InspectDatabase func(ctx context.Context, path string) (storage.DatabaseState, error)
+	InspectDatabase func(ctx context.Context, path string, key []byte) (storage.DatabaseState, error)
+	// DatabaseEncrypted reads the database's header: only an encrypted
+	// one needs its key looked for (#111).
+	DatabaseEncrypted func(path string) (bool, error)
+	// DatabaseKeys is where the key of the encrypted database at path is
+	// looked for; prompt asks for a typed passphrase.
+	DatabaseKeys func(ctx context.Context, databasePath, prompt string) dbkey.Search
 	// RootFS is the user's filesystem under rootfs names, where init looks for
 	// sources and doctor checks the configured paths.
 	RootFS  fs.FS
