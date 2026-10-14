@@ -33,6 +33,10 @@ func databaseProblem(database storage.DatabaseState, configuredModel string) Pro
 	switch {
 	case !database.Exists:
 		return ProblemNoDatabase
+	case database.Unreadable:
+		// Without the key nothing inside is known; the encryption
+		// finding says why.
+		return ProblemNone
 	case database.SchemaVersion > database.LatestSchemaVersion:
 		return ProblemSchemaTooNew
 	case database.EmbeddingModel != "" && database.EmbeddingModel != configuredModel:
@@ -45,4 +49,18 @@ func databaseProblem(database storage.DatabaseState, configuredModel string) Pro
 		return ProblemEmptyVectorSlots
 	}
 	return ProblemNone
+}
+
+// checkEncryption fails when the key of an encrypted database was not
+// found or was rejected, and warns while copies from before it was
+// encrypted still hold it in plain text.
+func checkEncryption(encryption Encryption) Finding {
+	finding := Finding{Subject: SubjectEncryption, Encryption: encryption}
+	switch {
+	case encryption.Encrypted && encryption.KeyError != "":
+		finding.Problem = ProblemKeyNotFound
+	case encryption.Encrypted && encryption.PlainCopies > 0:
+		finding.Problem = ProblemPlainCopies
+	}
+	return finding
 }

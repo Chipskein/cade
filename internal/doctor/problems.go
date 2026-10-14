@@ -13,6 +13,9 @@ const (
 	ProblemThresholdModelMismatch
 	ProblemVisionModelMismatch
 	ProblemEmptyVectorSlots
+	// ProblemPlainCopies: the database is encrypted, but copies from
+	// before are not (#111).
+	ProblemPlainCopies
 	// Failures: a command will fail or return wrong results.
 	ProblemMissing
 	ProblemNotAFile
@@ -25,6 +28,9 @@ const (
 	ProblemSchemaTooNew
 	ProblemEmbeddingMismatch
 	ProblemReindexPending
+	// ProblemKeyNotFound: the database is encrypted and its key was not
+	// found, or did not open it (#111).
+	ProblemKeyNotFound
 )
 
 // Severity classifies the problem.

@@ -189,8 +189,13 @@ func (w *fakeWorld) openStore(_ context.Context, _ string, key []byte, _ func(st
 	return w.store, nil
 }
 
+// inspectDatabase fails with openError only for a key, as the real one
+// reports an encrypted database without one as Unreadable.
 func (w *fakeWorld) inspectDatabase(_ context.Context, _ string, key []byte) (storage.DatabaseState, error) {
 	w.openedKey = key
+	if key == nil {
+		return w.database, nil
+	}
 	return w.database, w.openError
 }
 

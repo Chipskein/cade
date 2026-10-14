@@ -5,6 +5,7 @@ import (
 	"path"
 	"slices"
 
+	"github.com/chipskein/cade/internal/dbkey"
 	"github.com/chipskein/cade/internal/doctor"
 )
 
@@ -37,6 +38,19 @@ var problemWordings = map[doctor.Problem]problemWording{
 	doctor.ProblemReindexPending: fixed("reindexação incompleta: parte dos eventos está sem vetor; rode `cade reindex`",
 		"unfinished reindex: some events have no vector; run `cade reindex`"),
 	doctor.ProblemMigrationPending: migrationWording,
+	doctor.ProblemPlainCopies:      plainCopiesWording,
+	doctor.ProblemKeyNotFound:      keyNotFoundWording,
+}
+
+func plainCopiesWording(finding doctor.Finding, language Language) string {
+	return fmt.Sprintf(language.pick("%s ainda em texto puro, de antes de cifrar; apague com `cade forget --backups`",
+		"%s still in plain text, from before it was encrypted; delete them with `cade forget --backups`"),
+		language.count(finding.Encryption.PlainCopies, databaseCopyNoun))
+}
+
+func keyNotFoundWording(finding doctor.Finding, language Language) string {
+	return fmt.Sprintf(language.pick("%s; numa máquina sem a chave, defina %s com a chave de recuperação",
+		"%s; on a machine without the key, set %s to the recovery key"), finding.Encryption.KeyError, dbkey.RecoveryKeyVariable)
 }
 
 func thresholdModelWording(finding doctor.Finding, language Language) string {
