@@ -37,12 +37,12 @@ func TestPlatformVaultIsAbsentWithoutAStore(t *testing.T) {
 
 func TestNewSearchLooksInTheVariablesTheVaultAndTheTerminal(t *testing.T) {
 	vault := Keychain{Runner: &FakeSecurityRunner{}}
-	search := NewSearch(SearchOptions{Getenv: fakeEnvironment{}.Getenv, Vault: vault, Terminal: &FakePassphraseTerminal{}, Prompt: "Passphrase: "})
+	search := NewSearch(SearchOptions{Getenv: fakeEnvironment{}.Getenv, Vault: vault, Prompt: "Passphrase: "})
 	want := "the variable CADE_DB_RECOVERY_KEY (a recovery key); the variable CADE_DB_PASSPHRASE (a passphrase); the login Keychain, item cade-database; a passphrase typed at the terminal"
 	if got := search.Locations(); got != want {
 		t.Errorf("locations = %q\nwant %q", got, want)
 	}
-	if without := NewSearch(SearchOptions{Getenv: fakeEnvironment{}.Getenv, Terminal: &FakePassphraseTerminal{}}); strings.Contains(without.Locations(), "Keychain") || len(without) != 3 {
+	if without := NewSearch(SearchOptions{Getenv: fakeEnvironment{}.Getenv}); strings.Contains(without.Locations(), "Keychain") || len(without) != 3 {
 		t.Errorf("without a vault: %q, want the variables and the terminal only", without.Locations())
 	}
 }
@@ -54,7 +54,7 @@ func TestNewSearchPrefersTheVariablesOverTheVault(t *testing.T) {
 		t.Fatal(err)
 	}
 	env := fakeEnvironment{PassphraseVariable: "from the variable"}
-	key, source, err := NewSearch(SearchOptions{Getenv: env.Getenv, Vault: vault, Terminal: &FakePassphraseTerminal{}}).Locate(context.Background())
+	key, source, err := NewSearch(SearchOptions{Getenv: env.Getenv, Vault: vault}).Locate(context.Background())
 	if err != nil || string(key) != "from the variable" || !strings.Contains(source.Location(), string(PassphraseVariable)) {
 		t.Errorf("key = %q from %v, %v; want the variable's", key, source, err)
 	}

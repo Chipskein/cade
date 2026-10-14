@@ -1,4 +1,4 @@
-package dbkey
+package dbkey_test
 
 import (
 	"context"
@@ -8,29 +8,32 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/chipskein/cade/internal/dbkey"
+	"github.com/chipskein/cade/internal/testfakes"
 )
 
-var testPrompts = PassphrasePrompts{New: "New passphrase: ", Repeat: "Again: "}
+var testPrompts = dbkey.PassphrasePrompts{New: "New passphrase: ", Repeat: "Again: "}
 
 func TestTypedPassphraseIsTheKey(t *testing.T) {
-	terminal := &FakePassphraseTerminal{Lines: []string{"correct horse battery"}}
-	key, err := TypedPassphrase{Terminal: terminal, Prompt: "Passphrase: "}.Load(context.Background())
+	terminal := &testfakes.FakePassphraseTerminal{Lines: []string{"correct horse battery"}}
+	key, err := dbkey.TypedPassphrase{Terminal: terminal, Prompt: "Passphrase: "}.Load(context.Background())
 	if err != nil || string(key) != "correct horse battery" || terminal.Prompts[0] != "Passphrase: " {
 		t.Errorf("key = %q, %v, prompts %q; want the typed line after the prompt", key, err, terminal.Prompts)
 	}
 }
 
 func TestTypedPassphraseWithoutATerminalOrALineHoldsNoKey(t *testing.T) {
-	for name, terminal := range map[string]*FakePassphraseTerminal{"no terminal": {Absent: true}, "empty line": {Lines: []string{""}}} {
-		if _, err := (TypedPassphrase{Terminal: terminal}).Load(context.Background()); !errors.Is(err, ErrNoKey) {
-			t.Errorf("%s: err = %v, want ErrNoKey", name, err)
+	for name, terminal := range map[string]*testfakes.FakePassphraseTerminal{"no terminal": {Absent: true}, "empty line": {Lines: []string{""}}} {
+		if _, err := (dbkey.TypedPassphrase{Terminal: terminal}).Load(context.Background()); !errors.Is(err, dbkey.ErrNoKey) {
+			t.Errorf("%s: err = %v, want dbkey.ErrNoKey", name, err)
 		}
 	}
 }
 
 func TestChoosePassphraseAsksTwice(t *testing.T) {
-	terminal := &FakePassphraseTerminal{Lines: []string{"correct horse battery", "correct horse battery"}}
-	passphrase, err := ChoosePassphrase(terminal, testPrompts)
+	terminal := &testfakes.FakePassphraseTerminal{Lines: []string{"correct horse battery", "correct horse battery"}}
+	passphrase, err := dbkey.ChoosePassphrase(terminal, testPrompts)
 	if err != nil || string(passphrase) != "correct horse battery" || strings.Join(terminal.Prompts, "|") != "New passphrase: |Again: " {
 		t.Errorf("passphrase = %q, %v, prompts %q; want it after both prompts", passphrase, err, terminal.Prompts)
 	}
@@ -38,17 +41,17 @@ func TestChoosePassphraseAsksTwice(t *testing.T) {
 
 func TestChoosePassphraseRefuses(t *testing.T) {
 	cases := map[string]struct {
-		terminal *FakePassphraseTerminal
+		terminal *testfakes.FakePassphraseTerminal
 		want     string
 	}{
-		"no terminal": {&FakePassphraseTerminal{Absent: true}, string(PassphraseVariable)},
-		"too short":   {&FakePassphraseTerminal{Lines: []string{"ação curta"}}, "10 characters; want at least " + strconv.Itoa(MinPassphraseLength)},
-		"mismatch":    {&FakePassphraseTerminal{Lines: []string{"correct horse battery", "correct horse batterY"}}, "differ"},
+		"no terminal": {&testfakes.FakePassphraseTerminal{Absent: true}, string(dbkey.PassphraseVariable)},
+		"too short":   {&testfakes.FakePassphraseTerminal{Lines: []string{"ação curta"}}, "10 characters; want at least " + strconv.Itoa(dbkey.MinPassphraseLength)},
+		"mismatch":    {&testfakes.FakePassphraseTerminal{Lines: []string{"correct horse battery", "correct horse batterY"}}, "differ"},
 	}
 	for name, c := range cases {
-		_, err := ChoosePassphrase(c.terminal, testPrompts)
-		if !errors.Is(err, ErrPassphraseRejected) || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%s: err = %v, want ErrPassphraseRejected saying %q", name, err, c.want)
+		_, err := dbkey.ChoosePassphrase(c.terminal, testPrompts)
+		if !errors.Is(err, dbkey.ErrPassphraseRejected) || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: err = %v, want dbkey.ErrPassphraseRejected saying %q", name, err, c.want)
 		}
 	}
 }
@@ -59,7 +62,7 @@ func TestTerminalPromptOnAFileIsNotInteractive(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer file.Close()
-	prompt := TerminalPrompt{In: file, Out: &strings.Builder{}}
+	prompt := dbkey.TerminalPrompt{In: file, Out: &strings.Builder{}}
 	if prompt.Interactive() {
 		t.Error("a regular file is interactive, want false")
 	}

@@ -3,6 +3,7 @@ package testfakes
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/chipskein/cade/internal/dbkey"
@@ -46,4 +47,28 @@ func (f *FakeKeyVault) Remove(context.Context) error {
 	}
 	f.Key = nil
 	return nil
+}
+
+// FakePassphraseTerminal answers each ReadPassphrase with the next of
+// Lines and records the prompts; Absent makes it a non-interactive stdin.
+type FakePassphraseTerminal struct {
+	Absent  bool
+	Lines   []string
+	Prompts []string
+}
+
+var _ dbkey.PassphraseTerminal = (*FakePassphraseTerminal)(nil)
+
+func (f *FakePassphraseTerminal) Interactive() bool {
+	return !f.Absent
+}
+
+func (f *FakePassphraseTerminal) ReadPassphrase(prompt string) ([]byte, error) {
+	f.Prompts = append(f.Prompts, prompt)
+	if len(f.Lines) == 0 {
+		return nil, errors.New("EOF")
+	}
+	line := f.Lines[0]
+	f.Lines = f.Lines[1:]
+	return []byte(line), nil
 }
