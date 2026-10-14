@@ -35,6 +35,7 @@ Taken from `go version -m bin/cade`, from `go.mod` and from the cgo `LDFLAGS` of
 | klauspost/compress v1.20.1 (`snappy`, `s2`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | yes | yes |
 | andybalholm/brotli v1.2.6 | MIT | yes | yes |
 | golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | yes | yes |
+| golang.org/x/term v0.46.0 | BSD-3-Clause | yes | yes |
 
 The vendored llama.cpp libraries were not listed in `THIRD_PARTY_NOTICES.md` before this review; they are now, with the texts that require a notice.
 
