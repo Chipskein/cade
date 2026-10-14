@@ -33,6 +33,9 @@ func InspectWithKey(ctx context.Context, path string, key CipherKey) (storage.Da
 	if err != nil {
 		return state, fmt.Errorf("stat database %q: %w", path, err)
 	}
+	if state.Encrypted, err = IsEncrypted(path); err != nil {
+		return state, err
+	}
 	db, err := openKeyed(ctx, path, readOnlyParams, key)
 	if err != nil {
 		return state, err

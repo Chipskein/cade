@@ -238,6 +238,9 @@ type DatabaseState struct {
 	Exists bool
 	// FTS5 tells whether this binary's SQLite can build the keyword index.
 	FTS5 bool
+	// Encrypted: the file is encrypted (#111). It is known even when the
+	// key is not, so doctor reports it with the open's error.
+	Encrypted bool
 	// SchemaVersion is the database's; LatestSchemaVersion this binary's.
 	SchemaVersion       int
 	LatestSchemaVersion int
