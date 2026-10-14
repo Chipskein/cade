@@ -57,16 +57,25 @@ type Search []KeySource
 //
 //	key, err := dbkey.Search{recoveryFromEnv, vault}.Load(ctx)
 func (s Search) Load(ctx context.Context) ([]byte, error) {
+	key, _, err := s.Locate(ctx)
+	return key, err
+}
+
+// Locate is Load also returning the source the key came from, so a key
+// the database rejects can be traced to where it was read.
+//
+//	key, source, err := search.Locate(ctx) // source.Location(): "the login Keychain, ..."
+func (s Search) Locate(ctx context.Context) ([]byte, KeySource, error) {
 	for _, source := range s {
 		key, err := source.Load(ctx)
 		if err == nil {
-			return key, nil
+			return key, source, nil
 		}
 		if !errors.Is(err, ErrNoKey) {
-			return nil, fmt.Errorf("read the database key from %s: %w", source.Location(), err)
+			return nil, source, fmt.Errorf("read the database key from %s: %w", source.Location(), err)
 		}
 	}
-	return nil, fmt.Errorf("%w; looked in: %s", ErrNoKey, s.Locations())
+	return nil, nil, fmt.Errorf("%w; looked in: %s", ErrNoKey, s.Locations())
 }
 
 // Locations lists where s looks, in order, for messages.

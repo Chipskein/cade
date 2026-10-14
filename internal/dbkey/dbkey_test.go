@@ -34,6 +34,15 @@ func TestSearchReturnsTheFirstKeyFound(t *testing.T) {
 	}
 }
 
+func TestSearchLocateNamesTheSourceOfTheKey(t *testing.T) {
+	empty := &testfakes.FakeKeyVault{Place: "empty"}
+	holding := &testfakes.FakeKeyVault{Place: "holding", Key: []byte("secret")}
+	key, source, err := dbkey.Search{empty, holding}.Locate(context.Background())
+	if err != nil || string(key) != "secret" || source.Location() != "holding" {
+		t.Errorf("key = %q from %v, %v; want the key and its source", key, source, err)
+	}
+}
+
 func TestSearchNamesEveryPlaceWhenNoneHasAKey(t *testing.T) {
 	search := dbkey.Search{&testfakes.FakeKeyVault{Place: "the variable X"}, &testfakes.FakeKeyVault{Place: "systemd-creds"}}
 	_, err := search.Load(context.Background())
