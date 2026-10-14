@@ -43,7 +43,7 @@ type modelRun struct {
 // TestModels runs every test, including the llama.cpp binding against the
 // real models, on the CPU build.
 func (t *Tasks) TestModels() error {
-	if err := t.EnsureLlama(LlamaCPU); err != nil {
+	if err := t.prepareCgo(LlamaCPU); err != nil {
 		return err
 	}
 	if err := t.EnsureModels(runtimeModels...); err != nil {
@@ -151,7 +151,7 @@ func (t *Tasks) prepareEval(models []Model) error {
 	case slices.Contains(t.settings.ExtraGoTags, vulkanTag):
 		variant = LlamaVulkan
 	}
-	if err := t.EnsureLlama(variant); err != nil {
+	if err := t.prepareCgo(variant); err != nil {
 		return err
 	}
 	return t.EnsureModels(models...)

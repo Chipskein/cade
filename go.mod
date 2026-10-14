@@ -13,3 +13,7 @@ require (
 )
 
 tool github.com/magefile/mage
+
+// The driver with the SQLite3 Multiple Ciphers amalgamation (#111), built by
+// any go tool mage target that compiles (internal/devtasks/sqlite3mc.go).
+replace github.com/mattn/go-sqlite3 => ./third_party/go-sqlite3mc

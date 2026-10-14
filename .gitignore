@@ -1,6 +1,7 @@
 .claude
 /bin/
 /third_party/llama.cpp/
+/third_party/go-sqlite3mc/
 *.db
 *.db-wal
 *.db-shm
