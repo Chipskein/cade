@@ -35,6 +35,7 @@ Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview
 | teams | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
 | images | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
 | image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | should work (scoop) |
+| encrypted database (`cade encrypt`) | ✓ tested (`systemd-creds`, systemd 256+; else a passphrase) | passphrase, untested | Keychain, untested | DPAPI, tested under wine |
 
 Linux x86-64 is the main CI and release target. macOS on Apple Silicon (Metal) has an experimental release archive, built and tested only on GitHub's Macs ([#53](https://github.com/Chipskein/cade/issues/53)). FreeBSD amd64 builds from source, CPU or Vulkan GPU ([#101](https://github.com/Chipskein/cade/issues/101)), with no CI; it was tested on FreeBSD 15.1. Windows x86-64 (CPU, MinGW) has an experimental zip, built and tested only on GitHub's Windows runners and under wine ([#54](https://github.com/Chipskein/cade/issues/54)).
 
@@ -51,6 +52,7 @@ cade tasks today
 cade ask "what did I work on yesterday?"
 cade compact            # after a large forget: returns the deleted vectors' space
 cade export > cade.jsonl     # everything cade keeps, one event per line
+cade encrypt            # opt-in: encrypts the database, prints the recovery key
 ```
 
 Any other app that keeps its data in the browser's IndexedDB (Chrome, Firefox, Floorp), without code of its own: the local model writes a schema once, and ingestion reads with it.
@@ -99,7 +101,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, other apps through IndexedDB schemas, background and scheduled ingestion. |
+| [Configuration](docs/CONFIGURATION.md) | All config fields, file ingestion behavior, how search works, Teams setup, other apps through IndexedDB schemas, database encryption, background and scheduled ingestion. |
 | [Use cases](docs/USECASES.md) | Practical query patterns and workflows. |
 | [Architecture](docs/ARCHITECTURE.md) | How the code is organized and how components interact. |
 | [Benchmarks](docs/BENCHMARKS.md) | Search latency, retrieval quality and image description cost. |

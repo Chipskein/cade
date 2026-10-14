@@ -35,6 +35,7 @@ Opcional: instale o [`chafa`](https://github.com/hpjansson/chafa) para ver uma p
 | teams | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
 | imagens | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
 | prévia de imagens (`chafa`) | ✓ testado | deve funcionar (`pkg install chafa`) | deve funcionar (Homebrew) | deve funcionar (scoop) |
+| banco cifrado (`cade encrypt`) | ✓ testado (`systemd-creds`, systemd 256+; senão, frase-senha) | frase-senha, não testado | Keychain, não testado | DPAPI, testado no wine |
 
 Linux x86-64 é o alvo principal de CI e releases. O macOS em Apple Silicon (Metal) tem um arquivo de release experimental, compilado e testado só nos Macs do GitHub ([#53](https://github.com/Chipskein/cade/issues/53)). O FreeBSD amd64 compila do código-fonte, em CPU ou na GPU pelo Vulkan ([#101](https://github.com/Chipskein/cade/issues/101)), sem CI; foi testado no FreeBSD 15.1. O Windows x86-64 (CPU, MinGW) tem um zip experimental, compilado e testado só nas máquinas Windows do GitHub e no wine ([#54](https://github.com/Chipskein/cade/issues/54)).
 
@@ -50,6 +51,7 @@ cade timeline --around UID   # 2h antes e depois de um evento (UID do `ask --jso
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
 cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados
+cade encrypt            # opt-in: cifra o banco e mostra a chave de recuperação
 cade export > cade.jsonl     # tudo o que o cade guarda, um evento por linha
 ```
 
@@ -99,7 +101,7 @@ Cited sources:
 
 | | |
 |---|---|
-| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, outros aplicativos por schemas de IndexedDB, ingestão em segundo plano e agendada. |
+| [Configuração](docs/CONFIGURATION.pt-BR.md) | Todos os campos de config, comportamento da ingestão de arquivos, como a busca funciona, configuração do Teams, outros aplicativos por schemas de IndexedDB, criptografia do banco, ingestão em segundo plano e agendada. |
 | [Casos de uso](docs/USECASES.md) | Padrões de consulta e fluxos de trabalho práticos. |
 | [Arquitetura](docs/ARCHITECTURE.md) | Como o código está organizado e como os componentes interagem. |
 | [Benchmarks](docs/BENCHMARKS.pt-BR.md) | Latência de busca, qualidade da recuperação e custo da descrição de imagens. |

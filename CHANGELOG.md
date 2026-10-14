@@ -8,6 +8,18 @@
 
 What changed in each version, the schema migrations, and what each migration rewrites. What is planned next is listed in [docs/ROADMAP.md](docs/ROADMAP.md). The charts are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
+## Unreleased (v0.3.0)
+
+### Encrypted database (#111)
+
+- **`cade encrypt`** encrypts the database with SQLite3 Multiple Ciphers (chacha20), opt-in. The key is random and kept in the system's vault (`systemd-creds --user` on Linux with systemd 256+, the Keychain on macOS, DPAPI on Windows), or is a passphrase where there is none (FreeBSD, older Linux). It prints a recovery key to keep off the machine; `CADE_DB_RECOVERY_KEY` opens the database where the vault lacks the key. Before the first ingestion it creates the database already encrypted.
+- **`cade decrypt`** puts it back in plain text and removes the key from the vault.
+- **Every command** finds the key on its own, the scheduled ingestion included; without it, the error lists every place looked in. The WAL and the migration copies are encrypted with the same key.
+- **`cade doctor`** says whether the database is encrypted and where its key is, warns while copies from before `cade encrypt` are still in plain text (`cade forget --backups` deletes them), and without the key still checks everything else.
+- **Cost** at 100 k events: about 0.3 s more on a cold `ask`, plus 0.8 s for `systemd-creds` on Linux; converting the real 1.5 GB history takes ~11 s ([BENCHMARKS](docs/BENCHMARKS.md#encrypted-database-111)).
+- **Build:** the SQLite driver now carries the sqlite3mc amalgamation (SQLite 3.53.4, the same as before), downloaded by `go tool mage` and checked by its SHA-256. A plain database, and the browsers' and WhatsApp's files, open as before. New dependency: `golang.org/x/term` (passphrase without echo).
+- No database migration.
+
 ## v0.2.1 — 2026-10-11
 
 cade runs beyond Linux: FreeBSD from source (CPU or Vulkan), and experimental release archives for macOS on Apple Silicon and Windows x86-64, which nobody on the project could try on a real machine.

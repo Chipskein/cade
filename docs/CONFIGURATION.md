@@ -204,6 +204,31 @@ WhatsApp for Android keeps every message in `msgstore.db`, and backs it up encry
 
 Run `ingest whatsapp` before the first `ingest whatsapp-backup`, so the messages the Web has are completed instead of keyed anew. A large history takes long the first time: every message text is embedded.
 
+## Database encryption
+
+Off by default ([#111](https://github.com/Chipskein/cade/issues/111)). Disk encryption stays the main protection; an encrypted database adds the copies of your home directory that leave the machine (backups, sync). What it covers and what it does not is in [PRIVACY](../PRIVACY.md#encryption); the cost, in [BENCHMARKS](BENCHMARKS.md#encrypted-database-111).
+
+```sh
+cade encrypt   # asks to confirm (--yes in scripts); prints the recovery key
+cade doctor    # "encryption": where the key is, and copies still in plain text
+cade decrypt   # back to plain text; removes the key from the vault
+```
+
+- **The key:** `cade encrypt` makes a random key and keeps it in the system's vault, then reads it back before touching the database. Where there is no vault, the key is a passphrase (12 characters or more).
+
+| System | Where the key lives |
+|---|---|
+| Linux with systemd 256 or later | `systemd-creds --user`, sealed in `cade.db.key.cred` next to the database; adds ~0.8 s to every command |
+| macOS | the login Keychain, item `cade-database` |
+| Windows | DPAPI, sealed in `cade.db.key.dpapi` next to the database |
+| FreeBSD, older Linux | a passphrase: `CADE_DB_PASSPHRASE`, or typed at the terminal |
+
+- **Recovery key:** `cade encrypt` prints it once, in groups of five characters. Keep it off the machine (a password manager, paper). On a machine whose vault lacks the key (a reinstall, a new TPM, a copy restored elsewhere), set `CADE_DB_RECOVERY_KEY` to it; a typo fails on its checksum. Without the key and the recovery key the database does not open, and the sources it came from may have expired.
+- **Where the key is looked for**, in order: `CADE_DB_RECOVERY_KEY`, `CADE_DB_PASSPHRASE`, the vault, a passphrase typed at the terminal. When none has it, the error lists every place. A plain database is opened as before, without looking.
+- **Scheduled ingestion:** the systemd timer reads `systemd-creds` without a graphical session. With a passphrase, put `CADE_DB_PASSPHRASE` in the service's environment (`systemctl --user edit cade-ingest.service`), since the timer has no terminal to type it on.
+- **Copies:** `cade encrypt` and `cade decrypt` take a full copy first (`cade.db.before-encrypt-*`, encrypted; `cade.db.before-decrypt-*`, plain), need free space for two copies of the database, and hold the ingestion lock while they run. Copies from before `cade encrypt` stay in plain text: it lists them, `cade doctor` warns while any is left, and `cade forget --backups` deletes them.
+- **Before the first ingestion,** `cade encrypt` creates the database already encrypted, so nothing is ever written in plain text.
+
 ## Background ingestion
 
 A long ingestion (a first run, a folder of thousands of images) can run for hours without holding a terminal or the whole machine:
