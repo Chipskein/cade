@@ -12,10 +12,6 @@ import (
 	"github.com/chipskein/cade/internal/testcheck"
 )
 
-// plainSQLiteHeader starts every unencrypted SQLite file; an encrypted one
-// starts with random bytes.
-const plainSQLiteHeader = "SQLite format 3\x00"
-
 // The driver is built with the SQLite3 Multiple Ciphers amalgamation (#111);
 // a build that fell back to the plain SQLite would have no cipher to use.
 func TestDriverIsSQLite3MultipleCiphers(t *testing.T) {
@@ -41,8 +37,8 @@ func TestPlainSQLiteFileOpensWithoutKey(t *testing.T) {
 	testcheck.NoError(t, db.Close())
 	header, err := os.ReadFile(path)
 	testcheck.NoError(t, err)
-	if !bytes.HasPrefix(header, []byte(plainSQLiteHeader)) {
-		t.Fatalf("file starts with %q, want the plain SQLite header", header[:len(plainSQLiteHeader)])
+	if !bytes.HasPrefix(header, []byte(plainHeader)) {
+		t.Fatalf("file starts with %q, want the plain SQLite header", header[:len(plainHeader)])
 	}
 	reopened, err := sql.Open(DriverName, "file:"+path+"?mode=ro")
 	testcheck.NoError(t, err)
