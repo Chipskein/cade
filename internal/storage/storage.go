@@ -241,6 +241,9 @@ type DatabaseState struct {
 	// Encrypted: the file is encrypted (#111). It is known even when the
 	// key is not, so doctor reports it with the open's error.
 	Encrypted bool
+	// Unreadable: encrypted and inspected without its key, so only
+	// Exists, Encrypted, SizeBytes and FTS5 are known.
+	Unreadable bool
 	// SchemaVersion is the database's; LatestSchemaVersion this binary's.
 	SchemaVersion       int
 	LatestSchemaVersion int

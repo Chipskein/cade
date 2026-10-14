@@ -103,14 +103,6 @@ func TestOpenRejectsAKeyThatDoesNotMatchTheFile(t *testing.T) {
 	}
 }
 
-func TestInspectWithoutTheKeyIsRejected(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "cade.db")
-	testcheck.NoError(t, openKeyedStore(t, path).Close())
-	if _, err := Inspect(context.Background(), path); !errors.Is(err, ErrCipherKeyRejected) {
-		t.Errorf("err = %v, want ErrCipherKeyRejected", err)
-	}
-}
-
 func TestDatabaseDSNAddsTheKeyOnlyWhenGiven(t *testing.T) {
 	if got := databaseDSN("/x/cade.db", readOnlyParams, nil); got != "file:/x/cade.db?mode=ro" {
 		t.Errorf("plain DSN = %q, want the params alone", got)

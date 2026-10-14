@@ -21,6 +21,8 @@ func Inspect(ctx context.Context, path string) (storage.DatabaseState, error) {
 }
 
 // InspectWithKey is Inspect on a database encrypted with key (#111).
+// Without a key, an encrypted database is reported Unreadable, not an
+// error, so doctor still checks the rest; a wrong key is an error.
 //
 //	state, err := sqlitestore.InspectWithKey(ctx, path, key)
 func InspectWithKey(ctx context.Context, path string, key CipherKey) (storage.DatabaseState, error) {
@@ -36,12 +38,17 @@ func InspectWithKey(ctx context.Context, path string, key CipherKey) (storage.Da
 	if state.Encrypted, err = IsEncrypted(path); err != nil {
 		return state, err
 	}
+	state.Exists, state.SizeBytes = true, info.Size()
+	if state.Encrypted && len(key) == 0 {
+		state.Unreadable = true
+		state.FTS5, err = inMemoryFTS5(ctx)
+		return state, err
+	}
 	db, err := openKeyed(ctx, path, readOnlyParams, key)
 	if err != nil {
 		return state, err
 	}
 	defer db.Close()
-	state.Exists, state.SizeBytes = true, info.Size()
 	if err := readDatabaseState(ctx, db, &state); err != nil {
 		return state, fmt.Errorf("inspect database %q: %w", path, err)
 	}

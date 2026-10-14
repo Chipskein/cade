@@ -100,14 +100,17 @@ func TestIsEncryptedOfMissingAndEmptyFiles(t *testing.T) {
 	}
 }
 
-func TestInspectReportsEncryptionEvenWithoutTheKey(t *testing.T) {
+func TestInspectWithoutTheKeyReportsAnUnreadableDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cade.db")
 	testcheck.NoError(t, openKeyedStore(t, path).Close())
 	state, err := Inspect(context.Background(), path)
-	if !errors.Is(err, ErrCipherKeyRejected) || !state.Encrypted {
-		t.Errorf("state = %+v, %v; want Encrypted with the rejection", state, err)
+	if err != nil || !state.Exists || !state.Encrypted || !state.Unreadable || !state.FTS5 || state.SizeBytes == 0 || state.SchemaVersion != 0 {
+		t.Errorf("state = %+v, %v; want an existing, encrypted, unreadable database", state, err)
 	}
-	if state, err := InspectWithKey(context.Background(), path, testCipherKey); err != nil || !state.Encrypted {
-		t.Errorf("with the key: state = %+v, %v; want Encrypted", state, err)
+	if state, err := InspectWithKey(context.Background(), path, testCipherKey); err != nil || !state.Encrypted || state.Unreadable || state.SchemaVersion != latestVersion() {
+		t.Errorf("with the key: state = %+v, %v; want it read", state, err)
+	}
+	if _, err := InspectWithKey(context.Background(), path, otherCipherKey); !errors.Is(err, ErrCipherKeyRejected) {
+		t.Errorf("with another key: err = %v, want ErrCipherKeyRejected", err)
 	}
 }
