@@ -72,7 +72,7 @@ What each layer protects against:
 |---|---|---|
 | **git** | commit message, names of changed files, repository path, hash, author name and e-mail, time; with `ingest.names_from_email` on, the name the author's e-mail spells | diffs, file contents |
 | **browser** | every visit: URL with credential parameters removed, page title, time | page contents, cookies, passwords, form data; private windows are not in the history |
-| **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names; with `sources.images` on, a description of each png, jpeg and webp image written by the local model (what it shows and the text visible in it), with the image's SHA-256, its size in pixels, and the model and prompt version | binary contents, image pixels; configured ignored directories and credential file globs |
+| **files** | path, size, modification time and (for UTF-8 text up to `max_file_bytes`) text, except default ignored credential file names; with `sources.images` on, a description of each png, jpeg and webp image written by the local model (what it shows and the text visible in it), with the image's SHA-256, its size in pixels, and the model and prompt version; with `sources.pdfs` on, the text of each page of a PDF, and with `sources.images` too, the description of its scanned pages | binary contents, image pixels; configured ignored directories and credential file globs |
 | **teams** | chat, channel and meeting-chat messages: text (also kept alone, to rebuild the stored content), sender name and id, conversation id and title, whether you sent it, edit version, the address of each picture shown; with `sources.images` on, a description of each picture the browser still has cached, as for images | calendar, call history, notifications, files, the pictures themselves; messages deleted before ingestion |
 | **apps through a schema** (e.g. `whatsapp`) | what the schema maps: message and conversation ids, conversation name, sender id and name, time, whether you sent it, the text when the app keeps it readable, the schema name and revision | anything else in the app's IndexedDB; for WhatsApp Web, the text (encrypted by the app, never decrypted) and media |
 | **whatsapp-backup** | every message of the Android `msgstore.db` you decrypted: text or caption, attachment file name, message and conversation ids, group name, sender id (and name, when WhatsApp Web already had it), time, whether you sent it | media files, contacts (`wa.db`), system notices, calls, deleted messages, reactions; the decryption key |
@@ -88,6 +88,16 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 - **The description takes the place of the image.** It goes through the same secret masking as any text: a screenshot of a terminal with a token stores `[redacted:github-token]`. The ignored folders and file globs apply to images too.
 - **The SHA-256 lets a moved or renamed image reuse its description** without being described again. It identifies the file's bytes, not what it shows.
 - **Text inside an image is someone else's,** like a message: the model is told to copy it, not to follow it, and a description whose text gives the assistant orders is marked untrusted in `ask`, as below.
+
+## PDFs
+
+Off by default; `cade init` asks, and `sources.pdfs` turns it on.
+
+- **What is extracted:** the text of each page, as the text of any file, with the page it was on. The file itself and the images in it are not copied.
+- **Scanned pages** go to the local vision model only with `sources.images` also on. What is kept is the description, with the same masking as any image; the pixels are not. The hash of a page's image lets it reuse a description, like a moved image.
+- **The same filters and masks apply:** ignored folders and file globs, and secret masking over the extracted text. A PDF that cannot be read keeps its name only.
+- **The text in a PDF is someone else's,** like a message: one that gives the assistant orders is marked untrusted in `ask`.
+- **Deleting:** `cade forget` removes the extracted text, the descriptions of the scanned pages and the vectors of both, unless another file still holds the same page. Turning `sources.pdfs` off stops new reading and deletes nothing.
 
 ## Teams
 
@@ -119,7 +129,7 @@ Off by default; `cade init` asks, and `sources.images` turns it on.
 
 Both models run in-process through llama.cpp.
 
-- **Vision model** (only with `sources.images` on, during `ingest` and `reindex --captions`): each new image of the configured folders, scaled so its longer side is at most 1,024 px, with fixed instructions to describe it and copy its visible text. It sees nothing else, and it is freed before the embedding model loads.
+- **Vision model** (only with `sources.images` on, during `ingest` and `reindex --captions`): each new image of the configured folders and, with `sources.pdfs` on, each new scanned page of a PDF, scaled so its longer side is at most 1,024 px, with fixed instructions to describe it and copy its visible text. It sees nothing else, and it is freed before the embedding model loads.
 - **Embedding model:** the whole text of each event, in chunks of up to 1,200 characters, when it is ingested (identical text is embedded once), and the search text of each question.
 - **Question interpretation:** only your question, with fixed instructions and examples. Questions the rules read (a period, a source and generic words) never reach the model.
 - **Saved prompt state:** `~/.cache/cade/prompt-state/` holds one file (~55 MB, owner-only) with the model's state after its fixed instructions and examples. It contains no question and nothing from the database.
@@ -169,7 +179,7 @@ cade does not pick a law for you. This section compares what it does with the ri
 |---|---|---|---|
 | **git** | name, e-mail, commit messages | other authors' names, e-mails and messages (`timeline` shows them only with `--all-authors`) | rarely |
 | **browser** | every page visited, its title and time | names in page titles (profiles, chats) | yes: health, religion or politics can be inferred from the sites visited |
-| **files** | the text of your files and the description of your images | whatever the files and images hold: names, documents, photos of people | yes |
+| **files** | the text of your files and PDFs and the description of your images | whatever the files, PDFs and images hold: names, documents, photos of people | yes |
 | **teams**, **apps through a schema** and **whatsapp-backup** | your messages | other people's messages, names and ids | yes, whatever people write |
 | **people index** (`event_people`) | your name | names of senders, authors and people mentioned after "@" | no |
 | **entities** (`entities`) | your name, your files' paths | the same names as the people index, without conversation titles; with `ingest.names_from_email` on, the names commit authors' e-mails spell | no |
