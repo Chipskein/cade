@@ -14,7 +14,8 @@ cade is licensed under the GNU General Public License, version 3 or (at your opt
 | [sqlite-vec](https://github.com/asg017/sqlite-vec) via [sqlite-vec-go-bindings](https://github.com/asg017/sqlite-vec-go-bindings) | v0.1.6 | MIT or Apache-2.0, at your option (used here under MIT) | vector search extension (cgo) |
 | [klauspost/compress](https://github.com/klauspost/compress) | v1.20.1 (`snappy`, `s2`, `gzip`, `flate` and `zstd` packages) | BSD-3-Clause (the file also carries the terms of the module's other packages) | reading Snappy blocks in the Teams cache and Snappy streams in the Firefox Cache API; decoding gzip, deflate and zstd bodies of the browsers' HTTP cache |
 | [andybalholm/brotli](https://github.com/andybalholm/brotli) | v1.2.6 | MIT | decoding brotli (`br`) bodies of the browsers' HTTP cache |
-| [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
+| [chipskein/spfdtextextractor](https://github.com/chipskein/spfdtextextractor) | v0.1.0 | GPL-3.0-or-later, the same text as cade's `LICENSE` | reading PDFs (#108) |
+| [golang.org/x/image](https://pkg.go.dev/golang.org/x/image) | v0.46.0 (`webp`, `draw`, `ccitt`) | BSD-3-Clause, the same text as the Go standard library's below | decoding webp images and scaling images before they are described |
 | [golang.org/x/sys](https://pkg.go.dev/golang.org/x/sys) | v0.48.0 (`windows`, `unix`) | BSD-3-Clause, the same text as the Go standard library's below | the ingest lock and DPAPI on Windows; the terminal for `golang.org/x/term` |
 | [golang.org/x/term](https://pkg.go.dev/golang.org/x/term) | v0.46.0 | BSD-3-Clause, the same text as the Go standard library's below | reading the database passphrase without echoing it (#111) |
 
