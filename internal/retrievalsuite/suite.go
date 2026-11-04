@@ -58,7 +58,8 @@ type Suite struct {
 // that are the same thing for the user (15 visits to one page, versions of
 // one file); it defaults to the id, and cases name groups. Image names a
 // fixture of testdata/images: its text is the real description, filled by
-// CaptionImages before the corpus is searched.
+// CaptionImages before the corpus is searched. PDF names a fixture of
+// testdata/pdfs, filled the same way by ReadPDFs.
 type CorpusEvent struct {
 	ID       string         `json:"id"`
 	Group    string         `json:"group,omitempty"`
@@ -67,6 +68,7 @@ type CorpusEvent struct {
 	Content  string         `json:"content"`
 	Metadata event.Metadata `json:"metadata"`
 	Image    string         `json:"image,omitempty"`
+	PDF      string         `json:"pdf,omitempty"`
 }
 
 func (e CorpusEvent) group() string {

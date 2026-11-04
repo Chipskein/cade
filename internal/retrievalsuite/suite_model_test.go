@@ -364,6 +364,9 @@ func captionCorpus(t *testing.T, corpus *Corpus) {
 	if err := corpus.CaptionImages(context.Background(), imageFixtureDirectory, captions); err != nil {
 		t.Fatal(err)
 	}
+	if err := corpus.ReadPDFs(context.Background(), pdfFixtures, captions); err != nil {
+		t.Fatal(err)
+	}
 	if err := captions.Save(); err != nil {
 		t.Fatal(err)
 	}
