@@ -383,8 +383,21 @@ func (f *FakeEventStore) DescribedImage(_ context.Context, sha256 string) (event
 		if image := ev.Image(); image.SHA256 == sha256 && image.Status == event.CaptionDescribed {
 			return image, true, f.FailWith
 		}
+		if image, found := describedPageImage(ev, sha256); found {
+			return image, true, f.FailWith
+		}
 	}
 	return event.Image{}, false, f.FailWith
+}
+
+// describedPageImage finds a scanned page of a PDF by hash, with its text.
+func describedPageImage(ev event.Event, sha256 string) (event.Image, bool) {
+	for _, page := range ev.PDFPageImages() {
+		if page.Image.SHA256 == sha256 && page.Image.Description != "" {
+			return page.Image, true
+		}
+	}
+	return event.Image{}, false
 }
 
 // OutdatedImages lists the described, present image events whose model or

@@ -18,7 +18,9 @@ const describedCandidates = 8
 
 // DescribedImage returns a stored description of the image with this hash:
 // the status and size of a described copy (index of schema version 10)
-// with the Image's representations.
+// with the Image's representations. Without such a copy, the Image may still
+// have a description from a scanned page of a PDF, whose event names the hash
+// in another form (#108).
 func (s *Store) DescribedImage(ctx context.Context, sha256 string) (event.Image, bool, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT metadata FROM events WHERE `+imageSHA256Expression+` = ? AND source = ? LIMIT ?`,
 		sha256, string(event.SourceFile), describedCandidates)
@@ -38,7 +40,7 @@ func (s *Store) DescribedImage(ctx context.Context, sha256 string) (event.Image,
 			return s.withImageText(ctx, image)
 		}
 	}
-	return event.Image{}, false, nil
+	return s.withImageText(ctx, event.Image{SHA256: sha256, Status: event.CaptionDescribed})
 }
 
 // OutdatedImages lists, oldest first, described images present in their
