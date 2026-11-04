@@ -33,6 +33,10 @@ const (
 	// RoleShows is the image a file event's file holds: copies of one
 	// image are files of their own and one Image, with one description.
 	RoleShows Role = "shows"
+	// RolePageImage is a scanned page of a PDF (#108). It is not RoleShows: a
+	// question about images must not return a contract, and a message's
+	// attachment with the PDF's name must not link to its pages.
+	RolePageImage Role = "page-image"
 )
 
 // Relation is how one entity relates to another, stored as

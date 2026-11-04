@@ -1,6 +1,9 @@
 package event
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // CaptionStatus is where a file event's image stands in being described
 // (phase 19).
@@ -104,6 +107,11 @@ func (e Event) WithoutImageText() Event {
 	}
 	for _, key := range imageTextKeys {
 		delete(metadata, key)
+	}
+	for key := range metadata {
+		if strings.HasPrefix(key, pdfPageTextKeyPrefix) {
+			delete(metadata, key)
+		}
 	}
 	e.Metadata = metadata
 	return e
