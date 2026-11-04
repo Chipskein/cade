@@ -118,10 +118,7 @@ func (env commandEnv) clearStopRequest() {
 
 func (env commandEnv) executeIngest(ctx context.Context, plan ingestPlan) error {
 	describe := func(cfg config.Config, store storage.EventStore) error {
-		if err := env.describeImages(ctx, cfg, store, plan.jobs, plan.captions); err != nil {
-			return err
-		}
-		return env.readPDFs(ctx, cfg, store, plan.jobs, plan.pdfs)
+		return env.describeImages(ctx, cfg, store, plan.jobs, plan.captions, plan.pdfs)
 	}
 	return env.withIngestPipeline(ctx, describe, func(pipeline *ingest.Pipeline) error {
 		return runIngestJobs(ctx, env, pipeline, plan.jobs)

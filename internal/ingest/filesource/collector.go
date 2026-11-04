@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"maps"
 	pathpkg "path"
 	"slices"
 	"unicode/utf8"
@@ -124,7 +125,7 @@ func (c *Collector) emitFile(path string, entry fs.DirEntry, emit ingest.EmitFun
 		return emit(imageEvent(fileEvent(absolutePath, info, image.SearchableText()), image))
 	}
 	if reading, read := c.opts.PDFs[absolutePath]; read {
-		return emit(pdfEvent(fileEvent(absolutePath, info, reading.Text), reading.PDF))
+		return emit(pdfEvent(fileEvent(absolutePath, info, reading.Text), reading))
 	}
 	text, err := c.readText(path, info.Size())
 	if err != nil {
@@ -142,9 +143,10 @@ func imageEvent(file event.Event, image event.Image) event.Event {
 }
 
 // pdfEvent adds the PDF's metadata to its file event.
-func pdfEvent(file event.Event, pdf event.PDF) event.Event {
-	for key, value := range pdf.Metadata() {
-		file.Metadata[key] = value
+func pdfEvent(file event.Event, reading ingest.PDFReading) event.Event {
+	maps.Copy(file.Metadata, reading.PDF.Metadata())
+	if len(reading.PageImages) > 0 {
+		maps.Copy(file.Metadata, event.PDFPageImagesMetadata(reading.PageImages))
 	}
 	return file
 }

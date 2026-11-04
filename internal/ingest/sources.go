@@ -41,10 +41,11 @@ func SourceNames(specs []SourceSpec) []string {
 type ImageCaptions map[string]event.Image
 
 // PDFReading is what was read from a PDF: Text holds its pages, divided by
-// chunking.PageSeparator.
+// chunking.PageSeparator, and PageImages the scanned pages described.
 type PDFReading struct {
-	PDF  event.PDF
-	Text string
+	PDF        event.PDF
+	Text       string
+	PageImages []event.PDFPageImage
 }
 
 // PDFReadings maps a file's absolute path to what was read from it, decided

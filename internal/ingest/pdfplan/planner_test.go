@@ -29,7 +29,7 @@ type planWorld struct {
 func newPlanWorld() *planWorld {
 	world := &planWorld{store: testfakes.NewFakeEventStore(), reader: &testfakes.FakePDFReader{Documents: map[string]*testfakes.FakePDFDocument{}}}
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	world.planner = NewPlanner(world.store, world.reader, Settings{MaxBytes: 100, MaxPages: 10}, logger)
+	world.planner = NewPlanner(world.store, world.reader, Settings{MaxBytes: 100, MaxPages: 10}, nil, logger)
 	return world
 }
 
@@ -143,7 +143,7 @@ func (r slowReader) Open([]byte, pdffile.Limits) (pdffile.Document, error) {
 func TestAPageThatTimesOutGivesUpOnTheFile(t *testing.T) {
 	document := &slowDocument{FakePDFDocument: *textPages("a", "b", "c")}
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	planner := NewPlanner(testfakes.NewFakeEventStore(), slowReader{document}, Settings{MaxBytes: 100, MaxPages: 10}, logger)
+	planner := NewPlanner(testfakes.NewFakeEventStore(), slowReader{document}, Settings{MaxBytes: 100, MaxPages: 10}, nil, logger)
 	err := planner.PlanDirectory(context.Background(), fstest.MapFS{"a.pdf": pdfFile("x")}, planRoot, filesource.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -218,5 +218,104 @@ func TestStoreFailureStopsThePlan(t *testing.T) {
 	err := world.planner.PlanDirectory(context.Background(), fstest.MapFS{"a.pdf": pdfFile("x")}, planRoot, filesource.Options{})
 	if err == nil {
 		t.Error("expected the store's failure")
+	}
+}
+
+// describingWorld has a two-page PDF, the second page a scan, and a describer
+// answering with status.
+func describingWorld(status event.CaptionStatus, failure error) (*planWorld, *[]string) {
+	world := newPlanWorld()
+	world.reader.Documents["pdf"] = &testfakes.FakePDFDocument{
+		Pages: []pdffile.Page{{Number: 1, Text: "um"}, {Number: 2, Text: "p. 2", Scanned: true}},
+		Scans: map[int][]byte{2: []byte("scan")},
+	}
+	var keys []string
+	describe := func(_ context.Context, key string, raw []byte) (event.Image, error) {
+		keys = append(keys, key+"="+string(raw))
+		return event.Image{SHA256: "h2", Status: status, Description: "um contrato", VisibleText: "CLÁUSULA 1"}, failure
+	}
+	world.planner.describe = describe
+	return world, &keys
+}
+
+func TestADescribedPageJoinsTheText(t *testing.T) {
+	world, keys := describingWorld(event.CaptionDescribed, nil)
+	world.plan(t, fstest.MapFS{"scan.pdf": pdfFile("pdf")})
+	reading := world.planner.Readings()[planRoot+"/scan.pdf"]
+	want := "um\fp. 2\nImagem: um contrato\nTexto na imagem:\nCLÁUSULA 1"
+	if reading.Text != want || reading.PDF != (event.PDF{Status: event.PDFRead, Pages: 2}) {
+		t.Errorf("reading = %+v, want text %q", reading, want)
+	}
+	if len(reading.PageImages) != 1 || reading.PageImages[0].Number != 2 || reading.PageImages[0].Image.SHA256 != "h2" {
+		t.Errorf("page images = %+v", reading.PageImages)
+	}
+	if len(*keys) != 1 || (*keys)[0] != planRoot+"/scan.pdf#p=2=scan" {
+		t.Errorf("described = %v", *keys)
+	}
+}
+
+func TestAPageWaitingForTheLimitKeepsTheFilePending(t *testing.T) {
+	world, _ := describingWorld(event.CaptionPending, nil)
+	world.plan(t, fstest.MapFS{"scan.pdf": pdfFile("pdf")})
+	reading := world.planner.Readings()[planRoot+"/scan.pdf"]
+	if reading.PDF != (event.PDF{Status: event.PDFPending, Pages: 2, PendingPages: 1}) || len(reading.PageImages) != 0 {
+		t.Errorf("reading = %+v", reading)
+	}
+}
+
+func TestAnUndecodablePageIsSettledWithoutText(t *testing.T) {
+	world, _ := describingWorld(event.CaptionUnreadable, nil)
+	world.plan(t, fstest.MapFS{"scan.pdf": pdfFile("pdf")})
+	reading := world.planner.Readings()[planRoot+"/scan.pdf"]
+	if reading.PDF.Status != event.PDFRead || reading.Text != "um\fp. 2" {
+		t.Errorf("reading = %+v", reading)
+	}
+}
+
+func TestAScanThatCannotBeReadCostsThatPage(t *testing.T) {
+	world, keys := describingWorld(event.CaptionDescribed, nil)
+	world.reader.Documents["pdf"].Scans = nil
+	world.plan(t, fstest.MapFS{"scan.pdf": pdfFile("pdf")})
+	if got := world.planner.Readings()[planRoot+"/scan.pdf"]; got.PDF.Status != event.PDFRead || len(*keys) != 0 {
+		t.Errorf("reading = %+v, described = %v", got, *keys)
+	}
+}
+
+func TestAModelFailureStopsTheRun(t *testing.T) {
+	failure := errors.New("the model failed")
+	world, _ := describingWorld(event.CaptionDescribed, failure)
+	err := world.planner.PlanDirectory(context.Background(), fstest.MapFS{"scan.pdf": pdfFile("pdf")}, planRoot, filesource.Options{})
+	if !errors.Is(err, failure) {
+		t.Errorf("error = %v, want the model's", err)
+	}
+}
+
+func TestAPendingFileIsReadAgainOnlyWithADescriber(t *testing.T) {
+	for name, withDescriber := range map[string]bool{"images off": false, "images on": true} {
+		world, _ := describingWorld(event.CaptionDescribed, nil)
+		if !withDescriber {
+			world.planner.describe = nil
+		}
+		world.store.Events = append(world.store.Events, storedPDF(planRoot+"/scan.pdf", planTime, event.PDFPending))
+		world.plan(t, fstest.MapFS{"scan.pdf": pdfFile("pdf")})
+		if got := len(world.reader.Opened) == 1; got != withDescriber {
+			t.Errorf("%s: read = %v, want %v", name, got, withDescriber)
+		}
+	}
+}
+
+func TestSettledStatus(t *testing.T) {
+	cases := []struct {
+		status      event.PDFStatus
+		canDescribe bool
+		want        bool
+	}{
+		{event.PDFRead, true, true}, {event.PDFUnreadable, false, true},
+		{event.PDFPending, true, false}, {event.PDFPending, false, true}, {event.PDFNone, true, false},
+	}
+	for _, test := range cases {
+		if got := settledStatus(test.status, test.canDescribe); got != test.want {
+			t.Errorf("settledStatus(%q, %v) = %v, want %v", test.status, test.canDescribe, got, test.want)
+		}
 	}
 }

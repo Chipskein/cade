@@ -24,11 +24,20 @@ import (
 // per page of 500 would otherwise hold a run for hours.
 const pageTimeout = 30 * time.Second
 
+// pageKeySeparator makes a page's address: no file collector looks one up, so it
+// cannot be mistaken for a file.
+const pageKeySeparator = "#p="
+
 // Store is what planning reads from the database.
 type Store interface {
 	IsForgotten(ctx context.Context, uid string) (bool, error)
 	StoredEvent(ctx context.Context, uid string) (event.Event, bool, error)
 }
+
+// PageDescriber describes the image of a scanned page, under key, its address.
+// The status says what became of it: described, waiting for the per-run limit,
+// or unreadable. An error is a model failure, and stops the run.
+type PageDescriber func(ctx context.Context, key string, raw []byte) (event.Image, error)
 
 // Settings are the limits of one file.
 type Settings struct {
@@ -60,15 +69,17 @@ type Planner struct {
 	reader   pdffile.Reader
 	settings Settings
 	logger   *slog.Logger
+	describe PageDescriber
 	readings ingest.PDFReadings
 	tally    Tally
 }
 
-// NewPlanner plans against store.
+// NewPlanner plans against store. Without a describer, as with images off,
+// scanned pages wait, and nothing loads the vision model.
 //
-//	planner := pdfplan.NewPlanner(store, pdffile.ExtractorReader{}, settings, logger)
-func NewPlanner(store Store, reader pdffile.Reader, settings Settings, logger *slog.Logger) *Planner {
-	return &Planner{store: store, reader: reader, settings: settings, logger: logger, readings: ingest.PDFReadings{}}
+//	planner := pdfplan.NewPlanner(store, pdffile.ExtractorReader{}, settings, nil, logger)
+func NewPlanner(store Store, reader pdffile.Reader, settings Settings, describe PageDescriber, logger *slog.Logger) *Planner {
+	return &Planner{store: store, reader: reader, settings: settings, describe: describe, logger: logger, readings: ingest.PDFReadings{}}
 }
 
 // Readings are the PDFs planned so far, for the file collector.
@@ -122,7 +133,22 @@ func (p *Planner) alreadySettled(ctx context.Context, absolutePath string, info 
 		return false, err
 	}
 	revision, _ := stored.Revision()
-	return revision == info.ModTime().UnixNano() && stored.PDF().Status != event.PDFNone, nil
+	if revision != info.ModTime().UnixNano() {
+		return false, nil
+	}
+	return settledStatus(stored.PDF().Status, p.describe != nil), nil
+}
+
+// settledStatus says a new reading could not improve this status: a PDF waiting
+// on a describer is worth reading again only if there is one now.
+func settledStatus(status event.PDFStatus, canDescribe bool) bool {
+	switch status {
+	case event.PDFRead, event.PDFUnreadable:
+		return true
+	case event.PDFPending:
+		return !canDescribe
+	}
+	return false
 }
 
 // readFile returns an error only for a cancelled run: what is wrong with a file
@@ -149,26 +175,92 @@ func (p *Planner) unreadable(absolutePath string, reason error) ingest.PDFReadin
 }
 
 func (p *Planner) readPages(ctx context.Context, document pdffile.Document, absolutePath string) (ingest.PDFReading, error) {
-	pages := make([]string, document.PageCount())
-	pending := 0
-	for index := range pages {
-		page, err := readPage(ctx, document, index+1)
-		if ctx.Err() != nil {
-			return ingest.PDFReading{}, ctx.Err()
+	reading := pageReading{planner: p, document: document, path: absolutePath, pages: make([]string, document.PageCount())}
+	for index := range reading.pages {
+		abandoned, err := reading.readPage(ctx, index+1)
+		if err != nil {
+			return ingest.PDFReading{}, err
 		}
-		if errors.Is(err, context.DeadlineExceeded) {
+		if abandoned {
 			return p.unreadable(absolutePath, fmt.Errorf("page %d took over %v", index+1, pageTimeout)), nil
 		}
-		if err != nil {
-			p.logger.Debug("PDF page not read", "path", absolutePath, "reason", err.Error())
-			continue
-		}
-		pages[index] = page.Text
-		if page.Scanned {
-			pending++
-		}
 	}
-	return ingest.PDFReading{PDF: statusOf(len(pages), pending), Text: strings.Join(pages, chunking.PageSeparator)}, nil
+	return reading.result(), nil
+}
+
+// pageReading is one PDF being read, page by page.
+type pageReading struct {
+	planner  *Planner
+	document pdffile.Document
+	path     string
+	pages    []string
+	images   []event.PDFPageImage
+	pending  int
+}
+
+func (r *pageReading) result() ingest.PDFReading {
+	return ingest.PDFReading{PDF: statusOf(len(r.pages), r.pending), Text: strings.Join(r.pages, chunking.PageSeparator), PageImages: r.images}
+}
+
+// readPage reports abandoned for a page over the timeout, and an error only for
+// a cancelled run or a failed model; a bad page costs that page.
+func (r *pageReading) readPage(ctx context.Context, number int) (abandoned bool, err error) {
+	page, err := readPage(ctx, r.document, number)
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true, nil
+	}
+	if err != nil {
+		r.planner.logger.Debug("PDF page not read", "path", r.path, "page", number, "reason", err.Error())
+		return false, nil
+	}
+	r.pages[number-1] = page.Text
+	if !page.Scanned {
+		return false, nil
+	}
+	return r.readScan(ctx, number)
+}
+
+func (r *pageReading) readScan(ctx context.Context, number int) (abandoned bool, err error) {
+	if r.planner.describe == nil {
+		r.pending++
+		return false, nil
+	}
+	raw, err := readScan(ctx, r.document, number)
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true, nil
+	}
+	if err != nil {
+		r.planner.logger.Debug("PDF scan not read", "path", r.path, "page", number, "reason", err.Error())
+		return false, nil
+	}
+	return false, r.describeScan(ctx, number, raw)
+}
+
+func (r *pageReading) describeScan(ctx context.Context, number int, raw []byte) error {
+	image, err := r.planner.describe(ctx, fmt.Sprintf("%s%s%d", r.path, pageKeySeparator, number), raw)
+	if err != nil {
+		return fmt.Errorf("describe page %d: %w", number, err)
+	}
+	switch image.Status {
+	case event.CaptionPending:
+		r.pending++
+	case event.CaptionDescribed:
+		r.pages[number-1] = strings.TrimSpace(r.pages[number-1] + "\n" + image.SearchableText())
+		r.images = append(r.images, event.PDFPageImage{Number: number, Image: image})
+	}
+	return nil
+}
+
+func readScan(ctx context.Context, document pdffile.Document, number int) ([]byte, error) {
+	scanCtx, cancel := context.WithTimeout(ctx, pageTimeout)
+	defer cancel()
+	return document.Scan(scanCtx, number)
 }
 
 func readPage(ctx context.Context, document pdffile.Document, number int) (pdffile.Page, error) {

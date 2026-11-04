@@ -154,3 +154,19 @@ func TestCollectGivesAReadPDFItsPages(t *testing.T) {
 		t.Errorf("other PDF = %q, %+v", other.Content, other.PDF())
 	}
 }
+
+func TestCollectKeepsTheDescribedPagesOfAPDF(t *testing.T) {
+	tree := fstest.MapFS{"scan.pdf": {Data: []byte{0}, ModTime: modified}}
+	page := event.PDFPageImage{Number: 2, Image: event.Image{SHA256: "p2", Status: event.CaptionDescribed, Description: "um contrato"}}
+	reading := ingest.PDFReading{PDF: event.PDF{Status: event.PDFRead, Pages: 2}, Text: "\fImagem: um contrato", PageImages: []event.PDFPageImage{page}}
+	var got event.Event
+	err := NewCollector(tree, "/root", Options{MaxFileBytes: 100, PDFs: ingest.PDFReadings{"/root/scan.pdf": reading}}).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := got.PDFPageImages()
+	if len(pages) != 1 || pages[0].Number != 2 || pages[0].Image.Description != "um contrato" {
+		t.Errorf("pages = %+v", pages)
+	}
+}

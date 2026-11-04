@@ -28,10 +28,11 @@ const (
 // describeImages is the first stage of `ingest` with images on (phase 19):
 // it plans the images of the file jobs into captions, loading the vision
 // model only if one needs describing, and frees it before the embedder
-// loads, so the two never add up in memory.
-func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, store storage.EventStore, jobs []ingestJob, captions ingest.ImageCaptions) error {
+// loads, so the two never add up in memory. PDFs are read here too, so their
+// scanned pages share the model and the per-run limit (#108).
+func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, store storage.EventStore, jobs []ingestJob, captions ingest.ImageCaptions, pdfs ingest.PDFReadings) error {
 	if !cfg.Sources.Images {
-		return nil
+		return env.readPDFs(ctx, cfg, store, jobs, pdfs, nil)
 	}
 	roots := env.imageRoots(jobs)
 	pictures, err := env.teamsPictures(ctx, jobs)
@@ -45,6 +46,9 @@ func (env commandEnv) describeImages(ctx context.Context, cfg config.Config, sto
 	planner := imagecaption.NewPlanner(index, env.describerLoader(cfg), imageSettings(cfg), env.logger)
 	defer planner.Close()
 	if err := env.planImages(ctx, planner, imageSet{roots: roots, pictures: pictures}, cfg); err != nil {
+		return err
+	}
+	if err := env.readPDFs(ctx, cfg, store, jobs, pdfs, planner); err != nil {
 		return err
 	}
 	maps.Copy(captions, planner.Captions())
