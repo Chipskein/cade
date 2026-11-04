@@ -133,3 +133,24 @@ func TestEstimateEventsCountsTheFilesCollected(t *testing.T) {
 		t.Fatalf("expected the count of collected files, got %d (err %v)", count, err)
 	}
 }
+
+func TestCollectGivesAReadPDFItsPages(t *testing.T) {
+	tree := fstest.MapFS{"relatorio.pdf": {Data: []byte("%PDF binary"), ModTime: modified}, "outro.pdf": {Data: []byte{0}, ModTime: modified}}
+	pdf := event.PDF{Status: event.PDFRead, Pages: 2}
+	opts := Options{MaxFileBytes: 100, PDFs: ingest.PDFReadings{"/root/relatorio.pdf": {PDF: pdf, Text: "um\fdois"}}}
+	events := map[string]event.Event{}
+	err := NewCollector(tree, "/root", opts).CollectEvents(context.Background(), func(ev event.Event) error {
+		events[ev.File().Path] = ev
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := events["/root/relatorio.pdf"]
+	if read.Content != "relatorio.pdf\num\fdois" || read.PDF() != pdf {
+		t.Errorf("read PDF = %q, %+v", read.Content, read.PDF())
+	}
+	if other := events["/root/outro.pdf"]; other.Content != "outro.pdf" || other.PDF().Status != event.PDFNone {
+		t.Errorf("other PDF = %q, %+v", other.Content, other.PDF())
+	}
+}

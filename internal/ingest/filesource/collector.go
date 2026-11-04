@@ -26,6 +26,9 @@ type Options struct {
 	// Captions holds the images described before this collector runs; an
 	// image in it gets its description as text instead of just its name.
 	Captions ingest.ImageCaptions
+	// PDFs holds the PDFs read before this collector runs; a PDF in it gets
+	// its pages as text instead of just its name.
+	PDFs ingest.PDFReadings
 }
 
 // OptionsFor reads the file source settings; captions may be nil.
@@ -120,6 +123,9 @@ func (c *Collector) emitFile(path string, entry fs.DirEntry, emit ingest.EmitFun
 	if image, described := c.opts.Captions[absolutePath]; described {
 		return emit(imageEvent(fileEvent(absolutePath, info, image.SearchableText()), image))
 	}
+	if reading, read := c.opts.PDFs[absolutePath]; read {
+		return emit(pdfEvent(fileEvent(absolutePath, info, reading.Text), reading.PDF))
+	}
 	text, err := c.readText(path, info.Size())
 	if err != nil {
 		return err
@@ -130,6 +136,14 @@ func (c *Collector) emitFile(path string, entry fs.DirEntry, emit ingest.EmitFun
 // imageEvent adds the image's metadata to its file event.
 func imageEvent(file event.Event, image event.Image) event.Event {
 	for key, value := range image.Metadata() {
+		file.Metadata[key] = value
+	}
+	return file
+}
+
+// pdfEvent adds the PDF's metadata to its file event.
+func pdfEvent(file event.Event, pdf event.PDF) event.Event {
+	for key, value := range pdf.Metadata() {
 		file.Metadata[key] = value
 	}
 	return file

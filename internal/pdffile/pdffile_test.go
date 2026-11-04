@@ -196,3 +196,11 @@ func TestCancelledContextIsNotUnreadable(t *testing.T) {
 		t.Errorf("error = %v, want only context.Canceled", err)
 	}
 }
+
+func TestIsPDF(t *testing.T) {
+	for path, want := range map[string]bool{"/a/b.pdf": true, "/a/B.PDF": true, "/a/pdf": false, "/a/b.pdf.txt": false, "/a/b.md": false} {
+		if got := IsPDF(path); got != want {
+			t.Errorf("IsPDF(%q) = %v, want %v", path, got, want)
+		}
+	}
+}

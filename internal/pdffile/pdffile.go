@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"path/filepath"
 	"strings"
 
 	"github.com/chipskein/spfdtextextractor"
@@ -28,6 +29,15 @@ const (
 	rotationHalf    = 180
 	rotationThree   = 270
 )
+
+const pdfExtension = ".pdf"
+
+// IsPDF reports whether path has the PDF extension, ignoring case.
+//
+//	if pdffile.IsPDF("/docs/Relatorio.PDF") { ... }
+func IsPDF(path string) bool {
+	return strings.EqualFold(filepath.Ext(path), pdfExtension)
+}
 
 // ErrUnreadable is a PDF or page cade cannot read: encrypted, corrupt, above a
 // limit, or a scan in a format without a decoder. It never stops an ingest.

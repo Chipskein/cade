@@ -39,3 +39,15 @@ func SourceNames(specs []SourceSpec) []string {
 // before the embedder loads (phase 19); a file absent from it is ingested
 // as before.
 type ImageCaptions map[string]event.Image
+
+// PDFReading is what was read from a PDF: Text holds its pages, divided by
+// chunking.PageSeparator.
+type PDFReading struct {
+	PDF  event.PDF
+	Text string
+}
+
+// PDFReadings maps a file's absolute path to what was read from it, decided
+// before the embedder loads (#108); a file absent from it is ingested as
+// before, by its name.
+type PDFReadings map[string]PDFReading
