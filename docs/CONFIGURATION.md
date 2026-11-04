@@ -14,6 +14,8 @@
 | `ingest.names_from_email` | Keep on each commit the name its author's e-mail spells (`fernanda.rocha@…` for `F. Rocha`), so `ask` finds the person in git and in messages (default `false`). A new kind of personal data, so off until you turn it on; the next `cade ingest git` fills the stored commits, and turning it off deletes the names on the next one. See [PRIVACY](../PRIVACY.md). |
 | `ingest.max_image_bytes` | Images larger than this are not described (default 20 MiB); they keep their name only, like other binaries. |
 | `ingest.max_images_per_run` | New images described per `ingest` (default 50, ~20 min on a 6-core CPU); the rest wait for the next runs. |
+| `ingest.max_pdf_bytes` | PDFs larger than this are not read (default 64 MiB); they keep their name only and are marked unreadable. |
+| `ingest.max_pdf_pages` | PDFs with more pages than this are not read (default 500), like the ones above. |
 | `ingest.background.threads` | CPU threads for both models in `ingest start` and `ingest --gentle` runs (default `2`; `0` = physical cores). |
 | `ingest.background.gpu_layers` | GPU layers for both models in those runs (default `-1` = all); `0` keeps the GPU free. |
 | `ingest.background.busy_percent` | Share of the time the models may work in those runs (default `50`, from `1` to `100`); they rest after each call, which is what limits the GPU. |
@@ -56,6 +58,7 @@
 | `sources.ignored_file_globs` | File name patterns skipped by file ingestion; overrides the full default list when set. |
 | `sources.max_file_bytes` | Max file size to ingest text from. |
 | `sources.images` | Describe png, jpeg and webp files of `sources.directories` with the local vision model (default `false`; `cade init` asks). |
+| `sources.pdfs` | Read the text of PDF files of `sources.directories` (default `false`; `cade init` asks). Scanned pages are described only with `sources.images` also on, and wait until then. |
 | `ui.language` | Interface language (`auto`, `pt`, `en`). |
 | `ui.date_order` | Date parsing order for numeric dates. |
 | `tasks.task_url_patterns` | Regexes used to detect task links. |

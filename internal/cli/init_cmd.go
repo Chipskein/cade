@@ -54,6 +54,9 @@ func (env commandEnv) askSources(prompt *initPrompt, home string, sources config
 			"Leva ~2 s por imagem com GPU e ~20 s em CPU, até 50 por `cade ingest`. [s/N]: ",
 		"\nDescribe the images (png, jpg, webp) in these folders with the local model, to find them by what they show?\n"+
 			"Takes ~2 s per image on a GPU and ~20 s on a CPU, up to 50 per `cade ingest`. [y/N]: "))
+	sources.PDFs = len(sources.Directories) > 0 && prompt.confirm(language.pick(
+		"\nLer o texto dos PDFs dessas pastas, para achá-los por uma frase? [s/N]: ",
+		"\nRead the text of the PDFs in these folders, to find them by a sentence? [y/N]: "))
 	return sources
 }
 

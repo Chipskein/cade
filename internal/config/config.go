@@ -44,8 +44,12 @@ type IngestConfig struct {
 	// MaxImagesPerRun bounds how many new images one `ingest` describes;
 	// the rest wait for the next runs, so a folder of thousands of photos
 	// does not hold up the first ingestion for hours on a CPU.
-	MaxImagesPerRun int              `json:"max_images_per_run"`
-	Background      BackgroundConfig `json:"background"`
+	MaxImagesPerRun int `json:"max_images_per_run"`
+	// MaxPDFBytes and MaxPDFPages skip larger PDFs: they are kept with their
+	// name only, marked unreadable.
+	MaxPDFBytes int64            `json:"max_pdf_bytes"`
+	MaxPDFPages int              `json:"max_pdf_pages"`
+	Background  BackgroundConfig `json:"background"`
 }
 
 // VisionConfig locates the image encoder of the generation model, which
@@ -171,6 +175,10 @@ type SourcesConfig struct {
 	// Images turns on describing png, jpeg and webp files of Directories
 	// with the local vision model, so they are found by what they show.
 	Images bool `json:"images"`
+	// PDFs turns on reading the text of PDF files of Directories. Their
+	// scanned pages are described only with Images also on: until then they
+	// wait, so someone who wants text never loads the vision model (#108).
+	PDFs bool `json:"pdfs"`
 }
 
 // DefaultPath is $XDG_CONFIG_HOME/cade/config.json (or ~/.config/...).
@@ -226,10 +234,28 @@ func (c Config) validate() error {
 	if _, err := sitestorage.NewScope(c.Sources.StorageOrigins); err != nil {
 		return fmt.Errorf("sources.storage_origins: %w", err)
 	}
+	if err := c.validatePDFLimits(); err != nil {
+		return err
+	}
 	if !c.Sources.Images {
 		return nil
 	}
 	return c.Ingest.validateImageLimits()
+}
+
+// validatePDFLimits rejects limits that would read nothing, a mistake that
+// would otherwise only show as PDFs never being found.
+func (c Config) validatePDFLimits() error {
+	if !c.Sources.PDFs {
+		return nil
+	}
+	if c.Ingest.MaxPDFBytes <= 0 {
+		return fmt.Errorf("ingest.max_pdf_bytes is %d, expected a positive byte count with sources.pdfs on", c.Ingest.MaxPDFBytes)
+	}
+	if c.Ingest.MaxPDFPages <= 0 {
+		return fmt.Errorf("ingest.max_pdf_pages is %d, expected a positive count with sources.pdfs on", c.Ingest.MaxPDFPages)
+	}
+	return nil
 }
 
 // validateImageLimits rejects limits that would describe nothing, a

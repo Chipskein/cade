@@ -117,6 +117,8 @@ const visionContextTokens = 2048
 const (
 	defaultMaxImagesPerRun = 50
 	defaultMaxImageBytes   = 20 << 20
+	defaultMaxPDFBytes     = 64 << 20
+	defaultMaxPDFPages     = 500
 )
 
 func defaultIngest() IngestConfig {
@@ -125,6 +127,8 @@ func defaultIngest() IngestConfig {
 		Retention:       RetentionConfig{MaxAgeDays: map[string]int{"git": 0, "browser": 0, "file": 0, "teams": 0}},
 		MaxImageBytes:   defaultMaxImageBytes,
 		MaxImagesPerRun: defaultMaxImagesPerRun,
+		MaxPDFBytes:     defaultMaxPDFBytes,
+		MaxPDFPages:     defaultMaxPDFPages,
 		Background:      defaultBackground(),
 	}
 }
