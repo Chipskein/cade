@@ -20,6 +20,16 @@ What changed in each version, the schema migrations, and what each migration rew
 - **Build:** the SQLite driver now carries the sqlite3mc amalgamation (SQLite 3.53.4, the same as before), downloaded by `go tool mage` and checked by its SHA-256. A plain database, and the browsers' and WhatsApp's files, open as before. New dependency: `golang.org/x/term` (passphrase without echo).
 - No database migration.
 
+### PDFs (#108)
+
+- **`sources.pdfs`** (off by default; `cade init` asks) reads the text of each page of the PDFs in `sources.directories`, so `ask` finds one by a sentence and cites it: "relatorio.pdf, p. 12". `ask --json` gains `page`.
+- **Scanned pages,** with `sources.images` also on, are found by what they show: the image embedded in the page goes to the vision model, under the same limit per run. With images off they wait, and the vision model never loads.
+- **A reader of our own:** [spfdtextextractor](https://github.com/chipskein/spfdtextextractor), pure Go under the GPLv3 or later, with no cgo and no renderer. It recovered at least 95% of the words of `pdftotext` on 340 of 343 real PDFs ([BENCHMARKS](docs/BENCHMARKS.md#pdfs)).
+- **A bad file never stops an `ingest`:** an encrypted or corrupt PDF, or one above `ingest.max_pdf_bytes` or `ingest.max_pdf_pages`, keeps its name only. Scans in JBIG2 or JPEG 2000 and pages assembled from strips stay without content, and `reindex --captions` does not describe pages again.
+- **`cade forget`** removes the extracted text and what the scanned pages showed; PRIVACY says what is extracted.
+- **Cost:** 0.42 ms to read a page of text; 1.28 s on a GPU and 18.5 s on a CPU per scanned page. `go tool mage eval` is unchanged: recall 1.00, MRR 0.84, rejection 1.00 on the test set.
+- No database migration. A PDF stored by its name is read on the next `ingest` with `sources.pdfs` on.
+
 ## v0.2.1 — 2026-10-11
 
 cade runs beyond Linux: FreeBSD from source (CPU or Vulkan), and experimental release archives for macOS on Apple Silicon and Windows x86-64, which nobody on the project could try on a real machine.

@@ -60,7 +60,7 @@ A v0.2.0 ensinou o `cade` a entender quem e o quê aparece nos eventos. A v0.3.0
 | 33 | [Criptografia do banco](#fase-33--criptografia-do-banco) | [#57](https://github.com/Chipskein/cade/issues/57) | feito | alto | médio |
 | 33a | [Banco cifrado (opt-in)](#fase-33a--banco-cifrado-opt-in) | [#111](https://github.com/Chipskein/cade/issues/111) | a fazer | alto | alto |
 | 34 | [Pendências da v0.2.1 e do CI](#fase-34--pendências-da-v021-e-do-ci) | [#110](https://github.com/Chipskein/cade/issues/110) | a fazer | médio | baixo |
-| 35 | [Busca em PDFs](#fase-35--busca-em-pdfs) | [#108](https://github.com/Chipskein/cade/issues/108) | a fazer | alto | médio |
+| 35 | [Busca em PDFs](#fase-35--busca-em-pdfs) | [#108](https://github.com/Chipskein/cade/issues/108) | feito | alto | médio |
 | 36 | [Busca em áudios pela transcrição](#fase-36--busca-em-áudios-pela-transcrição) | [#59](https://github.com/Chipskein/cade/issues/59) | a fazer | alto | alto |
 | 37 | [Busca em vídeos pelos quadros e pela fala](#fase-37--busca-em-vídeos-pelos-quadros-e-pela-fala) | [#60](https://github.com/Chipskein/cade/issues/60) | a fazer | médio | alto |
 | 38 | [Rostos](#fase-38--rostos) | [#23](https://github.com/Chipskein/cade/issues/23) | a fazer | médio | alto |
@@ -420,8 +420,9 @@ O processo da v0.1.0 continua:
 **Issue:** [#108](https://github.com/Chipskein/cade/issues/108).
 
 - **Problema:** a fonte de arquivos indexa texto e imagens, mas não PDFs. Relatórios, contratos e artigos salvos ficam de fora.
-- **Mudança:** PDFs entram como eventos da fonte de arquivos (extração de texto → pedaços → `TextEmbedder` → `sqlite-vec` e `chunks_fts`), com a página no metadado para citar ("relatorio.pdf, p. 12"). As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO/DETR) planejado na v0.0.0. Pelo mesmo caminho, uma página escaneada é renderizada como imagem e descrita, em vez de passar pelo Tesseract. A biblioteca de extração e renderização precisa de licença compatível com a GPLv3 ([LICENSING.pt-BR.md](LICENSING.pt-BR.md)) e de funcionar nas quatro plataformas.
+- **Mudança:** PDFs entram como eventos da fonte de arquivos (extração de texto → pedaços → `TextEmbedder` → `sqlite-vec` e `chunks_fts`), com a página no metadado para citar ("relatorio.pdf, p. 12"). As imagens foram para a fase 19, descritas pelo Qwen3.5 em vez do detector (YOLO/DETR) planejado na v0.0.0. Pelo mesmo caminho, a imagem embutida numa página escaneada é descrita, em vez de passar pelo Tesseract. O leitor é próprio, [spfdtextextractor](https://github.com/chipskein/spfdtextextractor) (GPL-3.0-or-later), em Go puro, para funcionar nas quatro plataformas sem renderizador.
 - **Aceite:** um PDF é encontrado por uma frase dele, com a página na citação; casos novos na suíte de recuperação; o custo de ingestão por página em CPU medido; `forget` e PRIVACY cobrindo o texto extraído.
+- **Resultado** ([BENCHMARKS](BENCHMARKS.pt-BR.md#pdfs)): 0,42 ms por página de texto; 1,28 s na GPU e 18,5 s na CPU por página escaneada. O `go tool mage eval` não piorou. Ficaram de fora JBIG2, JPEG 2000, páginas em tiras e PDFs cifrados; e o `reindex --captions` não cobre as páginas.
 
 ## Fase 36 — Busca em áudios pela transcrição
 
