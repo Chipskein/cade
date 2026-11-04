@@ -1,0 +1,19 @@
+# cade PDFs (#108) — 2026-11-03, commit 2804f4b, RTX 3060 at 170.00W
+## CUDA: go test -tags sqlite_fts5,cuda -run '^$' -bench 'ReadPDFPage|DescribeScannedPage' -benchtime 5x -benchmem ./internal/benchmarks
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/benchmarks
+cpu: AMD Ryzen 5 5500                               
+BenchmarkReadPDFPage-12            	       5	    417568 ns/op	  187491 B/op	    4276 allocs/op
+BenchmarkDescribeScannedPage-12    	       5	1279836527 ns/op	54358832 B/op	     360 allocs/op
+PASS
+ok  	github.com/chipskein/cade/internal/benchmarks	7.615s
+## CPU: the same without ,cuda
+goos: linux
+goarch: amd64
+pkg: github.com/chipskein/cade/internal/benchmarks
+cpu: AMD Ryzen 5 5500                               
+BenchmarkReadPDFPage-12            	       5	    498204 ns/op	  187491 B/op	    4276 allocs/op
+BenchmarkDescribeScannedPage-12    	       5	18480034495 ns/op	54357737 B/op	     319 allocs/op
+PASS
+ok  	github.com/chipskein/cade/internal/benchmarks	93.318s

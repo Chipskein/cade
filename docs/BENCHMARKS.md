@@ -570,6 +570,24 @@ A 1920 × 1080 terminal screenshot with 10 lines (~680 bytes of reply), scaled d
 - **Memory:** generator + `mmproj` take 2.6 GB of VRAM in the CUDA build and 2.7 GB of RAM in the CPU build. The embedder is not loaded at the same time.
 - **Quality:** 8 images from `testdata/images`, coverage 1.00 of the required words (minimum 0.90), no secret left after masking.
 
+## PDFs
+
+> `go test -tags sqlite_fts5,cuda -run '^$' -bench 'ReadPDFPage|DescribeScannedPage' -benchtime 5x -benchmem ./internal/benchmarks` and the same without `,cuda`, with `CADE_TEST_GENERATION_MODEL` and `CADE_TEST_VISION_PROJECTOR` (raw output in `bench/pdf.txt`) · quality: `go tool mage eval` · 2026-11-03 · `2804f4b`
+
+Measured with the GPU at its default 170 W, not the 120 W of the other sections.
+
+| Per page | GPU | CPU |
+|---|---:|---:|
+| Reading a page of text (45 lines, ~3.8 KB) | 0.42 ms | 0.50 ms |
+| Embedding that page (~4 chunks, at the [3.1 and 32 ms per event](#memory) above) | ~12 ms | ~130 ms |
+| **Reading and describing a scanned page** | **1.28 s** | **18.5 s** |
+
+- **Reading costs almost nothing;** what a page of text costs is embedding it. The limit of 500 pages holds a PDF to about 6 s on the GPU and a minute on the CPU.
+- **Scanned pages** cost the same as an image, and share its limit of 50 per `ingest`. A scan of 200 pages takes ~4 min on the GPU and ~1 h on the CPU, over 4 runs.
+- **The memory of a read** is the whole file, plus about 190 KB per page of text and 54 MB per scanned page decoded. Hence the limit of 64 MiB per file.
+- **Reader quality:** compared with `pdftotext` on 389 real PDFs, 340 of the 343 with text recovered at least 95% of its words, and all 97 scanned pages decoded (`spfdtextextractor` v0.1.0, before release; the PDFs are private, so this one number has no command beside it). The sample had no CCITT, JBIG2 or encrypted file; those are covered by synthetic tests only.
+- **Retrieval:** the suite gains 2 PDF cases and 1 injection case; on the test set, recall 1.00, MRR 0.84, rejection 1.00, with the plan fully right on 142 of 165 questions, as before.
+
 ## Memory
 
 > `go test -tags sqlite_fts5,cuda -run '^$' -bench 'EmbedEvent|PlanQuestion|Answer' -benchtime 5x ./internal/benchmarks` and the same without `,cuda`, with `CADE_TEST_EMBEDDING_MODEL`, `CADE_TEST_GENERATION_MODEL` and `CADE_TEST_VISION_PROJECTOR` pointing at the models · 2026-09-30 · `f4e5379`

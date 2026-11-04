@@ -117,8 +117,10 @@ const visionContextTokens = 2048
 const (
 	defaultMaxImagesPerRun = 50
 	defaultMaxImageBytes   = 20 << 20
-	defaultMaxPDFBytes     = 64 << 20
-	defaultMaxPDFPages     = 500
+	// A read holds the whole file in memory, hence the bytes; 500 pages of text
+	// take ~6 s on a GPU and a minute on a CPU, nearly all of it embedding.
+	defaultMaxPDFBytes = 64 << 20
+	defaultMaxPDFPages = 500
 )
 
 func defaultIngest() IngestConfig {
