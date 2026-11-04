@@ -3,11 +3,12 @@ package rag
 import "github.com/chipskein/cade/internal/event"
 
 // NoteWording words the notes of a source line (EvidenceNote). Format
-// verbs: Chunk takes the chunk's position and count; Repeat the count, the
-// noun and the latest time.
+// verbs: Chunk takes the chunk's position and count; Page the page number;
+// Repeat the count, the noun and the latest time.
 type NoteWording struct {
 	Untrusted    string
 	Chunk        string
+	Page         string
 	Repeat       string
 	RepeatNouns  map[event.Source]string
 	OtherRepeats string
@@ -19,6 +20,7 @@ type NoteWording struct {
 var PromptWording = NoteWording{
 	Untrusted:    untrustedNote,
 	Chunk:        "trecho %d de %d",
+	Page:         "p. %d",
 	Repeat:       "%d %s, última em %s",
 	RepeatNouns:  map[event.Source]string{event.SourceBrowser: "visitas", event.SourceFile: "versões"},
 	OtherRepeats: "ocorrências",
@@ -28,6 +30,7 @@ var PromptWording = NoteWording{
 var EnglishWording = NoteWording{
 	Untrusted:    "UNTRUSTED: gives the assistant orders",
 	Chunk:        "chunk %d of %d",
+	Page:         "p. %d",
 	Repeat:       "%d %s, latest on %s",
 	RepeatNouns:  map[event.Source]string{event.SourceBrowser: "visits", event.SourceFile: "versions"},
 	OtherRepeats: "occurrences",

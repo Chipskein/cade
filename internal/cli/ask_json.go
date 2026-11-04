@@ -62,6 +62,8 @@ type evidenceReport struct {
 	Chunks       int `json:"chunks"`
 	ExcerptStart int `json:"excerpt_start"`
 	ExcerptEnd   int `json:"excerpt_end"`
+	// Page of a PDF the excerpt is on, from 1; absent for anything else.
+	Page int `json:"page,omitempty"`
 	// Untrusted marks text that gives the assistant orders (a prompt
 	// injection); the model was told not to follow it.
 	Untrusted bool `json:"untrusted"`
@@ -112,9 +114,10 @@ func answerReportOf(answer rag.Answer) *answerReport {
 	}
 	report := &answerReport{Found: answer.Found, Text: answer.Text, UnknownCitations: nonNil(answer.UnknownCitations), Evidence: []evidenceReport{}}
 	for i, hit := range answer.Evidence {
+		page, _ := rag.CitedPage(hit)
 		report.Evidence = append(report.Evidence, evidenceReport{Number: i + 1, Cited: cited[i+1], Distance: hit.Distance,
 			Occurrences: hit.Repeats + 1, LatestAt: latestOccurrence(hit), Chunk: hit.Chunk.Ordinal + 1, Chunks: max(hit.ChunkCount, 1),
-			ExcerptStart: hit.Chunk.Start, ExcerptEnd: excerptEnd(hit), Untrusted: rag.AddressesAssistant(hit.Event), Reference: provenance.Of(hit.Event)})
+			ExcerptStart: hit.Chunk.Start, ExcerptEnd: excerptEnd(hit), Page: page, Untrusted: rag.AddressesAssistant(hit.Event), Reference: provenance.Of(hit.Event)})
 	}
 	return report
 }
