@@ -79,7 +79,7 @@ func (env commandEnv) checkExportSource(cfg config.Config, source event.Source) 
 	if source == "" {
 		return nil
 	}
-	for _, spec := range env.toolkit.Sources(cfg, nil) {
+	for _, spec := range env.toolkit.Sources(cfg, nil, nil) {
 		if spec.Name == string(source) {
 			return nil
 		}

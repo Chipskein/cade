@@ -43,6 +43,7 @@ type ingestPlan struct {
 	// The file collectors read captions when created, after
 	// describeImages has filled it.
 	captions ingest.ImageCaptions
+	pdfs     ingest.PDFReadings
 }
 
 func (env commandEnv) planIngest(args []string) (ingestPlan, error) {
@@ -53,9 +54,9 @@ func (env commandEnv) planIngest(args []string) (ingestPlan, error) {
 	if err != nil {
 		return ingestPlan{}, err
 	}
-	captions := ingest.ImageCaptions{}
-	jobs, err := planIngestJobs(env.toolkit.Sources(cfg, captions), args[0], args[1:], env.language)
-	return ingestPlan{jobs: jobs, captions: captions}, err
+	captions, pdfs := ingest.ImageCaptions{}, ingest.PDFReadings{}
+	jobs, err := planIngestJobs(env.toolkit.Sources(cfg, captions, pdfs), args[0], args[1:], env.language)
+	return ingestPlan{jobs: jobs, captions: captions, pdfs: pdfs}, err
 }
 
 // runRecordedIngest runs args in this process, recorded in the state file
@@ -117,7 +118,7 @@ func (env commandEnv) clearStopRequest() {
 
 func (env commandEnv) executeIngest(ctx context.Context, plan ingestPlan) error {
 	describe := func(cfg config.Config, store storage.EventStore) error {
-		return env.describeImages(ctx, cfg, store, plan.jobs, plan.captions)
+		return env.describeImages(ctx, cfg, store, plan.jobs, plan.captions, plan.pdfs)
 	}
 	return env.withIngestPipeline(ctx, describe, func(pipeline *ingest.Pipeline) error {
 		return runIngestJobs(ctx, env, pipeline, plan.jobs)

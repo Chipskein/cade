@@ -21,6 +21,7 @@ import (
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm"
 	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/pdffile"
 	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/storage"
 	"github.com/chipskein/cade/internal/timeline"
@@ -95,9 +96,12 @@ type Toolkit struct {
 	// show from the browser's cache, by address, for the first stage of
 	// `ingest` to describe (#24).
 	TeamsPictures func(ctx context.Context, indexedDBDir string) (map[string][]byte, error)
+	// PDFReader opens the PDFs of the file source (#108).
+	PDFReader pdffile.Reader
 	// Sources builds the collectors; the file and Teams sources read
-	// captions, which the first stage of `ingest` fills.
-	Sources func(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec
+	// captions and the file source pdfs, which the first stages of `ingest`
+	// fill.
+	Sources func(cfg config.Config, captions ingest.ImageCaptions, pdfs ingest.PDFReadings) []ingest.SourceSpec
 	// StoreReaders build the readers of the browser storages schemas map:
 	// discovery finds which one a location holds, checks read the kind a
 	// schema names. The request cache readers only read the URLs of

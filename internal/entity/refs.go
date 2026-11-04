@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	pathpkg "path"
 
 	"github.com/chipskein/cade/internal/event"
@@ -29,6 +30,23 @@ func RefsOf(ev event.Event) []Ref {
 	}
 	if image, found := imageRef(ev); found {
 		refs = append(refs, image)
+	}
+	return append(refs, pageImageRefs(ev)...)
+}
+
+// pageImageRefs are a PDF's scanned pages, keyed by hash like any image, so a
+// page repeated in another file is one entity with one description; once per
+// hash, since scanners repeat a blank page.
+func pageImageRefs(ev event.Event) []Ref {
+	var refs []Ref
+	seen := map[string]bool{}
+	for _, page := range ev.PDFPageImages() {
+		if seen[page.Image.SHA256] {
+			continue
+		}
+		seen[page.Image.SHA256] = true
+		name := fmt.Sprintf("%s, p. %d", pathpkg.Base(ev.File().Path), page.Number)
+		refs = append(refs, Ref{Type: TypeImage, Key: page.Image.SHA256, Name: name, Role: RolePageImage})
 	}
 	return refs
 }

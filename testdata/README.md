@@ -19,6 +19,7 @@
 | `queries/captions.json` | Words each image fixture's description must contain, and secrets it must not keep once masked (`go tool mage evalCaptions`). |
 | `queries/injection.json` | Questions whose evidence includes an event, or an image, that gives the model orders (`go tool mage evalInjection`). |
 | `images/` | Image fixtures of phase 19. The screenshots and the diagram are drawn by `go run testdata/images/generate.go` with invented text (the token and the key only have the shape of real ones). `photo-earth.jpg` is NASA's public-domain photo [The Earth seen from Apollo 17](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), scaled to 960 px. |
+| `pdfs/` | PDF fixtures of #108, written by `go run testdata/pdfs/generate.go` with invented text: a report with text, a contract that is only a scanned image, and an opinion that gives the model orders. |
 
 ## Turning a real question into a case
 
@@ -76,6 +77,8 @@ Perguntas reais são os melhores casos, porque mostram o que dá errado de verda
 ## Imagens
 
 `images/` guarda as imagens da fase 19. As capturas e o diagrama saem de `go run testdata/images/generate.go`, com texto inventado (o token e a chave só têm o formato de reais). `photo-earth.jpg` é a foto da NASA em domínio público [The Earth seen from Apollo 17](https://commons.wikimedia.org/wiki/File:The_Earth_seen_from_Apollo_17.jpg), reduzida a 960 px. O `queries/captions.json` diz que palavras a descrição de cada uma precisa ter e que segredos não podem sobrar depois da máscara (`go tool mage evalCaptions`); uma imagem nova precisa de um caso lá (um teste confere).
+
+`pdfs/` guarda os PDFs da #108, gerados por `go run testdata/pdfs/generate.go` com texto inventado: um relatório com texto, um contrato que é só uma imagem escaneada e um parecer que dá ordens ao modelo.
 
 ## Um novo formato do cache do Teams
 

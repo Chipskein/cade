@@ -342,7 +342,9 @@
    "relevant": [
     "t-joao-print"
    ]
-  }
- ],
+  },
+    {"question": "quanto tempo durou a janela de manutenção da migração do banco de pedidos?", "relevant": ["pdf-migracao"], "source": "file", "topic": "migração do banco de pedidos"},
+    {"question": "qual é a vigência do contrato da Transportes Aurora?", "relevant": ["pdf-contrato"], "source": "file", "topic": "contrato da Transportes Aurora"}
+  ],
  "maximum_redundancy": 0.0
 }

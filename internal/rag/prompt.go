@@ -142,7 +142,7 @@ func evidenceText(hit storage.ScoredEvent) string {
 	if hit.ChunkCount > 1 {
 		return hit.Chunk.Text(hit.Event.Content)
 	}
-	return hit.Event.Content
+	return strings.ReplaceAll(hit.Event.Content, chunking.PageSeparator, "\n")
 }
 
 // EvidenceNote joins what a source line adds to the event: whether it gives
@@ -162,9 +162,25 @@ func EvidenceNote(hit storage.ScoredEvent, location *time.Location, wording Note
 	return strings.Join(notes, "; ")
 }
 
+// CitedPage is the page of a PDF that hit matched (#108). Only a matched chunk
+// has one: a PDF brought in as a time neighbor has no chunk, and citing "p. 1"
+// for it would be made up.
+//
+//	if page, known := rag.CitedPage(hit); known { ... }
+func CitedPage(hit storage.ScoredEvent) (int, bool) {
+	if hit.Event.PDF().Pages == 0 || hit.Chunk.End == 0 {
+		return 0, false
+	}
+	return chunking.PageOf(hit.Event.Content, hit.Chunk.Start), true
+}
+
 // chunkNote names the part of a long event; for files, with the file name,
-// since only the first chunk starts with it.
+// since only the first chunk starts with it. A PDF's page says more than a
+// chunk's position, and the reader can open the file there.
 func chunkNote(hit storage.ScoredEvent, wording NoteWording) string {
+	if page, known := CitedPage(hit); known {
+		return filepath.Base(hit.Event.File().Path) + ", " + fmt.Sprintf(wording.Page, page)
+	}
 	if hit.ChunkCount <= 1 {
 		return ""
 	}

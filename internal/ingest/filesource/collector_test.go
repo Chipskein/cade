@@ -133,3 +133,40 @@ func TestEstimateEventsCountsTheFilesCollected(t *testing.T) {
 		t.Fatalf("expected the count of collected files, got %d (err %v)", count, err)
 	}
 }
+
+func TestCollectGivesAReadPDFItsPages(t *testing.T) {
+	tree := fstest.MapFS{"relatorio.pdf": {Data: []byte("%PDF binary"), ModTime: modified}, "outro.pdf": {Data: []byte{0}, ModTime: modified}}
+	pdf := event.PDF{Status: event.PDFRead, Pages: 2}
+	opts := Options{MaxFileBytes: 100, PDFs: ingest.PDFReadings{"/root/relatorio.pdf": {PDF: pdf, Text: "um\fdois"}}}
+	events := map[string]event.Event{}
+	err := NewCollector(tree, "/root", opts).CollectEvents(context.Background(), func(ev event.Event) error {
+		events[ev.File().Path] = ev
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := events["/root/relatorio.pdf"]
+	if read.Content != "relatorio.pdf\num\fdois" || read.PDF() != pdf {
+		t.Errorf("read PDF = %q, %+v", read.Content, read.PDF())
+	}
+	if other := events["/root/outro.pdf"]; other.Content != "outro.pdf" || other.PDF().Status != event.PDFNone {
+		t.Errorf("other PDF = %q, %+v", other.Content, other.PDF())
+	}
+}
+
+func TestCollectKeepsTheDescribedPagesOfAPDF(t *testing.T) {
+	tree := fstest.MapFS{"scan.pdf": {Data: []byte{0}, ModTime: modified}}
+	page := event.PDFPageImage{Number: 2, Image: event.Image{SHA256: "p2", Status: event.CaptionDescribed, Description: "um contrato"}}
+	reading := ingest.PDFReading{PDF: event.PDF{Status: event.PDFRead, Pages: 2}, Text: "\fImagem: um contrato", PageImages: []event.PDFPageImage{page}}
+	var got event.Event
+	err := NewCollector(tree, "/root", Options{MaxFileBytes: 100, PDFs: ingest.PDFReadings{"/root/scan.pdf": reading}}).
+		CollectEvents(context.Background(), func(ev event.Event) error { got = ev; return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	pages := got.PDFPageImages()
+	if len(pages) != 1 || pages[0].Number != 2 || pages[0].Image.Description != "um contrato" {
+		t.Errorf("pages = %+v", pages)
+	}
+}

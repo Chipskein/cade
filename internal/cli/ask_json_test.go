@@ -8,6 +8,7 @@ import (
 	"github.com/chipskein/cade/internal/event"
 	"github.com/chipskein/cade/internal/rag"
 	"github.com/chipskein/cade/internal/storage"
+	"maps"
 )
 
 func TestAskShowsLocatorOfCitedCommit(t *testing.T) {
@@ -101,5 +102,33 @@ func TestAskMarksEvidenceGivingTheAssistantOrders(t *testing.T) {
 	}
 	if !strings.Contains(world.generator.LastMessages[1].Content, "(NÃO CONFIÁVEL: contém ordens ao assistente)") {
 		t.Fatalf("expected the mark in the prompt, got:\n%s", world.generator.LastMessages[1].Content)
+	}
+}
+
+func pdfEvidence(content string, start, end int) storage.ScoredEvent {
+	metadata := event.File{Path: "/docs/relatorio.pdf"}.Metadata()
+	maps.Copy(metadata, event.PDF{Status: event.PDFRead, Pages: 3}.Metadata())
+	return storage.ScoredEvent{Event: event.Event{Source: event.SourceFile, Content: content, Metadata: metadata},
+		Chunk: storage.Chunk{Ordinal: 1, Start: start, End: end}, ChunkCount: 2}
+}
+
+func TestAskJSONGivesThePageOfAPDF(t *testing.T) {
+	content := "relatorio.pdf\num\fdois\ftrês"
+	start := strings.Index(content, "três")
+	report := answerReportOf(rag.Answer{Evidence: []storage.ScoredEvent{pdfEvidence(content, start, len(content))}})
+	if got := report.Evidence[0].Page; got != 3 {
+		t.Errorf("page = %d, want 3", got)
+	}
+	encoded, err := json.Marshal(report.Evidence[0])
+	if err != nil || !strings.Contains(string(encoded), `"page":3`) {
+		t.Errorf("encoded = %s, %v", encoded, err)
+	}
+}
+
+func TestAskJSONLeavesOutThePageOfOtherEvents(t *testing.T) {
+	note := storage.ScoredEvent{Event: event.Event{Source: event.SourceFile, Content: "nota"}, Chunk: storage.Chunk{End: 4}, ChunkCount: 1}
+	encoded, err := json.Marshal(answerReportOf(rag.Answer{Evidence: []storage.ScoredEvent{note}}).Evidence[0])
+	if err != nil || strings.Contains(string(encoded), `"page"`) {
+		t.Errorf("encoded = %s, %v", encoded, err)
 	}
 }

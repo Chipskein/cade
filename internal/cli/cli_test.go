@@ -21,6 +21,7 @@ import (
 	"github.com/chipskein/cade/internal/ingest"
 	"github.com/chipskein/cade/internal/ingest/filesource"
 	"github.com/chipskein/cade/internal/listing"
+	"github.com/chipskein/cade/internal/pdffile"
 	"github.com/chipskein/cade/internal/queryplan"
 	"github.com/chipskein/cade/internal/rootfs"
 	"github.com/chipskein/cade/internal/storage"
@@ -171,6 +172,7 @@ func (w *fakeWorld) toolkit() Toolkit {
 		TeamsPictures: func(context.Context, string) (map[string][]byte, error) { return w.teamsPictures, nil },
 		RemoveFile:    w.removeFile,
 		Sources:       w.sources,
+		PDFReader:     pdffile.ExtractorReader{},
 		StoreReaders:  w.storeReaders,
 		SchemaFiles:   idbmap.OSSchemaFiles{},
 		Now:           func() time.Time { return cliNow },
@@ -234,7 +236,7 @@ func (w *fakeWorld) loadGenerator(config.ModelConfig, *slog.Logger) (ClosableGen
 	return w.generator, nil
 }
 
-func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec {
+func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions, pdfs ingest.PDFReadings) []ingest.SourceSpec {
 	collector := FakeCollector{Events: []event.Event{sampleCommit}}
 	newCollector := func(string) (ingest.EventCollector, error) { return collector, nil }
 	newFileCollector := newCollector
@@ -247,7 +249,9 @@ func (w *fakeWorld) sources(cfg config.Config, captions ingest.ImageCaptions) []
 				return nil, err
 			}
 			files, err := fs.Sub(w.files, rootfs.Name(absolute))
-			return filesource.NewCollector(files, absolute, filesource.OptionsFor(cfg.Sources, captions)), err
+			opts := filesource.OptionsFor(cfg.Sources, captions)
+			opts.PDFs = pdfs
+			return filesource.NewCollector(files, absolute, opts), err
 		}
 	}
 	return []ingest.SourceSpec{

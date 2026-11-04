@@ -570,6 +570,24 @@ Uma captura de terminal de 1920 × 1080 com 10 linhas (~680 bytes de resposta), 
 - **Memória:** gerador + `mmproj` ocupam 2,6 GB de VRAM no build CUDA e 2,7 GB de RAM no de CPU. O embedder não está carregado junto.
 - **Qualidade:** 8 imagens de `testdata/images`, cobertura 1,00 das palavras exigidas (mínimo 0,90), nenhum segredo depois da máscara.
 
+## PDFs
+
+> `go test -tags sqlite_fts5,cuda -run '^$' -bench 'ReadPDFPage|DescribeScannedPage' -benchtime 5x -benchmem ./internal/benchmarks` e o mesmo sem `,cuda`, com `CADE_TEST_GENERATION_MODEL` e `CADE_TEST_VISION_PROJECTOR` (saída bruta em `bench/pdf.txt`) · qualidade: `go tool mage eval` · 2026-11-03 · `2804f4b`
+
+Medido com a GPU nos 170 W padrão, não nos 120 W das outras seções.
+
+| Por página | GPU | CPU |
+|---|---:|---:|
+| Ler uma página de texto (45 linhas, ~3,8 KB) | 0,42 ms | 0,50 ms |
+| Embutir essa página (~4 pedaços, aos [3,1 e 32 ms por evento](#memória) acima) | ~12 ms | ~130 ms |
+| **Ler e descrever uma página escaneada** | **1,28 s** | **18,5 s** |
+
+- **Ler quase não custa;** o que uma página de texto custa é o embedding. O limite de 500 páginas segura um PDF em cerca de 6 s na GPU e um minuto na CPU.
+- **Páginas escaneadas** custam o mesmo que uma imagem e dividem o limite dela, de 50 por `ingest`. Um escaneado de 200 páginas leva ~4 min na GPU e ~1 h na CPU, em 4 execuções.
+- **A memória de uma leitura** é o arquivo inteiro, mais cerca de 190 KB por página de texto e 54 MB por página escaneada decodificada. Daí o limite de 64 MiB por arquivo.
+- **Qualidade do leitor:** comparado ao `pdftotext` em 389 PDFs reais, 340 dos 343 com texto recuperaram pelo menos 95% das palavras, e as 97 páginas escaneadas decodificaram (`spfdtextextractor` v0.1.0, antes do lançamento; os PDFs são privados, então só este número não tem comando ao lado). A amostra não tinha CCITT, JBIG2 nem arquivo cifrado; esses só têm testes sintéticos.
+- **Recuperação:** a suíte ganha 2 casos de PDF e 1 de injeção; no conjunto de teste, recall 1,00, MRR 0,84, rejeição 1,00, com o plano totalmente certo em 142 de 165 perguntas, como antes.
+
 ## Memória
 
 > `go test -tags sqlite_fts5,cuda -run '^$' -bench 'EmbedEvent|PlanQuestion|Answer' -benchtime 5x ./internal/benchmarks` e o mesmo sem `,cuda`, com `CADE_TEST_EMBEDDING_MODEL`, `CADE_TEST_GENERATION_MODEL` e `CADE_TEST_VISION_PROJECTOR` apontando para os modelos · 2026-09-30 · `f4e5379`

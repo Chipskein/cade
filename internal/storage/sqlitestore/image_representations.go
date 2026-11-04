@@ -24,10 +24,31 @@ func imageOwner(sha256 string) storage.EntityKey {
 // image event; an image described again without visible text loses the
 // old one. Its entities are already linked.
 func representImage(ctx context.Context, tx *sql.Tx, ev event.Event) error {
+	if err := representPDFPages(ctx, tx, ev); err != nil {
+		return err
+	}
 	image := ev.Image()
 	if image.SHA256 == "" || image.Status != event.CaptionDescribed {
 		return nil
 	}
+	return representDescribed(ctx, tx, image)
+}
+
+// representPDFPages stores the scanned pages of a PDF as any described image;
+// a stored event read back has no text, and so nothing to write (#108).
+func representPDFPages(ctx context.Context, tx *sql.Tx, ev event.Event) error {
+	for _, page := range ev.PDFPageImages() {
+		if page.Image.Description == "" {
+			continue
+		}
+		if err := representDescribed(ctx, tx, page.Image); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func representDescribed(ctx context.Context, tx *sql.Tx, image event.Image) error {
 	owner := imageOwner(image.SHA256)
 	if _, err := saveRepresentation(ctx, tx, owner, imageText(image, representation.KindDescription, image.Description)); err != nil {
 		return err

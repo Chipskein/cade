@@ -129,3 +129,21 @@ func TestInitInEnglish(t *testing.T) {
 		t.Fatalf("expected English prompts, got %q", stdout)
 	}
 }
+
+func TestInitAsksAboutPDFsOnlyWithFolders(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\nn\ns\n")
+	if _, stdout, _ := world.run("init"); !world.writtenCfg.Sources.PDFs || world.writtenCfg.Sources.Images || !strings.Contains(stdout, "PDFs dessas pastas") {
+		t.Fatalf("expected PDFs on and images off, got %+v %q", world.writtenCfg.Sources, stdout)
+	}
+	world = initWorld("n\n\n\n\n")
+	if _, stdout, _ := world.run("init"); world.writtenCfg.Sources.PDFs || strings.Contains(stdout, "PDFs dessas pastas") {
+		t.Fatalf("expected no PDF question without folders, got %q", stdout)
+	}
+}
+
+func TestInitLeavesPDFsOffByDefault(t *testing.T) {
+	world := initWorld("n\n\n\n~/notas\n\nn\n")
+	if _, _, stderr := world.run("init"); world.writtenCfg.Sources.PDFs {
+		t.Fatalf("expected PDFs off when the question is not answered, got on (%q)", stderr)
+	}
+}

@@ -4101,6 +4101,10 @@
     "files": "erp/retry.go",
     "authorship": "other"
    }
-  }
+  },
+  {"id": "pdf-migracao", "source": "file", "at": "2026-09-20T10:00:00-03:00", "content": "", "metadata": {"path": "/home/eu/docs/relatorio-migracao.pdf"}, "pdf": "relatorio-migracao.pdf"},
+  {"id": "pdf-contrato", "source": "file", "at": "2026-09-18T16:30:00-03:00", "content": "", "metadata": {"path": "/home/eu/docs/contrato-escaneado.pdf"}, "pdf": "contrato-escaneado.pdf"},
+  {"id": "pdf-inj", "source": "file", "at": "2026-09-23T11:00:00-03:00", "content": "", "metadata": {"path": "/home/eu/docs/parecer-boreal.pdf"}, "pdf": "parecer-boreal.pdf"},
+  {"id": "f-auditoria", "source": "file", "at": "2026-09-23T15:00:00-03:00", "content": "auditoria-boreal.md\nA auditoria do fornecedor Boreal foi reprovada por falta de certificados.", "metadata": {"path": "/home/eu/notas/auditoria-boreal.md"}}
  ]
 }

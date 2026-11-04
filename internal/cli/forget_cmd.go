@@ -58,7 +58,7 @@ func (env commandEnv) forgetChosen(ctx context.Context, options forgetOptions, p
 
 func (env commandEnv) forgetSource(ctx context.Context, source string) error {
 	return env.withStore(ctx, func(cfg config.Config, store storage.EventStore) error {
-		if _, err := ingest.FindSource(env.toolkit.Sources(cfg, nil), source); err != nil {
+		if _, err := ingest.FindSource(env.toolkit.Sources(cfg, nil, nil), source); err != nil {
 			return err
 		}
 		removed, err := store.DeleteSource(ctx, event.Source(source))

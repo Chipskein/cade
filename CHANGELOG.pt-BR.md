@@ -20,6 +20,16 @@ O que mudou em cada versão, as migrações de esquema e o que cada uma reescrev
 - **Build:** o driver da SQLite agora traz o amalgamation do sqlite3mc (SQLite 3.53.4, a mesma de antes), baixado pelo `go tool mage` e conferido pelo SHA-256. Um banco em texto puro, e os arquivos dos navegadores e do WhatsApp, abrem como antes. Dependência nova: `golang.org/x/term` (frase-senha sem eco).
 - Sem migração do banco.
 
+### PDFs (#108)
+
+- **`sources.pdfs`** (desligado por padrão; o `cade init` pergunta) lê o texto de cada página dos PDFs de `sources.directories`, e o `ask` acha um deles por uma frase e o cita: "relatorio.pdf, p. 12". O `ask --json` ganha `page`.
+- **Páginas escaneadas,** com `sources.images` também ligado, são achadas pelo que mostram: a imagem embutida na página vai para o modelo de visão, sob o mesmo limite por execução. Com as imagens desligadas elas esperam, e o modelo de visão nunca carrega.
+- **Um leitor próprio:** [spfdtextextractor](https://github.com/chipskein/spfdtextextractor), em Go puro sob a GPLv3 ou posterior, sem cgo e sem renderizador. Ele recuperou pelo menos 95% das palavras do `pdftotext` em 340 de 343 PDFs reais ([BENCHMARKS](docs/BENCHMARKS.pt-BR.md#pdfs)).
+- **Um arquivo ruim nunca para um `ingest`:** um PDF cifrado ou corrompido, ou acima de `ingest.max_pdf_bytes` ou `ingest.max_pdf_pages`, fica só com o nome. Escaneados em JBIG2 ou JPEG 2000 e páginas montadas em tiras ficam sem conteúdo, e o `reindex --captions` não descreve as páginas de novo.
+- **O `cade forget`** apaga o texto extraído e o que as páginas escaneadas mostravam; o PRIVACY diz o que é extraído.
+- **Custo:** 0,42 ms para ler uma página de texto; 1,28 s na GPU e 18,5 s na CPU por página escaneada. O `go tool mage eval` não muda: recall 1,00, MRR 0,84, rejeição 1,00 no conjunto de teste.
+- Sem migração do banco. Um PDF guardado só pelo nome é lido no próximo `ingest` com `sources.pdfs` ligado.
+
 ## v0.2.1 — 2026-10-11
 
 O cade roda além do Linux: FreeBSD a partir do código-fonte (CPU ou Vulkan), e arquivos de release experimentais para macOS em Apple Silicon e Windows x86-64, que ninguém no projeto pôde testar numa máquina de verdade.

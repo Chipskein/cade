@@ -14,6 +14,8 @@
 | `ingest.names_from_email` | Guarda em cada commit o nome que o e-mail do autor escreve (`fernanda.rocha@…` para `F. Rocha`), para o `ask` achar a pessoa no git e nas mensagens (padrão `false`). É um tipo novo de dado pessoal, então fica desligado até você ligar; o próximo `cade ingest git` preenche os commits guardados, e desligar apaga os nomes no próximo. Veja o [PRIVACY](../PRIVACY.pt-BR.md). |
 | `ingest.max_image_bytes` | Imagens maiores que isso não são descritas (padrão 20 MiB); ficam só com o nome, como os outros binários. |
 | `ingest.max_images_per_run` | Imagens novas descritas por `ingest` (padrão 50, ~20 min numa CPU de 6 núcleos); as outras ficam para as próximas execuções. |
+| `ingest.max_pdf_bytes` | PDFs maiores que isso não são lidos (padrão 64 MiB); ficam só com o nome e marcados como ilegíveis. |
+| `ingest.max_pdf_pages` | PDFs com mais páginas que isso não são lidos (padrão 500), como os acima. |
 | `ingest.background.threads` | Threads de CPU dos dois modelos nas execuções `ingest start` e `ingest --gentle` (padrão `2`; `0` = núcleos físicos). |
 | `ingest.background.gpu_layers` | Camadas na GPU dos dois modelos nessas execuções (padrão `-1` = todas); `0` deixa a GPU livre. |
 | `ingest.background.busy_percent` | Parte do tempo em que os modelos podem trabalhar nessas execuções (padrão `50`, de `1` a `100`); eles descansam depois de cada chamada, e é isso que limita a GPU. |
@@ -56,6 +58,7 @@
 | `sources.ignored_file_globs` | Padrões de nomes de arquivo ignorados; ao configurar, substitui a lista padrão inteira. |
 | `sources.max_file_bytes` | Tamanho máximo de arquivo para ingerir texto. |
 | `sources.images` | Descreve os arquivos png, jpeg e webp de `sources.directories` com o modelo de visão local (padrão `false`; o `cade init` pergunta). |
+| `sources.pdfs` | Lê o texto dos arquivos PDF de `sources.directories` (padrão `false`; o `cade init` pergunta). As páginas escaneadas só são descritas com `sources.images` também ligado, e esperam até lá. |
 | `ui.language` | Idioma da interface (`auto`, `pt`, `en`). |
 | `ui.date_order` | Ordem de leitura de datas numéricas. |
 | `tasks.task_url_patterns` | Regexes usadas para detectar links de tarefas. |
@@ -71,6 +74,8 @@ O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visit
 ## Comportamento da ingestão de arquivos
 
 **O que é lido:** texto UTF-8 válido (sem bytes NUL) até `sources.max_file_bytes` (padrão 256 KiB). Arquivos maiores são registrados sem conteúdo. Imagens (png, jpeg, webp) com `sources.images` ligado recebem uma descrição do modelo de visão local no lugar do texto bruto.
+
+**PDFs:** com `sources.pdfs` ligado, o texto de cada página de um PDF, de qualquer tamanho até `ingest.max_pdf_bytes` e `ingest.max_pdf_pages`. Uma página com quase nenhum texto e uma imagem cobrindo a maior parte dela conta como escaneada: com `sources.images` também ligado, essa imagem vai para o modelo de visão, sob o mesmo `ingest.max_images_per_run`; com ele desligado, a página espera, e é descrita quando as imagens forem ligadas. PDFs cifrados ou corrompidos, os acima dos limites e os escaneados em JBIG2 ou JPEG 2000 ficam com o que deu para ler, e nunca param um `ingest`. Um PDF guardado só pelo nome antes de os PDFs serem ligados é lido na execução seguinte. Desligar os PDFs mantém o que foi lido; o `cade forget` apaga.
 
 **O que é ignorado:**
 - Arquivos não-UTF-8 e arquivos com bytes NUL (binários).

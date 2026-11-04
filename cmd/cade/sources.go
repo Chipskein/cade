@@ -20,11 +20,11 @@ import (
 // sourceSpecs registers every ingestable source. A new source (RF1.4
 // Teams) is one more entry here plus its collector package; an
 // application read through a saved IndexedDB schema needs neither.
-func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions) []ingest.SourceSpec {
+func sourceSpecs(cfg config.Config, captions ingest.ImageCaptions, pdfs ingest.PDFReadings) []ingest.SourceSpec {
 	builtIn := []ingest.SourceSpec{
 		{Name: "git", DefaultTargets: cfg.Sources.GitRepositories, NewCollector: gitCollectorFactory(cfg.Sources)},
 		{Name: "browser", DefaultTargets: cfg.Sources.BrowserHistories, NewCollector: newBrowserCollector},
-		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources, captions)},
+		{Name: "file", DefaultTargets: cfg.Sources.Directories, NewCollector: fileCollectorFactory(cfg.Sources, captions, pdfs)},
 		{Name: "teams", DefaultTargets: cfg.Sources.TeamsIndexedDBDirs, NewCollector: teamsCollectorFactory(captions)},
 		{Name: whatsappBackupSource, DefaultTargets: cfg.Sources.WhatsAppBackups, NewCollector: newWhatsAppBackupCollector},
 	}
@@ -100,7 +100,7 @@ func newBrowserCollector(historyPath string) (ingest.EventCollector, error) {
 	return browsersource.NewCollector(openSQLiteFile, historyPath), nil
 }
 
-func fileCollectorFactory(sources config.SourcesConfig, captions ingest.ImageCaptions) func(string) (ingest.EventCollector, error) {
+func fileCollectorFactory(sources config.SourcesConfig, captions ingest.ImageCaptions, pdfs ingest.PDFReadings) func(string) (ingest.EventCollector, error) {
 	return func(directory string) (ingest.EventCollector, error) {
 		root, err := filepath.Abs(directory)
 		if err != nil {
@@ -109,6 +109,8 @@ func fileCollectorFactory(sources config.SourcesConfig, captions ingest.ImageCap
 		if info, err := os.Stat(root); err != nil || !info.IsDir() {
 			return nil, fmt.Errorf("directory %q does not exist or is not a directory", root)
 		}
-		return filesource.NewCollector(os.DirFS(root), root, filesource.OptionsFor(sources, captions)), nil
+		opts := filesource.OptionsFor(sources, captions)
+		opts.PDFs = pdfs
+		return filesource.NewCollector(os.DirFS(root), root, opts), nil
 	}
 }

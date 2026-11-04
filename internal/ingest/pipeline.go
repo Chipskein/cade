@@ -227,7 +227,7 @@ func replaces(incoming, stored event.Event) bool {
 	incomingRevision, hasIncoming := incoming.Revision()
 	storedRevision, hasStored := stored.Revision()
 	if hasIncoming && hasStored {
-		return incomingRevision > storedRevision || (incomingRevision == storedRevision && (captionAdvances(incoming, stored) || schemaAdvances(incoming, stored)))
+		return incomingRevision > storedRevision || (incomingRevision == storedRevision && (captionAdvances(incoming, stored) || pdfAdvances(incoming, stored) || schemaAdvances(incoming, stored)))
 	}
 	return incoming.Content != stored.Content
 }
@@ -251,6 +251,20 @@ func captionAdvances(incoming, stored event.Event) bool {
 	waiting := storedStatus == event.CaptionNone || storedStatus == event.CaptionPending
 	settled := incomingStatus == event.CaptionDescribed || incomingStatus == event.CaptionUnreadable
 	return waiting && settled
+}
+
+// pdfAdvances reports an unchanged PDF read better than before: stored by its
+// name only, as before PDFs were turned on, or with fewer scanned pages waiting
+// (#108). A run that read nothing new leaves it, so it never alternates.
+func pdfAdvances(incoming, stored event.Event) bool {
+	was, now := stored.PDF(), incoming.PDF()
+	switch was.Status {
+	case event.PDFNone:
+		return now.Status != event.PDFNone
+	case event.PDFPending:
+		return now.Status != event.PDFNone && (now.Status != event.PDFPending || now.PendingPages < was.PendingPages)
+	}
+	return false
 }
 
 // ReplaceStored overwrites a stored event with ev, masked and embedded

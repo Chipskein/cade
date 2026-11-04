@@ -9,7 +9,7 @@ Revisão da licença do cade e do que entra no binário `cade`, feita para a [#1
 O cade passa da **GPLv2** para a **GPLv3 ou posterior** (SPDX `GPL-3.0-or-later`), a partir da v0.1.0. A v0.0.0 continua sob a GPLv2 para quem a recebeu.
 
 - **Nada obriga a troca:** todos os componentes do binário têm licença permissiva e funcionam com qualquer uma das versões.
-- **A GPLv2 fecha portas de que o roteiro precisa:** ela é incompatível com a Apache-2.0 e com código (A)GPLv3. A busca em PDFs do roteiro precisa escolher uma biblioteca de extração e renderização, e boas candidatas são Apache-2.0 (pdfium) ou AGPL-3.0 (MuPDF). Muitas bibliotecas Go também são Apache-2.0.
+- **A GPLv2 fecha portas de que o roteiro precisa:** ela é incompatível com a Apache-2.0 e com código (A)GPLv3. A busca em PDFs do roteiro precisava escolher uma biblioteca de extração, e boas candidatas eram Apache-2.0 (pdfium) ou AGPL-3.0 (MuPDF); a #108 acabou escrevendo a sua, [spfdtextextractor](https://github.com/chipskein/spfdtextextractor), sob a GPLv3 ou posterior. Muitas bibliotecas Go também são Apache-2.0.
 - **A troca é possível agora:** todos os commits são do dono do projeto (inclusive os do agente Copilot nos PRs do próprio dono). Não há contribuidores externos a consultar; se houvesse, a troca dependeria do consentimento de cada um.
 - **"ou posterior"** segue o aviso que a FSF recomenda. O `LICENSE` antigo trazia o texto da GPLv2 sem aviso de versão, o que deixava em aberto se era "only" ou "or later"; o identificador SPDX tira essa dúvida.
 
@@ -34,7 +34,8 @@ Levantado com `go version -m bin/cade`, pelo `go.mod` e pelos `LDFLAGS` do cgo e
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT ou Apache-2.0, usado sob MIT | sim, só sob MIT | sim, sob qualquer uma |
 | klauspost/compress v1.20.1 (`snappy`, `s2`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | sim | sim |
 | andybalholm/brotli v1.2.6 | MIT | sim | sim |
-| golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | sim | sim |
+| chipskein/spfdtextextractor v0.1.0, o leitor de PDF (#108) | GPL-3.0-or-later | não | sim |
+| golang.org/x/image v0.46.0 (`webp`, `draw`, `ccitt`) | BSD-3-Clause | sim | sim |
 | golang.org/x/term v0.46.0 | BSD-3-Clause | sim | sim |
 
 As bibliotecas embutidas no llama.cpp não estavam no `THIRD_PARTY_NOTICES.md` antes desta revisão; agora estão, com os textos que exigem aviso.

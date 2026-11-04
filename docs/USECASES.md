@@ -41,6 +41,7 @@ CLI que ingere a atividade do usuário de várias fontes (git, browser, arquivos
 - **RF1.5** A ingestão é **incremental**: reexecutar não duplica eventos já ingeridos (deduplicação por identificador estável do evento).
 - **RF1.6** Uma mudança de formato do Teams não passa em silêncio: se o IndexedDB tem registros mas nenhum store `replychains`, ou mensagens em que nenhuma tem os campos lidos (`id`, `conversationId`, `messageType`, `content` e o horário de chegada), a ingestão falha apontando para `cade teams-schema`. Mensagens de sistema ou apagadas continuam descartadas sem erro, e um IndexedDB vazio não é erro. Os eventos já gravados estão no formato do cade e não dependem do formato do Teams.
 - **RF1.7** Com `sources.images` ligado (padrão desligado; o `cade init` pergunta), cada imagem png, jpeg ou webp das pastas de RF1.3 é descrita pelo modelo de geração com o projetor de visão (`mmproj`): uma descrição curta, em português, e a transcrição do texto visível. A descrição vira o texto do evento do arquivo e segue o caminho de qualquer texto (máscara de segredos, pedaços, busca híbrida, `forget`). Cada imagem é descrita uma vez: mover ou renomear reaproveita a descrição pelo SHA-256 dos bytes; `cade reindex --captions` descreve de novo quando o modelo ou o prompt mudam. `ingest.max_images_per_run` limita quantas são descritas por execução (o resto fica pendente) e `ingest.max_image_bytes`, o tamanho do arquivo; uma imagem que não abre é marcada ilegível sem parar a ingestão. O modelo de visão é liberado antes de o de embedding carregar.
+- **RF1.8** Com `sources.pdfs` ligado (padrão desligado; o `cade init` pergunta), o texto de cada página dos PDFs das pastas de RF1.3 entra no conteúdo do evento, e a citação do `ask` diz o arquivo e a página ("relatorio.pdf, p. 12"). Uma página escaneada é descrita como em RF1.7, se `sources.images` também estiver ligado; senão, espera. Um PDF cifrado, corrompido ou acima dos limites é marcado como ilegível e não para o `ingest`.
 
 ### RF2 — Modelo de evento normalizado
 - **RF2.1** Toda fonte é convertida a um formato comum de evento: `timestamp`, `source` (git/browser/file/teams), `content` (texto), `metadata` (dados específicos da fonte) e um identificador único para deduplicação.
@@ -201,6 +202,7 @@ Notas:
 | Embeddings | nomic-embed-text-v2-moe Q4_K_M (multilíngue) |
 | Geração | Qwen3.5-2B Q4_K_M (Apache-2.0), com o projetor de visão (`mmproj`) ao lado |
 | Teams | leitor próprio de LevelDB, IndexedDB do Chromium e serialização V8 |
+| PDFs | leitor próprio em Go puro, [spfdtextextractor](https://github.com/chipskein/spfdtextextractor) (GPL-3.0-or-later): texto e imagens embutidas, sem renderizar |
 
 **Decisões de design:**
 - llama.cpp embutido em vez de Ollama ou `llama-server`, para não depender de um processo servidor.
@@ -217,6 +219,7 @@ Notas:
 - Arquivos: apenas o início do texto (até `max_file_bytes`) é indexado; não há divisão em trechos.
 - Teams: o formato interno pode mudar em atualizações do cliente; mensagens apagadas depois de ingeridas continuam no banco. Uma imagem que o navegador já tirou do cache fica só com o endereço, sem descrição; o cache de um perfil do Firefox não é lido. Uma mensagem com várias imagens guarda a primeira como sua imagem e as descrições de todas no texto.
 - Imagens: descrever custa ~1,7 s por imagem numa RTX 3060 e ~22 s numa CPU de 6 núcleos; uma pasta grande leva várias execuções de `ingest`. Fotos sem texto dependem só da descrição, curta e genérica. A descrição de uma imagem apagada da pasta fica no banco até `cade forget file`.
+- PDFs: a página escaneada é lida pela imagem embutida, sem renderizar, então JBIG2, JPEG 2000 e páginas montadas em tiras ficam sem conteúdo; a descrição acha a página pelo que ela mostra, sem a fidelidade de um OCR. PDFs cifrados não são lidos, nem com senha vazia. O `reindex --captions` não descreve de novo as páginas de PDF.
 - Trocar o modelo de embedding exige um banco novo (a dimensão dos vetores é fixada no primeiro insert).
 - Tarefas passadas sem link (só em texto) não são reconhecidas.
 - O modelo de 3B às vezes lê empresas e clientes como pessoas; o filtro de texto para nomes desconhecidos compensa em listagens e tarefas.

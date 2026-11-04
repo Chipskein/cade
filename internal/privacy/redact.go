@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 )
 
@@ -25,9 +26,18 @@ var secretQueryKeys = []string{"token", "access_token", "id_token", "refresh_tok
 
 func Text(text string) string {
 	for _, pattern := range patterns {
-		text = pattern.expression.ReplaceAllString(text, "[redacted:"+pattern.label+"]")
+		replacement := "[redacted:" + pattern.label + "]"
+		text = pattern.expression.ReplaceAllStringFunc(text, func(secret string) string {
+			return replacement + keptPageSeparators(secret)
+		})
 	}
 	return text
+}
+
+// keptPageSeparators survive the mask: a private key printed across two pages
+// of a PDF must not move the page number of everything after it (#108).
+func keptPageSeparators(secret string) string {
+	return strings.Repeat(chunking.PageSeparator, strings.Count(secret, chunking.PageSeparator))
 }
 
 func URL(raw string) string {

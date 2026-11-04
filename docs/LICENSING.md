@@ -9,7 +9,7 @@ Review of cade's license and of what goes into the `cade` binary, done for [#10]
 cade moves from the **GPLv2** to the **GPLv3 or later** (SPDX `GPL-3.0-or-later`), starting with v0.1.0. v0.0.0 stays under the GPLv2 for whoever received it.
 
 - **Nothing forces the move:** every component in the binary is under a permissive license and works with either version.
-- **The GPLv2 is closing doors the roadmap needs:** it is incompatible with Apache-2.0 and with (A)GPLv3 code. The PDF search in the roadmap has to pick an extraction and rendering library, and good candidates are Apache-2.0 (pdfium) or AGPL-3.0 (MuPDF). Many Go libraries are Apache-2.0 as well.
+- **The GPLv2 is closing doors the roadmap needs:** it is incompatible with Apache-2.0 and with (A)GPLv3 code. The PDF search in the roadmap had to pick an extraction library, and good candidates were Apache-2.0 (pdfium) or AGPL-3.0 (MuPDF); #108 ended up writing its own, [spfdtextextractor](https://github.com/chipskein/spfdtextextractor), under the GPLv3 or later. Many Go libraries are Apache-2.0 as well.
 - **The move is possible now:** every commit comes from the project's owner (including the Copilot agent's commits in the owner's own PRs). There are no outside contributors to ask; with them, the change would need each one's consent.
 - **"or later"** follows the FSF's recommended notice. The old `LICENSE` held the GPLv2 text with no version notice, which left open whether it was "only" or "or later"; the SPDX identifier now removes that doubt.
 
@@ -34,7 +34,8 @@ Taken from `go version -m bin/cade`, from `go.mod` and from the cgo `LDFLAGS` of
 | sqlite-vec via sqlite-vec-go-bindings v0.1.6 | MIT or Apache-2.0, used under MIT | yes, under MIT only | yes, under either |
 | klauspost/compress v1.20.1 (`snappy`, `s2`, `gzip`, `flate`, `zstd`) | BSD-3-Clause | yes | yes |
 | andybalholm/brotli v1.2.6 | MIT | yes | yes |
-| golang.org/x/image v0.46.0 (`webp`, `draw`) | BSD-3-Clause | yes | yes |
+| chipskein/spfdtextextractor v0.1.0, the PDF reader (#108) | GPL-3.0-or-later | no | yes |
+| golang.org/x/image v0.46.0 (`webp`, `draw`, `ccitt`) | BSD-3-Clause | yes | yes |
 | golang.org/x/term v0.46.0 | BSD-3-Clause | yes | yes |
 
 The vendored llama.cpp libraries were not listed in `THIRD_PARTY_NOTICES.md` before this review; they are now, with the texts that require a notice.

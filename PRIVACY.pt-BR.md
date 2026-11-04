@@ -72,7 +72,7 @@ Contra o que cada camada protege:
 |---|---|---|
 | **git** | mensagem do commit, nomes dos arquivos alterados, caminho do repositório, hash, nome e e-mail do autor, data; com `ingest.names_from_email` ligado, o nome que o e-mail do autor escreve | diffs, conteúdo dos arquivos |
 | **navegador** | toda visita: URL sem parâmetros de credencial, título da página, data | conteúdo das páginas, cookies, senhas, formulários; janelas anônimas não entram no histórico |
-| **arquivos** | caminho, tamanho, data de modificação e (para texto UTF-8 até `max_file_bytes`) o texto, exceto nomes de arquivos de credenciais ignorados; com `sources.images` ligado, uma descrição de cada imagem png, jpeg e webp escrita pelo modelo local (o que ela mostra e o texto visível nela), com o SHA-256 da imagem, o tamanho em pixels e o modelo e a versão do prompt | conteúdo de binários, pixels das imagens; pastas ignoradas e globs de arquivos de credenciais |
+| **arquivos** | caminho, tamanho, data de modificação e (para texto UTF-8 até `max_file_bytes`) o texto, exceto nomes de arquivos de credenciais ignorados; com `sources.images` ligado, uma descrição de cada imagem png, jpeg e webp escrita pelo modelo local (o que ela mostra e o texto visível nela), com o SHA-256 da imagem, o tamanho em pixels e o modelo e a versão do prompt; com `sources.pdfs` ligado, o texto de cada página de um PDF, e com `sources.images` também, a descrição das páginas escaneadas | conteúdo de binários, pixels das imagens; pastas ignoradas e globs de arquivos de credenciais |
 | **teams** | mensagens de chat, canal e chat de reunião: texto (também guardado sozinho, para remontar o conteúdo), nome e id do remetente, id e título da conversa, se foi você que enviou, versão de edição, o endereço de cada imagem mostrada; com `sources.images` ligado, uma descrição de cada imagem que o navegador ainda tem em cache, como nas imagens | agenda, histórico de chamadas, notificações, arquivos, as próprias imagens; mensagens apagadas antes da ingestão |
 | **aplicativos por schema** (ex.: `whatsapp`) | o que o schema mapeia: ids da mensagem e da conversa, nome da conversa, id e nome do remetente, hora, se foi você que enviou, o texto quando o aplicativo o guarda legível, o nome e a revisão do schema | qualquer outra coisa do IndexedDB do aplicativo; no WhatsApp Web, o texto (cifrado pelo aplicativo, nunca decifrado) e as mídias |
 | **whatsapp-backup** | todas as mensagens do `msgstore.db` do Android que você decifrou: texto ou legenda, nome do arquivo anexo, ids da mensagem e da conversa, nome do grupo, id do remetente (e o nome, quando o WhatsApp Web já o tinha), hora, se foi você que enviou | arquivos de mídia, contatos (`wa.db`), avisos do sistema, chamadas, mensagens apagadas, reações; a chave de decifragem |
@@ -88,6 +88,16 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 - **A descrição toma o lugar da imagem.** Ela passa pela mesma máscara de segredos que qualquer texto: um print de terminal com um token guarda `[redacted:github-token]`. As pastas e os globs ignorados valem para imagens também.
 - **O SHA-256 faz uma imagem movida ou renomeada reaproveitar a descrição**, sem ser descrita de novo. Ele identifica os bytes do arquivo, não o que a imagem mostra.
 - **Texto dentro de uma imagem é de outra pessoa,** como uma mensagem: o modelo é instruído a copiá-lo, não a obedecê-lo, e uma descrição cujo texto dá ordens ao assistente é marcada como não confiável no `ask`, como abaixo.
+
+## PDFs
+
+Desligado por padrão; o `cade init` pergunta, e `sources.pdfs` liga.
+
+- **O que é extraído:** o texto de cada página, como o texto de qualquer arquivo, com a página em que estava. O arquivo em si e as imagens dele não são copiados.
+- **Páginas escaneadas** vão para o modelo de visão local só com `sources.images` também ligado. O que fica é a descrição, com a mesma máscara de qualquer imagem; os pixels, não. O hash da imagem da página faz ela reaproveitar uma descrição, como uma imagem movida.
+- **Valem os mesmos filtros e máscaras:** pastas e globs ignorados, e a máscara de segredos no texto extraído. Um PDF que não dá para ler fica só com o nome.
+- **O texto de um PDF é de outra pessoa,** como uma mensagem: um que dá ordens ao assistente é marcado como não confiável no `ask`.
+- **Apagar:** o `cade forget` remove o texto extraído, as descrições das páginas escaneadas e os vetores de ambos, a menos que outro arquivo ainda tenha a mesma página. Desligar `sources.pdfs` para a leitura nova e não apaga nada.
 
 ## Teams
 
@@ -119,7 +129,7 @@ Desligado por padrão; o `cade init` pergunta, e `sources.images` liga.
 
 Os dois modelos rodam dentro do processo, pelo llama.cpp.
 
-- **Modelo de visão** (só com `sources.images` ligado, no `ingest` e no `reindex --captions`): cada imagem nova das pastas configuradas, reduzida para o lado maior ter no máximo 1.024 px, com instruções fixas para descrevê-la e copiar o texto visível. Ele não vê mais nada, e é liberado antes de o modelo de embedding carregar.
+- **Modelo de visão** (só com `sources.images` ligado, no `ingest` e no `reindex --captions`): cada imagem nova das pastas configuradas e, com `sources.pdfs` ligado, cada página escaneada nova de um PDF, reduzida para o lado maior ter no máximo 1.024 px, com instruções fixas para descrevê-la e copiar o texto visível. Ele não vê mais nada, e é liberado antes de o modelo de embedding carregar.
 - **Modelo de embedding:** o texto inteiro de cada evento, em pedaços de até 1.200 caracteres, na ingestão (texto idêntico é embutido uma vez), e o texto de busca de cada pergunta.
 - **Interpretação da pergunta:** só a sua pergunta, com instruções e exemplos fixos. Perguntas lidas por regras (período, fonte e palavras genéricas) nem chegam ao modelo.
 - **Estado do prompt salvo:** `~/.cache/cade/prompt-state/` guarda um arquivo (~55 MB, só o dono lê) com o estado do modelo depois das instruções e exemplos fixos. Não contém pergunta nenhuma nem nada do banco.
@@ -169,7 +179,7 @@ O cade não escolhe uma lei por você. Esta seção compara o que ele faz com os
 |---|---|---|---|
 | **git** | nome, e-mail, mensagens de commit | nomes, e-mails e mensagens de outros autores (o `timeline` só os mostra com `--all-authors`) | raramente |
 | **browser** | cada página visitada, o título e a hora | nomes em títulos de página (perfis, conversas) | sim: saúde, religião ou política podem ser deduzidas dos sites visitados |
-| **files** | o texto dos seus arquivos e a descrição das suas imagens | o que os arquivos e imagens tiverem: nomes, documentos, fotos de pessoas | sim |
+| **files** | o texto dos seus arquivos e PDFs e a descrição das suas imagens | o que os arquivos, PDFs e imagens tiverem: nomes, documentos, fotos de pessoas | sim |
 | **teams**, **apps por schema** e **whatsapp-backup** | suas mensagens | mensagens, nomes e ids de outras pessoas | sim, o que as pessoas escreverem |
 | **índice de pessoas** (`event_people`) | seu nome | nomes de remetentes, autores e pessoas citadas depois de "@" | não |
 | **entidades** (`entities`) | seu nome, os caminhos dos seus arquivos | os mesmos nomes do índice de pessoas, sem os títulos de conversa; com `ingest.names_from_email` ligado, os nomes que os e-mails dos autores de commits escrevem | não |

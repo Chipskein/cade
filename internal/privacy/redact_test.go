@@ -1,6 +1,7 @@
 package privacy
 
 import (
+	"github.com/chipskein/cade/internal/chunking"
 	"github.com/chipskein/cade/internal/event"
 	"strings"
 	"testing"
@@ -44,5 +45,16 @@ func TestURLRemovesSecretQueryParametersAndKeepsPageIdentity(t *testing.T) {
 	got := URL("https://example.com/page?code=abc&topic=go&X-Amz-Signature=secret")
 	if got != "https://example.com/page?topic=go" {
 		t.Fatalf("URL() = %q", got)
+	}
+}
+
+func TestTextKeepsThePageNumbersAfterASecretAcrossPages(t *testing.T) {
+	text := "um\f-----BEGIN RSA PRIVATE KEY-----\nabc\fdef\n-----END RSA PRIVATE KEY-----\ndepois\ffim"
+	got := Text(text)
+	if strings.Contains(got, "abc") || strings.Contains(got, "def") {
+		t.Fatalf("the key survived: %q", got)
+	}
+	if want := chunking.PageOf(text, strings.Index(text, "fim")); chunking.PageOf(got, strings.Index(got, "fim")) != want {
+		t.Errorf("page of the last word moved: %q", got)
 	}
 }

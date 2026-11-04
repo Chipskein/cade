@@ -6,6 +6,8 @@
     "retention": { "max_age_days": { "git": 0, "browser": 0, "file": 0, "teams": 0 } },
     "max_image_bytes": 20971520,
     "max_images_per_run": 50,
+    "max_pdf_bytes": 67108864,
+    "max_pdf_pages": 500,
     "background": {
       "threads": 2,
       "gpu_layers": -1,
@@ -73,7 +75,8 @@
     ],
     "ignored_file_globs": [".env*", "*.pem", "*.key", "id_rsa*", "id_ed25519*", "*.p12", "*.pfx", "credentials*", ".netrc", ".npmrc", ".pypirc", ".git-credentials"],
     "max_file_bytes": 262144,
-    "images": false
+    "images": false,
+    "pdfs": false
   },
   "tasks": {
     "task_url_patterns": [
