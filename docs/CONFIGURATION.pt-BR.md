@@ -75,6 +75,8 @@ O `cade tasks` mostra **PR aberto** quando o histórico local registra uma visit
 
 **O que é lido:** texto UTF-8 válido (sem bytes NUL) até `sources.max_file_bytes` (padrão 256 KiB). Arquivos maiores são registrados sem conteúdo. Imagens (png, jpeg, webp) com `sources.images` ligado recebem uma descrição do modelo de visão local no lugar do texto bruto.
 
+**PDFs:** com `sources.pdfs` ligado, o texto de cada página de um PDF, de qualquer tamanho até `ingest.max_pdf_bytes` e `ingest.max_pdf_pages`. Uma página com quase nenhum texto e uma imagem cobrindo a maior parte dela conta como escaneada: com `sources.images` também ligado, essa imagem vai para o modelo de visão, sob o mesmo `ingest.max_images_per_run`; com ele desligado, a página espera, e é descrita quando as imagens forem ligadas. PDFs cifrados ou corrompidos, os acima dos limites e os escaneados em JBIG2 ou JPEG 2000 ficam com o que deu para ler, e nunca param um `ingest`. Um PDF guardado só pelo nome antes de os PDFs serem ligados é lido na execução seguinte. Desligar os PDFs mantém o que foi lido; o `cade forget` apaga.
+
 **O que é ignorado:**
 - Arquivos não-UTF-8 e arquivos com bytes NUL (binários).
 - Diretórios cujo nome está em `sources.ignored_dir_names` (padrão: `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target`) — toda a subárvore é pulada.

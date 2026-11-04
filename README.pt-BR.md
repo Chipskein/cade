@@ -9,7 +9,7 @@
 
 [English](README.md) · **Português**
 
-`cade` é uma CLI local-first para o seu histórico pessoal de atividades: commits git, histórico do navegador, arquivos, imagens e mensagens do Microsoft Teams, consultados por período ou em linguagem natural. Tudo roda na sua máquina (SQLite + sqlite-vec + llama.cpp) — veja [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md).
+`cade` é uma CLI local-first para o seu histórico pessoal de atividades: commits git, histórico do navegador, arquivos, PDFs, imagens e mensagens do Microsoft Teams, consultados por período ou em linguagem natural. Tudo roda na sua máquina (SQLite + sqlite-vec + llama.cpp) — veja [PRIVACY.pt-BR.md](PRIVACY.pt-BR.md).
 
 ## Instalação
 
@@ -34,6 +34,7 @@ Opcional: instale o [`chafa`](https://github.com/hpjansson/chafa) para ver uma p
 | arquivos | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
 | teams | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
 | imagens | ✓ testado | ✓ testado (do código-fonte) | experimental (só CI) | experimental (só CI) |
+| PDFs | ✓ testado | deve funcionar, sem teste | experimental (só CI) | experimental (só CI) |
 | prévia de imagens (`chafa`) | ✓ testado | deve funcionar (`pkg install chafa`) | deve funcionar (Homebrew) | deve funcionar (scoop) |
 | banco cifrado (`cade encrypt`) | ✓ testado (`systemd-creds`, systemd 256+; senão, frase-senha) | frase-senha, não testado | Keychain, não testado | DPAPI, testado no wine |
 
@@ -50,6 +51,7 @@ cade timeline ontem
 cade timeline --around UID   # 2h antes e depois de um evento (UID do `ask --json`)
 cade tasks hoje
 cade ask "o que eu fiz ontem?"
+cade ask "o relatório que fala da migração do banco"   # com sources.pdfs: cita o arquivo e a página
 cade compact            # depois de um forget grande: devolve o espaço dos vetores apagados
 cade encrypt            # opt-in: cifra o banco e mostra a chave de recuperação
 cade export > cade.jsonl     # tudo o que o cade guarda, um evento por linha

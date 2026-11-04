@@ -89,6 +89,8 @@ flowchart TD
         idbdiscovery["idbdiscovery<br/>schema pelo modelo local"]
         imagecaption["imagecaption<br/>descrição de imagens (fase 19)"]
         imagefile["imagefile<br/>png, jpeg, webp → RGB"]
+        pdfplan["ingest/pdfplan<br/>lê os PDFs antes do coletor (#108)"]
+        pdffile["pdffile<br/>páginas e escaneados, sobre<br/>spfdtextextractor (#108)"]
         ingestrun["ingestrun<br/>estado e trava do ingest (#41)"]
         pacing["pacing<br/>descanso dos modelos (#41)"]
     end
@@ -153,6 +155,8 @@ flowchart TD
     ingest --> storage
     imagecaption --> sources
     imagecaption --> imagefile
+    pdfplan --> pdffile
+    pdfplan --> sources
     imagecaption --> llm
     imagecaption --> storage
     pacing --> llm
@@ -202,6 +206,8 @@ flowchart LR
 Um `ingest` abre o banco, carrega só o modelo de embedding e passa cada coletor pelo mesmo `ingest.Pipeline`. Os coletores não sabem de banco nem de vetores: só emitem `event.Event`.
 
 Com `sources.images` ligado e alvos da fonte `file`, uma primeira etapa (fase 19) descreve as imagens antes de o embedder carregar. O `imagecaption.Planner` percorre as pastas com o mesmo `filesource.Walk` do coletor, e o resultado (`ingest.ImageCaptions`, caminho → `event.Image`) vai para o coletor de arquivos, que usa a descrição como texto do evento. Daí em diante é o pipeline de sempre: máscara de segredos, pedaços, vetores, `chunks_fts`.
+
+Com `sources.pdfs` ligado, o `pdfplan.Planner` faz o mesmo com os PDFs (#108): pula os já lidos nessa versão e entrega ao coletor o texto de cada um, com as páginas separadas por `chunking.PageSeparator`. O `chunking.Split` não deixa um pedaço atravessar páginas, e a página da citação sai da contagem dos separadores antes do pedaço, então sobrevive ao `reindex` e dispensa migração. Com `sources.images` também ligado, a imagem de cada página escaneada passa pelo `imagecaption.Planner` da mesma etapa, com o mesmo modelo e o mesmo limite por execução; ela vira uma entidade `Image` com o papel `page-image`, não `shows`, para uma pergunta sobre imagens não devolver um contrato.
 
 ```mermaid
 sequenceDiagram

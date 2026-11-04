@@ -9,7 +9,7 @@
 
 **English** · [Português](README.pt-BR.md)
 
-`cade` is a local-first CLI for your personal activity history: git commits, browser history, files, images and Microsoft Teams messages, queried by period or in natural language. Everything runs on your machine (SQLite + sqlite-vec + llama.cpp) — see [PRIVACY.md](PRIVACY.md).
+`cade` is a local-first CLI for your personal activity history: git commits, browser history, files, PDFs, images and Microsoft Teams messages, queried by period or in natural language. Everything runs on your machine (SQLite + sqlite-vec + llama.cpp) — see [PRIVACY.md](PRIVACY.md).
 
 ## Install
 
@@ -34,6 +34,7 @@ Optional: install [`chafa`](https://github.com/hpjansson/chafa) to see a preview
 | files | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
 | teams | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
 | images | ✓ tested | ✓ tested (from source) | experimental (CI only) | experimental (CI only) |
+| PDFs | ✓ tested | should work, untested | experimental (CI only) | experimental (CI only) |
 | image preview (`chafa`) | ✓ tested | should work (`pkg install chafa`) | should work (Homebrew) | should work (scoop) |
 | encrypted database (`cade encrypt`) | ✓ tested (`systemd-creds`, systemd 256+; else a passphrase) | passphrase, untested | Keychain, untested | DPAPI, tested under wine |
 
@@ -50,6 +51,7 @@ cade timeline yesterday
 cade timeline --around UID   # 2h before and after an event (UID from `ask --json`)
 cade tasks today
 cade ask "what did I work on yesterday?"
+cade ask "the report about the database migration"   # with sources.pdfs: cites the file and the page
 cade compact            # after a large forget: returns the deleted vectors' space
 cade export > cade.jsonl     # everything cade keeps, one event per line
 cade encrypt            # opt-in: encrypts the database, prints the recovery key

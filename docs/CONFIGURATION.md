@@ -75,6 +75,8 @@
 
 **What is read:** valid UTF-8 text (no NUL bytes) up to `sources.max_file_bytes` (default 256 KiB). Larger files are still recorded without content. Images (png, jpeg, webp) with `sources.images` on get a description from the local vision model in place of raw text.
 
+**PDFs:** with `sources.pdfs` on, the text of each page of a PDF, whatever its size up to `ingest.max_pdf_bytes` and `ingest.max_pdf_pages`. A page with almost no text and one image covering most of it counts as scanned: with `sources.images` also on, that image goes to the vision model, under the same `ingest.max_images_per_run`; with it off, the page waits, and is described once images are turned on. Encrypted or corrupt PDFs, those above the limits and scans in JBIG2 or JPEG 2000 keep what could be read, and never stop an `ingest`. A PDF stored by its name before PDFs were on is read on the next run. Turning PDFs off keeps what was read; `cade forget` removes it.
+
 **What is ignored:**
 - Non-UTF-8 files and files containing NUL bytes (binaries).
 - Directories whose name is in `sources.ignored_dir_names` (default: `.git`, `node_modules`, `vendor`, `__pycache__`, `.venv`, `target`) — the whole subtree is skipped.
