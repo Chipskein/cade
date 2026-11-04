@@ -28,6 +28,7 @@ import (
 	"github.com/chipskein/cade/internal/ingestrun"
 	"github.com/chipskein/cade/internal/llm/llamacpp"
 	"github.com/chipskein/cade/internal/pacing"
+	"github.com/chipskein/cade/internal/pdffile"
 	"github.com/chipskein/cade/internal/privatefile"
 	"github.com/chipskein/cade/internal/procctl"
 	"github.com/chipskein/cade/internal/rootfs"
@@ -66,6 +67,7 @@ func productionToolkit() cli.Toolkit {
 		LoadGenerator:      loadGenerator,
 		LoadImageDescriber: loadImageDescriber,
 		Sources:            sourceSpecs,
+		PDFReader:          pdffile.ExtractorReader{},
 		TeamsPictures:      teamsPictures,
 		RemoveFile:         os.Remove,
 		OS:                 runtime.GOOS,

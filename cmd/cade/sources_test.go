@@ -16,7 +16,7 @@ import (
 )
 
 func TestSourceSpecsRegistersAllSources(t *testing.T) {
-	names := ingest.SourceNames(sourceSpecs(config.Defaults(), nil))
+	names := ingest.SourceNames(sourceSpecs(config.Defaults(), nil, nil))
 	if !slices.Equal(names, []string{"git", "browser", "file", "teams", "whatsapp-backup"}) {
 		t.Fatalf("expected [git browser file teams whatsapp-backup], got %v", names)
 	}
@@ -28,7 +28,7 @@ func TestSourceSpecsAddsOneSourcePerSavedSchema(t *testing.T) {
 	cfg.Sources.IndexedDBDirs = map[string][]string{"teams-web": {"../../testdata/teams-formats/2026-09.leveldb"}}
 	copySchema(t, "teams-web", cfg.Sources.IndexedDBSchemaDir)
 	writeFile(t, filepath.Join(cfg.Sources.IndexedDBSchemaDir, "teams.json"), "{}")
-	specs := sourceSpecs(cfg, nil)
+	specs := sourceSpecs(cfg, nil, nil)
 	names := ingest.SourceNames(specs)
 	if len(names) != 6 || names[5] != "teams-web" || specs[5].DefaultTargets[0] != cfg.Sources.IndexedDBDirs["teams-web"][0] {
 		t.Fatalf("expected the built-in sources then teams-web with its directory, got %v", names)
@@ -54,7 +54,7 @@ func TestSchemaCollectorReportsABrokenSchemaFile(t *testing.T) {
 func TestWhatsAppBackupSourceReadsTheConfiguredFiles(t *testing.T) {
 	cfg := config.Defaults()
 	cfg.Sources.WhatsAppBackups = []string{"/backup/msgstore.db"}
-	spec, err := ingest.FindSource(sourceSpecs(cfg, nil), "whatsapp-backup")
+	spec, err := ingest.FindSource(sourceSpecs(cfg, nil, nil), "whatsapp-backup")
 	if err != nil || !slices.Equal(spec.DefaultTargets, cfg.Sources.WhatsAppBackups) {
 		t.Fatalf("expected the configured msgstore.db as target, got %v (err %v)", spec.DefaultTargets, err)
 	}
@@ -93,14 +93,14 @@ func TestTeamsPicturesOfAMissingIndexedDBFails(t *testing.T) {
 }
 
 func TestFileCollectorRejectsMissingDirectory(t *testing.T) {
-	factory := fileCollectorFactory(config.Defaults().Sources, nil)
+	factory := fileCollectorFactory(config.Defaults().Sources, nil, nil)
 	if _, err := factory(filepath.Join(t.TempDir(), "absent")); err == nil {
 		t.Fatal("expected an error for a missing directory")
 	}
 }
 
 func TestFileCollectorAcceptsDirectory(t *testing.T) {
-	factory := fileCollectorFactory(config.Defaults().Sources, nil)
+	factory := fileCollectorFactory(config.Defaults().Sources, nil, nil)
 	if _, err := factory(t.TempDir()); err != nil {
 		t.Fatalf("expected a collector, got %v", err)
 	}
