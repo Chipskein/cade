@@ -74,3 +74,53 @@ func TestAnswerDeepInNoteIsInOneChunk(t *testing.T) {
 		t.Fatal("expected the answer whole inside one chunk")
 	}
 }
+
+func TestSplitKeepsEachChunkOnOnePage(t *testing.T) {
+	long := strings.Repeat("palavra ", 400)
+	text := "relatorio.pdf\nprimeira\f\f" + long + "\fúltima"
+	spans := Split(text)
+	if len(spans) < 4 {
+		t.Fatalf("got %d spans, want the long page in several", len(spans))
+	}
+	for _, span := range spans {
+		if strings.Contains(text[span.Start:span.End], PageSeparator) {
+			t.Errorf("span %+v holds a page separator", span)
+		}
+		if strings.TrimSpace(text[span.Start:span.End]) == "" {
+			t.Errorf("span %+v is blank", span)
+		}
+	}
+	if got := PageOf(text, spans[0].Start); got != 1 {
+		t.Errorf("first chunk on page %d, want 1", got)
+	}
+	if got := PageOf(text, spans[1].Start); got != 3 {
+		t.Errorf("second chunk on page %d, want 3, past the blank page", got)
+	}
+	last := spans[len(spans)-1]
+	if text[last.Start:last.End] != "última" || PageOf(text, last.Start) != 4 {
+		t.Errorf("last chunk = %q on page %d", text[last.Start:last.End], PageOf(text, last.Start))
+	}
+}
+
+func TestSplitOfShortPagesDoesNotMergeThem(t *testing.T) {
+	if spans := Split("um\fdois"); len(spans) != 2 {
+		t.Errorf("got %d spans, want one per page", len(spans))
+	}
+}
+
+func TestSplitOfOnlyBlankPagesStillHasASpan(t *testing.T) {
+	text := " \f\n\f"
+	spans := Split(text)
+	if len(spans) != 1 || spans[0] != (Span{Start: 0, End: len(text)}) {
+		t.Errorf("got %+v, want the whole text, as for any other short text", spans)
+	}
+}
+
+func TestPageOfClampsTheOffset(t *testing.T) {
+	cases := map[int]int{-5: 1, 0: 1, 1: 1, 2: 2, 3: 2, 99: 3}
+	for offset, want := range cases {
+		if got := PageOf("a\fb\f", offset); got != want {
+			t.Errorf("PageOf(%d) = %d, want %d", offset, got, want)
+		}
+	}
+}

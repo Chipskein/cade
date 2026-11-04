@@ -24,12 +24,50 @@ type Span struct {
 	End   int
 }
 
+// PageSeparator divides the pages of a document's text (#108). A form feed is
+// what it means in plain text, and the PDF reader never leaves one in a page.
+const PageSeparator = "\f"
+
 // Split returns the spans of text: one for short text, else pieces cut at
 // Markdown headings, then paragraphs, then lines, then spaces, each at most
 // MaxChars, overlapping by up to Overlap. Offsets fall on UTF-8 boundaries.
+// With page separators, each page is split on its own and no span holds one,
+// so a chunk belongs to exactly one page; blank pages have no span.
 //
 //	for _, span := range chunking.Split(note) { embed(note[span.Start:span.End]) }
 func Split(text string) []Span {
+	if !strings.Contains(text, PageSeparator) {
+		return splitSection(text)
+	}
+	spans := splitPages(text)
+	if len(spans) == 0 {
+		return []Span{{Start: 0, End: len(text)}}
+	}
+	return spans
+}
+
+func splitPages(text string) []Span {
+	var spans []Span
+	offset := 0
+	for page := range strings.SplitSeq(text, PageSeparator) {
+		if strings.TrimSpace(page) != "" {
+			for _, span := range splitSection(page) {
+				spans = append(spans, Span{Start: offset + span.Start, End: offset + span.End})
+			}
+		}
+		offset += len(page) + len(PageSeparator)
+	}
+	return spans
+}
+
+// PageOf is the page number, from 1, holding offset in text.
+//
+//	page := chunking.PageOf(content, chunk.Start) // 12
+func PageOf(text string, offset int) int {
+	return 1 + strings.Count(text[:min(max(offset, 0), len(text))], PageSeparator)
+}
+
+func splitSection(text string) []Span {
 	if len(text) <= MaxChars {
 		return []Span{{Start: 0, End: len(text)}}
 	}
